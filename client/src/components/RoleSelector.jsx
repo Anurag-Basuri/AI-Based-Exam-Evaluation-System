@@ -78,7 +78,7 @@ export default function RoleSelector({ user, setUser }) {
 
       {/* Navbar */}
       <nav className="relative z-10 w-full flex justify-between items-center px-6 py-4 shadow-sm border-b bg-white">
-        <h1 className="text-2xl font-bold text-blue-600">ExamDay</h1>
+        <h1 className="text-2xl font-bold text-blue-600">AiEvaluation</h1>
         <button
           onClick={() => setShowLoginModal(true)}
           className="px-4 py-2 rounded-md font-medium border border-blue-600 text-blue-600 hover:bg-blue-50 transition"

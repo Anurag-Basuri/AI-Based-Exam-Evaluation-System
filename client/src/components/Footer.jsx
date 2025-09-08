@@ -11,7 +11,7 @@ export default function Footer() {
                     <a href="#" className="hover:text-white"><Instagram /></a>
                 </div>
                 <div className="text-sm text-gray-400">
-                    © {new Date().getFullYear()} Your Institution. All rights reserved.
+                    © {new Date().getFullYear()} AiEvaluation. All rights reserved.
                 </div>
                 <div className="text-xs mt-2">
                     <a href="#" className="hover:underline">Privacy Policy</a>
