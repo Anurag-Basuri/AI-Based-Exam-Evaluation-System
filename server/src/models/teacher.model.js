@@ -85,9 +85,16 @@ const teacherSchema = new mongoose.Schema(
 
 // Pre-save hook to hash password if modified
 teacherSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) return next();
-  this.password = await bcrypt.hash(this.password, 12);
-  next();
+  if (!this.isModified('password')){
+    return next();
+  }
+
+  try {
+    this.password = await bcrypt.hash(this.password, 12);
+    next();
+  } catch (error) {
+    next(error);
+  }
 });
 
 // Instance method to compare passwords
