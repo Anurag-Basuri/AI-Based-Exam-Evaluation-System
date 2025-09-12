@@ -32,7 +32,7 @@ const questionSchema = new mongoose.Schema(
 					type: String,
 					trim: true,
 					required: function () {
-						return this.type === 'multiple-choice';
+						return this.parent().type === 'multiple-choice';
 					},
 				},
 				isCorrect: {
@@ -47,18 +47,6 @@ const questionSchema = new mongoose.Schema(
 			required: function () {
 				return this.type === 'subjective';
 			},
-		},
-		tags: [
-			{
-				type: String,
-				trim: true,
-				maxlength: [50, 'Tag cannot exceed 50 characters'],
-			},
-		],
-		difficulty: {
-			type: String,
-			enum: ['easy', 'medium', 'hard'],
-			default: 'medium',
 		},
 		subject: {
 			type: String,
@@ -82,9 +70,24 @@ const questionSchema = new mongoose.Schema(
 	},
 );
 
+// Generate slug before saving
 questionSchema.pre('save', function (next) {
 	if (this.isModified('text')) {
 		this.slug = slugify(this.text, { lower: true, strict: true });
+	}
+	next();
+});
+
+// Validation: For multiple-choice, at least 2 options and 1 correct
+questionSchema.pre('validate', function (next) {
+	if (this.type === 'multiple-choice') {
+		if (!this.options || this.options.length < 2) {
+			this.invalidate('options', 'Multiple-choice questions must have at least 2 options.');
+		}
+		const correctCount = (this.options || []).filter(opt => opt.isCorrect).length;
+		if (correctCount === 0) {
+			this.invalidate('options', 'At least one option must be marked as correct.');
+		}
 	}
 	next();
 });
