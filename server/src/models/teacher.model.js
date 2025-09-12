@@ -109,7 +109,7 @@ teacherSchema.methods.generateAuthToken = function () {
 	return jwt.sign(
         { id: this._id, role: 'teacher', username: this.username },
         process.env.ACCESS_TOKEN_SECRET,
-        { expiresIn: process.env.ACCESS_TOKEN_EXPIRY }
+        { expiresIn: process.env.ACCESS_TOKEN_EXPIRY || '24h' },
     );
 };
 
@@ -118,7 +118,7 @@ teacherSchema.methods.generateRefreshToken = function () {
     return jwt.sign(
         { id: this._id },
         process.env.REFRESH_TOKEN_SECRET,
-        { expiresIn: process.env.REFRESH_TOKEN_EXPIRY }
+        { expiresIn: process.env.REFRESH_TOKEN_EXPIRY || '7d' }
     );
 };
 
