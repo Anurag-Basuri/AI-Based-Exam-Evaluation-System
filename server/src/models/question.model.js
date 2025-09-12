@@ -32,7 +32,7 @@ const questionSchema = new mongoose.Schema(
 					type: String,
 					trim: true,
 					required: function () {
-						return this.parent().type === 'multiple-choice';
+						return this.type === 'multiple-choice';
 					},
 				},
 				isCorrect: {
@@ -52,6 +52,10 @@ const questionSchema = new mongoose.Schema(
 			type: mongoose.Schema.Types.ObjectId,
 			ref: 'Teacher',
 			required: [true, 'Creator is required'],
+		},
+		sourceExam: {
+			type: mongoose.Schema.Types.ObjectId,
+			ref: 'Exam',
 		},
 		slug: {
 			type: String,

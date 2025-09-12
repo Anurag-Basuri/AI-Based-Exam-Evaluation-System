@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { nanoid } from 'nanoid';
 import slugify from 'slugify';
 
 const examSchema = new mongoose.Schema(
@@ -79,10 +80,17 @@ const examSchema = new mongoose.Schema(
 	},
 );
 
+examSchema.pre('validate', function (next) {
+    if (!this.searchId) {
+        this.searchId = nanoid(8);
+    }
+    next();
+});
+
 // Generate slug before saving
 examSchema.pre('save', function (next) {
 	if (this.isModified('title')) {
-		this.slug = slugify(this.title, { lower: true, strict: true });
+		this.slug = `${slugify(this.title, { lower: true, strict: true })}-${this.createdBy.toString().slice(-4)}`;
 	}
 	next();
 });
