@@ -1,5 +1,4 @@
 import mongoose from 'mongoose';
-import slugify from 'slugify';
 
 const submissionSchema = new mongoose.Schema(
 	{
@@ -20,13 +19,17 @@ const submissionSchema = new mongoose.Schema(
 					ref: 'Question',
 					required: true,
 				},
-				response: {
-					type: mongoose.Schema.Types.Mixed,
-					required: true,
+				responseText: {
+					type: String,
+					trim: true,
+				},
+				responseOption: {
+					type: mongoose.Schema.Types.ObjectId,
 				},
 				marksAwarded: {
 					type: Number,
 					min: 0,
+					default: 0,
 				},
 				remarks: {
 					type: String,
@@ -37,6 +40,7 @@ const submissionSchema = new mongoose.Schema(
 		totalMarks: {
 			type: Number,
 			min: 0,
+			default: 0,
 		},
 		submittedAt: {
 			type: Date,
@@ -50,22 +54,21 @@ const submissionSchema = new mongoose.Schema(
 		evaluatedAt: {
 			type: Date,
 		},
-        slug: {
-            type: String,
-            unique: true,
-            trim: true,
-        },
 	},
 	{
 		timestamps: true,
 	},
 );
 
+// Ensure one submission per student per exam
+submissionSchema.index({ exam: 1, student: 1 }, { unique: true });
+
+// Auto-calc total marks before saving
 submissionSchema.pre('save', function (next) {
-    if (this.isModified('exam') && this.isModified('student')) {
-        this.slug = slugify(`${this.exam}-${this.student}`, { lower: true, strict: true });
-    }
-    next();
+	if (this.answers && this.answers.length > 0) {
+		this.totalMarks = this.answers.reduce((sum, ans) => sum + (ans.marksAwarded || 0), 0);
+	}
+	next();
 });
 
 const Submission = mongoose.model('Submission', submissionSchema);
