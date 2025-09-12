@@ -48,12 +48,6 @@ const questionSchema = new mongoose.Schema(
 				return this.type === 'subjective';
 			},
 		},
-		subject: {
-			type: String,
-			trim: true,
-			required: [true, 'Subject is required'],
-			maxlength: [100, 'Subject cannot exceed 100 characters'],
-		},
 		createdBy: {
 			type: mongoose.Schema.Types.ObjectId,
 			ref: 'Teacher',
@@ -66,7 +60,7 @@ const questionSchema = new mongoose.Schema(
 		},
 	},
 	{
-		timestamps: false,
+		timestamps: true,
 	},
 );
 
