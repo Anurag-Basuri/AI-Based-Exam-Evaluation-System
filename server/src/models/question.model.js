@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import slugify from 'slugify';
+import { nanoid } from 'nanoid';
 
 const questionSchema = new mongoose.Schema(
 	{
@@ -68,15 +69,7 @@ const questionSchema = new mongoose.Schema(
 	},
 );
 
-// Generate slug before saving
-questionSchema.pre('save', function (next) {
-	if (this.isModified('text')) {
-		this.slug = slugify(this.text, { lower: true, strict: true });
-	}
-	next();
-});
-
-// Validation: For multiple-choice, at least 2 options and 1 correct
+// Validation
 questionSchema.pre('validate', function (next) {
 	if (this.type === 'multiple-choice') {
 		if (!this.options || this.options.length < 2) {
@@ -86,6 +79,20 @@ questionSchema.pre('validate', function (next) {
 		if (correctCount === 0) {
 			this.invalidate('options', 'At least one option must be marked as correct.');
 		}
+	}
+
+	// Subjective answers should be optional, not forced
+	if (this.type === 'subjective' && !this.answer) {
+		this.answer = null; // optional
+	}
+
+	next();
+});
+
+// Generate slug
+questionSchema.pre('save', function (next) {
+	if (this.isModified('text') || this.isNew) {
+		this.slug = `${slugify(this.text.slice(0, 50), { lower: true, strict: true })}-${nanoid(6)}`;
 	}
 	next();
 });

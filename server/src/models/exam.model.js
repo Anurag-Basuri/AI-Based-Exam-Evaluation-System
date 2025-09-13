@@ -12,6 +12,7 @@ const examSchema = new mongoose.Schema(
 			maxlength: [8, 'Search ID must be 8 characters'],
 			trim: true,
 			match: [/^[A-Za-z0-9]{8}$/, 'Search ID must be 8 alphanumeric characters'],
+			default: () => nanoid(8),
 		},
 		title: {
 			type: String,
@@ -80,17 +81,10 @@ const examSchema = new mongoose.Schema(
 	},
 );
 
-examSchema.pre('validate', function (next) {
-    if (!this.searchId) {
-        this.searchId = nanoid(8);
-    }
-    next();
-});
-
 // Generate slug before saving
 examSchema.pre('save', function (next) {
-	if (this.isModified('title')) {
-		this.slug = `${slugify(this.title, { lower: true, strict: true })}-${this.createdBy.toString().slice(-4)}`;
+	if (this.isModified('title') || this.isNew) {
+		this.slug = `${slugify(this.title, { lower: true, strict: true })}-${this.searchId}`;
 	}
 	next();
 });
@@ -102,6 +96,14 @@ examSchema.pre('validate', function (next) {
 	}
 	if (this.startTime && this.endTime && this.endTime <= this.startTime) {
 		this.invalidate('endTime', 'End time must be after start time.');
+	}
+	next();
+});
+
+// Automatically deactivate past exams
+examSchema.pre('save', function (next) {
+	if (this.endTime && this.endTime < new Date()) {
+		this.isActive = false;
 	}
 	next();
 });
