@@ -6,6 +6,47 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 
+// Helper: Evaluate all answers in a submission
+async function evaluateSubmissionAnswers(submission) {
+    const evaluations = [];
+    for (const ans of submission.answers) {
+        const questionDoc = await Question.findById(ans.question);
+        if (!questionDoc) continue;
+
+        let marks = 0;
+        let remarks = '';
+        if (questionDoc.type === 'multiple-choice') {
+            if (ans.responseOption && questionDoc.options) {
+                const correctOption = questionDoc.options.find(opt => opt.isCorrect);
+                marks = ans.responseOption.toString() === correctOption?._id.toString() ? questionDoc.max_marks : 0;
+                remarks = marks > 0 ? 'Correct answer' : 'Incorrect answer';
+            }
+        } else {
+            const refAnswer = questionDoc.answer || null;
+            const weight = questionDoc.max_marks / 100;
+            const evalResult = await evaluateAnswer(
+                questionDoc.text,
+                ans.responseText || '',
+                refAnswer,
+                weight
+            );
+            marks = evalResult.score;
+            remarks = evalResult.review;
+        }
+
+        evaluations.push({
+            question: questionDoc._id,
+            evaluation: {
+                evaluator: 'ai',
+                marks,
+                remarks,
+                evaluatedAt: new Date(),
+            },
+        });
+    }
+    return evaluations;
+}
+
 // Submit answers for an exam (automatically evaluates after saving)
 const submitAnswers = asyncHandler(async (req, res) => {
     const studentId = req.student?._id || req.user?.id;
@@ -37,51 +78,13 @@ const submitAnswers = asyncHandler(async (req, res) => {
         exam: examId,
         student: studentId,
         answers,
+        duration: exam.duration,
     });
 
     await submission.save();
 
-    // --- Automated Evaluation ---
-    const evaluations = [];
-    for (const ans of submission.answers) {
-        const questionDoc = await Question.findById(ans.question);
-        if (!questionDoc) continue;
-
-        let marks = 0;
-        let remarks = '';
-        if (questionDoc.type === 'multiple-choice') {
-            // MCQ: compare selected option
-            if (ans.responseOption && questionDoc.options) {
-                const correctOption = questionDoc.options.find(opt => opt.isCorrect);
-                marks = ans.responseOption.toString() === correctOption?._id.toString() ? questionDoc.max_marks : 0;
-                remarks = marks > 0 ? 'Correct answer' : 'Incorrect answer';
-            }
-        } else {
-            // Subjective: use AI evaluation
-            const refAnswer = questionDoc.answer || null;
-            const weight = questionDoc.max_marks / 100;
-            const evalResult = await evaluateAnswer(
-                questionDoc.text,
-                ans.responseText || '',
-                refAnswer,
-                weight
-            );
-            marks = evalResult.score;
-            remarks = evalResult.review;
-        }
-
-        evaluations.push({
-            question: questionDoc._id,
-            evaluation: {
-                evaluator: 'ai',
-                marks,
-                remarks,
-                evaluatedAt: new Date(),
-            },
-        });
-    }
-
-    submission.evaluations = evaluations;
+    // Automated Evaluation
+    submission.evaluations = await evaluateSubmissionAnswers(submission);
     submission.evaluatedAt = new Date();
     await submission.save();
 
@@ -137,47 +140,8 @@ const evaluateSubmission = asyncHandler(async (req, res) => {
         throw ApiError.Conflict('Submission already evaluated');
     }
 
-    // Evaluate each answer
-    const evaluations = [];
-    for (const ans of submission.answers) {
-        const questionDoc = await Question.findById(ans.question);
-        if (!questionDoc) continue;
-
-        let marks = 0;
-        let remarks = '';
-        if (questionDoc.type === 'multiple-choice') {
-            // MCQ: compare selected option
-            if (ans.responseOption && questionDoc.options) {
-                const correctOption = questionDoc.options.find(opt => opt.isCorrect);
-                marks = ans.responseOption.toString() === correctOption?._id.toString() ? questionDoc.max_marks : 0;
-                remarks = marks > 0 ? 'Correct answer' : 'Incorrect answer';
-            }
-        } else {
-            // Subjective: use AI evaluation
-            const refAnswer = questionDoc.answer || null;
-            const weight = questionDoc.max_marks / 100;
-            const evalResult = await evaluateAnswer(
-                questionDoc.text,
-                ans.responseText || '',
-                refAnswer,
-                weight
-            );
-            marks = evalResult.score;
-            remarks = evalResult.review;
-        }
-
-        evaluations.push({
-            question: questionDoc._id,
-            evaluation: {
-                evaluator: 'ai',
-                marks,
-                remarks,
-                evaluatedAt: new Date(),
-            },
-        });
-    }
-
-    submission.evaluations = evaluations;
+    // Automated Evaluation
+    submission.evaluations = await evaluateSubmissionAnswers(submission);
     submission.evaluatedAt = new Date();
     await submission.save();
 
