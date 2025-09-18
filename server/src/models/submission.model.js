@@ -95,6 +95,11 @@ const submissionSchema = new mongoose.Schema(
 			required: true,
 		},
 
+		status: {
+			type: String,
+			enum: ['in-progress', 'submitted'],
+			default: 'in-progress',
+		},
 		submittedAt: {
 			type: Date,
 			default: Date.now,
