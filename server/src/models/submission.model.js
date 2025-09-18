@@ -85,6 +85,15 @@ const submissionSchema = new mongoose.Schema(
 			min: 0,
 			default: 0,
 		},
+		startedAt: {
+			type: Date,
+			default: Date.now,
+			immutable: true,
+		},
+		duration: {
+			type: Number, // in minutes
+			required: true,
+		},
 
 		submittedAt: {
 			type: Date,
