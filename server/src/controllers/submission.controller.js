@@ -208,6 +208,45 @@ const startSubmission = asyncHandler(async (req, res) => {
     return ApiResponse.success(res, submission, 'Submission started', 201);
 });
 
+// Sync answers for a submission (while in-progress)
+const syncAnswers = asyncHandler(async (req, res) => {
+    const studentId = req.student?._id || req.user?.id;
+    const { examId, answers } = req.body;
+
+    if (!examId || !Array.isArray(answers)) {
+        throw ApiError.BadRequest('Exam ID and answers are required');
+    }
+
+    const submission = await Submission.findOne({ exam: examId, student: studentId });
+    if (!submission) throw ApiError.NotFound('Submission not found');
+    if (submission.status !== 'in-progress') throw ApiError.Forbidden('Cannot sync after submission');
+
+    submission.answers = answers;
+    await submission.save();
+    return ApiResponse.success(res, submission, 'Answers synced');
+});
+
+// Submit a submission (mark as submitted and evaluate)
+const submitSubmission = asyncHandler(async (req, res) => {
+    const studentId = req.student?._id || req.user?.id;
+    const { examId } = req.body;
+
+    const submission = await Submission.findOne({ exam: examId, student: studentId });
+    if (!submission) throw ApiError.NotFound('Submission not found');
+    if (submission.status !== 'in-progress') throw ApiError.Forbidden('Already submitted');
+
+    submission.status = 'submitted';
+    submission.submittedAt = new Date();
+
+    // Automated Evaluation
+    submission.evaluations = await evaluateSubmissionAnswers(submission);
+    submission.evaluatedAt = new Date();
+    submission.status = 'evaluated';
+    await submission.save();
+
+    return ApiResponse.success(res, submission, 'Submission submitted and evaluated');
+});
+
 export {
     submitAnswers,
     evaluateSubmission,
@@ -215,4 +254,6 @@ export {
     getSubmission,
     getExamSubmissions,
     startSubmission,
+    syncAnswers,
+    submitSubmission,
 };
