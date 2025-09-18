@@ -128,6 +128,18 @@ submissionSchema.pre('validate', function (next) {
 	next();
 });
 
+// Auto submit the answers if the endtime has passed
+submissionSchema.pre('save', function (next) {
+	if (this.status === 'in-progress') {
+		const endTime = new Date(this.startedAt.getTime() + this.duration * 60000);
+		if (new Date() >= endTime) {
+			this.status = 'submitted';
+			this.submittedAt = endTime;
+		}
+	}
+	next();
+});
+
 // Auto-calc total marks
 submissionSchema.pre('save', function (next) {
 	this.totalMarks = (this.evaluations || []).reduce(
@@ -137,6 +149,7 @@ submissionSchema.pre('save', function (next) {
 	next();
 });
 
+// Ensure evaluations correspond to answered questions
 submissionSchema.pre('save', function (next) {
 	const answerIds = this.answers.map(a => a.question.toString());
 	const invalidEvals = this.evaluations.filter(ev => !answerIds.includes(ev.question.toString()));
