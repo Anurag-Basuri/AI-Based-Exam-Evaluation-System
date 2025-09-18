@@ -181,10 +181,38 @@ const getExamSubmissions = asyncHandler(async (req, res) => {
     return ApiResponse.success(res, submissions, 'Exam submissions fetched');
 });
 
+// Start a new submission for an exam
+const startSubmission = asyncHandler(async (req, res) => {
+    const studentId = req.student?._id || req.user?.id;
+    const { examId } = req.body;
+
+    if (!examId) throw ApiError.BadRequest('Exam ID is required');
+
+    const exam = await Exam.findById(examId);
+    if (!exam) throw ApiError.NotFound('Exam not found');
+    if (exam.status !== 'active') throw ApiError.Forbidden('Exam is not active');
+
+    // Prevent duplicate
+    const existing = await Submission.findOne({ exam: examId, student: studentId });
+    if (existing) return ApiResponse.success(res, existing, 'Submission already started');
+
+    const submission = new Submission({
+        exam: examId,
+        student: studentId,
+        duration: exam.duration,
+        status: 'in-progress',
+        startedAt: new Date(),
+    });
+
+    await submission.save();
+    return ApiResponse.success(res, submission, 'Submission started', 201);
+});
+
 export {
     submitAnswers,
     evaluateSubmission,
     updateEvaluation,
     getSubmission,
     getExamSubmissions,
+    startSubmission,
 };
