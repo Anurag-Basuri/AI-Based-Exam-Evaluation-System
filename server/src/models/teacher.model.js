@@ -115,11 +115,12 @@ teacherSchema.methods.generateAuthToken = function () {
 
 // Generate Refresh Token
 teacherSchema.methods.generateRefreshToken = function () {
-    return jwt.sign(
+    this.refreshToken = jwt.sign(
         { id: this._id },
         process.env.REFRESH_TOKEN_SECRET,
         { expiresIn: process.env.REFRESH_TOKEN_EXPIRY || '7d' }
     );
+    return this.refreshToken;
 };
 
 const Teacher = mongoose.model('Teacher', teacherSchema);
