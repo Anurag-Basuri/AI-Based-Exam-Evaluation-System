@@ -47,18 +47,32 @@ const loginStudent = asyncHandler(async (req, res) => {
         throw ApiError.BadRequest('Username or email and password are required');
     }
 
-    const student = await Student.findOne(username? { username } : { email });
-    if( !student ){
+    let query = {};
+    if (username && username.trim() !== '') {
+        query.username = username;
+    } else if (email && email.trim() !== '') {
+        query.email = email;
+    } else {
+        throw ApiError.BadRequest('Provide a valid username or email');
+    }
+
+    // Select password  explicitly
+    const student = await Student.findOne(query).select('+password');
+    if (!student) {
         throw ApiError.NotFound('Student not found');
     }
 
-    const isMatch = await student.correctPassword(password, student.password);
+    const isMatch = await student.comparePassword(password);
     if (!isMatch) {
         throw ApiError.Unauthorized('Invalid password');
     }
 
     const authToken = student.generateAuthToken();
     const refreshToken = student.generateRefreshToken();
+
+    // Save refresh token to DB for logout/invalidation
+    student.refreshToken = refreshToken;
+    await student.save();
 
     // Remove sensitive fields before sending response
     const studentData = student.toObject();
