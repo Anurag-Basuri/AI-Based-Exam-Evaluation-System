@@ -47,48 +47,83 @@ async function evaluateSubmissionAnswers(submission) {
     return evaluations;
 }
 
-// Submit answers for an exam (automatically evaluates after saving)
-const submitAnswers = asyncHandler(async (req, res) => {
+// Start a new submission for an exam
+const startSubmission = asyncHandler(async (req, res) => {
     const studentId = req.student?._id || req.user?.id;
-    const { examId, answers } = req.body;
+    const { examId } = req.body;
 
-    if (!examId || !Array.isArray(answers) || answers.length === 0) {
-        throw ApiError.BadRequest('Exam ID and answers are required');
-    }
+    if (!examId) throw ApiError.BadRequest('Exam ID is required');
 
-    const exam = await Exam.findById(examId).populate('questions');
+    const exam = await Exam.findById(examId);
     if (!exam) throw ApiError.NotFound('Exam not found');
-    if (exam.status !== 'active') {
-        throw ApiError.Forbidden('Exam is not active');
-    }
+    if (exam.status !== 'active') throw ApiError.Forbidden('Exam is not active');
 
-    // Validate answers: each must reference a question in the exam
-    const examQuestionIds = exam.questions.map(q => q._id.toString());
-    for (const ans of answers) {
-        if (!ans.question || !examQuestionIds.includes(ans.question)) {
-            throw ApiError.BadRequest('Answer references invalid question');
-        }
-    }
-
-    // Prevent duplicate submission
+    // Prevent duplicate
     const existing = await Submission.findOne({ exam: examId, student: studentId });
-    if (existing) throw ApiError.Conflict('Submission already exists for this exam');
+    if (existing) return ApiResponse.success(res, existing, 'Submission already started');
 
     const submission = new Submission({
         exam: examId,
         student: studentId,
-        answers,
+        startedAt: new Date(),
         duration: exam.duration,
+        status: 'in-progress',
     });
 
     await submission.save();
+    return ApiResponse.success(
+        res,
+        submission,
+        'Submission started',
+        201
+    );
+});
+
+// Sync answers for a submission (while in-progress)
+const syncAnswers = asyncHandler(async (req, res) => {
+    const studentId = req.student?._id || req.user?.id;
+    const { examId, answers } = req.body;
+
+    if (!examId || !Array.isArray(answers)) {
+        throw ApiError.BadRequest('Exam ID and answers are required');
+    }
+
+    const submission = await Submission.findOne({ exam: examId, student: studentId });
+    if (!submission) throw ApiError.NotFound('Submission not found');
+    if (submission.status !== 'in-progress') throw ApiError.Forbidden('Cannot sync after submission');
+
+    submission.answers = answers;
+    await submission.save();
+    return ApiResponse.success(
+        res,
+        submission,
+        'Answers synced'
+    );
+});
+
+// Submit a submission (mark as submitted and evaluate)
+const submitSubmission = asyncHandler(async (req, res) => {
+    const studentId = req.student?._id || req.user?.id;
+    const { examId } = req.body;
+
+    const submission = await Submission.findOne({ exam: examId, student: studentId });
+    if (!submission) throw ApiError.NotFound('Submission not found');
+    if (submission.status !== 'in-progress') throw ApiError.Forbidden('Already submitted');
+
+    submission.status = 'submitted';
+    submission.submittedAt = new Date();
 
     // Automated Evaluation
     submission.evaluations = await evaluateSubmissionAnswers(submission);
     submission.evaluatedAt = new Date();
+    submission.status = 'evaluated';
     await submission.save();
 
-    return ApiResponse.success(res, submission, 'Submission saved and evaluated', 201);
+    return ApiResponse.success(
+        res,
+        submission,
+        'Submission submitted and evaluated'
+        );
 });
 
 // Teacher can update evaluation and review for a submission answer
@@ -121,7 +156,11 @@ const updateEvaluation = asyncHandler(async (req, res) => {
     submission.evaluatedAt = new Date();
     await submission.save();
 
-    return ApiResponse.success(res, submission, 'Evaluation updated by teacher');
+    return ApiResponse.success(
+        res,
+        submission,
+        'Evaluation updated by teacher'
+    );
 });
 
 // Evaluate a submission (manual trigger, if needed)
@@ -145,7 +184,11 @@ const evaluateSubmission = asyncHandler(async (req, res) => {
     submission.evaluatedAt = new Date();
     await submission.save();
 
-    return ApiResponse.success(res, submission, 'Submission evaluated');
+    return ApiResponse.success(
+        res,
+        submission,
+        'Submission evaluated'
+    );
 });
 
 // Get a student's submission for an exam
@@ -163,7 +206,11 @@ const getSubmission = asyncHandler(async (req, res) => {
         .lean();
 
     if (!submission) throw ApiError.NotFound('Submission not found');
-    return ApiResponse.success(res, submission, 'Submission fetched');
+    return ApiResponse.success(
+        res,
+        submission,
+        'Submission fetched'
+    );
 });
 
 // Get all submissions for an exam (for teacher)
@@ -178,82 +225,19 @@ const getExamSubmissions = asyncHandler(async (req, res) => {
         })
         .lean();
 
-    return ApiResponse.success(res, submissions, 'Exam submissions fetched');
-});
-
-// Start a new submission for an exam
-const startSubmission = asyncHandler(async (req, res) => {
-    const studentId = req.student?._id || req.user?.id;
-    const { examId } = req.body;
-
-    if (!examId) throw ApiError.BadRequest('Exam ID is required');
-
-    const exam = await Exam.findById(examId);
-    if (!exam) throw ApiError.NotFound('Exam not found');
-    if (exam.status !== 'active') throw ApiError.Forbidden('Exam is not active');
-
-    // Prevent duplicate
-    const existing = await Submission.findOne({ exam: examId, student: studentId });
-    if (existing) return ApiResponse.success(res, existing, 'Submission already started');
-
-    const submission = new Submission({
-        exam: examId,
-        student: studentId,
-        duration: exam.duration,
-        status: 'in-progress',
-        startedAt: new Date(),
-    });
-
-    await submission.save();
-    return ApiResponse.success(res, submission, 'Submission started', 201);
-});
-
-// Sync answers for a submission (while in-progress)
-const syncAnswers = asyncHandler(async (req, res) => {
-    const studentId = req.student?._id || req.user?.id;
-    const { examId, answers } = req.body;
-
-    if (!examId || !Array.isArray(answers)) {
-        throw ApiError.BadRequest('Exam ID and answers are required');
-    }
-
-    const submission = await Submission.findOne({ exam: examId, student: studentId });
-    if (!submission) throw ApiError.NotFound('Submission not found');
-    if (submission.status !== 'in-progress') throw ApiError.Forbidden('Cannot sync after submission');
-
-    submission.answers = answers;
-    await submission.save();
-    return ApiResponse.success(res, submission, 'Answers synced');
-});
-
-// Submit a submission (mark as submitted and evaluate)
-const submitSubmission = asyncHandler(async (req, res) => {
-    const studentId = req.student?._id || req.user?.id;
-    const { examId } = req.body;
-
-    const submission = await Submission.findOne({ exam: examId, student: studentId });
-    if (!submission) throw ApiError.NotFound('Submission not found');
-    if (submission.status !== 'in-progress') throw ApiError.Forbidden('Already submitted');
-
-    submission.status = 'submitted';
-    submission.submittedAt = new Date();
-
-    // Automated Evaluation
-    submission.evaluations = await evaluateSubmissionAnswers(submission);
-    submission.evaluatedAt = new Date();
-    submission.status = 'evaluated';
-    await submission.save();
-
-    return ApiResponse.success(res, submission, 'Submission submitted and evaluated');
+    return ApiResponse.success(
+        res,
+        submissions,
+        'Exam submissions fetched'
+    );
 });
 
 export {
-    submitAnswers,
-    evaluateSubmission,
-    updateEvaluation,
-    getSubmission,
-    getExamSubmissions,
     startSubmission,
     syncAnswers,
     submitSubmission,
+    updateEvaluation,
+    evaluateSubmission,
+    getSubmission,
+    getExamSubmissions,
 };
