@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { getToken, removeToken } from '../utils/handleToken.js';
+import { isTokenExpired, getToken, removeToken } from '../utils/handleToken.js';
 
 // ✅ CORRECTED: Point to your backend server running on port 8000
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
@@ -28,6 +28,11 @@ const publicClient = axios.create({
 apiClient.interceptors.request.use(config => {
   const { accessToken } = getToken();
   if (accessToken) {
+    if (isTokenExpired(accessToken)) {
+      removeToken();
+      window.location.href = '/';
+      throw new axios.Cancel('Access token expired');
+    }
     config.headers['Authorization'] = `Bearer ${accessToken}`;
   }
   return config;

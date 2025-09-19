@@ -71,3 +71,17 @@ export const logoutTeacher = async () => {
   removeToken();
   return response.data;
 };
+
+export const safeApiCall = async (fn, ...args) => {
+  try {
+    return await fn(...args);
+  } catch (err) {
+    const errorMessage =
+      err?.response?.data?.message ||
+      err?.response?.data?.error ||
+      err?.message ||
+      'Unknown error';
+    console.error('API call error:', errorMessage, err);
+    throw new Error(errorMessage);
+  }
+};
