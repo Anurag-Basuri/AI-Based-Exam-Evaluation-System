@@ -22,7 +22,7 @@ const createTeacher = asyncHandler(async (req, res) => {
     const authToken = newTeacher.generateAuthToken();
     const refreshToken = newTeacher.generateRefreshToken();
 
-    return ApiResponse.created(
+    return ApiResponse.success(
         res,
         {
             teacher: newTeacher,
@@ -41,8 +41,8 @@ const loginTeacher = asyncHandler(async (req, res) => {
         throw ApiError.BadRequest('Username or email and password are required');
     }
 
-    const teacher = await Teacher.findOne(username? { username } : { email });
-    if( !teacher ){
+    const teacher = await Teacher.findOne(username ? { username } : { email });
+    if (!teacher) {
         throw ApiError.NotFound('Teacher not found');
     }
 
@@ -78,7 +78,10 @@ const logoutTeacher = asyncHandler(async (req, res) => {
 
     await Teacher.findByIdAndUpdate(teacherId, { refreshToken: null });
 
-    return ApiResponse.success(res, { message: 'Logged out successfully' });
+    return ApiResponse.success(
+        res,
+        { message: 'Logged out successfully' }
+    );
 });
 
 // Update teacher details
@@ -96,7 +99,11 @@ const updateTeacher = asyncHandler(async (req, res) => {
         throw ApiError.NotFound('Teacher not found');
     }
 
-    return ApiResponse.success(res, updatedTeacher, 'Teacher updated successfully');
+    return ApiResponse.success(
+        res,
+        updatedTeacher,
+        'Teacher updated successfully'
+    );
 });
 
 // Update teacher password
@@ -121,7 +128,10 @@ const changePassword = asyncHandler(async (req, res) => {
     teacher.password = newPassword;
     await teacher.save();
 
-    return ApiResponse.success(res, { message: 'Password changed successfully' });
+    return ApiResponse.success(
+        res,
+        { message: 'Password changed successfully' }
+    );
 });
 
 export {
