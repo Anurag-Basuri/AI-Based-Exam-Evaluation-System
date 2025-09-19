@@ -17,10 +17,9 @@ const createTeacher = asyncHandler(async (req, res) => {
     }
 
     const newTeacher = new Teacher({ username, fullname, email, password });
-    await newTeacher.save();
-
     const authToken = newTeacher.generateAuthToken();
     const refreshToken = newTeacher.generateRefreshToken();
+    await newTeacher.save();
 
     return ApiResponse.success(
         res,
@@ -63,6 +62,10 @@ const loginTeacher = asyncHandler(async (req, res) => {
 
     const authToken = teacher.generateAuthToken();
     const refreshToken = teacher.generateRefreshToken();
+
+    // Save refresh token to DB for logout/invalidation
+    teacher.refreshToken = refreshToken;
+    await teacher.save();
 
     // Remove sensitive fields before sending response
     const teacherData = teacher.toObject();
