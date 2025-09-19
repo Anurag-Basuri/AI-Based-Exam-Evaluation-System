@@ -24,6 +24,12 @@ export const loginStudent = async (credentials) => {
   return response.data;
 };
 
+export const logoutStudent = async () => {
+  const response = await apiClient.post('/api/students/logout');
+  setToken(null);
+  return response.data;
+};
+
 export const registerTeacher = async (teacherData) => {
   const response = await publicClient.post('/api/teachers/register', teacherData);
   if (response.data.data.authToken) {
@@ -43,5 +49,11 @@ export const loginTeacher = async (credentials) => {
       refreshToken: response.data.data.refreshToken || null
     });
   }
+  return response.data;
+};
+
+export const logoutTeacher = async () => {
+  const response = await apiClient.post('/api/teachers/logout');
+  setToken(null);
   return response.data;
 };
