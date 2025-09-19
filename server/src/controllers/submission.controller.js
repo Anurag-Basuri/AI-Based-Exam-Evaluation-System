@@ -1,7 +1,7 @@
 import Submission from '../models/submission.model.js';
 import Exam from '../models/exam.model.js';
 import Question from '../models/question.model.js';
-import evaluateAnswer from '../services/evaluation.service.js';
+import { evaluateAnswer } from '../services/evaluation.service.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
