@@ -17,10 +17,9 @@ const createStudent = asyncHandler(async (req, res) => {
     }
 
     const newStudent = new Student({ username, fullname, email, password });
-    await newStudent.save();
-
     const authToken = newStudent.generateAuthToken();
     const refreshToken = newStudent.generateRefreshToken();
+    await newStudent.save();
 
     // Remove sensitive fields before sending response
     const studentData = newStudent.toObject();

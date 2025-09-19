@@ -21,6 +21,13 @@ const createTeacher = asyncHandler(async (req, res) => {
     const refreshToken = newTeacher.generateRefreshToken();
     await newTeacher.save();
 
+    // Remove sensitive fields before sending response
+    const teacherData = newTeacher.toObject();
+    delete teacherData.password;
+    delete teacherData.refreshToken;
+    delete teacherData.resetPasswordToken;
+    delete teacherData.resetPasswordExpires;
+
     return ApiResponse.success(
         res,
         {
