@@ -50,7 +50,8 @@ const loginTeacher = asyncHandler(async (req, res) => {
         throw ApiError.BadRequest('Provide a valid username or email');
     }
 
-    const teacher = await Teacher.findOne(query);
+    // FIX: select password explicitly
+    const teacher = await Teacher.findOne(query).select('+password');
     if (!teacher) {
         throw ApiError.NotFound('Teacher not found');
     }
