@@ -41,7 +41,16 @@ const loginTeacher = asyncHandler(async (req, res) => {
         throw ApiError.BadRequest('Username or email and password are required');
     }
 
-    const teacher = await Teacher.findOne(username ? { username } : { email });
+    let query = {};
+    if (username && username.trim() !== '') {
+        query.username = username;
+    } else if (email && email.trim() !== '') {
+        query.email = email;
+    } else {
+        throw ApiError.BadRequest('Provide a valid username or email');
+    }
+
+    const teacher = await Teacher.findOne(query);
     if (!teacher) {
         throw ApiError.NotFound('Teacher not found');
     }
