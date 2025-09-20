@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import studentImg from '../assets/student.jpg';
 import teacherImg from '../assets/teacher.jpg';
@@ -14,6 +14,10 @@ import image8 from '../assets/image8.jpg';
 const LandingPage = () => {
     const navigate = useNavigate();
     const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+    
+    // References for scrolling
+    const roleSelectionRef = useRef(null);
+    const detailsRef = useRef(null);
 
     // Handle window resize for responsiveness
     useEffect(() => {
@@ -21,6 +25,11 @@ const LandingPage = () => {
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
     }, []);
+
+    // Scroll to section function
+    const scrollToSection = (ref) => {
+        ref.current.scrollIntoView({ behavior: 'smooth' });
+    };
 
     // Responsive breakpoints
     const isMobile = windowWidth < 640;
@@ -141,45 +150,49 @@ const LandingPage = () => {
                         gap: '1rem',
                         flexWrap: 'wrap'
                     }}>
-                        <button onClick={() => navigate('/signup')} style={{
-                            padding: '0.75rem 1.5rem',
-                            backgroundColor: '#6366f1',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '0.5rem',
-                            cursor: 'pointer',
-                            fontSize: '1rem',
-                            fontWeight: 500,
-                            boxShadow: '0 4px 14px rgba(99,102,241,0.25)',
-                            transition: 'transform 0.2s, box-shadow 0.2s',
-                        }}
-                        onMouseOver={e => {
-                            e.currentTarget.style.transform = 'translateY(-2px)';
-                            e.currentTarget.style.boxShadow = '0 6px 20px rgba(99,102,241,0.3)';
-                        }}
-                        onMouseOut={e => {
-                            e.currentTarget.style.transform = 'translateY(0)';
-                            e.currentTarget.style.boxShadow = '0 4px 14px rgba(99,102,241,0.25)';
-                        }}>
+                        <button 
+                            onClick={() => scrollToSection(roleSelectionRef)}
+                            style={{
+                                padding: '0.75rem 1.5rem',
+                                backgroundColor: '#6366f1',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '0.5rem',
+                                cursor: 'pointer',
+                                fontSize: '1rem',
+                                fontWeight: 500,
+                                boxShadow: '0 4px 14px rgba(99,102,241,0.25)',
+                                transition: 'transform 0.2s, box-shadow 0.2s',
+                            }}
+                            onMouseOver={e => {
+                                e.currentTarget.style.transform = 'translateY(-2px)';
+                                e.currentTarget.style.boxShadow = '0 6px 20px rgba(99,102,241,0.3)';
+                            }}
+                            onMouseOut={e => {
+                                e.currentTarget.style.transform = 'translateY(0)';
+                                e.currentTarget.style.boxShadow = '0 4px 14px rgba(99,102,241,0.25)';
+                            }}>
                             Get Started
                         </button>
-                        <button onClick={() => navigate('/about')} style={{
-                            padding: '0.75rem 1.5rem',
-                            backgroundColor: 'transparent',
-                            color: '#6366f1',
-                            border: '1px solid #6366f1',
-                            borderRadius: '0.5rem',
-                            cursor: 'pointer',
-                            fontSize: '1rem',
-                            fontWeight: 500,
-                            transition: 'background-color 0.2s, color 0.2s',
-                        }}
-                        onMouseOver={e => {
-                            e.currentTarget.style.backgroundColor = 'rgba(99,102,241,0.1)';
-                        }}
-                        onMouseOut={e => {
-                            e.currentTarget.style.backgroundColor = 'transparent';
-                        }}>
+                        <button 
+                            onClick={() => scrollToSection(detailsRef)}
+                            style={{
+                                padding: '0.75rem 1.5rem',
+                                backgroundColor: 'transparent',
+                                color: '#6366f1',
+                                border: '1px solid #6366f1',
+                                borderRadius: '0.5rem',
+                                cursor: 'pointer',
+                                fontSize: '1rem',
+                                fontWeight: 500,
+                                transition: 'background-color 0.2s, color 0.2s',
+                            }}
+                            onMouseOver={e => {
+                                e.currentTarget.style.backgroundColor = 'rgba(99,102,241,0.1)';
+                            }}
+                            onMouseOut={e => {
+                                e.currentTarget.style.backgroundColor = 'transparent';
+                            }}>
                             Learn More
                         </button>
                     </div>
@@ -394,14 +407,439 @@ const LandingPage = () => {
                 </div>
             </section>
 
-            {/* Role Selection Section */}
+            {/* Detailed Information Section */}
+            <section 
+                ref={detailsRef}
+                style={{
+                    padding: isMobile ? '3rem 1rem' : isTablet ? '4rem 2rem' : '5rem 3rem',
+                    backgroundColor: '#f8fafc',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    scrollMarginTop: '20px'
+                }}
+            >
+                <div style={{
+                    position: 'absolute',
+                    width: '100%',
+                    height: '100%',
+                    top: 0,
+                    left: 0,
+                    background: 'url(' + image7 + ')',
+                    backgroundSize: 'cover',
+                    opacity: 0.03,
+                    zIndex: 0
+                }}></div>
+                
+                <div style={{ position: 'relative', zIndex: 1, maxWidth: '1200px', margin: '0 auto' }}>
+                    <h2 style={{
+                        fontSize: isMobile ? '1.8rem' : isTablet ? '2rem' : '2.3rem',
+                        fontWeight: 700,
+                        color: '#1e293b',
+                        textAlign: 'center',
+                        marginBottom: '2rem'
+                    }}>
+                        Why Choose Our AI Exam System?
+                    </h2>
+
+                    <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: isMobile ? '1fr' : isTablet ? '1fr' : 'repeat(2, 1fr)',
+                        gap: '2.5rem',
+                        marginBottom: '3rem'
+                    }}>
+                        {/* Left Column */}
+                        <div>
+                            <div style={{
+                                background: 'white',
+                                borderRadius: '1rem',
+                                padding: isMobile ? '1.5rem' : '2rem',
+                                boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
+                                marginBottom: '2rem'
+                            }}>
+                                <h3 style={{
+                                    fontSize: '1.4rem',
+                                    fontWeight: 600,
+                                    color: '#1e293b',
+                                    marginBottom: '1rem',
+                                    display: 'flex',
+                                    alignItems: 'center'
+                                }}>
+                                    <span style={{
+                                        width: '30px',
+                                        height: '30px',
+                                        borderRadius: '50%',
+                                        backgroundColor: '#6366f1',
+                                        color: 'white',
+                                        display: 'inline-flex',
+                                        justifyContent: 'center',
+                                        alignItems: 'center',
+                                        marginRight: '0.75rem',
+                                        flexShrink: 0
+                                    }}>1</span>
+                                    How Our AI Evaluation Works
+                                </h3>
+                                <p style={{
+                                    color: '#64748b',
+                                    fontSize: '1rem',
+                                    lineHeight: 1.7,
+                                    marginBottom: '1rem'
+                                }}>
+                                    Our AI evaluation system uses natural language processing and machine learning algorithms to analyze student responses. The system compares answers against model solutions and evaluates based on:
+                                </p>
+                                <ul style={{
+                                    paddingLeft: '1.5rem',
+                                    color: '#64748b',
+                                    fontSize: '1rem',
+                                    lineHeight: 1.7
+                                }}>
+                                    <li>Key concept identification</li>
+                                    <li>Semantic similarity with expected answers</li>
+                                    <li>Logical structure and coherence</li>
+                                    <li>Technical accuracy and completeness</li>
+                                </ul>
+                            </div>
+
+                            <div style={{
+                                background: 'white',
+                                borderRadius: '1rem',
+                                padding: isMobile ? '1.5rem' : '2rem',
+                                boxShadow: '0 4px 20px rgba(0,0,0,0.05)'
+                            }}>
+                                <h3 style={{
+                                    fontSize: '1.4rem',
+                                    fontWeight: 600,
+                                    color: '#1e293b',
+                                    marginBottom: '1rem',
+                                    display: 'flex',
+                                    alignItems: 'center'
+                                }}>
+                                    <span style={{
+                                        width: '30px',
+                                        height: '30px',
+                                        borderRadius: '50%',
+                                        backgroundColor: '#6366f1',
+                                        color: 'white',
+                                        display: 'inline-flex',
+                                        justifyContent: 'center',
+                                        alignItems: 'center',
+                                        marginRight: '0.75rem',
+                                        flexShrink: 0
+                                    }}>2</span>
+                                    Security and Data Protection
+                                </h3>
+                                <p style={{
+                                    color: '#64748b',
+                                    fontSize: '1rem',
+                                    lineHeight: 1.7,
+                                    marginBottom: '1rem'
+                                }}>
+                                    We've built our system with security as a top priority:
+                                </p>
+                                <ul style={{
+                                    paddingLeft: '1.5rem',
+                                    color: '#64748b',
+                                    fontSize: '1rem',
+                                    lineHeight: 1.7
+                                }}>
+                                    <li>End-to-end encryption for all exam data</li>
+                                    <li>Secure authentication with JWT tokens</li>
+                                    <li>Regular security audits and updates</li>
+                                    <li>Compliance with educational data protection standards</li>
+                                    <li>Automated backups and disaster recovery</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        {/* Right Column */}
+                        <div>
+                            <div style={{
+                                background: 'white',
+                                borderRadius: '1rem',
+                                padding: isMobile ? '1.5rem' : '2rem',
+                                boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
+                                marginBottom: '2rem'
+                            }}>
+                                <h3 style={{
+                                    fontSize: '1.4rem',
+                                    fontWeight: 600,
+                                    color: '#1e293b',
+                                    marginBottom: '1rem',
+                                    display: 'flex',
+                                    alignItems: 'center'
+                                }}>
+                                    <span style={{
+                                        width: '30px',
+                                        height: '30px',
+                                        borderRadius: '50%',
+                                        backgroundColor: '#6366f1',
+                                        color: 'white',
+                                        display: 'inline-flex',
+                                        justifyContent: 'center',
+                                        alignItems: 'center',
+                                        marginRight: '0.75rem',
+                                        flexShrink: 0
+                                    }}>3</span>
+                                    Benefits for Teachers
+                                </h3>
+                                <ul style={{
+                                    paddingLeft: '1.5rem',
+                                    color: '#64748b',
+                                    fontSize: '1rem',
+                                    lineHeight: 1.7
+                                }}>
+                                    <li><strong>Time Savings:</strong> Reduce grading time by up to 70%</li>
+                                    <li><strong>Comprehensive Dashboard:</strong> Track student performance with detailed analytics</li>
+                                    <li><strong>Question Bank:</strong> Create and store reusable questions</li>
+                                    <li><strong>Customizable Assessments:</strong> Set difficulty levels, time limits, and question types</li>
+                                    <li><strong>Plagiarism Detection:</strong> Automatically identify similar submissions</li>
+                                    <li><strong>Feedback Tools:</strong> Add personalized feedback to complement AI evaluation</li>
+                                </ul>
+                            </div>
+
+                            <div style={{
+                                background: 'white',
+                                borderRadius: '1rem',
+                                padding: isMobile ? '1.5rem' : '2rem',
+                                boxShadow: '0 4px 20px rgba(0,0,0,0.05)'
+                            }}>
+                                <h3 style={{
+                                    fontSize: '1.4rem',
+                                    fontWeight: 600,
+                                    color: '#1e293b',
+                                    marginBottom: '1rem',
+                                    display: 'flex',
+                                    alignItems: 'center'
+                                }}>
+                                    <span style={{
+                                        width: '30px',
+                                        height: '30px',
+                                        borderRadius: '50%',
+                                        backgroundColor: '#6366f1',
+                                        color: 'white',
+                                        display: 'inline-flex',
+                                        justifyContent: 'center',
+                                        alignItems: 'center',
+                                        marginRight: '0.75rem',
+                                        flexShrink: 0
+                                    }}>4</span>
+                                    Benefits for Students
+                                </h3>
+                                <ul style={{
+                                    paddingLeft: '1.5rem',
+                                    color: '#64748b',
+                                    fontSize: '1rem',
+                                    lineHeight: 1.7
+                                }}>
+                                    <li><strong>Instant Feedback:</strong> Receive detailed results immediately after submission</li>
+                                    <li><strong>Objective Assessment:</strong> Get fair and consistent grading for every answer</li>
+                                    <li><strong>Learning Insights:</strong> Identify strengths and areas for improvement</li>
+                                    <li><strong>Practice Mode:</strong> Take practice exams with full feedback</li>
+                                    <li><strong>Progress Tracking:</strong> Monitor your improvement over time</li>
+                                    <li><strong>Flexible Access:</strong> Take exams from any device, anywhere</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style={{
+                        background: 'linear-gradient(135deg, #6366f1 0%, #818cf8 100%)',
+                        borderRadius: '1rem',
+                        padding: isMobile ? '1.5rem' : '2.5rem',
+                        color: 'white',
+                        textAlign: 'center',
+                        boxShadow: '0 10px 30px rgba(99,102,241,0.3)'
+                    }}>
+                        <h3 style={{
+                            fontSize: isMobile ? '1.5rem' : '1.8rem',
+                            fontWeight: 600,
+                            marginBottom: '1.5rem'
+                        }}>
+                            Ready to revolutionize your exam experience?
+                        </h3>
+                        <p style={{
+                            fontSize: isMobile ? '1rem' : '1.1rem',
+                            marginBottom: '2rem',
+                            opacity: 0.9,
+                            maxWidth: '700px',
+                            margin: '0 auto 2rem'
+                        }}>
+                            Join thousands of teachers and students who have already transformed their assessment process with our AI-powered platform.
+                        </p>
+                        <button 
+                            onClick={() => scrollToSection(roleSelectionRef)}
+                            style={{
+                                padding: '0.75rem 2rem',
+                                backgroundColor: 'white',
+                                color: '#6366f1',
+                                border: 'none',
+                                borderRadius: '0.5rem',
+                                cursor: 'pointer',
+                                fontSize: '1rem',
+                                fontWeight: 600,
+                                boxShadow: '0 4px 14px rgba(0,0,0,0.1)',
+                                transition: 'transform 0.2s, box-shadow 0.2s',
+                            }}
+                            onMouseOver={e => {
+                                e.currentTarget.style.transform = 'translateY(-2px)';
+                                e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.15)';
+                            }}
+                            onMouseOut={e => {
+                                e.currentTarget.style.transform = 'translateY(0)';
+                                e.currentTarget.style.boxShadow = '0 4px 14px rgba(0,0,0,0.1)';
+                            }}
+                        >
+                            Get Started Now
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            {/* Technical Details Section */}
             <section style={{
                 padding: isMobile ? '3rem 1rem' : isTablet ? '4rem 2rem' : '5rem 3rem',
-                background: 'linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%)',
-                textAlign: 'center',
+                backgroundColor: 'white',
                 position: 'relative',
                 overflow: 'hidden'
             }}>
+                <div style={{ position: 'relative', zIndex: 1, maxWidth: '1000px', margin: '0 auto' }}>
+                    <h2 style={{
+                        fontSize: isMobile ? '1.8rem' : isTablet ? '2rem' : '2.3rem',
+                        fontWeight: 700,
+                        color: '#1e293b',
+                        textAlign: 'center',
+                        marginBottom: '2rem'
+                    }}>
+                        Technical Highlights
+                    </h2>
+                    
+                    <div style={{
+                        display: isMobile ? 'block' : 'flex',
+                        justifyContent: 'space-between',
+                        gap: '2rem',
+                        marginBottom: '3rem',
+                        background: '#f8fafc',
+                        borderRadius: '1rem',
+                        padding: isMobile ? '1.5rem' : '2.5rem',
+                        boxShadow: '0 4px 20px rgba(0,0,0,0.05)'
+                    }}>
+                        <div style={{
+                            flex: '1',
+                            marginBottom: isMobile ? '2rem' : 0
+                        }}>
+                            <h3 style={{
+                                fontSize: '1.3rem',
+                                fontWeight: 600,
+                                color: '#1e293b',
+                                marginBottom: '1rem',
+                                borderBottom: '2px solid #6366f1',
+                                paddingBottom: '0.5rem'
+                            }}>System Architecture</h3>
+                            <ul style={{
+                                paddingLeft: '1.5rem',
+                                color: '#64748b',
+                                fontSize: '1rem',
+                                lineHeight: 1.7
+                            }}>
+                                <li><strong>Frontend:</strong> React.js with responsive design</li>
+                                <li><strong>Backend:</strong> Node.js with Express</li>
+                                <li><strong>Database:</strong> MongoDB for flexible data storage</li>
+                                <li><strong>Authentication:</strong> JWT-based secure auth system</li>
+                                <li><strong>AI Engine:</strong> Natural Language Processing models</li>
+                                <li><strong>APIs:</strong> RESTful architecture for seamless integration</li>
+                            </ul>
+                        </div>
+                        <div style={{ flex: '1' }}>
+                            <h3 style={{
+                                fontSize: '1.3rem',
+                                fontWeight: 600,
+                                color: '#1e293b',
+                                marginBottom: '1rem',
+                                borderBottom: '2px solid #6366f1',
+                                paddingBottom: '0.5rem'
+                            }}>AI Models & Technology</h3>
+                            <ul style={{
+                                paddingLeft: '1.5rem',
+                                color: '#64748b',
+                                fontSize: '1rem',
+                                lineHeight: 1.7
+                            }}>
+                                <li>Advanced NLP algorithms for text comprehension</li>
+                                <li>Semantic similarity scoring for answer evaluation</li>
+                                <li>Continuous model training for improved accuracy</li>
+                                <li>Support for multiple languages and subject domains</li>
+                                <li>Adaptive scoring based on answer patterns</li>
+                                <li>Real-time processing for instant feedback</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div style={{
+                        textAlign: 'center',
+                        maxWidth: '800px',
+                        margin: '0 auto'
+                    }}>
+                        <h3 style={{
+                            fontSize: '1.4rem',
+                            fontWeight: 600,
+                            color: '#1e293b',
+                            marginBottom: '1rem'
+                        }}>Continuous Improvement</h3>
+                        <p style={{
+                            color: '#64748b',
+                            fontSize: '1rem',
+                            lineHeight: 1.7,
+                            marginBottom: '1.5rem'
+                        }}>
+                            Our system gets better with every evaluation. The AI models learn from teacher adjustments and feedback to continuously improve accuracy and understanding of different answer patterns.
+                        </p>
+                        <div style={{
+                            display: 'flex',
+                            flexDirection: isMobile ? 'column' : 'row',
+                            gap: '1rem',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            background: 'linear-gradient(135deg, rgba(99,102,241,0.1) 0%, rgba(224,231,255,0.1) 100%)',
+                            borderRadius: '0.75rem',
+                            padding: '1.5rem'
+                        }}>
+                            <div style={{
+                                width: '50px',
+                                height: '50px',
+                                borderRadius: '50%',
+                                backgroundColor: 'rgba(99,102,241,0.1)',
+                                display: 'flex',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                fontSize: '1.5rem',
+                                fontWeight: 700,
+                                color: '#6366f1'
+                            }}>
+                                99%
+                            </div>
+                            <p style={{
+                                color: '#1e293b',
+                                fontSize: '1rem',
+                                lineHeight: 1.7
+                            }}>
+                                <strong>Accuracy achieved</strong> on benchmark tests for standardized exam evaluation
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* Role Selection Section */}
+            <section 
+                ref={roleSelectionRef}
+                style={{
+                    padding: isMobile ? '3rem 1rem' : isTablet ? '4rem 2rem' : '5rem 3rem',
+                    background: 'linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%)',
+                    textAlign: 'center',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    scrollMarginTop: '20px'
+                }}
+            >
                 {/* Decorative background elements */}
                 <div style={{
                     position: 'absolute',
