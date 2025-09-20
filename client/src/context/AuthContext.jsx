@@ -1,4 +1,4 @@
-import { createContext, useState, useEffect } from 'react';
+import React, { createContext, useState, useEffect } from 'react';
 import {
     registerStudent,
     loginStudent,
@@ -21,7 +21,7 @@ export const AuthProvider = ({ children }) => {
 
     // Check token and user info on mount
     useEffect(() => {
-        const { accessToken } = getToken();
+        const { accessToken } = getToken() || {};
         if (accessToken && !isTokenExpired(accessToken)) {
             const decoded = decodeToken(accessToken);
             setUser(decoded);
@@ -41,7 +41,7 @@ export const AuthProvider = ({ children }) => {
         setLoading(true);
         try {
             const res = await registerStudent(studentData);
-            if (res.data?.authToken) {
+            if (res?.data?.authToken) {
                 const decoded = decodeToken(res.data.authToken);
                 setUser(decoded);
                 setRole(decoded?.role || 'student');
@@ -49,6 +49,11 @@ export const AuthProvider = ({ children }) => {
                 navigate('/student/dashboard');
             }
             return res;
+        } catch (err) {
+            setUser(null);
+            setRole(null);
+            setIsAuthenticated(false);
+            throw err;
         } finally {
             setLoading(false);
         }
@@ -59,7 +64,7 @@ export const AuthProvider = ({ children }) => {
         setLoading(true);
         try {
             const res = await loginStudent(credentials);
-            if (res.data?.authToken) {
+            if (res?.data?.authToken) {
                 const decoded = decodeToken(res.data.authToken);
                 setUser(decoded);
                 setRole(decoded?.role || 'student');
@@ -67,6 +72,11 @@ export const AuthProvider = ({ children }) => {
                 navigate('/student/dashboard');
             }
             return res;
+        } catch (err) {
+            setUser(null);
+            setRole(null);
+            setIsAuthenticated(false);
+            throw err;
         } finally {
             setLoading(false);
         }
@@ -77,6 +87,8 @@ export const AuthProvider = ({ children }) => {
         setLoading(true);
         try {
             await logoutStudent();
+        } catch (err) {
+            // Ignore error on logout
         } finally {
             setUser(null);
             setRole(null);
@@ -92,7 +104,7 @@ export const AuthProvider = ({ children }) => {
         setLoading(true);
         try {
             const res = await registerTeacher(teacherData);
-            if (res.data?.authToken) {
+            if (res?.data?.authToken) {
                 const decoded = decodeToken(res.data.authToken);
                 setUser(decoded);
                 setRole(decoded?.role || 'teacher');
@@ -100,6 +112,11 @@ export const AuthProvider = ({ children }) => {
                 navigate('/teacher/dashboard');
             }
             return res;
+        } catch (err) {
+            setUser(null);
+            setRole(null);
+            setIsAuthenticated(false);
+            throw err;
         } finally {
             setLoading(false);
         }
@@ -110,7 +127,7 @@ export const AuthProvider = ({ children }) => {
         setLoading(true);
         try {
             const res = await loginTeacher(credentials);
-            if (res.data?.authToken) {
+            if (res?.data?.authToken) {
                 const decoded = decodeToken(res.data.authToken);
                 setUser(decoded);
                 setRole(decoded?.role || 'teacher');
@@ -118,6 +135,11 @@ export const AuthProvider = ({ children }) => {
                 navigate('/teacher/dashboard');
             }
             return res;
+        } catch (err) {
+            setUser(null);
+            setRole(null);
+            setIsAuthenticated(false);
+            throw err;
         } finally {
             setLoading(false);
         }
@@ -128,6 +150,8 @@ export const AuthProvider = ({ children }) => {
         setLoading(true);
         try {
             await logoutTeacher();
+        } catch (err) {
+            // Ignore error on logout
         } finally {
             setUser(null);
             setRole(null);
