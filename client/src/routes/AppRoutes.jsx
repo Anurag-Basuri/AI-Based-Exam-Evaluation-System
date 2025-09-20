@@ -1,4 +1,5 @@
-import React, { Route, Routes, Navigate } from 'react-router-dom';
+import React from 'react';
+import { Route, Routes, Navigate } from 'react-router-dom';
 import LandingPage from '../pages/LandingPage';
 
 const AppRoutes = () => {
