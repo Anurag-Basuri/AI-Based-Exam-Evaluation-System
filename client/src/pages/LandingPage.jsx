@@ -5,6 +5,11 @@ import teacherImg from '../assets/teacher.jpg';
 import image1 from '../assets/image1.jpg';
 import image2 from '../assets/image2.jpg';
 import image3 from '../assets/image3.jpg';
+import image4 from '../assets/image4.jpg';
+import image5 from '../assets/image5.jpg';
+import image6 from '../assets/image6.jpg';
+import image7 from '../assets/image7.jpg';
+import image8 from '../assets/image8.jpg';
 
 const LandingPage = () => {
     const navigate = useNavigate();
@@ -24,53 +29,81 @@ const LandingPage = () => {
         >
             {/* Decorative Images */}
             <img
-                src={image1}
+                src={image4}
                 alt=""
                 style={{
                     position: 'absolute',
-                    top: 40,
-                    left: 40,
-                    width: 80,
-                    height: 80,
-                    opacity: 0.12,
-                    borderRadius: '20px',
-                    zIndex: 0
-                }}
-            />
-            <img
-                src={image2}
-                alt=""
-                style={{
-                    position: 'absolute',
-                    bottom: 60,
-                    right: 60,
-                    width: 100,
-                    height: 100,
+                    top: 30,
+                    left: 30,
+                    width: 70,
+                    height: 70,
                     opacity: 0.13,
                     borderRadius: '20px',
                     zIndex: 0
                 }}
             />
             <img
-                src={image3}
+                src={image5}
+                alt=""
+                style={{
+                    position: 'absolute',
+                    bottom: 40,
+                    right: 40,
+                    width: 90,
+                    height: 90,
+                    opacity: 0.13,
+                    borderRadius: '20px',
+                    zIndex: 0
+                }}
+            />
+            <img
+                src={image6}
+                alt=""
+                style={{
+                    position: 'absolute',
+                    top: '60%',
+                    left: '10%',
+                    width: 60,
+                    height: 60,
+                    opacity: 0.10,
+                    borderRadius: '50%',
+                    zIndex: 0
+                }}
+            />
+            <img
+                src={image7}
+                alt=""
+                style={{
+                    position: 'absolute',
+                    bottom: '15%',
+                    left: '50%',
+                    width: 80,
+                    height: 80,
+                    opacity: 0.10,
+                    borderRadius: '50%',
+                    zIndex: 0,
+                    transform: 'translateX(-50%)'
+                }}
+            />
+            <img
+                src={image8}
                 alt=""
                 style={{
                     position: 'absolute',
                     top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    width: 120,
-                    height: 120,
-                    opacity: 0.09,
+                    right: '10%',
+                    width: 60,
+                    height: 60,
+                    opacity: 0.10,
                     borderRadius: '50%',
                     zIndex: 0
                 }}
             />
 
-            <div style={{ zIndex: 1, width: '100%' }}>
+            <div style={{ zIndex: 1, width: '100%', maxWidth: 950, margin: '0 auto' }}>
                 <h1
                     style={{
-                        fontSize: '2.7rem',
+                        fontSize: '2.8rem',
                         fontWeight: 800,
                         marginBottom: '1.2rem',
                         color: '#1e293b',
@@ -82,13 +115,60 @@ const LandingPage = () => {
                 </h1>
                 <p
                     style={{
-                        fontSize: '1.25rem',
+                        fontSize: '1.3rem',
                         color: '#334155',
+                        marginBottom: '1.5rem',
+                        textAlign: 'center'
+                    }}
+                >
+                    Welcome to a smarter way to conduct and evaluate exams! Our platform uses advanced AI to automate exam grading, provide instant feedback, and empower both students and teachers with powerful tools.
+                </p>
+                <div
+                    style={{
+                        background: '#fff',
+                        borderRadius: '1rem',
+                        boxShadow: '0 2px 16px rgba(30,41,59,0.07)',
+                        padding: '1.7rem 2.2rem',
+                        marginBottom: '2.5rem',
+                        textAlign: 'center',
+                        color: '#475569',
+                        fontSize: '1.12rem',
+                        lineHeight: 1.7
+                    }}
+                >
+                    <strong>How does it work?</strong>
+                    <ul style={{ textAlign: 'left', margin: '1rem auto', maxWidth: 650 }}>
+                        <li>
+                            <b>Teachers:</b> Effortlessly create exams, add and organize questions, and monitor student progress. After submission, answers are evaluated by AI for speed and fairness, but teachers can review and adjust marks or feedback as needed.
+                        </li>
+                        <li>
+                            <b>Students:</b> Join exams, answer questions, and submit your work. Get instant results and feedback powered by AI, and raise issues if you need clarification or help.
+                        </li>
+                        <li>
+                            Both roles have dedicated dashboards for managing exams, viewing results, and communicating about issues or feedback.
+                        </li>
+                        <li>
+                            <b>Why AI?</b> Our system ensures unbiased, consistent grading and saves time for teachers, while giving students immediate insights into their performance.
+                        </li>
+                    </ul>
+                    <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', marginTop: '1rem' }}>
+                        <img src={image1} alt="" style={{ width: 36, height: 36, borderRadius: '8px', opacity: 0.22 }} />
+                        <img src={image2} alt="" style={{ width: 36, height: 36, borderRadius: '8px', opacity: 0.22 }} />
+                        <img src={image3} alt="" style={{ width: 36, height: 36, borderRadius: '8px', opacity: 0.22 }} />
+                    </div>
+                    <span style={{ color: '#6366f1', fontWeight: 500, display: 'block', marginTop: '1rem' }}>
+                        Experience seamless, transparent, and intelligent exam management!
+                    </span>
+                </div>
+                <p
+                    style={{
+                        fontSize: '1.18rem',
+                        color: '#64748b',
                         marginBottom: '2.5rem',
                         textAlign: 'center'
                     }}
                 >
-                    Welcome! Choose your role to get started.
+                    Select your role to get started:
                 </p>
                 <div
                     style={{
@@ -131,7 +211,7 @@ const LandingPage = () => {
                         />
                         <h2 style={{ fontSize: '1.3rem', color: '#6366f1', marginBottom: '0.5rem' }}>Student</h2>
                         <p style={{ color: '#64748b', fontSize: '1rem', marginBottom: '1rem' }}>
-                            Take exams, submit answers, and view results.
+                            Take exams, submit answers, and view instant results and feedback.
                         </p>
                         <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem' }}>
                             <img src={image1} alt="" style={{ width: 32, height: 32, borderRadius: '8px', opacity: 0.25 }} />
@@ -170,7 +250,7 @@ const LandingPage = () => {
                         />
                         <h2 style={{ fontSize: '1.3rem', color: '#f59e42', marginBottom: '0.5rem' }}>Teacher</h2>
                         <p style={{ color: '#64748b', fontSize: '1rem', marginBottom: '1rem' }}>
-                            Create exams, manage questions, and review submissions.
+                            Create exams, manage questions, and review or adjust AI evaluations.
                         </p>
                         <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem' }}>
                             <img src={image3} alt="" style={{ width: 32, height: 32, borderRadius: '8px', opacity: 0.25 }} />
