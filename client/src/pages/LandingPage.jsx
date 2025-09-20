@@ -42,14 +42,6 @@ const LandingPage = () => {
         { src: image8, size: 75, opacity: 0.11, top: '40%', left: '3%' },
     ];
 
-    // Feature icons shown in info box
-    const featureIcons = [
-        { src: image1, title: "AI Evaluation" },
-        { src: image2, title: "Instant Results" },
-        { src: image3, title: "Secure Exams" },
-        { src: image4, title: "Fair Grading" }
-    ];
-
     return (
         <div
             style={{
@@ -150,38 +142,7 @@ const LandingPage = () => {
                             <b>Why AI?</b> Our system ensures unbiased, consistent grading and saves time while providing immediate insights.
                         </li>
                     </ul>
-                    
-                    {/* Feature Icons with Labels */}
-                    <div style={{ 
-                        display: 'flex', 
-                        justifyContent: 'center', 
-                        flexWrap: 'wrap',
-                        gap: '1rem', 
-                        marginTop: '1.5rem' 
-                    }}>
-                        {featureIcons.map((icon, idx) => (
-                            <div key={idx} style={{
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                margin: '0 0.5rem'
-                            }}>
-                                <img 
-                                    src={icon.src} 
-                                    alt={icon.title} 
-                                    style={{ 
-                                        width: 45, 
-                                        height: 45, 
-                                        borderRadius: '12px', 
-                                        marginBottom: '0.3rem',
-                                        border: '2px solid rgba(99, 102, 241, 0.2)' 
-                                    }} 
-                                />
-                                <span style={{ fontSize: '0.8rem', color: '#64748b' }}>{icon.title}</span>
-                            </div>
-                        ))}
-                    </div>
-                    
+
                     <span style={{ color: '#6366f1', fontWeight: 500, display: 'block', marginTop: '1rem' }}>
                         Experience seamless, transparent, and intelligent exam management!
                     </span>
