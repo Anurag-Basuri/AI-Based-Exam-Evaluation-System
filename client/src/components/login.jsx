@@ -1,80 +1,110 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.js';
 
 const Login = ({ onLogin }) => {
+	const navigate = useNavigate();
 	const { loginStudent, loginTeacher } = useAuth();
+
 	const [role, setRole] = useState('student'); // "student" | "teacher"
-	const [identifier, setIdentifier] = useState('');
+	const [identifier, setIdentifier] = useState(''); // username or email
 	const [password, setPassword] = useState('');
 	const [showPassword, setShowPassword] = useState(false);
 	const [remember, setRemember] = useState(true);
 	const [loading, setLoading] = useState(false);
-	const [error, setError] = useState('');
 
-	const idLabel = useMemo(
-		() => (role === 'student' ? 'Student ID or Email' : 'Teacher Email'),
-		[role],
-	);
+	// field-level + top-level error
+	const [fieldErrors, setFieldErrors] = useState({});
+	const [topError, setTopError] = useState('');
+
+	useEffect(() => {
+		try {
+			const pref = localStorage.getItem('preferredRole');
+			if (pref === 'student' || pref === 'teacher') setRole(pref);
+			// eslint-disable-next-line no-empty
+		} catch {}
+	}, []);
+
+	const idLabel = useMemo(() => 'Username or Email', []);
 	const idPlaceholder = useMemo(
-		() => (role === 'student' ? 'e.g. S12345 or student@domain.com' : 'teacher@domain.com'),
+		() =>
+			role === 'student'
+				? 'e.g. alex.m or student@school.edu'
+				: 'e.g. prof.smith or teacher@school.edu',
 		[role],
 	);
 
-	const extractError = err =>
-		err?.message ||
-		err?.response?.data?.message ||
-		err?.response?.data?.error ||
-		'Login failed. Please try again.';
+	const validate = () => {
+		const errs = {};
+		if (!identifier.trim()) errs.identifier = 'Username or email is required.';
+		if (!password) errs.password = 'Password is required.';
+		return errs;
+	};
+
+	const extractError = err => {
+		const data = err?.response?.data;
+		if (Array.isArray(data?.errors)) {
+			return data.errors.map(e => e?.msg || e?.message || String(e)).join(' ');
+		}
+		if (data?.message) return data.message;
+		if (data?.error) return data.error;
+		if (err?.code === 'ERR_NETWORK') return 'Network error. Check your connection.';
+		return err?.message || 'Login failed. Please try again.';
+	};
 
 	const buildPayload = () => {
-		if (role === 'student') {
-			const isEmail = identifier.includes('@');
-			return isEmail
-				? { email: identifier.trim(), password }
-				: { studentId: identifier.trim(), password };
-		}
-		// teacher
-		return { email: identifier.trim(), password };
+		const value = identifier.trim();
+		const isEmail = value.includes('@');
+		return isEmail ? { email: value, password } : { username: value, password };
 	};
 
 	const handleSubmit = async e => {
 		e.preventDefault();
-		setError('');
-
-		if (!identifier.trim() || !password) {
-			setError('Please fill in all fields.');
-			return;
-		}
+		setTopError('');
+		const errs = validate();
+		setFieldErrors(errs);
+		if (Object.keys(errs).length) return;
 
 		setLoading(true);
 		try {
 			const payload = buildPayload();
-
-			// Call the appropriate AuthContext method (handles token + navigation)
 			const res =
 				role === 'student' ? await loginStudent(payload) : await loginTeacher(payload);
-
-			// Optionally notify parent
-			if (typeof onLogin === 'function') {
-				onLogin({ role, user: res?.data?.user || null });
-			}
-
-			// Persist role preference if desired
 			if (remember) {
 				try {
 					localStorage.setItem('preferredRole', role);
+					// eslint-disable-next-line no-empty
 				} catch {}
 			}
+
+			if (typeof onLogin === 'function') {
+				onLogin({ role, user: res?.data?.user || null });
+			}
 		} catch (err) {
-			setError(extractError(err));
+			setTopError(extractError(err));
 		} finally {
 			setLoading(false);
 		}
 	};
 
+	// Role-based palette (orange for teacher)
+	const primary = role === 'teacher' ? '#f97316' : '#4f46e5';
+	const secondary = role === 'teacher' ? '#fb923c' : '#6366f1';
+	const buttonGradient = `linear-gradient(135deg, ${primary} 0%, ${secondary} 100%)`;
+	const buttonShadow =
+		role === 'teacher'
+			? '0 10px 24px rgba(249,115,22,0.28)'
+			: '0 10px 24px rgba(79,70,229,0.25)';
+	const linkColor = primary;
+
 	return (
 		<div style={styles.container}>
-			<form onSubmit={handleSubmit} style={styles.form} aria-labelledby="login-title">
+			<form
+				onSubmit={handleSubmit}
+				style={styles.form}
+				aria-labelledby="login-title"
+				noValidate
+			>
 				<h2 id="login-title" style={styles.title}>
 					Sign in
 				</h2>
@@ -108,23 +138,39 @@ const Login = ({ onLogin }) => {
 				</div>
 
 				<div style={styles.field}>
-					<label style={styles.label}>{idLabel}</label>
+					<label style={styles.label} htmlFor="identifier">
+						{idLabel}
+					</label>
 					<input
-						style={styles.input}
+						id="identifier"
+						style={{
+							...styles.input,
+							...(fieldErrors.identifier ? styles.inputInvalid : {}),
+						}}
 						type="text"
 						placeholder={idPlaceholder}
 						value={identifier}
 						onChange={e => setIdentifier(e.target.value)}
 						autoComplete="username"
-						inputMode="email"
+						inputMode="text"
 					/>
+					{fieldErrors.identifier ? (
+						<span style={styles.helperText}>{fieldErrors.identifier}</span>
+					) : null}
 				</div>
 
 				<div style={styles.field}>
-					<label style={styles.label}>Password</label>
+					<label style={styles.label} htmlFor="password">
+						Password
+					</label>
 					<div style={styles.passwordWrap}>
 						<input
-							style={{ ...styles.input, paddingRight: 44 }}
+							id="password"
+							style={{
+								...styles.input,
+								paddingRight: 44,
+								...(fieldErrors.password ? styles.inputInvalid : {}),
+							}}
 							type={showPassword ? 'text' : 'password'}
 							placeholder="••••••••"
 							value={password}
@@ -141,6 +187,9 @@ const Login = ({ onLogin }) => {
 							{showPassword ? '🙈' : '👁️'}
 						</button>
 					</div>
+					{fieldErrors.password ? (
+						<span style={styles.helperText}>{fieldErrors.password}</span>
+					) : null}
 				</div>
 
 				<div style={styles.row}>
@@ -153,25 +202,43 @@ const Login = ({ onLogin }) => {
 						Remember me
 					</label>
 
-					{/* Hook this up later if you add a route */}
 					<button
 						type="button"
-						style={styles.linkBtn}
+						style={{ ...styles.linkBtn, color: linkColor }}
 						onClick={() => alert('Forgot password flow is not configured.')}
 					>
 						Forgot password?
 					</button>
 				</div>
 
-				{error ? (
+				{topError ? (
 					<div style={styles.error} role="alert" aria-live="assertive">
-						{error}
+						{topError}
 					</div>
 				) : null}
 
-				<button type="submit" style={styles.button} disabled={loading}>
+				<button
+					type="submit"
+					style={{
+						...styles.button,
+						background: buttonGradient,
+						boxShadow: buttonShadow,
+					}}
+					disabled={loading}
+				>
 					{loading ? 'Signing in...' : `Sign in as ${role}`}
 				</button>
+
+				<div style={styles.bottomRow}>
+					<span>New here?</span>
+					<button
+						type="button"
+						style={{ ...styles.linkBtn, color: linkColor }}
+						onClick={() => navigate('/auth?mode=register')}
+					>
+						Create account
+					</button>
+				</div>
 
 				<p style={styles.note}>
 					By continuing, you agree to the acceptable use of this system.
@@ -252,6 +319,16 @@ const styles = {
 		color: '#0f172a',
 		background: '#fff',
 	},
+	inputInvalid: {
+		borderColor: '#ef4444',
+		background: '#fff7f7',
+	},
+	helperText: {
+		display: 'block',
+		marginTop: 6,
+		fontSize: 12,
+		color: '#ef4444',
+	},
 	passwordWrap: { position: 'relative', display: 'grid' },
 	eyeBtn: {
 		position: 'absolute',
@@ -276,7 +353,7 @@ const styles = {
 		appearance: 'none',
 		border: 'none',
 		background: 'transparent',
-		color: '#4f46e5',
+		color: '#4f46e5', // overridden inline per role
 		cursor: 'pointer',
 		fontWeight: 600,
 		padding: 0,
@@ -286,12 +363,12 @@ const styles = {
 		padding: '12px 14px',
 		borderRadius: 10,
 		border: 'none',
-		background: 'linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)',
+		background: 'linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)', // overridden inline
 		color: '#fff',
 		cursor: 'pointer',
 		fontWeight: 800,
 		letterSpacing: 0.2,
-		boxShadow: '0 10px 24px rgba(79,70,229,0.25)',
+		boxShadow: '0 10px 24px rgba(79,70,229,0.25)', // overridden inline
 		marginTop: 4,
 	},
 	error: {
@@ -302,6 +379,14 @@ const styles = {
 		marginBottom: 12,
 		fontSize: 14,
 		border: '1px solid #f5c2c0',
+	},
+	bottomRow: {
+		display: 'flex',
+		justifyContent: 'center',
+		gap: 8,
+		marginTop: 10,
+		fontSize: 14,
+		color: '#64748b',
 	},
 	note: {
 		marginTop: 10,
