@@ -427,7 +427,7 @@ const LandingPage = () => {
 				</div>
 			</section>
 
-			{/* Details (accurate to repo) */}
+			{/* Details (grid, equal cards, responsive) */}
 			<section
 				ref={detailsRef}
 				aria-label="Details"
@@ -472,34 +472,84 @@ const LandingPage = () => {
 							gridTemplateColumns: isMobile
 								? '1fr'
 								: isTablet
-									? '1fr'
-									: 'repeat(2, 1fr)',
-							gap: '2.1rem',
-							marginBottom: '2.6rem',
+								? 'repeat(2, 1fr)'
+								: 'repeat(4, 1fr)',
+							gap: isMobile ? '1rem' : '1.2rem',
+							alignItems: 'stretch',
 						}}
 					>
-						{/* Left */}
-						<div>
+						{[
+							{
+								num: 1,
+								title: 'Roles & Modules',
+								content: (
+									<ul style={{ paddingLeft: '1.2rem', margin: 0 }}>
+										<li>Student and Teacher roles</li>
+										<li>Exams, Questions, Submissions, Issues</li>
+										<li>Protected client routes, server auth</li>
+									</ul>
+								),
+							},
+							{
+								num: 2,
+								title: 'Security & APIs',
+								content: (
+									<ul style={{ paddingLeft: '1.2rem', margin: 0 }}>
+										<li>JWT authentication</li>
+										<li>CORS and structured errors</li>
+										<li>REST for users, exams, questions, issues</li>
+									</ul>
+								),
+							},
+							{
+								num: 3,
+								title: 'Evaluation Service',
+								content: (
+									<p style={{ margin: 0 }}>
+										Scores free‑form answers via rule checks and similarity signals for consistent grading.
+									</p>
+								),
+							},
+							{
+								num: 4,
+								title: 'Tech Stack',
+								content: (
+									<ul style={{ paddingLeft: '1.2rem', margin: 0 }}>
+										<li>Frontend: React + Vite</li>
+										<li>Backend: Node.js + Express</li>
+										<li>Database: MongoDB</li>
+									</ul>
+								),
+							},
+						].map((card, idx) => (
 							<div
+								key={idx}
 								style={{
 									background: 'white',
 									borderRadius: '1rem',
-									padding: isMobile ? '1.3rem' : '1.75rem',
+									padding: isMobile ? '1.1rem' : '1.4rem',
 									boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
-									marginBottom: '1.6rem',
+									display: 'flex',
+									flexDirection: 'column',
+									gap: '0.75rem',
+									minHeight: isMobile ? 0 : 260,
+									height: '100%',
+									transition: 'transform 0.25s, box-shadow 0.25s',
+								}}
+								onMouseOver={e => {
+									if (!isMobile) {
+										e.currentTarget.style.transform = 'translateY(-4px)';
+										e.currentTarget.style.boxShadow = '0 10px 24px rgba(0,0,0,0.08)';
+									}
+								}}
+								onMouseOut={e => {
+									if (!isMobile) {
+										e.currentTarget.style.transform = 'translateY(0)';
+										e.currentTarget.style.boxShadow = '0 4px 20px rgba(0,0,0,0.05)';
+									}
 								}}
 							>
-								<h3
-									style={{
-										fontSize: '1.25rem',
-										fontWeight: 700,
-										color: '#1e293b',
-										marginBottom: '0.8rem',
-										display: 'flex',
-										alignItems: 'center',
-										gap: '0.6rem',
-									}}
-								>
+								<div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
 									<span
 										aria-hidden
 										style={{
@@ -512,195 +562,35 @@ const LandingPage = () => {
 											justifyContent: 'center',
 											alignItems: 'center',
 											fontWeight: 700,
+											fontSize: '0.95rem',
 										}}
 									>
-										1
+										{card.num}
 									</span>
-									Roles & Modules
-								</h3>
-								<ul
-									style={{
-										paddingLeft: '1.2rem',
-										color: '#64748b',
-										fontSize: '0.98rem',
-										lineHeight: 1.7,
-									}}
-								>
-									<li>Student and Teacher roles</li>
-									<li>Exams, Questions, Submissions, and Issues modules</li>
-									<li>
-										Protected routes on the client; auth middleware on the
-										server
-									</li>
-								</ul>
-							</div>
-
-							<div
-								style={{
-									background: 'white',
-									borderRadius: '1rem',
-									padding: isMobile ? '1.3rem' : '1.75rem',
-									boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
-								}}
-							>
-								<h3
-									style={{
-										fontSize: '1.25rem',
-										fontWeight: 700,
-										color: '#1e293b',
-										marginBottom: '0.8rem',
-										display: 'flex',
-										alignItems: 'center',
-										gap: '0.6rem',
-									}}
-								>
-									<span
-										aria-hidden
+									<h3
 										style={{
-											width: 28,
-											height: 28,
-											borderRadius: '50%',
-											backgroundColor: '#6366f1',
-											color: 'white',
-											display: 'inline-flex',
-											justifyContent: 'center',
-											alignItems: 'center',
+											fontSize: '1.15rem',
 											fontWeight: 700,
+											color: '#1e293b',
+											margin: 0,
 										}}
 									>
-										2
-									</span>
-									Security & APIs
-								</h3>
-								<ul
-									style={{
-										paddingLeft: '1.2rem',
-										color: '#64748b',
-										fontSize: '0.98rem',
-										lineHeight: 1.7,
-									}}
-								>
-									<li>JWT-based authentication (auth middleware)</li>
-									<li>CORS middleware and structured error responses</li>
-									<li>
-										RESTful routes for students, teachers, exams, questions,
-										submissions, issues
-									</li>
-								</ul>
+										{card.title}
+									</h3>
+								</div>
+								<div style={{ color: '#64748b', fontSize: '0.98rem', lineHeight: 1.65 }}>
+									{card.content}
+								</div>
 							</div>
-						</div>
-
-						{/* Right */}
-						<div>
-							<div
-								style={{
-									background: 'white',
-									borderRadius: '1rem',
-									padding: isMobile ? '1.3rem' : '1.75rem',
-									boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
-									marginBottom: '1.6rem',
-								}}
-							>
-								<h3
-									style={{
-										fontSize: '1.25rem',
-										fontWeight: 700,
-										color: '#1e293b',
-										marginBottom: '0.8rem',
-										display: 'flex',
-										alignItems: 'center',
-										gap: '0.6rem',
-									}}
-								>
-									<span
-										aria-hidden
-										style={{
-											width: 28,
-											height: 28,
-											borderRadius: '50%',
-											backgroundColor: '#6366f1',
-											color: 'white',
-											display: 'inline-flex',
-											justifyContent: 'center',
-											alignItems: 'center',
-											fontWeight: 700,
-										}}
-									>
-										3
-									</span>
-									Evaluation Service
-								</h3>
-								<p
-									style={{
-										color: '#64748b',
-										fontSize: '0.98rem',
-										lineHeight: 1.65,
-									}}
-								>
-									The server’s evaluation service scores free-form answers using
-									rule-based checks and similarity signals, ensuring reliable,
-									consistent grading.
-								</p>
-							</div>
-
-							<div
-								style={{
-									background: 'white',
-									borderRadius: '1rem',
-									padding: isMobile ? '1.3rem' : '1.75rem',
-									boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
-								}}
-							>
-								<h3
-									style={{
-										fontSize: '1.25rem',
-										fontWeight: 700,
-										color: '#1e293b',
-										marginBottom: '0.8rem',
-										display: 'flex',
-										alignItems: 'center',
-										gap: '0.6rem',
-									}}
-								>
-									<span
-										aria-hidden
-										style={{
-											width: 28,
-											height: 28,
-											borderRadius: '50%',
-											backgroundColor: '#6366f1',
-											color: 'white',
-											display: 'inline-flex',
-											justifyContent: 'center',
-											alignItems: 'center',
-											fontWeight: 700,
-										}}
-									>
-										4
-									</span>
-									Tech Stack
-								</h3>
-								<ul
-									style={{
-										paddingLeft: '1.2rem',
-										color: '#64748b',
-										fontSize: '0.98rem',
-										lineHeight: 1.7,
-									}}
-								>
-									<li>Frontend: React + Vite, responsive UI</li>
-									<li>Backend: Node.js + Express</li>
-									<li>Database: MongoDB</li>
-								</ul>
-							</div>
-						</div>
+						))}
 					</div>
 
 					<div
 						style={{
+							marginTop: isMobile ? '1.6rem' : '2rem',
 							background: 'linear-gradient(135deg, #6366f1 0%, #818cf8 100%)',
 							borderRadius: '1rem',
-							padding: isMobile ? '1.3rem' : '2.2rem',
+							padding: isMobile ? '1.2rem' : '2rem',
 							color: 'white',
 							textAlign: 'center',
 							boxShadow: '0 10px 30px rgba(99,102,241,0.3)',
@@ -710,7 +600,7 @@ const LandingPage = () => {
 							style={{
 								fontSize: 'clamp(1.2rem, 1.8vw, 1.6rem)',
 								fontWeight: 700,
-								marginBottom: '1rem',
+								marginBottom: '0.9rem',
 							}}
 						>
 							Ready to modernize your assessments?
@@ -718,15 +608,13 @@ const LandingPage = () => {
 						<p
 							style={{
 								fontSize: 'clamp(0.95rem, 1vw, 1.05rem)',
-								marginBottom: '1.6rem',
 								opacity: 0.95,
 								maxWidth: 720,
-								margin: '0 auto 1.6rem',
+								margin: '0 auto 1.4rem',
 							}}
 						>
-							Start by choosing your role below. Students can take exams and see
-							results fast. Teachers can build question banks, run exams, and review
-							outcomes.
+							Start by choosing your role below. Students take exams and see results fast. Teachers build
+							question banks, run exams, and review outcomes.
 						</p>
 						<button
 							onClick={() => scrollToSection(roleSelectionRef)}
