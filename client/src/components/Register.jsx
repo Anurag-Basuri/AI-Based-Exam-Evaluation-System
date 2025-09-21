@@ -7,16 +7,19 @@ const Register = ({ onRegister }) => {
 	const { registerStudent, registerTeacher, loading } = useAuth();
 
 	const [role, setRole] = useState('student'); // "student" | "teacher"
-	const [fullName, setFullName] = useState('');
-	const [studentId, setStudentId] = useState('');
+
+	const [username, setUsername] = useState('');
+	const [fullname, setFullName] = useState('');
 	const [email, setEmail] = useState('');
-	const [department, setDepartment] = useState('');
 	const [password, setPassword] = useState('');
 	const [confirm, setConfirm] = useState('');
 
 	const [showPassword, setShowPassword] = useState(false);
 	const [showConfirm, setShowConfirm] = useState(false);
-	const [error, setError] = useState('');
+
+	// Field-level errors and top-level error
+	const [fieldErrors, setFieldErrors] = useState({});
+	const [topError, setTopError] = useState('');
 
 	useEffect(() => {
 		try {
@@ -25,73 +28,82 @@ const Register = ({ onRegister }) => {
 		} catch {}
 	}, []);
 
-	const extractError = err =>
-		err?.message ||
-		err?.response?.data?.message ||
-		err?.response?.data?.error ||
-		'Registration failed. Please try again.';
-
 	const emailValid = useMemo(() => {
-		if (!email) return true;
+		if (!email) return true; // handled by required check below
 		return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 	}, [email]);
 
+	// Client validators
+	const validate = () => {
+		const errs = {};
+		if (!fullname.trim()) errs.fullname = 'Full name is required.';
+		else if (fullname.trim().length < 2) errs.fullname = 'Full name must be at least 2 characters.';
+
+		if (!username.trim()) errs.username = 'Username is required.';
+		else if (username.trim().length < 3) errs.username = 'Username must be at least 3 characters.';
+		else if (!/^[a-zA-Z0-9._-]+$/.test(username.trim()))
+			errs.username = 'Use letters, numbers, dot, underscore, or hyphen.';
+
+		if (!email.trim()) errs.email = 'Email is required.';
+		else if (!emailValid) errs.email = 'Enter a valid email address.';
+
+		if (!password) errs.password = 'Password is required.';
+		else if (password.length < 8) errs.password = 'Password must be at least 8 characters.';
+
+		if (!confirm) errs.confirm = 'Please confirm your password.';
+		else if (password && confirm !== password) errs.confirm = 'Passwords do not match.';
+
+		return errs;
+	};
+
 	const canSubmit = useMemo(() => {
-		const passOk = password.length >= 6 && password === confirm;
-		const nameOk = fullName.trim().length >= 2;
-		if (role === 'student') {
-			const hasIdOrEmail = !!studentId.trim() || !!email.trim();
-			const idOk = studentId ? studentId.trim().length >= 3 : true;
-			const emailOk = email ? emailValid : true;
-			return passOk && nameOk && hasIdOrEmail && idOk && emailOk;
-		}
-		// teacher
-		return passOk && nameOk && !!email.trim() && emailValid;
-	}, [role, fullName, studentId, email, emailValid, password, confirm]);
+		const errs = validate();
+		return Object.keys(errs).length === 0;
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [username, fullname, email, emailValid, password, confirm]);
 
-	const handleSubmit = async e => {
+	const extractServerError = (err) => {
+		const data = err?.response?.data;
+		if (Array.isArray(data?.errors)) {
+			return data.errors.map(e => e?.msg || e?.message || String(e)).join(' ');
+		}
+		return (
+			data?.message ||
+			data?.error ||
+			err?.message ||
+			'Registration failed. Please try again.'
+		);
+	};
+
+	const handleSubmit = async (e) => {
 		e.preventDefault();
-		setError('');
-
-		if (!canSubmit) {
-			setError(
-				role === 'student'
-					? 'Please complete required fields (name, password, and at least one of Student ID or Email).'
-					: 'Please complete required fields (name, valid email, and password).',
-			);
-			return;
-		}
+		setTopError('');
+		const errs = validate();
+		setFieldErrors(errs);
+		if (Object.keys(errs).length) return;
 
 		try {
-			const base = {
-				fullName: fullName.trim(),
+			const payload = {
+				username: username.trim(),
+				fullName: fullname.trim(),
+				email: email.trim(),
 				password: password.trim(),
 			};
 
-			if (role === 'student') {
-				const payload = {
-					...base,
-					...(studentId.trim() ? { studentId: studentId.trim() } : {}),
-					...(email.trim() ? { email: email.trim() } : {}),
-					...(department.trim() ? { department: department.trim() } : {}),
-				};
-				const res = await registerStudent(payload);
-				if (typeof onRegister === 'function')
-					onRegister({ role, user: res?.data?.user || null });
-				localStorage.setItem('preferredRole', 'student');
-			} else {
-				const payload = {
-					...base,
-					email: email.trim(),
-					...(department.trim() ? { department: department.trim() } : {}),
-				};
-				const res = await registerTeacher(payload);
-				if (typeof onRegister === 'function')
-					onRegister({ role, user: res?.data?.user || null });
-				localStorage.setItem('preferredRole', 'teacher');
+			const res =
+				role === 'student'
+					? await registerStudent(payload)
+					: await registerTeacher(payload);
+
+			try {
+				localStorage.setItem('preferredRole', role);
+			} catch {}
+
+			if (typeof onRegister === 'function') {
+				onRegister({ role, user: res?.data?.user || null });
 			}
 		} catch (err) {
-			setError(extractError(err));
+			setTopError(extractServerError(err));
 		}
 	};
 
@@ -102,22 +114,17 @@ const Register = ({ onRegister }) => {
 
 	return (
 		<div style={styles.container}>
-			<form onSubmit={handleSubmit} style={styles.form} aria-labelledby="register-title">
-				<h2 id="register-title" style={styles.title}>
-					Create your account
-				</h2>
+			<form onSubmit={handleSubmit} style={styles.form} aria-labelledby="register-title" noValidate>
+				<h2 id="register-title" style={styles.title}>Create your account</h2>
 
-				{/* Role switch */}
+				{/* Role switch (both roles require same fields; role selects API endpoint) */}
 				<div style={styles.roleSwitch} role="tablist" aria-label="Choose role">
 					<button
 						type="button"
 						role="tab"
 						aria-selected={role === 'student'}
 						onClick={() => setRole('student')}
-						style={{
-							...styles.roleTab,
-							...(role === 'student' ? styles.roleTabActive : {}),
-						}}
+						style={{ ...styles.roleTab, ...(role === 'student' ? styles.roleTabActive : {}) }}
 					>
 						Student
 					</button>
@@ -126,173 +133,122 @@ const Register = ({ onRegister }) => {
 						role="tab"
 						aria-selected={role === 'teacher'}
 						onClick={() => setRole('teacher')}
-						style={{
-							...styles.roleTab,
-							...(role === 'teacher' ? styles.roleTabActiveTeacher : {}),
-						}}
+						style={{ ...styles.roleTab, ...(role === 'teacher' ? styles.roleTabActiveTeacher : {}) }}
 					>
 						Teacher
 					</button>
 				</div>
 
-				{/* Name */}
+				{/* Full Name */}
 				<div style={styles.field}>
-					<label style={styles.label}>Full name</label>
+					<label style={styles.label} htmlFor="fullname">Full Name</label>
 					<input
-						style={styles.input}
+						id="fullname"
+						style={{ ...styles.input, ...(fieldErrors.fullname ? styles.inputInvalid : {}) }}
 						type="text"
 						placeholder="e.g. Alex Morgan"
-						value={fullName}
-						onChange={e => setFullName(e.target.value)}
+						value={fullname}
+						onChange={(e) => setFullName(e.target.value)}
 						autoComplete="name"
-						required
 					/>
+					{fieldErrors.fullname ? <span style={styles.helperText}>{fieldErrors.fullname}</span> : null}
 				</div>
 
-				{/* Student specific: ID and/or Email */}
-				{role === 'student' ? (
-					<>
-						<div style={styles.field}>
-							<label style={styles.label}>Student ID (or Email)</label>
-							<input
-								style={styles.input}
-								type="text"
-								placeholder="e.g. S12345"
-								value={studentId}
-								onChange={e => setStudentId(e.target.value)}
-								autoComplete="off"
-							/>
-						</div>
-						<div style={styles.field}>
-							<label style={styles.label}>Email (optional if ID provided)</label>
-							<input
-								style={{
-									...styles.input,
-									...(email && !emailValid ? styles.inputInvalid : {}),
-								}}
-								type="email"
-								placeholder="student@school.edu"
-								value={email}
-								onChange={e => setEmail(e.target.value)}
-								autoComplete="email"
-							/>
-							{email && !emailValid ? (
-								<span style={styles.helperText}>Enter a valid email address.</span>
-							) : null}
-						</div>
-						<div style={styles.field}>
-							<label style={styles.label}>Department (optional)</label>
-							<input
-								style={styles.input}
-								type="text"
-								placeholder="e.g. Computer Science"
-								value={department}
-								onChange={e => setDepartment(e.target.value)}
-								autoComplete="organization-title"
-							/>
-						</div>
-					</>
-				) : (
-					// Teacher specific
-					<>
-						<div style={styles.field}>
-							<label style={styles.label}>Email</label>
-							<input
-								style={{
-									...styles.input,
-									...(email && !emailValid ? styles.inputInvalid : {}),
-								}}
-								type="email"
-								placeholder="teacher@school.edu"
-								value={email}
-								onChange={e => setEmail(e.target.value)}
-								autoComplete="email"
-								required
-							/>
-							{email && !emailValid ? (
-								<span style={styles.helperText}>Enter a valid email address.</span>
-							) : null}
-						</div>
-						<div style={styles.field}>
-							<label style={styles.label}>Department (optional)</label>
-							<input
-								style={styles.input}
-								type="text"
-								placeholder="e.g. Mathematics"
-								value={department}
-								onChange={e => setDepartment(e.target.value)}
-								autoComplete="organization-title"
-							/>
-						</div>
-					</>
-				)}
+				{/* Username */}
+				<div style={styles.field}>
+					<label style={styles.label} htmlFor="username">Username</label>
+					<input
+						id="username"
+						style={{ ...styles.input, ...(fieldErrors.username ? styles.inputInvalid : {}) }}
+						type="text"
+						placeholder="e.g. alex.morgan"
+						value={username}
+						onChange={(e) => setUsername(e.target.value)}
+						autoComplete="username"
+					/>
+					{fieldErrors.username ? <span style={styles.helperText}>{fieldErrors.username}</span> : null}
+				</div>
+
+				{/* Email */}
+				<div style={styles.field}>
+					<label style={styles.label} htmlFor="email">Email</label>
+					<input
+						id="email"
+						style={{ ...styles.input, ...(fieldErrors.email ? styles.inputInvalid : {}) }}
+						type="email"
+						placeholder={role === 'teacher' ? 'teacher@school.edu' : 'student@school.edu'}
+						value={email}
+						onChange={(e) => setEmail(e.target.value)}
+						autoComplete="email"
+					/>
+					{fieldErrors.email ? <span style={styles.helperText}>{fieldErrors.email}</span> : null}
+				</div>
 
 				{/* Password */}
 				<div style={styles.field}>
-					<label style={styles.label}>Password</label>
+					<label style={styles.label} htmlFor="password">Password</label>
 					<div style={styles.passwordWrap}>
 						<input
-							style={{ ...styles.input, paddingRight: 44 }}
+							id="password"
+							style={{ ...styles.input, paddingRight: 44, ...(fieldErrors.password ? styles.inputInvalid : {}) }}
 							type={showPassword ? 'text' : 'password'}
-							placeholder="Minimum 6 characters"
+							placeholder="Minimum 8 characters"
 							value={password}
-							onChange={e => setPassword(e.target.value)}
+							onChange={(e) => setPassword(e.target.value)}
 							autoComplete="new-password"
-							required
 						/>
 						<button
 							type="button"
 							aria-label={showPassword ? 'Hide password' : 'Show password'}
-							onClick={() => setShowPassword(s => !s)}
+							onClick={() => setShowPassword((s) => !s)}
 							style={styles.eyeBtn}
 							title={showPassword ? 'Hide password' : 'Show password'}
 						>
 							{showPassword ? '🙈' : '👁️'}
 						</button>
 					</div>
+					{fieldErrors.password ? <span style={styles.helperText}>{fieldErrors.password}</span> : null}
 				</div>
 
 				{/* Confirm */}
 				<div style={styles.field}>
-					<label style={styles.label}>Confirm password</label>
+					<label style={styles.label} htmlFor="confirm">Confirm password</label>
 					<div style={styles.passwordWrap}>
 						<input
+							id="confirm"
 							style={{
 								...styles.input,
 								paddingRight: 44,
-								...(confirm && confirm !== password ? styles.inputInvalid : {}),
+								...(fieldErrors.confirm ? styles.inputInvalid : {}),
 							}}
 							type={showConfirm ? 'text' : 'password'}
 							placeholder="Re-enter your password"
 							value={confirm}
-							onChange={e => setConfirm(e.target.value)}
+							onChange={(e) => setConfirm(e.target.value)}
 							autoComplete="new-password"
-							required
 						/>
 						<button
 							type="button"
 							aria-label={showConfirm ? 'Hide password' : 'Show password'}
-							onClick={() => setShowConfirm(s => !s)}
+							onClick={() => setShowConfirm((s) => !s)}
 							style={styles.eyeBtn}
 							title={showConfirm ? 'Hide password' : 'Show password'}
 						>
 							{showConfirm ? '🙈' : '👁️'}
 						</button>
 					</div>
-					{confirm && confirm !== password ? (
-						<span style={styles.helperText}>Passwords do not match.</span>
-					) : null}
+					{fieldErrors.confirm ? <span style={styles.helperText}>{fieldErrors.confirm}</span> : null}
 				</div>
 
-				{error ? (
+				{topError ? (
 					<div style={styles.error} role="alert" aria-live="assertive">
-						{error}
+						{topError}
 					</div>
 				) : null}
 
 				<button
 					type="submit"
-					style={{ ...styles.button, background: buttonGradient }}
+					style={{ ...styles.button, background: buttonGradient, opacity: loading || !canSubmit ? 0.9 : 1 }}
 					disabled={loading || !canSubmit}
 				>
 					{loading ? 'Creating account...' : `Create ${role} account`}
@@ -300,7 +256,11 @@ const Register = ({ onRegister }) => {
 
 				<div style={styles.bottomRow}>
 					<span>Already have an account?</span>
-					<button type="button" style={styles.linkBtn} onClick={() => navigate('/login')}>
+					<button
+						type="button"
+						style={styles.linkBtn}
+						onClick={() => navigate('/auth?mode=login')}
+					>
 						Sign in
 					</button>
 				</div>
@@ -321,7 +281,7 @@ const styles = {
 	},
 	form: {
 		width: '100%',
-		maxWidth: 480,
+		maxWidth: 500,
 		background: '#ffffff',
 		padding: 24,
 		borderRadius: 16,
