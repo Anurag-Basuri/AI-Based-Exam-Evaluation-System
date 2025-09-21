@@ -70,6 +70,17 @@ const LandingPage = () => {
 		{ src: image8, bottom: '10%', right: '5%', size: 75, delay: 3 },
 	];
 
+	// Unified auth navigation (defaults to ?mode=login)
+	const goToAuth = (role, mode = 'login') => {
+		try {
+			localStorage.setItem('preferredRole', role);
+		} catch (e) {
+			// localStorage might be unavailable (e.g., private browsing)
+			console.warn('Unable to persist preferredRole to localStorage', e);
+		}
+		navigate(`/auth?mode=${mode}`);
+	};
+
 	return (
 		<div
 			style={{
@@ -844,7 +855,7 @@ const LandingPage = () => {
 								>
 									<button
 										aria-label="Student Sign in"
-										onClick={() => navigate('/student/login')}
+										onClick={() => goToAuth('student', 'login')}
 										style={{
 											padding: '0.65rem 1.15rem',
 											background:
@@ -1001,7 +1012,7 @@ const LandingPage = () => {
 								>
 									<button
 										aria-label="Teacher Sign in"
-										onClick={() => navigate('/teacher/login')}
+										onClick={() => goToAuth('teacher', 'login')}
 										style={{
 											padding: '0.65rem 1.15rem',
 											background:

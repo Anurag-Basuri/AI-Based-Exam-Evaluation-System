@@ -1,4 +1,5 @@
 import React, { useRef, useLayoutEffect, useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom'; // added
 import AppRoutes from './routes/AppRoutes';
 import Header from './components/Header';
 
@@ -6,6 +7,9 @@ const App = () => {
 	const [atTop, setAtTop] = useState(true);
 	const [visible, setVisible] = useState(true);
 	const [headerHeight, setHeaderHeight] = useState(64);
+
+	const location = useLocation(); // added
+	const isAuthPage = location.pathname.toLowerCase().startsWith('/auth'); // added
 
 	const headerWrapRef = useRef(null);
 	const prevScrollYRef = useRef(typeof window !== 'undefined' ? window.scrollY : 0);
@@ -31,8 +35,10 @@ const App = () => {
 		};
 	}, []);
 
-	// Scroll logic: hide on scroll-down, show on scroll-up
+	// Scroll logic: hide on scroll-down, show on scroll-up (disabled on auth page)
 	useEffect(() => {
+		if (isAuthPage) return; // no header scroll behavior on auth
+
 		const delta = 6; // minimal scroll delta to avoid jitter
 
 		const onScroll = () => {
@@ -67,7 +73,7 @@ const App = () => {
 
 		window.addEventListener('scroll', onScroll, { passive: true });
 		return () => window.removeEventListener('scroll', onScroll);
-	}, []);
+	}, [isAuthPage]); // updated deps
 
 	const headerStyle = {
 		position: 'fixed',
@@ -82,12 +88,14 @@ const App = () => {
 
 	return (
 		<>
-			<div ref={headerWrapRef} className="header-animate" style={headerStyle}>
-				<Header transparent={atTop} />
-			</div>
+			{!isAuthPage && ( // hide header on /auth
+				<div ref={headerWrapRef} className="header-animate" style={headerStyle}>
+					<Header transparent={atTop} />
+				</div>
+			)}
 
-			{/* Spacer so content isn't covered by the fixed header */}
-			<div style={{ paddingTop: headerHeight }}>
+			{/* Spacer so content isn't covered by the fixed header (not needed on auth) */}
+			<div style={{ paddingTop: isAuthPage ? 0 : headerHeight }}>
 				<AppRoutes />
 			</div>
 		</>
