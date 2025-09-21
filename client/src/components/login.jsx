@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.js';
 
-const Login = ({ onLogin }) => {
+const Login = ({ onLogin, embedded = false }) => {
 	const navigate = useNavigate();
 	const { loginStudent, loginTeacher } = useAuth();
 
@@ -97,7 +97,149 @@ const Login = ({ onLogin }) => {
 			: '0 10px 24px rgba(79,70,229,0.25)';
 	const linkColor = primary;
 
-	return (
+	return embedded ? (
+		<form
+			onSubmit={handleSubmit}
+			style={styles.formFlat}
+			aria-labelledby="login-title"
+			noValidate
+		>
+			<h2 id="login-title" style={styles.title}>
+				Sign in
+			</h2>
+			{/* Role switch */}
+			<div style={styles.roleSwitch} role="tablist" aria-label="Choose role">
+				<button
+					type="button"
+					role="tab"
+					aria-selected={role === 'student'}
+					onClick={() => setRole('student')}
+					style={{
+						...styles.roleTab,
+						...(role === 'student' ? styles.roleTabActive : {}),
+					}}
+				>
+					Student
+				</button>
+				<button
+					type="button"
+					role="tab"
+					aria-selected={role === 'teacher'}
+					onClick={() => setRole('teacher')}
+					style={{
+						...styles.roleTab,
+						...(role === 'teacher' ? styles.roleTabActiveTeacher : {}),
+					}}
+				>
+					Teacher
+				</button>
+			</div>
+
+			{/* Identifier */}
+			<div style={styles.field}>
+				<label style={styles.label} htmlFor="identifier">
+					{idLabel}
+				</label>
+				<input
+					id="identifier"
+					style={{
+						...styles.input,
+						...(fieldErrors.identifier ? styles.inputInvalid : {}),
+					}}
+					type="text"
+					placeholder={idPlaceholder}
+					value={identifier}
+					onChange={e => setIdentifier(e.target.value)}
+					autoComplete="username"
+					inputMode="text"
+				/>
+				{fieldErrors.identifier ? (
+					<span style={styles.helperText}>{fieldErrors.identifier}</span>
+				) : null}
+			</div>
+
+			{/* Password */}
+			<div style={styles.field}>
+				<label style={styles.label} htmlFor="password">
+					Password
+				</label>
+				<div style={styles.passwordWrap}>
+					<input
+						id="password"
+						style={{
+							...styles.input,
+							paddingRight: 44,
+							...(fieldErrors.password ? styles.inputInvalid : {}),
+						}}
+						type={showPassword ? 'text' : 'password'}
+						placeholder="••••••••"
+						value={password}
+						onChange={e => setPassword(e.target.value)}
+						autoComplete="current-password"
+					/>
+					<button
+						type="button"
+						aria-label={showPassword ? 'Hide password' : 'Show password'}
+						onClick={() => setShowPassword(s => !s)}
+						style={styles.eyeBtn}
+						title={showPassword ? 'Hide password' : 'Show password'}
+					>
+						{showPassword ? '🙈' : '👁️'}
+					</button>
+				</div>
+				{fieldErrors.password ? (
+					<span style={styles.helperText}>{fieldErrors.password}</span>
+				) : null}
+			</div>
+
+			<div style={styles.row}>
+				<label style={styles.checkLabel}>
+					<input
+						type="checkbox"
+						checked={remember}
+						onChange={() => setRemember(v => !v)}
+					/>
+					Remember me
+				</label>
+				<button
+					type="button"
+					style={{ ...styles.linkBtn, color: linkColor }}
+					onClick={() => alert('Forgot password flow is not configured.')}
+				>
+					Forgot password?
+				</button>
+			</div>
+
+			{topError ? (
+				<div style={styles.error} role="alert" aria-live="assertive">
+					{topError}
+				</div>
+			) : null}
+
+			<button
+				type="submit"
+				style={{
+					...styles.button,
+					background: buttonGradient,
+					boxShadow: buttonShadow,
+				}}
+				disabled={loading}
+			>
+				{loading ? 'Signing in...' : `Sign in as ${role}`}
+			</button>
+
+			<div style={styles.bottomRow}>
+				<span>New here?</span>
+				<button
+					type="button"
+					style={{ ...styles.linkBtn, color: linkColor }}
+					onClick={() => navigate('/auth?mode=register')}
+				>
+					Create account
+				</button>
+			</div>
+		</form>
+	) : (
 		<div style={styles.container}>
 			<form
 				onSubmit={handleSubmit}
@@ -266,6 +408,13 @@ const styles = {
 		borderRadius: 16,
 		boxShadow: '0 10px 30px rgba(2,6,23,0.08)',
 		border: '1px solid #e2e8f0',
+	},
+	formFlat: {
+		width: '100%',
+		background: 'transparent',
+		padding: 0,
+		borderRadius: 0,
+		border: 'none',
 	},
 	title: {
 		margin: 0,
