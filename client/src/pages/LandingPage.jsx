@@ -298,7 +298,7 @@ const LandingPage = () => {
 							'radial-gradient(circle, rgba(224,231,255,0.5) 0%, rgba(248,250,252,0) 70%)',
 						bottom: -200,
 						right: -150,
-						zIndex: 0,
+					zIndex: 0,
 					}}
 				/>
 
@@ -676,9 +676,10 @@ const LandingPage = () => {
 					<h2
 						style={{
 							fontSize: 'clamp(1.6rem, 2.5vw, 2.2rem)',
-							fontWeight: 700,
-							color: '#1e293b',
+							fontWeight: 800,
+							color: '#0f172a',
 							marginBottom: '0.9rem',
+							letterSpacing: 0.2
 						}}
 					>
 						Choose Your Role
@@ -686,20 +687,19 @@ const LandingPage = () => {
 					<p
 						style={{
 							fontSize: 'clamp(0.95rem, 1vw, 1.05rem)',
-							color: '#64748b',
-							margin: '0 auto 2.4rem',
+							color: '#475569',
+							margin: '0 auto 2.2rem',
 							maxWidth: 720,
 							lineHeight: 1.6,
 						}}
 					>
-						Sign in using your role. Don’t see “Sign Up”? Account creation may be
-						handled by your institution or via admin.
+						Sign in using your role below. Account creation may be handled by your institution or administrator.
 					</p>
 
 					<div
 						style={{
 							display: 'flex',
-							gap: isMobile ? '1.6rem' : '2.2rem',
+							gap: isMobile ? '1.4rem' : '2rem',
 							justifyContent: 'center',
 							flexWrap: 'wrap',
 						}}
@@ -710,7 +710,7 @@ const LandingPage = () => {
 								background: 'white',
 								borderRadius: '1.25rem',
 								border: '1px solid #e2e8f0',
-								boxShadow: '0 8px 24px rgba(2,6,23,0.06)',
+								boxShadow: '0 10px 28px rgba(2,6,23,0.06)',
 								padding: isMobile ? '1.2rem' : 'clamp(1.4rem, 2.2vw, 2rem)',
 								textAlign: 'center',
 								flex: isMobile ? '1 1 100%' : isTablet ? '1 1 46%' : '1 1 360px',
@@ -719,6 +719,19 @@ const LandingPage = () => {
 								position: 'relative',
 								overflow: 'hidden',
 								fontFamily: 'Inter, Segoe UI, Roboto, sans-serif',
+								transition: 'transform 0.25s, box-shadow 0.25s',
+							}}
+							onMouseOver={e => {
+								if (!isMobile) {
+									e.currentTarget.style.transform = 'translateY(-4px)';
+									e.currentTarget.style.boxShadow = '0 18px 36px rgba(2,6,23,0.10)';
+								}
+							}}
+							onMouseOut={e => {
+								if (!isMobile) {
+									e.currentTarget.style.transform = 'translateY(0)';
+									e.currentTarget.style.boxShadow = '0 10px 28px rgba(2,6,23,0.06)';
+								}
 							}}
 						>
 							<div
@@ -729,8 +742,7 @@ const LandingPage = () => {
 									left: 0,
 									width: '100%',
 									height: '28%',
-									background:
-										'linear-gradient(135deg, rgba(79,70,229,0.08) 0%, rgba(199,210,254,0.12) 100%)',
+									background: 'linear-gradient(135deg, rgba(99,102,241,0.08) 0%, rgba(199,210,254,0.12) 100%)',
 									zIndex: 0,
 								}}
 							/>
@@ -739,14 +751,15 @@ const LandingPage = () => {
 									src={studentImg}
 									alt="Student"
 									loading="lazy"
+									decoding="async"
 									style={{
 										width: isMobile ? 96 : 112,
 										height: isMobile ? 96 : 112,
 										borderRadius: '50%',
 										objectFit: 'cover',
 										margin: '0 auto 1rem',
-										border: '3px solid #4f46e5',
-										boxShadow: '0 8px 20px rgba(79,70,229,0.25)',
+										border: '3px solid #6366f1',
+										boxShadow: '0 8px 20px rgba(99,102,241,0.25)',
 										display: 'block',
 									}}
 								/>
@@ -754,8 +767,8 @@ const LandingPage = () => {
 									style={{
 										fontSize: 'clamp(1.1rem, 1.6vw, 1.45rem)',
 										fontWeight: 800,
-										color: '#4f46e5',
-										marginBottom: '0.6rem',
+										color: '#3730a3',
+										marginBottom: '0.55rem',
 										letterSpacing: 0.2,
 									}}
 								>
@@ -765,9 +778,9 @@ const LandingPage = () => {
 									style={{
 										color: '#475569',
 										fontSize: 'clamp(0.95rem, 1vw, 1rem)',
-										marginBottom: '1.1rem',
+										marginBottom: '1.05rem',
 										lineHeight: 1.65,
-										maxWidth: 420,
+										maxWidth: 440,
 									}}
 								>
 									Take exams, submit answers, and see results quickly.
@@ -775,7 +788,7 @@ const LandingPage = () => {
 								<div
 									style={{
 										display: 'flex',
-										gap: '0.8rem',
+										gap: '0.75rem',
 										justifyContent: 'center',
 										flexWrap: 'wrap',
 										width: '100%',
@@ -785,39 +798,40 @@ const LandingPage = () => {
 										aria-label="Student Login"
 										onClick={() => navigate('/student/login')}
 										style={{
-											padding: '0.65rem 1.2rem',
-											backgroundColor: '#4f46e5',
+											padding: '0.65rem 1.15rem',
+											background: 'linear-gradient(135deg, #6366f1 0%, #818cf8 100%)',
 											color: 'white',
 											border: 'none',
 											borderRadius: '0.6rem',
 											cursor: 'pointer',
-											fontWeight: 700,
-											boxShadow: '0 6px 18px rgba(79,70,229,0.25)',
-											transition: 'transform 0.2s, box-shadow 0.2s, background-color 0.2s',
+											fontWeight: 800,
+											letterSpacing: 0.2,
+											boxShadow: '0 8px 22px rgba(99,102,241,0.28)',
+											transition: 'transform 0.2s, box-shadow 0.2s',
 										}}
 										onMouseOver={e => {
 											e.currentTarget.style.transform = 'translateY(-2px)';
-											e.currentTarget.style.boxShadow = '0 10px 24px rgba(79,70,229,0.35)';
+											e.currentTarget.style.boxShadow = '0 12px 28px rgba(99,102,241,0.35)';
 										}}
 										onMouseOut={e => {
 											e.currentTarget.style.transform = 'translateY(0)';
-											e.currentTarget.style.boxShadow = '0 6px 18px rgba(79,70,229,0.25)';
+											e.currentTarget.style.boxShadow = '0 8px 22px rgba(99,102,241,0.28)';
 										}}
 									>
 										Login
 									</button>
 									<button
-										aria-label="Explore as Student"
+										aria-label="Learn how it works for Students"
 										onClick={() => scrollToSection(detailsRef)}
 										style={{
-											padding: '0.65rem 1.2rem',
+											padding: '0.65rem 1.15rem',
 											backgroundColor: 'transparent',
 											color: '#4f46e5',
 											border: '1px solid #c7d2fe',
 											borderRadius: '0.6rem',
 											cursor: 'pointer',
 											fontWeight: 700,
-											transition: 'background-color 0.2s, color 0.2s',
+											transition: 'background-color 0.2s',
 										}}
 										onMouseOver={e => {
 											e.currentTarget.style.backgroundColor = 'rgba(199,210,254,0.25)';
@@ -826,7 +840,7 @@ const LandingPage = () => {
 											e.currentTarget.style.backgroundColor = 'transparent';
 										}}
 									>
-										Explore
+										How it works
 									</button>
 								</div>
 							</div>
@@ -838,7 +852,7 @@ const LandingPage = () => {
 								background: 'white',
 								borderRadius: '1.25rem',
 								border: '1px solid #e2e8f0',
-								boxShadow: '0 8px 24px rgba(2,6,23,0.06)',
+								boxShadow: '0 10px 28px rgba(2,6,23,0.06)',
 								padding: isMobile ? '1.2rem' : 'clamp(1.4rem, 2.2vw, 2rem)',
 								textAlign: 'center',
 								flex: isMobile ? '1 1 100%' : isTablet ? '1 1 46%' : '1 1 360px',
@@ -847,6 +861,19 @@ const LandingPage = () => {
 								position: 'relative',
 								overflow: 'hidden',
 								fontFamily: 'Inter, Segoe UI, Roboto, sans-serif',
+								transition: 'transform 0.25s, box-shadow 0.25s',
+							}}
+							onMouseOver={e => {
+								if (!isMobile) {
+									e.currentTarget.style.transform = 'translateY(-4px)';
+									e.currentTarget.style.boxShadow = '0 18px 36px rgba(2,6,23,0.10)';
+								}
+							}}
+							onMouseOut={e => {
+								if (!isMobile) {
+									e.currentTarget.style.transform = 'translateY(0)';
+									e.currentTarget.style.boxShadow = '0 10px 28px rgba(2,6,23,0.06)';
+								}
 							}}
 						>
 							<div
@@ -857,8 +884,7 @@ const LandingPage = () => {
 									left: 0,
 									width: '100%',
 									height: '28%',
-									background:
-										'linear-gradient(135deg, rgba(249,115,22,0.08) 0%, rgba(254,215,170,0.12) 100%)',
+									background: 'linear-gradient(135deg, rgba(249,115,22,0.08) 0%, rgba(254,215,170,0.12) 100%)',
 									zIndex: 0,
 								}}
 							/>
@@ -867,6 +893,7 @@ const LandingPage = () => {
 									src={teacherImg}
 									alt="Teacher"
 									loading="lazy"
+									decoding="async"
 									style={{
 										width: isMobile ? 96 : 112,
 										height: isMobile ? 96 : 112,
@@ -882,8 +909,8 @@ const LandingPage = () => {
 									style={{
 										fontSize: 'clamp(1.1rem, 1.6vw, 1.45rem)',
 										fontWeight: 800,
-										color: '#f97316',
-										marginBottom: '0.6rem',
+										color: '#9a3412',
+										marginBottom: '0.55rem',
 										letterSpacing: 0.2,
 									}}
 								>
@@ -893,9 +920,9 @@ const LandingPage = () => {
 									style={{
 										color: '#475569',
 										fontSize: 'clamp(0.95rem, 1vw, 1rem)',
-										marginBottom: '1.1rem',
+										marginBottom: '1.05rem',
 										lineHeight: 1.65,
-										maxWidth: 420,
+										maxWidth: 440,
 									}}
 								>
 									Build exams, manage questions, and review evaluations.
@@ -903,7 +930,7 @@ const LandingPage = () => {
 								<div
 									style={{
 										display: 'flex',
-										gap: '0.8rem',
+										gap: '0.75rem',
 										justifyContent: 'center',
 										flexWrap: 'wrap',
 										width: '100%',
@@ -913,48 +940,49 @@ const LandingPage = () => {
 										aria-label="Teacher Login"
 										onClick={() => navigate('/teacher/login')}
 										style={{
-											padding: '0.65rem 1.2rem',
-											backgroundColor: '#f97316',
+											padding: '0.65rem 1.15rem',
+											background: 'linear-gradient(135deg, #f97316 0%, #fb923c 100%)',
 											color: 'white',
 											border: 'none',
 											borderRadius: '0.6rem',
 											cursor: 'pointer',
-											fontWeight: 700,
-											boxShadow: '0 6px 18px rgba(249,115,22,0.25)',
-											transition: 'transform 0.2s, box-shadow 0.2s, background-color 0.2s',
+											fontWeight: 800,
+											letterSpacing: 0.2,
+											boxShadow: '0 8px 22px rgba(249,115,22,0.28)',
+											transition: 'transform 0.2s, box-shadow 0.2s',
 										}}
 										onMouseOver={e => {
 											e.currentTarget.style.transform = 'translateY(-2px)';
-											e.currentTarget.style.boxShadow = '0 10px 24px rgba(249,115,22,0.35)';
+											e.currentTarget.style.boxShadow = '0 12px 28px rgba(249,115,22,0.35)';
 										}}
 										onMouseOut={e => {
 											e.currentTarget.style.transform = 'translateY(0)';
-											e.currentTarget.style.boxShadow = '0 6px 18px rgba(249,115,22,0.25)';
+											e.currentTarget.style.boxShadow = '0 8px 22px rgba(249,115,22,0.28)';
 										}}
 									>
 										Login
 									</button>
 									<button
-										aria-label="Explore as Teacher"
+										aria-label="Learn how it works for Teachers"
 										onClick={() => scrollToSection(detailsRef)}
 										style={{
-											padding: '0.65rem 1.2rem',
+											padding: '0.65rem 1.15rem',
 											backgroundColor: 'transparent',
-											color: '#f97316',
+											color: '#ea580c',
 											border: '1px solid #fed7aa',
 											borderRadius: '0.6rem',
 											cursor: 'pointer',
 											fontWeight: 700,
-											transition: 'background-color 0.2s, color 0.2s',
+											transition: 'background-color 0.2s',
 										}}
 										onMouseOver={e => {
-											e.currentTarget.style.backgroundColor = 'rgba(254,215,170,0.25)';
+											e.currentTarget.style.backgroundColor = 'rgba(254,215,170,0.28)';
 										}}
 										onMouseOut={e => {
 											e.currentTarget.style.backgroundColor = 'transparent';
 										}}
 									>
-										Explore
+										How it works
 									</button>
 								</div>
 							</div>
