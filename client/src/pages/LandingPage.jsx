@@ -33,29 +33,30 @@ const LandingPage = () => {
 	const isMobile = windowWidth < 640;
 	const isTablet = windowWidth >= 640 && windowWidth < 1024;
 
-	// Feature cards (aligned with your codebase)
+	// Feature cards (aligned with your server/controllers/services)
 	const features = [
 		{
-			title: 'AI-Powered Evaluation',
+			title: 'Consistent, Explainable Scoring',
 			description:
-				'Answers are analyzed with an evaluation service for fair, consistent scoring.',
+				'Short answers are evaluated by the server’s evaluation service using rule checks and similarity signals.',
 			icon: image1,
 		},
 		{
-			title: 'Question & Exam Management',
+			title: 'Exam & Question Management',
 			description:
-				'Create and manage questions and exams with dedicated APIs and controllers.',
+				'Create exams, manage question banks, and organize assessments with dedicated routes and controllers.',
 			icon: image2,
 		},
 		{
-			title: 'Real-time Results',
-			description: 'Students submit, get results and feedback without long delays.',
+			title: 'Submissions & Results',
+			description:
+				'Students submit once, get results quickly, and can review outcomes without long delays.',
 			icon: image3,
 		},
 		{
-			title: 'Issue Reporting',
+			title: 'Issue Reporting & Tracking',
 			description:
-				'Built-in issue module so students and teachers can report and track problems.',
+				'Built-in issue module lets students and teachers report, track, and resolve problems.',
 			icon: image4,
 		},
 	];
@@ -79,7 +80,7 @@ const LandingPage = () => {
 			<section
 				aria-label="Hero"
 				style={{
-					background: 'linear-gradient(135deg, #e0e7ff 0%, #f8fafc 100%)',
+					background: 'linear-gradient(135deg, #eef2ff 0%, #f8fafc 100%)',
 					padding: isMobile ? '3rem 1rem' : isTablet ? '4rem 2rem' : '5rem 3rem',
 					display: 'flex',
 					flexDirection: isMobile || isTablet ? 'column' : 'row',
@@ -89,6 +90,7 @@ const LandingPage = () => {
 					position: 'relative',
 					overflow: 'hidden',
 					minHeight: isMobile ? 'auto' : '78vh',
+					fontFamily: "Inter, 'Segoe UI', Roboto, system-ui, -apple-system, sans-serif",
 				}}
 			>
 				{backgroundImages.map((img, index) => (
@@ -134,12 +136,13 @@ const LandingPage = () => {
 				>
 					<h1
 						style={{
-							fontSize: 'clamp(1.8rem, 4.2vw, 3.2rem)',
+							fontSize: 'clamp(1.85rem, 4.2vw, 3.1rem)',
 							fontWeight: 800,
-							color: '#1e293b',
-							marginBottom: '1.15rem',
-							lineHeight: 1.2,
-							background: 'linear-gradient(to right, #1e293b, #334155)',
+							color: '#0f172a',
+							marginBottom: '1.1rem',
+							lineHeight: 1.15,
+							letterSpacing: 0.2,
+							background: 'linear-gradient(to right, #0f172a, #334155)',
 							WebkitBackgroundClip: 'text',
 							WebkitTextFillColor: 'transparent',
 						}}
@@ -148,15 +151,16 @@ const LandingPage = () => {
 					</h1>
 					<p
 						style={{
-							fontSize: 'clamp(1rem, 1.2vw, 1.15rem)',
+							fontSize: 'clamp(1rem, 1.15vw, 1.1rem)',
 							color: '#475569',
-							marginBottom: '1.6rem',
-							lineHeight: 1.65,
+							marginBottom: '1.55rem',
+							lineHeight: 1.7,
+							maxWidth: 720,
 						}}
 					>
-						Streamline assessments for teachers and students. Create exams, manage
-						questions, submit answers, and get results quickly — powered by React + Vite
-						on the client and Node.js + Express with MongoDB on the server.
+						Plan, deliver, and evaluate exams end‑to‑end. Build question banks, run secure exams,
+						and get consistent, explainable scoring. Client: React + Vite. API: Node.js/Express.
+						Data: MongoDB.
 					</p>
 					<div style={{ display: 'flex', gap: '0.8rem', flexWrap: 'wrap' }}>
 						<button
@@ -268,9 +272,10 @@ const LandingPage = () => {
 				aria-label="Features"
 				style={{
 					padding: isMobile ? '3rem 1rem' : isTablet ? '4rem 2rem' : '5rem 3rem',
-					backgroundColor: 'white',
+					backgroundColor: '#ffffff',
 					position: 'relative',
 					overflow: 'hidden',
+					fontFamily: "Inter, 'Segoe UI', Roboto, system-ui, -apple-system, sans-serif",
 				}}
 			>
 				<div
@@ -316,17 +321,17 @@ const LandingPage = () => {
 					</h2>
 					<p
 						style={{
-							fontSize: 'clamp(0.95rem, 1vw, 1.1rem)',
-							color: '#64748b',
+							fontSize: 'clamp(0.95rem, 1vw, 1.08rem)',
+							color: '#5b6472',
 							textAlign: 'center',
-							maxWidth: 760,
-							margin: '0 auto 2.4rem',
-							lineHeight: 1.65,
+							maxWidth: 820,
+							margin: '0 auto 2.2rem',
+							lineHeight: 1.7,
 						}}
 					>
-						Teachers create exams and manage questions. Students submit answers, and the
-						evaluation service scores them with consistent, explainable results. Issues
-						can be raised and tracked in-product.
+						Teachers manage questions and exams. Students submit answers and receive results.
+						The evaluation service keeps scoring consistent and explainable. Issues can be raised
+						and tracked in‑product.
 					</p>
 
 					<div
@@ -437,6 +442,7 @@ const LandingPage = () => {
 					position: 'relative',
 					overflow: 'hidden',
 					scrollMarginTop: 20,
+					fontFamily: "Inter, 'Segoe UI', Roboto, system-ui, -apple-system, sans-serif",
 				}}
 			>
 				<div
@@ -485,8 +491,8 @@ const LandingPage = () => {
 								content: (
 									<ul style={{ paddingLeft: '1.2rem', margin: 0 }}>
 										<li>Student and Teacher roles</li>
-										<li>Exams, Questions, Submissions, Issues</li>
-										<li>Protected client routes, server auth</li>
+										<li>Exams, Questions, Submissions, Issues modules</li>
+										<li>Client protected routes and server auth middleware</li>
 									</ul>
 								),
 							},
@@ -495,9 +501,9 @@ const LandingPage = () => {
 								title: 'Security & APIs',
 								content: (
 									<ul style={{ paddingLeft: '1.2rem', margin: 0 }}>
-										<li>JWT authentication</li>
-										<li>CORS and structured errors</li>
-										<li>REST for users, exams, questions, issues</li>
+										<li>JWT authentication and role‑aware access</li>
+										<li>CORS middleware and structured error responses</li>
+										<li>REST endpoints for exams, questions, submissions, issues</li>
 									</ul>
 								),
 							},
@@ -506,7 +512,8 @@ const LandingPage = () => {
 								title: 'Evaluation Service',
 								content: (
 									<p style={{ margin: 0 }}>
-										Scores free‑form answers via rule checks and similarity signals for consistent grading.
+										Scores free‑form answers via rule checks and similarity signals
+										for repeatable, fair grading.
 									</p>
 								),
 							},
@@ -588,12 +595,12 @@ const LandingPage = () => {
 					<div
 						style={{
 							marginTop: isMobile ? '1.6rem' : '2rem',
-							background: 'linear-gradient(135deg, #6366f1 0%, #818cf8 100%)',
+							background: 'linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)',
 							borderRadius: '1rem',
 							padding: isMobile ? '1.2rem' : '2rem',
 							color: 'white',
 							textAlign: 'center',
-							boxShadow: '0 10px 30px rgba(99,102,241,0.3)',
+							boxShadow: '0 10px 30px rgba(79,70,229,0.3)',
 						}}
 					>
 						<h3
@@ -651,11 +658,12 @@ const LandingPage = () => {
 				aria-label="Choose Your Role"
 				style={{
 					padding: isMobile ? '3rem 1rem' : isTablet ? '4rem 2rem' : '5rem 3rem',
-					background: 'linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%)',
+					background: 'linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%)',
 					textAlign: 'center',
 					position: 'relative',
 					overflow: 'hidden',
 					scrollMarginTop: 20,
+					fontFamily: "Inter, 'Segoe UI', Roboto, system-ui, -apple-system, sans-serif",
 				}}
 			>
 				<div
@@ -795,30 +803,30 @@ const LandingPage = () => {
 									}}
 								>
 									<button
-										aria-label="Student Login"
+										aria-label="Student Sign in"
 										onClick={() => navigate('/student/login')}
 										style={{
 											padding: '0.65rem 1.15rem',
-											background: 'linear-gradient(135deg, #6366f1 0%, #818cf8 100%)',
+											background: 'linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)',
 											color: 'white',
 											border: 'none',
 											borderRadius: '0.6rem',
 											cursor: 'pointer',
 											fontWeight: 800,
 											letterSpacing: 0.2,
-											boxShadow: '0 8px 22px rgba(99,102,241,0.28)',
+											boxShadow: '0 8px 22px rgba(79,70,229,0.28)',
 											transition: 'transform 0.2s, box-shadow 0.2s',
 										}}
 										onMouseOver={e => {
 											e.currentTarget.style.transform = 'translateY(-2px)';
-											e.currentTarget.style.boxShadow = '0 12px 28px rgba(99,102,241,0.35)';
+											e.currentTarget.style.boxShadow = '0 12px 28px rgba(79,70,229,0.36)';
 										}}
 										onMouseOut={e => {
 											e.currentTarget.style.transform = 'translateY(0)';
-											e.currentTarget.style.boxShadow = '0 8px 22px rgba(99,102,241,0.28)';
+											e.currentTarget.style.boxShadow = '0 8px 22px rgba(79,70,229,0.28)';
 										}}
 									>
-										Login
+										Sign in
 									</button>
 									<button
 										aria-label="Learn how it works for Students"
@@ -937,7 +945,7 @@ const LandingPage = () => {
 									}}
 								>
 									<button
-										aria-label="Teacher Login"
+										aria-label="Teacher Sign in"
 										onClick={() => navigate('/teacher/login')}
 										style={{
 											padding: '0.65rem 1.15rem',
@@ -953,14 +961,14 @@ const LandingPage = () => {
 										}}
 										onMouseOver={e => {
 											e.currentTarget.style.transform = 'translateY(-2px)';
-											e.currentTarget.style.boxShadow = '0 12px 28px rgba(249,115,22,0.35)';
+											e.currentTarget.style.boxShadow = '0 12px 28px rgba(249,115,22,0.36)';
 										}}
 										onMouseOut={e => {
 											e.currentTarget.style.transform = 'translateY(0)';
 											e.currentTarget.style.boxShadow = '0 8px 22px rgba(249,115,22,0.28)';
 										}}
 									>
-										Login
+										Sign in
 									</button>
 									<button
 										aria-label="Learn how it works for Teachers"
@@ -993,15 +1001,16 @@ const LandingPage = () => {
 
 						{/* Footer */}}
 			<footer
-				style={{
-					backgroundColor: '#1e293b',
-					color: 'white',
-					padding: isMobile ? '2rem 1rem' : '3rem',
-					textAlign: 'center',
-					position: 'relative',
-					overflow: 'hidden',
-				}}
-			>
+  style={{
+    backgroundColor: '#0f172a',
+    color: 'white',
+    padding: isMobile ? '2rem 1rem' : '3rem',
+    textAlign: 'center',
+    position: 'relative',
+    overflow: 'hidden',
+    fontFamily: "Inter, 'Segoe UI', Roboto, system-ui, -apple-system, sans-serif",
+  }}
+>
 				<div
 					aria-hidden
 					style={{
