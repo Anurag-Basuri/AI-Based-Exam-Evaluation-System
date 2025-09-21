@@ -708,14 +708,17 @@ const LandingPage = () => {
 						<div
 							style={{
 								background: 'white',
-								borderRadius: '1.5rem',
-								boxShadow: '0 10px 30px rgba(30,41,59,0.08)',
-								padding: isMobile ? '1.4rem' : '2rem',
+								borderRadius: '1.25rem',
+								border: '1px solid #e2e8f0',
+								boxShadow: '0 8px 24px rgba(2,6,23,0.06)',
+								padding: isMobile ? '1.2rem' : 'clamp(1.4rem, 2.2vw, 2rem)',
 								textAlign: 'center',
-								width: isMobile ? '100%' : isTablet ? '46%' : '340px',
-								maxWidth: '100%',
+								flex: isMobile ? '1 1 100%' : isTablet ? '1 1 46%' : '1 1 360px',
+								maxWidth: isMobile ? '100%' : isTablet ? '520px' : '380px',
+								minWidth: isMobile ? 'auto' : 280,
 								position: 'relative',
 								overflow: 'hidden',
+								fontFamily: 'Inter, Segoe UI, Roboto, sans-serif',
 							}}
 						>
 							<div
@@ -727,40 +730,44 @@ const LandingPage = () => {
 									width: '100%',
 									height: '28%',
 									background:
-										'linear-gradient(135deg, rgba(99,102,241,0.1) 0%, rgba(224,231,255,0.1) 100%)',
+										'linear-gradient(135deg, rgba(79,70,229,0.08) 0%, rgba(199,210,254,0.12) 100%)',
 									zIndex: 0,
 								}}
 							/>
-							<div style={{ position: 'relative', zIndex: 1 }}>
+							<div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
 								<img
 									src={studentImg}
 									alt="Student"
+									loading="lazy"
 									style={{
-										width: isMobile ? 90 : 110,
-										height: isMobile ? 90 : 110,
+										width: isMobile ? 96 : 112,
+										height: isMobile ? 96 : 112,
 										borderRadius: '50%',
 										objectFit: 'cover',
-										marginBottom: '1.2rem',
-										border: '3px solid #6366f1',
-										boxShadow: '0 5px 15px rgba(99,102,241,0.2)',
+										margin: '0 auto 1rem',
+										border: '3px solid #4f46e5',
+										boxShadow: '0 8px 20px rgba(79,70,229,0.25)',
+										display: 'block',
 									}}
 								/>
 								<h3
 									style={{
-										fontSize: isMobile ? '1.3rem' : '1.45rem',
-										fontWeight: 700,
-										color: '#6366f1',
-										marginBottom: '0.8rem',
+										fontSize: 'clamp(1.1rem, 1.6vw, 1.45rem)',
+										fontWeight: 800,
+										color: '#4f46e5',
+										marginBottom: '0.6rem',
+										letterSpacing: 0.2,
 									}}
 								>
 									Student
 								</h3>
 								<p
 									style={{
-										color: '#64748b',
-										fontSize: '0.98rem',
-										marginBottom: '1.2rem',
-										lineHeight: 1.6,
+										color: '#475569',
+										fontSize: 'clamp(0.95rem, 1vw, 1rem)',
+										marginBottom: '1.1rem',
+										lineHeight: 1.65,
+										maxWidth: 420,
 									}}
 								>
 									Take exams, submit answers, and see results quickly.
@@ -770,44 +777,53 @@ const LandingPage = () => {
 										display: 'flex',
 										gap: '0.8rem',
 										justifyContent: 'center',
+										flexWrap: 'wrap',
+										width: '100%',
 									}}
 								>
 									<button
+										aria-label="Student Login"
 										onClick={() => navigate('/student/login')}
 										style={{
-											padding: '0.6rem 1.2rem',
-											backgroundColor: '#6366f1',
+											padding: '0.65rem 1.2rem',
+											backgroundColor: '#4f46e5',
 											color: 'white',
 											border: 'none',
-											borderRadius: '0.55rem',
+											borderRadius: '0.6rem',
 											cursor: 'pointer',
-											fontWeight: 600,
-											boxShadow: '0 4px 14px rgba(99,102,241,0.2)',
-											transition: 'transform 0.2s, box-shadow 0.2s',
+											fontWeight: 700,
+											boxShadow: '0 6px 18px rgba(79,70,229,0.25)',
+											transition: 'transform 0.2s, box-shadow 0.2s, background-color 0.2s',
 										}}
 										onMouseOver={e => {
 											e.currentTarget.style.transform = 'translateY(-2px)';
-											e.currentTarget.style.boxShadow =
-												'0 6px 20px rgba(99,102,241,0.3)';
+											e.currentTarget.style.boxShadow = '0 10px 24px rgba(79,70,229,0.35)';
 										}}
 										onMouseOut={e => {
 											e.currentTarget.style.transform = 'translateY(0)';
-											e.currentTarget.style.boxShadow =
-												'0 4px 14px rgba(99,102,241,0.2)';
+											e.currentTarget.style.boxShadow = '0 6px 18px rgba(79,70,229,0.25)';
 										}}
 									>
 										Login
 									</button>
 									<button
+										aria-label="Explore as Student"
 										onClick={() => scrollToSection(detailsRef)}
 										style={{
-											padding: '0.6rem 1.2rem',
+											padding: '0.65rem 1.2rem',
 											backgroundColor: 'transparent',
-											color: '#6366f1',
-											border: '1px solid #6366f1',
-											borderRadius: '0.55rem',
+											color: '#4f46e5',
+											border: '1px solid #c7d2fe',
+											borderRadius: '0.6rem',
 											cursor: 'pointer',
-											fontWeight: 600,
+											fontWeight: 700,
+											transition: 'background-color 0.2s, color 0.2s',
+										}}
+										onMouseOver={e => {
+											e.currentTarget.style.backgroundColor = 'rgba(199,210,254,0.25)';
+										}}
+										onMouseOut={e => {
+											e.currentTarget.style.backgroundColor = 'transparent';
 										}}
 									>
 										Explore
@@ -820,14 +836,17 @@ const LandingPage = () => {
 						<div
 							style={{
 								background: 'white',
-								borderRadius: '1.5rem',
-								boxShadow: '0 10px 30px rgba(30,41,59,0.08)',
-								padding: isMobile ? '1.4rem' : '2rem',
+								borderRadius: '1.25rem',
+								border: '1px solid #e2e8f0',
+								boxShadow: '0 8px 24px rgba(2,6,23,0.06)',
+								padding: isMobile ? '1.2rem' : 'clamp(1.4rem, 2.2vw, 2rem)',
 								textAlign: 'center',
-								width: isMobile ? '100%' : isTablet ? '46%' : '340px',
-								maxWidth: '100%',
+								flex: isMobile ? '1 1 100%' : isTablet ? '1 1 46%' : '1 1 360px',
+								maxWidth: isMobile ? '100%' : isTablet ? '520px' : '380px',
+								minWidth: isMobile ? 'auto' : 280,
 								position: 'relative',
 								overflow: 'hidden',
+								fontFamily: 'Inter, Segoe UI, Roboto, sans-serif',
 							}}
 						>
 							<div
@@ -839,40 +858,44 @@ const LandingPage = () => {
 									width: '100%',
 									height: '28%',
 									background:
-										'linear-gradient(135deg, rgba(245,158,66,0.1) 0%, rgba(254,240,221,0.1) 100%)',
+										'linear-gradient(135deg, rgba(249,115,22,0.08) 0%, rgba(254,215,170,0.12) 100%)',
 									zIndex: 0,
 								}}
 							/>
-							<div style={{ position: 'relative', zIndex: 1 }}>
+							<div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
 								<img
 									src={teacherImg}
 									alt="Teacher"
+									loading="lazy"
 									style={{
-										width: isMobile ? 90 : 110,
-										height: isMobile ? 90 : 110,
+										width: isMobile ? 96 : 112,
+										height: isMobile ? 96 : 112,
 										borderRadius: '50%',
 										objectFit: 'cover',
-										marginBottom: '1.2rem',
-										border: '3px solid #f59e42',
-										boxShadow: '0 5px 15px rgba(245,158,66,0.2)',
+										margin: '0 auto 1rem',
+										border: '3px solid #f97316',
+										boxShadow: '0 8px 20px rgba(249,115,22,0.25)',
+										display: 'block',
 									}}
 								/>
 								<h3
 									style={{
-										fontSize: isMobile ? '1.3rem' : '1.45rem',
-										fontWeight: 700,
-										color: '#f59e42',
-										marginBottom: '0.8rem',
+										fontSize: 'clamp(1.1rem, 1.6vw, 1.45rem)',
+										fontWeight: 800,
+										color: '#f97316',
+										marginBottom: '0.6rem',
+										letterSpacing: 0.2,
 									}}
 								>
 									Teacher
 								</h3>
 								<p
 									style={{
-										color: '#64748b',
-										fontSize: '0.98rem',
-										marginBottom: '1.2rem',
-										lineHeight: 1.6,
+										color: '#475569',
+										fontSize: 'clamp(0.95rem, 1vw, 1rem)',
+										marginBottom: '1.1rem',
+										lineHeight: 1.65,
+										maxWidth: 420,
 									}}
 								>
 									Build exams, manage questions, and review evaluations.
@@ -882,44 +905,53 @@ const LandingPage = () => {
 										display: 'flex',
 										gap: '0.8rem',
 										justifyContent: 'center',
+										flexWrap: 'wrap',
+										width: '100%',
 									}}
 								>
 									<button
+										aria-label="Teacher Login"
 										onClick={() => navigate('/teacher/login')}
 										style={{
-											padding: '0.6rem 1.2rem',
-											backgroundColor: '#f59e42',
+											padding: '0.65rem 1.2rem',
+											backgroundColor: '#f97316',
 											color: 'white',
 											border: 'none',
-											borderRadius: '0.55rem',
+											borderRadius: '0.6rem',
 											cursor: 'pointer',
-											fontWeight: 600,
-											boxShadow: '0 4px 14px rgba(245,158,66,0.2)',
-											transition: 'transform 0.2s, box-shadow 0.2s',
+											fontWeight: 700,
+											boxShadow: '0 6px 18px rgba(249,115,22,0.25)',
+											transition: 'transform 0.2s, box-shadow 0.2s, background-color 0.2s',
 										}}
 										onMouseOver={e => {
 											e.currentTarget.style.transform = 'translateY(-2px)';
-											e.currentTarget.style.boxShadow =
-												'0 6px 20px rgba(245,158,66,0.3)';
+											e.currentTarget.style.boxShadow = '0 10px 24px rgba(249,115,22,0.35)';
 										}}
 										onMouseOut={e => {
 											e.currentTarget.style.transform = 'translateY(0)';
-											e.currentTarget.style.boxShadow =
-												'0 4px 14px rgba(245,158,66,0.2)';
+											e.currentTarget.style.boxShadow = '0 6px 18px rgba(249,115,22,0.25)';
 										}}
 									>
 										Login
 									</button>
 									<button
+										aria-label="Explore as Teacher"
 										onClick={() => scrollToSection(detailsRef)}
 										style={{
-											padding: '0.6rem 1.2rem',
+											padding: '0.65rem 1.2rem',
 											backgroundColor: 'transparent',
-											color: '#f59e42',
-											border: '1px solid #f59e42',
-											borderRadius: '0.55rem',
+											color: '#f97316',
+											border: '1px solid #fed7aa',
+											borderRadius: '0.6rem',
 											cursor: 'pointer',
-											fontWeight: 600,
+											fontWeight: 700,
+											transition: 'background-color 0.2s, color 0.2s',
+										}}
+										onMouseOver={e => {
+											e.currentTarget.style.backgroundColor = 'rgba(254,215,170,0.25)';
+										}}
+										onMouseOut={e => {
+											e.currentTarget.style.backgroundColor = 'transparent';
 										}}
 									>
 										Explore
@@ -927,11 +959,11 @@ const LandingPage = () => {
 								</div>
 							</div>
 						</div>
-					</div>
-				</div>
-			</section>
+						</div>
+						</div>
+						</section>
 
-			{/* Footer */}
+						{/* Footer */}}
 			<footer
 				style={{
 					backgroundColor: '#1e293b',
