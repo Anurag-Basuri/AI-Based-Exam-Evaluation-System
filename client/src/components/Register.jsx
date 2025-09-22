@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.js';
 
-const Register = ({ onRegister, embedded = false, onSwitchToLogin }) => {
+const Register = ({ onRegister, onSwitchToLogin }) => {
 	const navigate = useNavigate();
 	const { registerStudent, registerTeacher, loading } = useAuth();
 
@@ -102,7 +102,7 @@ const Register = ({ onRegister, embedded = false, onSwitchToLogin }) => {
 			: '0 10px 24px rgba(79,70,229,0.25)';
 	const linkColor = role === 'teacher' ? '#f97316' : '#4f46e5';
 
-	return embedded ? (
+	return (
 		<form
 			onSubmit={handleSubmit}
 			style={styles.formFlat}
@@ -291,228 +291,10 @@ const Register = ({ onRegister, embedded = false, onSwitchToLogin }) => {
 				</button>
 			</div>
 		</form>
-	) : (
-		<div style={styles.container}>
-			<form
-				onSubmit={handleSubmit}
-				style={styles.form}
-				aria-labelledby="register-title"
-				noValidate
-			>
-				<h2 id="register-title" style={styles.title}>
-					Create your account
-				</h2>
-
-				<div style={styles.roleSwitch} role="tablist" aria-label="Choose role">
-					<button
-						type="button"
-						role="tab"
-						aria-selected={role === 'student'}
-						onClick={() => setRole('student')}
-						style={{
-							...styles.roleTab,
-							...(role === 'student' ? styles.roleTabActive : {}),
-						}}
-					>
-						Student
-					</button>
-					<button
-						type="button"
-						role="tab"
-						aria-selected={role === 'teacher'}
-						onClick={() => setRole('teacher')}
-						style={{
-							...styles.roleTab,
-							...(role === 'teacher' ? styles.roleTabActiveTeacher : {}),
-						}}
-					>
-						Teacher
-					</button>
-				</div>
-
-				<div style={styles.field}>
-					<label style={styles.label} htmlFor="fullname">
-						Full Name
-					</label>
-					<input
-						id="fullname"
-						style={{
-							...styles.input,
-							...(fieldErrors.fullname ? styles.inputInvalid : {}),
-						}}
-						type="text"
-						placeholder="e.g. Alex Morgan"
-						value={fullname}
-						onChange={e => setFullName(e.target.value)}
-						autoComplete="name"
-					/>
-					{fieldErrors.fullname ? (
-						<span style={styles.helperText}>{fieldErrors.fullname}</span>
-					) : null}
-				</div>
-
-				<div style={styles.field}>
-					<label style={styles.label} htmlFor="username">
-						Username
-					</label>
-					<input
-						id="username"
-						style={{
-							...styles.input,
-							...(fieldErrors.username ? styles.inputInvalid : {}),
-						}}
-						type="text"
-						placeholder="e.g. alex.morgan"
-						value={username}
-						onChange={e => setUsername(e.target.value)}
-						autoComplete="username"
-					/>
-					{fieldErrors.username ? (
-						<span style={styles.helperText}>{fieldErrors.username}</span>
-					) : null}
-				</div>
-
-				<div style={styles.field}>
-					<label style={styles.label} htmlFor="email">
-						Email
-					</label>
-					<input
-						id="email"
-						style={{
-							...styles.input,
-							...(fieldErrors.email ? styles.inputInvalid : {}),
-						}}
-						type="email"
-						placeholder={
-							role === 'teacher' ? 'teacher@school.edu' : 'student@school.edu'
-						}
-						value={email}
-						onChange={e => setEmail(e.target.value)}
-						autoComplete="email"
-					/>
-					{fieldErrors.email ? (
-						<span style={styles.helperText}>{fieldErrors.email}</span>
-					) : null}
-				</div>
-
-				<div style={styles.field}>
-					<label style={styles.label} htmlFor="password">
-						Password
-					</label>
-					<div style={styles.passwordWrap}>
-						<input
-							id="password"
-							style={{
-								...styles.input,
-								paddingRight: 44,
-								...(fieldErrors.password ? styles.inputInvalid : {}),
-							}}
-							type={showPassword ? 'text' : 'password'}
-							placeholder="Minimum 8 characters"
-							value={password}
-							onChange={e => setPassword(e.target.value)}
-							autoComplete="new-password"
-						/>
-						<button
-							type="button"
-							aria-label={showPassword ? 'Hide password' : 'Show password'}
-							onClick={() => setShowPassword(s => !s)}
-							style={styles.eyeBtn}
-							title={showPassword ? 'Hide password' : 'Show password'}
-						>
-							{showPassword ? '🙈' : '👁️'}
-						</button>
-					</div>
-					{fieldErrors.password ? (
-						<span style={styles.helperText}>{fieldErrors.password}</span>
-					) : null}
-				</div>
-
-				<div style={styles.field}>
-					<label style={styles.label} htmlFor="confirm">
-						Confirm password
-					</label>
-					<div style={styles.passwordWrap}>
-						<input
-							id="confirm"
-							style={{
-								...styles.input,
-								paddingRight: 44,
-								...(fieldErrors.confirm ? styles.inputInvalid : {}),
-							}}
-							type={showConfirm ? 'text' : 'password'}
-							placeholder="Re-enter your password"
-							value={confirm}
-							onChange={e => setConfirm(e.target.value)}
-							autoComplete="new-password"
-						/>
-						<button
-							type="button"
-							aria-label={showConfirm ? 'Hide password' : 'Show password'}
-							onClick={() => setShowConfirm(s => !s)}
-							style={styles.eyeBtn}
-							title={showConfirm ? 'Hide password' : 'Show password'}
-						>
-							{showConfirm ? '🙈' : '👁️'}
-						</button>
-					</div>
-					{fieldErrors.confirm ? (
-						<span style={styles.helperText}>{fieldErrors.confirm}</span>
-					) : null}
-				</div>
-
-				{topError ? (
-					<div style={styles.error} role="alert" aria-live="assertive">
-						{topError}
-					</div>
-				) : null}
-
-				<button
-					type="submit"
-					style={{
-						...styles.button,
-						background: buttonGradient,
-						boxShadow: buttonShadow,
-					}}
-					disabled={loading || !canSubmit}
-				>
-					{loading ? 'Creating account...' : `Create ${role} account`}
-				</button>
-
-				<div style={styles.bottomRow}>
-					<span>Already have an account?</span>
-					<button
-						type="button"
-						style={{ ...styles.linkBtn, color: linkColor }}
-						onClick={onSwitchToLogin}
-					>
-						Sign in
-					</button>
-				</div>
-			</form>
-		</div>
 	);
 };
 
 const styles = {
-	container: {
-		minHeight: '100vh',
-		display: 'grid',
-		placeItems: 'center',
-		background: 'linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%)',
-		padding: 16,
-		fontFamily: "Inter, 'Segoe UI', Roboto, system-ui, -apple-system, sans-serif",
-		color: '#0f172a',
-	},
-	form: {
-		width: '100%',
-		maxWidth: 500,
-		background: '#ffffff',
-		padding: 24,
-		borderRadius: 16,
-		boxShadow: '0 10px 30px rgba(2,6,23,0.08)',
-		border: '1px solid #e2e8f0',
-	},
 	formFlat: {
 		width: '100%',
 		background: 'transparent',
