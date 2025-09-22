@@ -1,14 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../hooks/useAuth.js';
 
 const useIsMobile = () => {
-	const [isMobile, setIsMobile] = React.useState(window.innerWidth < 768);
+	const isBrowser = typeof window !== 'undefined';
+	const [isMobile, setIsMobile] = React.useState(isBrowser ? window.innerWidth < 768 : false);
 	React.useEffect(() => {
+		if (!isBrowser) return;
 		const handleResize = () => setIsMobile(window.innerWidth < 768);
 		window.addEventListener('resize', handleResize, { passive: true });
 		return () => window.removeEventListener('resize', handleResize);
-	}, []);
+	}, [isBrowser]);
 	return isMobile;
 };
 
@@ -41,12 +43,6 @@ const Header = ({ transparent = false }) => {
 		navigate('/');
 	};
 
-	const handleLogout = async () => {
-		if (role === 'student') await logoutStudent();
-		else if (role === 'teacher') await logoutTeacher();
-		setShowUserDropdown(false);
-	};
-
 	// Always default to student when opening auth
 	const goToLogin = () => {
 		try {
@@ -61,15 +57,19 @@ const Header = ({ transparent = false }) => {
 		navigate('/auth?mode=register');
 	};
 
-	const getInitials = name => {
-		if (!name) return 'U';
-		return name
-			.split(' ')
-			.map(p => p[0])
-			.join('')
-			.toUpperCase()
-			.slice(0, 2);
+	const handleLogout = async () => {
+		setShowUserDropdown(false);
+		try {
+			if (role === 'teacher') await logoutTeacher();
+			else await logoutStudent();
+		} catch {
+			// no-op
+		}
+		navigate('/', { replace: true });
 	};
+
+	// Prefer username from auth payload
+	const displayName = user?.username || 'User';
 
 	const headerPadX = isMobile ? '0.75rem' : '2rem';
 
@@ -96,14 +96,11 @@ const Header = ({ transparent = false }) => {
 				onClick={navigateToHome}
 				style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: '0.65rem' }}
 			>
-				<div
-					aria-hidden
-					style={{
-						width: 36,
-						height: 36,
-						borderRadius: '50%',
-						background: 'linear-gradient(135deg, #6366f1, #a5b4fc)',
-					}}
+				{/* Website logo (from public/) */}
+				<img
+					src="/logo512.png"
+					alt="AI Exam System logo"
+					style={{ width: 36, height: 36, borderRadius: '8px' }}
 				/>
 				<h1
 					style={{
@@ -136,39 +133,22 @@ const Header = ({ transparent = false }) => {
 								padding: '0.25rem',
 							}}
 						>
-							{user.profileImage ? (
-								<img
-									src={user.profileImage}
-									alt={user.name}
-									style={{
-										width: 36,
-										height: 36,
-										borderRadius: '50%',
-										objectFit: 'cover',
-										background: '#e5e7eb',
-									}}
-								/>
-							) : (
-								<div
-									style={{
-										width: 36,
-										height: 36,
-										borderRadius: '50%',
-										background: role === 'student' ? '#6366f1' : '#f59e42',
-										color: 'white',
-										display: 'grid',
-										placeItems: 'center',
-										fontWeight: 700,
-										fontSize: '0.9rem',
-									}}
-								>
-									{getInitials(user.name)}
-								</div>
-							)}
+							{/* Dummy avatar image (not user photo) */}
+							<img
+								src="/logo192.png"
+								alt="User avatar"
+								style={{
+									width: 36,
+									height: 36,
+									borderRadius: '50%',
+									objectFit: 'cover',
+									border: `2px solid ${role === 'student' ? '#6366f1' : '#f59e42'}`,
+								}}
+							/>
 							{!isMobile && (
 								<>
 									<span style={{ fontWeight: 500, color: '#374151' }}>
-										{user.name}
+										{displayName}
 									</span>
 									<Caret open={showUserDropdown} />
 								</>
@@ -197,7 +177,7 @@ const Header = ({ transparent = false }) => {
 										textAlign: 'center',
 									}}
 								>
-									<div style={{ fontWeight: 600 }}>{user.name}</div>
+									<div style={{ fontWeight: 600 }}>{displayName}</div>
 									<div
 										style={{
 											fontSize: '0.85rem',
@@ -210,8 +190,8 @@ const Header = ({ transparent = false }) => {
 								</div>
 								<button
 									onClick={() => {
-										if (role === 'student') navigate('/student/dashboard');
-										else navigate('/teacher/dashboard');
+										if (role === 'student') navigate('/student');
+										else navigate('/teacher');
 										setShowUserDropdown(false);
 									}}
 									style={menuBtnStyle}
@@ -241,7 +221,6 @@ const Header = ({ transparent = false }) => {
 					</div>
 				) : (
 					<>
-						{/* Always route to /auth with default student */}
 						<button onClick={goToLogin} style={outlineBtnStyle}>
 							Sign in
 						</button>
