@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.js';
 
-const Login = ({ onLogin, embedded = false }) => {
+const Login = ({ onLogin, embedded = false, onSwitchToRegister }) => {
 	const navigate = useNavigate();
 	const { loginStudent, loginTeacher } = useAuth();
 
@@ -233,7 +233,7 @@ const Login = ({ onLogin, embedded = false }) => {
 				<button
 					type="button"
 					style={{ ...styles.linkBtn, color: linkColor }}
-					onClick={() => navigate('/auth?mode=register')}
+					onClick={onSwitchToRegister}
 				>
 					Create account
 				</button>
@@ -376,7 +376,7 @@ const Login = ({ onLogin, embedded = false }) => {
 					<button
 						type="button"
 						style={{ ...styles.linkBtn, color: linkColor }}
-						onClick={() => navigate('/auth?mode=register')}
+						onClick={onSwitchToRegister}
 					>
 						Create account
 					</button>

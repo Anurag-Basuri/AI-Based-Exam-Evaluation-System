@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.js';
 
-const Register = ({ onRegister, embedded = false }) => {
+const Register = ({ onRegister, embedded = false, onSwitchToLogin }) => {
 	const navigate = useNavigate();
 	const { registerStudent, registerTeacher, loading } = useAuth();
 
@@ -285,7 +285,7 @@ const Register = ({ onRegister, embedded = false }) => {
 				<button
 					type="button"
 					style={{ ...styles.linkBtn, color: linkColor }}
-					onClick={() => navigate('/auth?mode=login')}
+					onClick={onSwitchToLogin}
 				>
 					Sign in
 				</button>
@@ -484,7 +484,7 @@ const Register = ({ onRegister, embedded = false }) => {
 					<button
 						type="button"
 						style={{ ...styles.linkBtn, color: linkColor }}
-						onClick={() => navigate('/auth?mode=login')}
+						onClick={onSwitchToLogin}
 					>
 						Sign in
 					</button>

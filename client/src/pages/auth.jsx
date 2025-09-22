@@ -40,7 +40,7 @@ const useMediaQuery = (query, defaultState = false) => {
 };
 
 const AuthPage = () => {
-    // Simple toggle state - no URL or localStorage dependency
+    // Simple toggle state
     const [isRegister, setIsRegister] = useState(false);
     
     // Responsive flags
@@ -51,6 +51,10 @@ const AuthPage = () => {
     const accentA = isRegister ? '#f97316' : '#4f46e5';
     const accentB = isRegister ? '#fb923c' : '#6366f1';
     const accentGrad = `linear-gradient(135deg, ${accentA} 0%, ${accentB} 100%)`;
+
+    // Create handlers to pass to child components
+    const handleSwitchToRegister = () => setIsRegister(true);
+    const handleSwitchToLogin = () => setIsRegister(false);
 
     // Toggle switch component
     const AuthToggle = () => (
@@ -87,7 +91,7 @@ const AuthPage = () => {
                 type="button"
                 role="tab"
                 aria-selected={!isRegister}
-                onClick={() => setIsRegister(false)}
+                onClick={handleSwitchToLogin}
                 style={{
                     appearance: 'none',
                     border: 'none',
@@ -114,7 +118,7 @@ const AuthPage = () => {
                 type="button"
                 role="tab"
                 aria-selected={isRegister}
-                onClick={() => setIsRegister(true)}
+                onClick={handleSwitchToRegister}
                 style={{
                     appearance: 'none',
                     border: 'none',
@@ -187,7 +191,17 @@ const AuthPage = () => {
                                 borderRadius: isCompact ? 16 : 20,
                             }}
                         >
-                            {isRegister ? <Register embedded /> : <Login embedded />}
+                            {/* Pass handlers to components */}
+                            {isRegister ? 
+                                <Register 
+                                    embedded 
+                                    onSwitchToLogin={handleSwitchToLogin} 
+                                /> : 
+                                <Login 
+                                    embedded 
+                                    onSwitchToRegister={handleSwitchToRegister} 
+                                />
+                            }
                         </div>
                         <p style={styles.subtleNote}>
                             Tip: Use the role switch inside the form to switch Student/Teacher
