@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.js';
 
 const Login = ({ onLogin, onSwitchToRegister }) => {
 	const navigate = useNavigate();
+	const location = useLocation();
+	const returnTo = location?.state?.from || null;
 	const { loginStudent, loginTeacher } = useAuth();
 
 	const [role, setRole] = useState('student'); // "student" | "teacher"
@@ -80,6 +82,10 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
 			if (typeof onLogin === 'function') {
 				onLogin({ role, user: res?.data?.user || null });
 			}
+
+			// Navigate after successful login
+			const dashboard = role === 'teacher' ? '/teacher' : '/student';
+			navigate(returnTo || dashboard, { replace: true });
 		} catch (err) {
 			setTopError(extractError(err));
 		} finally {
