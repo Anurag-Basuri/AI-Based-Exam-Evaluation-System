@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import Login from '../components/Login.jsx';
 import Register from '../components/Register.jsx';
 import img1 from '../assets/image1.jpg';
@@ -16,17 +17,14 @@ const useMediaQuery = (query, defaultState = false) => {
 		const mediaQuery = window.matchMedia(query);
 		const handleChange = e => setMatches(e.matches);
 
-		// Set initial value
 		setMatches(mediaQuery.matches);
 
-		// Add listener
 		if (mediaQuery.addEventListener) {
 			mediaQuery.addEventListener('change', handleChange);
 		} else {
-			mediaQuery.addListener(handleChange); // For older browsers
+			mediaQuery.addListener(handleChange);
 		}
 
-		// Clean up
 		return () => {
 			if (mediaQuery.removeEventListener) {
 				mediaQuery.removeEventListener('change', handleChange);
@@ -40,21 +38,48 @@ const useMediaQuery = (query, defaultState = false) => {
 };
 
 const AuthPage = () => {
-	// Simple toggle state
-	const [isRegister, setIsRegister] = useState(false);
+	// Router tools
+	const location = useLocation();
+	const navigate = useNavigate();
+
+	// Read mode from URL (?mode=login|register). Also accept legacy ?auth=
+	const getModeFromSearch = search => {
+		const sp = new URLSearchParams(search);
+		const raw = (sp.get('mode') || sp.get('auth') || '').toLowerCase();
+		return raw === 'register' ? 'register' : 'login';
+	};
+
+	// Initialize from URL so header redirection is respected
+	const [isRegister, setIsRegister] = useState(
+		() => getModeFromSearch(location.search) === 'register',
+	);
+
+	// Keep state in sync when URL changes (e.g., back/forward or header clicks)
+	React.useEffect(() => {
+		const mode = getModeFromSearch(location.search);
+		const shouldRegister = mode === 'register';
+		setIsRegister(prev => (prev !== shouldRegister ? shouldRegister : prev));
+	}, [location.search]);
+
+	// Helper to update only the mode query param
+	const setUrlMode = (mode, { replace = false } = {}) => {
+		const sp = new URLSearchParams(location.search);
+		sp.set('mode', mode);
+		navigate({ pathname: location.pathname, search: `?${sp.toString()}` }, { replace });
+	};
+
+	// Handlers to toggle between login and register -> update URL (state follows via effect)
+	const handleSwitchToRegister = () => setUrlMode('register');
+	const handleSwitchToLogin = () => setUrlMode('login');
 
 	// Responsive flags
 	const isNarrow = useMediaQuery('(max-width: 900px)', false);
 	const isCompact = useMediaQuery('(max-width: 520px)', false);
 
-	// Accent colors based on mode
+	// Accent colors based on mode (used by toggle border overlay)
 	const accentA = isRegister ? '#f97316' : '#4f46e5';
 	const accentB = isRegister ? '#fb923c' : '#6366f1';
 	const accentGrad = `linear-gradient(135deg, ${accentA} 0%, ${accentB} 100%)`;
-
-	// Handler functions to toggle between login and register
-	const handleSwitchToRegister = () => setIsRegister(true);
-	const handleSwitchToLogin = () => setIsRegister(false);
 
 	// Toggle switch component
 	const AuthToggle = () => (
@@ -86,8 +111,8 @@ const AuthPage = () => {
 					WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
 					WebkitMaskComposite: 'xor',
 					maskComposite: 'exclude',
-					pointerEvents: 'none',   // FIX: don't block clicks
-					zIndex: 0,               // keep behind buttons
+					pointerEvents: 'none', // don't block clicks
+					zIndex: 0,
 				}}
 			/>
 			<button
@@ -108,7 +133,7 @@ const AuthPage = () => {
 					cursor: 'pointer',
 					letterSpacing: 0.2,
 					boxShadow: !isRegister ? '0 8px 20px rgba(79,70,229,0.28)' : 'none',
-					position: 'relative',    // ensure above overlay
+					position: 'relative',
 					zIndex: 1,
 				}}
 			>
@@ -429,7 +454,6 @@ const styles = {
 		color: '#64748b',
 		textAlign: 'center',
 	},
-
 };
 
 export default AuthPage;
