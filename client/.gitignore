@@ -29,3 +29,17 @@ dist-ssr
 .eslintignore
 .stylelintrc
 .stylelintignore
+
+.env
+.env.local
+.env.*.local
+.env.test
+.env.production
+
+# Misc
+.cache
+
+.git
+.gitignore
+.hg
+.hgignore
