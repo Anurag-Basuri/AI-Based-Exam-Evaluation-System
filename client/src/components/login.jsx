@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.js';
 
-const Login = ({ onLogin, embedded = false, onSwitchToRegister }) => {
+const Login = ({ onLogin, onSwitchToRegister }) => {
 	const navigate = useNavigate();
 	const { loginStudent, loginTeacher } = useAuth();
 
@@ -97,7 +97,7 @@ const Login = ({ onLogin, embedded = false, onSwitchToRegister }) => {
 			: '0 10px 24px rgba(79,70,229,0.25)';
 	const linkColor = primary;
 
-	return embedded ? (
+	return (
 		<form
 			onSubmit={handleSubmit}
 			style={styles.formFlat}
@@ -239,176 +239,10 @@ const Login = ({ onLogin, embedded = false, onSwitchToRegister }) => {
 				</button>
 			</div>
 		</form>
-	) : (
-		<div style={styles.container}>
-			<form
-				onSubmit={handleSubmit}
-				style={styles.form}
-				aria-labelledby="login-title"
-				noValidate
-			>
-				<h2 id="login-title" style={styles.title}>
-					Sign in
-				</h2>
-
-				{/* Role switch (segmented control) */}
-				<div style={styles.roleSwitch} role="tablist" aria-label="Choose role">
-					<button
-						type="button"
-						role="tab"
-						aria-selected={role === 'student'}
-						onClick={() => setRole('student')}
-						style={{
-							...styles.roleTab,
-							...(role === 'student' ? styles.roleTabActive : {}),
-						}}
-					>
-						Student
-					</button>
-					<button
-						type="button"
-						role="tab"
-						aria-selected={role === 'teacher'}
-						onClick={() => setRole('teacher')}
-						style={{
-							...styles.roleTab,
-							...(role === 'teacher' ? styles.roleTabActiveTeacher : {}),
-						}}
-					>
-						Teacher
-					</button>
-				</div>
-
-				<div style={styles.field}>
-					<label style={styles.label} htmlFor="identifier">
-						{idLabel}
-					</label>
-					<input
-						id="identifier"
-						style={{
-							...styles.input,
-							...(fieldErrors.identifier ? styles.inputInvalid : {}),
-						}}
-						type="text"
-						placeholder={idPlaceholder}
-						value={identifier}
-						onChange={e => setIdentifier(e.target.value)}
-						autoComplete="username"
-						inputMode="text"
-					/>
-					{fieldErrors.identifier ? (
-						<span style={styles.helperText}>{fieldErrors.identifier}</span>
-					) : null}
-				</div>
-
-				<div style={styles.field}>
-					<label style={styles.label} htmlFor="password">
-						Password
-					</label>
-					<div style={styles.passwordWrap}>
-						<input
-							id="password"
-							style={{
-								...styles.input,
-								paddingRight: 44,
-								...(fieldErrors.password ? styles.inputInvalid : {}),
-							}}
-							type={showPassword ? 'text' : 'password'}
-							placeholder="••••••••"
-							value={password}
-							onChange={e => setPassword(e.target.value)}
-							autoComplete="current-password"
-						/>
-						<button
-							type="button"
-							aria-label={showPassword ? 'Hide password' : 'Show password'}
-							onClick={() => setShowPassword(s => !s)}
-							style={styles.eyeBtn}
-							title={showPassword ? 'Hide password' : 'Show password'}
-						>
-							{showPassword ? '🙈' : '👁️'}
-						</button>
-					</div>
-					{fieldErrors.password ? (
-						<span style={styles.helperText}>{fieldErrors.password}</span>
-					) : null}
-				</div>
-
-				<div style={styles.row}>
-					<label style={styles.checkLabel}>
-						<input
-							type="checkbox"
-							checked={remember}
-							onChange={() => setRemember(v => !v)}
-						/>
-						Remember me
-					</label>
-
-					<button
-						type="button"
-						style={{ ...styles.linkBtn, color: linkColor }}
-						onClick={() => alert('Forgot password flow is not configured.')}
-					>
-						Forgot password?
-					</button>
-				</div>
-
-				{topError ? (
-					<div style={styles.error} role="alert" aria-live="assertive">
-						{topError}
-					</div>
-				) : null}
-
-				<button
-					type="submit"
-					style={{
-						...styles.button,
-						background: buttonGradient,
-						boxShadow: buttonShadow,
-					}}
-					disabled={loading}
-				>
-					{loading ? 'Signing in...' : `Sign in as ${role}`}
-				</button>
-
-				<div style={styles.bottomRow}>
-					<span>New here?</span>
-					<button
-						type="button"
-						style={{ ...styles.linkBtn, color: linkColor }}
-						onClick={onSwitchToRegister}
-					>
-						Create account
-					</button>
-				</div>
-
-				<p style={styles.note}>
-					By continuing, you agree to the acceptable use of this system.
-				</p>
-			</form>
-		</div>
 	);
 };
 
 const styles = {
-	container: {
-		minHeight: '100vh',
-		display: 'grid',
-		placeItems: 'center',
-		background: 'linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%)',
-		padding: 16,
-		fontFamily: "Inter, 'Segoe UI', Roboto, system-ui, -apple-system, sans-serif",
-		color: '#0f172a',
-	},
-	form: {
-		width: '100%',
-		maxWidth: 440,
-		background: '#ffffff',
-		padding: 24,
-		borderRadius: 16,
-		boxShadow: '0 10px 30px rgba(2,6,23,0.08)',
-		border: '1px solid #e2e8f0',
-	},
 	formFlat: {
 		width: '100%',
 		background: 'transparent',
@@ -536,12 +370,6 @@ const styles = {
 		marginTop: 10,
 		fontSize: 14,
 		color: '#64748b',
-	},
-	note: {
-		marginTop: 10,
-		fontSize: 12,
-		color: '#64748b',
-		textAlign: 'center',
 	},
 };
 
