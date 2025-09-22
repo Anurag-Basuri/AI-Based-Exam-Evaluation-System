@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import Login from '../components/Login.jsx';
 import Register from '../components/Register.jsx';
 import img1 from '../assets/image1.jpg';
@@ -6,135 +6,69 @@ import img2 from '../assets/image2.jpg';
 import img3 from '../assets/image3.jpg';
 import img4 from '../assets/image4.jpg';
 
-// New helpers: URL param + storage (no hashes)
-const VALID_MODES = new Set(['login', 'register']);
-
-const getUrlMode = () => {
-    if (typeof window === 'undefined') return null;
-    try {
-        const url = new URL(window.location.href);
-        const mode = (url.searchParams.get('auth') || '').toLowerCase();
-        return VALID_MODES.has(mode) ? mode : null;
-    } catch {
-        return null;
-    }
-};
-
-const setUrlMode = (mode, { replace = false } = {}) => {
-    if (typeof window === 'undefined') return;
-    try {
-        const url = new URL(window.location.href);
-        const current = (url.searchParams.get('auth') || '').toLowerCase();
-        if (current === mode) return;
-        url.searchParams.set('auth', mode);
-        if (replace) window.history.replaceState({}, '', url.toString());
-        else window.history.pushState({}, '', url.toString());
-    } catch {}
-};
-
-const loadSavedMode = () => {
-    if (typeof window === 'undefined') return null;
-    try {
-        const saved = (localStorage.getItem('authMode') || '').toLowerCase();
-        return VALID_MODES.has(saved) ? saved : null;
-    } catch {
-        return null;
-    }
-};
-
-const saveMode = mode => {
-    if (typeof window === 'undefined') return;
-    try {
-        localStorage.setItem('authMode', mode);
-    } catch {}
-};
-
 // Utility: media query -> boolean state
 const useMediaQuery = (query, defaultState = false) => {
-    const [matches, setMatches] = useState(() => {
-        if (typeof window === 'undefined' || typeof window.matchMedia !== 'function')
-            return defaultState;
-        return window.matchMedia(query).matches;
-    });
-
-    useEffect(() => {
+    const [matches, setMatches] = useState(defaultState);
+    
+    React.useEffect(() => {
         if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
-        const mql = window.matchMedia(query);
-        const onChange = e => setMatches(e.matches);
-        if (mql.addEventListener) mql.addEventListener('change', onChange);
-        else mql.addListener(onChange);
-        setMatches(mql.matches);
+        
+        const mediaQuery = window.matchMedia(query);
+        const handleChange = (e) => setMatches(e.matches);
+        
+        // Set initial value
+        setMatches(mediaQuery.matches);
+        
+        // Add listener
+        if (mediaQuery.addEventListener) {
+            mediaQuery.addEventListener('change', handleChange);
+        } else {
+            mediaQuery.addListener(handleChange); // For older browsers
+        }
+        
+        // Clean up
         return () => {
-            if (mql.removeEventListener) mql.removeEventListener('change', onChange);
-            else mql.removeListener(onChange);
+            if (mediaQuery.removeEventListener) {
+                mediaQuery.removeEventListener('change', handleChange);
+            } else {
+                mediaQuery.removeListener(handleChange);
+            }
         };
     }, [query]);
-
+    
     return matches;
 };
 
 const AuthPage = () => {
-    // Initialize: URL (?auth=...), else localStorage, else 'login'
-    const [mode, setMode] = useState(() => {
-        return getUrlMode() || loadSavedMode() || 'login';
-    });
-
-    // Keep URL in sync on first render (replace so no extra history entry)
-    useEffect(() => {
-        setUrlMode(mode, { replace: true });
-        saveMode(mode);
-    }, []); // run once
-
-    // Handle browser back/forward (popstate)
-    useEffect(() => {
-        const onPop = () => {
-            const m = getUrlMode();
-            if (m && m !== mode) setMode(m);
-        };
-        window.addEventListener('popstate', onPop);
-        return () => window.removeEventListener('popstate', onPop);
-    }, [mode]);
-
-    // Cross‑tab sync via storage events
-    useEffect(() => {
-        const onStorage = e => {
-            if (e.key === 'authMode') {
-                const m = (e.newValue || '').toLowerCase();
-                if (VALID_MODES.has(m) && m !== mode) {
-                    // Align URL too
-                    setUrlMode(m, { replace: true });
-                    setMode(m);
-                }
-            }
-        };
-        window.addEventListener('storage', onStorage);
-        return () => window.removeEventListener('storage', onStorage);
-    }, [mode]);
-
-    // Setter that updates state, URL (push) and storage
-    const setAuthMode = next => {
-        const m = VALID_MODES.has(next) ? next : 'login';
-        if (m === mode) return;
-        setMode(m);
-        setUrlMode(m, { replace: false }); // create history entry for back/forward
-        saveMode(m);
-    };
-
-    const isRegister = mode === 'register';
-
+    // Simple toggle state - no URL or localStorage dependency
+    const [isRegister, setIsRegister] = useState(false);
+    
     // Responsive flags
     const isNarrow = useMediaQuery('(max-width: 900px)', false);
     const isCompact = useMediaQuery('(max-width: 520px)', false);
 
+    // Accent colors based on mode
     const accentA = isRegister ? '#f97316' : '#4f46e5';
     const accentB = isRegister ? '#fb923c' : '#6366f1';
     const accentGrad = `linear-gradient(135deg, ${accentA} 0%, ${accentB} 100%)`;
 
-    const Switch = (
-        <div
-            role="tablist"
+    // Toggle switch component
+    const AuthToggle = () => (
+        <div 
+            role="tablist" 
             aria-label="Authentication mode"
-            style={{ ...styles.switchInlineWrap, padding: isCompact ? 4 : 6 }}
+            className="auth-toggle-container"
+            style={{
+                position: 'relative',
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: 6,
+                borderRadius: 999,
+                padding: isCompact ? 4 : 6,
+                background: 'linear-gradient(180deg, rgba(255,255,255,0.95), rgba(255,255,255,0.86))',
+                border: '1px solid rgba(226,232,240,0.8)',
+                boxShadow: '0 10px 28px rgba(2,6,23,0.12)',
+            }}
         >
             <div
                 aria-hidden="true"
@@ -153,11 +87,22 @@ const AuthPage = () => {
                 type="button"
                 role="tab"
                 aria-selected={!isRegister}
-                onClick={() => setAuthMode('login')}
+                onClick={() => setIsRegister(false)}
                 style={{
-                    ...styles.switchBtn,
+                    appearance: 'none',
+                    border: 'none',
+                    background: !isRegister ? 
+                        'linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)' : 
+                        'transparent',
+                    color: !isRegister ? '#fff' : '#334155',
+                    fontWeight: 800,
                     padding: isCompact ? '8px 12px' : '10px 16px',
-                    ...(!isRegister ? styles.switchActiveLogin : {}),
+                    borderRadius: 999,
+                    cursor: 'pointer',
+                    letterSpacing: 0.2,
+                    boxShadow: !isRegister ? 
+                        '0 8px 20px rgba(79,70,229,0.28)' : 
+                        'none',
                 }}
             >
                 <span aria-hidden="true" style={{ marginRight: 6 }}>
@@ -169,11 +114,22 @@ const AuthPage = () => {
                 type="button"
                 role="tab"
                 aria-selected={isRegister}
-                onClick={() => setAuthMode('register')}
+                onClick={() => setIsRegister(true)}
                 style={{
-                    ...styles.switchBtn,
+                    appearance: 'none',
+                    border: 'none',
+                    background: isRegister ? 
+                        'linear-gradient(135deg, #f97316 0%, #fb923c 100%)' : 
+                        'transparent',
+                    color: isRegister ? '#fff' : '#334155',
+                    fontWeight: 800,
                     padding: isCompact ? '8px 12px' : '10px 16px',
-                    ...(isRegister ? styles.switchActiveRegister : {}),
+                    borderRadius: 999,
+                    cursor: 'pointer',
+                    letterSpacing: 0.2,
+                    boxShadow: isRegister ? 
+                        '0 8px 20px rgba(249,115,22,0.28)' : 
+                        'none',
                 }}
             >
                 <span aria-hidden="true" style={{ marginRight: 6 }}>
@@ -223,7 +179,7 @@ const AuthPage = () => {
                 >
                     {/* Left: Auth card */}
                     <div style={{ ...styles.leftCol, gap: isCompact ? 10 : 12 }}>
-                        {Switch}
+                        <AuthToggle />
                         <div
                             style={{
                                 ...styles.card,
@@ -322,9 +278,9 @@ const AuthPage = () => {
 
             <style>
                 {`
-          @keyframes floaty { 0% { transform: translateY(0px); } 100% { transform: translateY(-16px); } }
-          @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
-        `}
+                @keyframes floaty { 0% { transform: translateY(0px); } 100% { transform: translateY(-16px); } }
+                @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+                `}
             </style>
         </div>
     );
@@ -393,39 +349,6 @@ const styles = {
         alignItems: 'stretch',
     },
     leftCol: { display: 'grid', gap: 12, alignContent: 'start' },
-
-    switchInlineWrap: {
-        position: 'relative',
-        display: 'grid',
-        gridTemplateColumns: '1fr 1fr',
-        gap: 6,
-        borderRadius: 999,
-        padding: 6,
-        background: 'linear-gradient(180deg, rgba(255,255,255,0.95), rgba(255,255,255,0.86))',
-        border: '1px solid rgba(226,232,240,0.8)',
-        boxShadow: '0 10px 28px rgba(2,6,23,0.12)',
-    },
-    switchBtn: {
-        appearance: 'none',
-        border: 'none',
-        background: 'transparent',
-        color: '#334155',
-        fontWeight: 800,
-        padding: '10px 16px',
-        borderRadius: 999,
-        cursor: 'pointer',
-        letterSpacing: 0.2,
-    },
-    switchActiveLogin: {
-        background: 'linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)',
-        color: '#fff',
-        boxShadow: '0 8px 20px rgba(79,70,229,0.28)',
-    },
-    switchActiveRegister: {
-        background: 'linear-gradient(135deg, #f97316 0%, #fb923c 100%)',
-        color: '#fff',
-        boxShadow: '0 8px 20px rgba(249,115,22,0.28)',
-    },
 
     card: {
         background: '#ffffff',
