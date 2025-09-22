@@ -86,6 +86,8 @@ const AuthPage = () => {
 					WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
 					WebkitMaskComposite: 'xor',
 					maskComposite: 'exclude',
+					pointerEvents: 'none',   // FIX: don't block clicks
+					zIndex: 0,               // keep behind buttons
 				}}
 			/>
 			<button
@@ -106,6 +108,8 @@ const AuthPage = () => {
 					cursor: 'pointer',
 					letterSpacing: 0.2,
 					boxShadow: !isRegister ? '0 8px 20px rgba(79,70,229,0.28)' : 'none',
+					position: 'relative',    // ensure above overlay
+					zIndex: 1,
 				}}
 			>
 				<span aria-hidden="true" style={{ marginRight: 6 }}>
@@ -131,6 +135,8 @@ const AuthPage = () => {
 					cursor: 'pointer',
 					letterSpacing: 0.2,
 					boxShadow: isRegister ? '0 8px 20px rgba(249,115,22,0.28)' : 'none',
+					position: 'relative',
+					zIndex: 1,
 				}}
 			>
 				<span aria-hidden="true" style={{ marginRight: 6 }}>
@@ -423,6 +429,7 @@ const styles = {
 		color: '#64748b',
 		textAlign: 'center',
 	},
+
 };
 
 export default AuthPage;
