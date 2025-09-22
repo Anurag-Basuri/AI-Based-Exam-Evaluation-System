@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.js';
 
 const Register = ({ onRegister, onSwitchToLogin }) => {
 	const navigate = useNavigate();
+	const location = useLocation();
+	const returnTo = location?.state?.from || null;
 	const { registerStudent, registerTeacher, loading } = useAuth();
 
 	const [role, setRole] = useState('student'); // "student" | "teacher"
@@ -74,7 +76,7 @@ const Register = ({ onRegister, onSwitchToLogin }) => {
 		try {
 			const payload = {
 				username: username.trim(),
-				fullName: fullname.trim(),
+				fullname: fullname.trim(),
 				email: email.trim(),
 				password: password.trim(),
 			};
@@ -85,8 +87,13 @@ const Register = ({ onRegister, onSwitchToLogin }) => {
 			try {
 				localStorage.setItem('preferredRole', role);
 			} catch {}
-			if (typeof onRegister === 'function')
-				onRegister({ role, user: res?.data?.user || null });
+			// Normalize user shape from API
+			const user = res?.data?.user || res?.user || null;
+			if (typeof onRegister === 'function') onRegister({ role, user });
+
+			// Navigate after successful registration
+			const dashboard = role === 'teacher' ? '/teacher' : '/student';
+			navigate(returnTo || dashboard, { replace: true });
 		} catch (err) {
 			setTopError(extractServerError(err));
 		}
@@ -275,7 +282,6 @@ const Register = ({ onRegister, onSwitchToLogin }) => {
 			<button
 				type="submit"
 				style={{ ...styles.button, background: buttonGradient, boxShadow: buttonShadow }}
-				disabled={loading || !canSubmit}
 			>
 				{loading ? 'Creating account...' : `Create ${role} account`}
 			</button>
@@ -387,6 +393,8 @@ const styles = {
 		letterSpacing: 0.2,
 		boxShadow: '0 10px 24px rgba(79,70,229,0.25)', // overridden inline
 		marginTop: 4,
+		position: 'relative',  // ensure above any decorative overlays
+		zIndex: 1,
 	},
 	error: {
 		background: '#fdecea',
