@@ -1,19 +1,17 @@
-import React, { useState } from 'react';
+import React from 'react';
 import Sidebar from '../components/Sidebar.jsx';
 
 const StudentDash = () => {
-    const [activeTab, setActiveTab] = useState('dashboard');
-
     return (
         <div className="student-dash">
             <Sidebar
+                useOutlet
                 items={[
-                    { label: 'Dashboard', onClick: () => setActiveTab('dashboard') },
-                    { label: 'Exams', onClick: () => setActiveTab('exams') },
+                    { key: 'home', label: 'Dashboard', icon: '🏠', to: '.' },
+                    { key: 'exams', label: 'Exams', icon: '📝', to: 'exams' },
+                    { key: 'settings', label: 'Settings', icon: '⚙️', to: 'settings' },
                 ]}
             />
-            {activeTab === 'dashboard' && <h1>Student Dashboard</h1>}
-            {activeTab === 'exams' && <h1>Exams</h1>}
         </div>
     );
 };
