@@ -14,21 +14,29 @@ const AppRoutes = () => {
 
             {/* Protected dashboards */}
             <Route
-                path="/student/*"
+                path="/student"
                 element={
                     <ProtectedRoute roles={['student']}>
                         <StudentDashboard />
                     </ProtectedRoute>
                 }
-            />
+            >
+                <Route index element={<StudentHome />} />
+                <Route path="exams" element={<StudentExams />} />
+                <Route path="settings" element={<StudentSettings />} />
+            </Route>
             <Route
-                path="/teacher/*"
+                path="/teacher"
                 element={
                     <ProtectedRoute roles={['teacher']}>
                         <TeacherDashboard />
                     </ProtectedRoute>
                 }
-            />
+            >
+                <Route index element={<TeacherHome />} />
+                <Route path="exams" element={<TeacherExams />} />
+                <Route path="settings" element={<TeacherSettings />} />
+            </Route>
 
             {/* Fallback */}
             <Route path="*" element={<Navigate to="/" replace />} />

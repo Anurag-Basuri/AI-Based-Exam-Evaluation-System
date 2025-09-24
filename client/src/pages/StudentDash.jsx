@@ -6,12 +6,14 @@ const StudentDash = () => {
 
     return (
         <div className="student-dash">
-            <Sidebar />
-            <h1>Student Dashboard</h1>
-            <div className="tabs">
-                <button onClick={() => setActiveTab('dashboard')}>Dashboard</button>
-                <button onClick={() => setActiveTab('exams')}>Exams</button>
-            </div>
+            <Sidebar
+                items={[
+                    { label: 'Dashboard', onClick: () => setActiveTab('dashboard') },
+                    { label: 'Exams', onClick: () => setActiveTab('exams') },
+                ]}
+            />
+            {activeTab === 'dashboard' && <h1>Student Dashboard</h1>}
+            {activeTab === 'exams' && <h1>Exams</h1>}
         </div>
     );
 };
