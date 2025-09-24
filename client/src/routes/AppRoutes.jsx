@@ -4,7 +4,10 @@ import LandingPage from '../pages/LandingPage.jsx';
 import AuthPage from '../pages/auth.jsx';
 import StudentDashboard from '../pages/StudentDash.jsx';
 import TeacherDashboard from '../pages/TeacherDash.jsx';
-import ProtectedRoute from './ProtectedRoutes.jsx'; // ADD
+import ProtectedRoute from './ProtectedRoutes.jsx';
+import StudentHome from '../pages/student/Home.jsx';
+import StudentExams from '../pages/student/Exams.jsx';
+import StudentSettings from '../pages/student/Settings.jsx';
 
 const AppRoutes = () => {
     return (
@@ -25,6 +28,7 @@ const AppRoutes = () => {
                 <Route path="exams" element={<StudentExams />} />
                 <Route path="settings" element={<StudentSettings />} />
             </Route>
+
             <Route
                 path="/teacher"
                 element={
@@ -32,12 +36,7 @@ const AppRoutes = () => {
                         <TeacherDashboard />
                     </ProtectedRoute>
                 }
-            >
-                <Route index element={<TeacherHome />} />
-                <Route path="exams" element={<TeacherExams />} />
-                <Route path="settings" element={<TeacherSettings />} />
-            </Route>
-
+            />
             {/* Fallback */}
             <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
