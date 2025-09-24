@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { NavLink, Outlet } from 'react-router-dom';
 
 const Sidebar = ({
 	items = [],
@@ -12,6 +13,7 @@ const Sidebar = ({
 	collapsedWidth = 72,
 	style = {},
 	contentStyle = {},
+	useOutlet = false, // NEW: render nested routes instead of local content
 }) => {
 	const firstKey = useMemo(() => defaultKey ?? items[0]?.key ?? null, [defaultKey, items]);
 	const [activeKey, setActiveKey] = useState(firstKey);
@@ -30,6 +32,8 @@ const Sidebar = ({
 		if (typeof activeItem.render === 'function') return activeItem.render(activeItem);
 		return activeItem.content ?? null;
 	};
+
+	const renderContent = () => (useOutlet ? <Outlet /> : renderActiveContent());
 
 	const handleSelect = key => {
 		const item = items.find(i => i.key === key);
@@ -94,7 +98,68 @@ const Sidebar = ({
 				{/* Items */}
 				<div style={{ flex: 1, padding: 8, display: 'grid', gap: 6 }}>
 					{items.map(item => {
-						const active = item.key === currentKey;
+						const baseItemStyle = {
+							display: 'flex',
+							alignItems: 'center',
+							gap: 10,
+							width: '100%',
+							textAlign: 'left',
+							padding: '10px 12px',
+							borderRadius: 10,
+							border: '1px solid transparent',
+						};
+
+						// If item.to is provided, use NavLink (routing). Else fallback to button selection.
+						if (item.to) {
+							return (
+								<NavLink
+									key={item.key}
+									to={item.to}
+									end={item.to === '.'}
+									style={({ isActive }) => ({
+										...baseItemStyle,
+										textDecoration: 'none',
+										background: isActive
+											? 'linear-gradient(135deg, rgba(99,102,241,0.16), rgba(99,102,241,0.10))'
+											: 'transparent',
+										color: isActive ? '#ffffff' : '#e2e8f0',
+										boxShadow: isActive
+											? 'inset 0 0 0 1px rgba(99,102,241,0.4)'
+											: 'none',
+									})}
+									title={typeof item.label === 'string' ? item.label : undefined}
+								>
+									<span
+										aria-hidden="true"
+										style={{ fontSize: 18, width: 22, textAlign: 'center' }}
+									>
+										{item.icon ?? '•'}
+									</span>
+									{expanded && (
+										<span style={{ fontWeight: 700, fontSize: 14 }}>
+											{item.label}
+										</span>
+									)}
+									{expanded && item.badge != null && (
+										<span
+											style={{
+												marginLeft: 'auto',
+												background: '#1f2937',
+												border: '1px solid #334155',
+												color: '#cbd5e1',
+												padding: '2px 6px',
+												fontSize: 12,
+												borderRadius: 999,
+												fontWeight: 700,
+											}}
+										>
+											{item.badge}
+										</span>
+									)}
+								</NavLink>
+							);
+						}
+
 						return (
 							<button
 								key={item.key}
@@ -102,26 +167,21 @@ const Sidebar = ({
 								onClick={() => handleSelect(item.key)}
 								disabled={item.disabled}
 								style={{
-									display: 'flex',
-									alignItems: 'center',
-									gap: 10,
-									width: '100%',
-									textAlign: 'left',
-									padding: '10px 12px',
-									borderRadius: 10,
-									border: '1px solid transparent',
+									...baseItemStyle,
 									cursor: item.disabled ? 'not-allowed' : 'pointer',
-									background: active
-										? 'linear-gradient(135deg, rgba(99,102,241,0.16), rgba(99,102,241,0.10))'
-										: 'transparent',
+									background:
+										item.key === currentKey
+											? 'linear-gradient(135deg, rgba(99,102,241,0.16), rgba(99,102,241,0.10))'
+											: 'transparent',
 									color: item.disabled
 										? '#64748b'
-										: active
+										: item.key === currentKey
 											? '#ffffff'
 											: '#e2e8f0',
-									boxShadow: active
-										? 'inset 0 0 0 1px rgba(99,102,241,0.4)'
-										: 'none',
+									boxShadow:
+										item.key === currentKey
+											? 'inset 0 0 0 1px rgba(99,102,241,0.4)'
+											: 'none',
 								}}
 								title={typeof item.label === 'string' ? item.label : undefined}
 							>
@@ -132,7 +192,12 @@ const Sidebar = ({
 									{item.icon ?? '•'}
 								</span>
 								{expanded && (
-									<span style={{ fontWeight: active ? 800 : 600, fontSize: 14 }}>
+									<span
+										style={{
+											fontWeight: item.key === currentKey ? 800 : 600,
+											fontSize: 14,
+										}}
+									>
 										{item.label}
 									</span>
 								)}
@@ -192,7 +257,7 @@ const Sidebar = ({
 					...contentStyle,
 				}}
 			>
-				{renderActiveContent()}
+				{renderContent()}
 			</main>
 		</div>
 	);
