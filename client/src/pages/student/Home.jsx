@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth.js';
 
-const StudentHome = () => {
+const Home = () => {
     const navigate = useNavigate();
     const { user } = useAuth();
     const username = user?.username || 'Student';
@@ -49,4 +49,4 @@ const StudentHome = () => {
     );
 };
 
-export default StudentHome;
+export default Home;
