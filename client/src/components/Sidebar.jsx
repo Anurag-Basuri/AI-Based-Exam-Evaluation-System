@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 
 const Sidebar = ({
@@ -14,35 +14,55 @@ const Sidebar = ({
     style = {},
     contentStyle = {},
     useOutlet = false, // render nested routes instead of local content
+    theme = 'light', // 'light' | 'dark'
 }) => {
-    const firstKey = useMemo(() => defaultKey ?? items[0]?.key ?? null, [defaultKey, items]);
+    const safeItems = Array.isArray(items) ? items : [];
+    const firstKey = useMemo(() => defaultKey ?? safeItems[0]?.key ?? null, [defaultKey, safeItems]);
     const [activeKey, setActiveKey] = useState(firstKey);
     const [expanded, setExpanded] = useState(true);
+
+    // Keep activeKey in sync when items/defaultKey change (uncontrolled mode only)
+    useEffect(() => {
+        if (selectedKey == null) setActiveKey(firstKey);
+    }, [firstKey, selectedKey]);
 
     const isControlled = selectedKey != null;
     const currentKey = isControlled ? selectedKey : activeKey;
 
     const activeItem = useMemo(
-        () => items.find(i => i.key === currentKey) || null,
-        [currentKey, items],
+        () => safeItems.find(i => i.key === currentKey) || null,
+        [currentKey, safeItems],
     );
 
     const renderActiveContent = () => {
         if (!activeItem) return null;
-        if (typeof activeItem.render === 'function') return activeItem.render(activeItem);
+        if (typeof activeItem.render === 'function') {
+            try {
+                return activeItem.render(activeItem);
+            } catch (err) {
+                console.error('Sidebar item render failed:', err);
+                return <div style={{ color: '#ef4444' }}>Failed to render content.</div>;
+            }
+        }
         return activeItem.content ?? null;
     };
 
     const renderContent = () => (useOutlet ? <Outlet /> : renderActiveContent());
 
     const handleSelect = key => {
-        const item = items.find(i => i.key === key);
+        const item = safeItems.find(i => i.key === key);
         if (!item || item.disabled) return;
         if (!isControlled) setActiveKey(key);
-        if (typeof onSelect === 'function') onSelect(key, item);
+        if (typeof onSelect === 'function') {
+            try {
+                onSelect(key, item);
+            } catch (err) {
+                console.error('Sidebar onSelect handler threw:', err);
+            }
+        }
     };
 
-    const { theme } = useTheme?.() ?? { theme: 'light' };
+    const resolvedTheme = theme === 'dark' ? 'dark' : 'light';
 
     return (
         <div
@@ -50,16 +70,16 @@ const Sidebar = ({
                 display: 'grid',
                 gridTemplateColumns: `${expanded ? width : collapsedWidth}px 1fr`,
                 minHeight: '100vh',
-                background: 'var(--surface)',
+                background: 'var(--surface, transparent)',
                 transition: 'grid-template-columns 0.25s ease',
                 ...style,
             }}
         >
             <nav
                 style={{
-                    background: 'var(--sidebar-bg)',
+                    background: 'var(--sidebar-bg, #0f172a)',
                     borderRight: '1px solid rgba(148, 163, 184, 0.25)',
-                    color: 'var(--text)',
+                    color: 'var(--text, #e2e8f0)',
                     display: 'flex',
                     flexDirection: 'column',
                     backdropFilter: 'blur(12px)',
@@ -94,7 +114,7 @@ const Sidebar = ({
                         scrollbarWidth: 'thin',
                     }}
                 >
-                    {items.map(item => {
+                    {safeItems.map(item => {
                         const baseItemStyle = {
                             position: 'relative',
                             display: 'flex',
@@ -262,7 +282,10 @@ const Sidebar = ({
             <main
                 style={{
                     padding: 20,
-                    background: theme === 'light' ? 'linear-gradient(180deg, #f8fafc, #e2e8f0)' : 'linear-gradient(180deg, #0b1120, #111827)',
+                    background:
+                        resolvedTheme === 'light'
+                            ? 'linear-gradient(180deg, #f8fafc, #e2e8f0)'
+                            : 'linear-gradient(180deg, #0b1120, #111827)',
                     minHeight: '100vh',
                     ...contentStyle,
                 }}
