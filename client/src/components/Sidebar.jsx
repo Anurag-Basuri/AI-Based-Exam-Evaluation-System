@@ -42,29 +42,27 @@ const Sidebar = ({
         if (typeof onSelect === 'function') onSelect(key, item);
     };
 
+    const { theme } = useTheme?.() ?? { theme: 'light' };
+
     return (
         <div
             style={{
                 display: 'grid',
                 gridTemplateColumns: `${expanded ? width : collapsedWidth}px 1fr`,
-                gap: 0,
                 minHeight: '100vh',
-                width: '100%',
-                transition: 'grid-template-columns .25s ease', // smooth collapse
+                background: 'var(--surface)',
+                transition: 'grid-template-columns 0.25s ease',
                 ...style,
             }}
         >
             <nav
-                aria-label="Sidebar"
                 style={{
-                    height: '100%',
-                    background: 'linear-gradient(180deg, #0b1220, #0f172a)', // subtle gradient
-                    color: '#e2e8f0',
-                    borderRight: '1px solid #1f2937',
+                    background: 'var(--sidebar-bg)',
+                    borderRight: '1px solid rgba(148, 163, 184, 0.25)',
+                    color: 'var(--text)',
                     display: 'flex',
                     flexDirection: 'column',
-                    userSelect: 'none',
-                    overflow: 'hidden',
+                    backdropFilter: 'blur(12px)',
                 }}
             >
                 <div style={{ padding: 12, minHeight: 56, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -261,12 +259,10 @@ const Sidebar = ({
                     )}
                 </div>
             </nav>
-
             <main
-                role="main"
                 style={{
-                    padding: '20px',
-                    background: 'linear-gradient(180deg, #f8fafc, #f1f5f9)',
+                    padding: 20,
+                    background: theme === 'light' ? 'linear-gradient(180deg, #f8fafc, #e2e8f0)' : 'linear-gradient(180deg, #0b1120, #111827)',
                     minHeight: '100vh',
                     ...contentStyle,
                 }}
