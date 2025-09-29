@@ -19,6 +19,8 @@ const StudentDash = () => {
                 items={[
                     { key: 'home', label: 'Dashboard', icon: '🏠', to: '.' },
                     { key: 'exams', label: 'Exams', icon: '📝', to: 'exams' },
+                    { key: 'results', label: 'Results', icon: '📊', to: 'results' },
+                    { key: 'issues', label: 'Issues', icon: '🛠️', to: 'issues' },
                     { key: 'settings', label: 'Settings', icon: '⚙️', to: 'settings' },
                 ]}
             />

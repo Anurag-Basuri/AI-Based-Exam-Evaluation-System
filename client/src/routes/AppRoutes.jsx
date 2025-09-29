@@ -8,6 +8,8 @@ import ProtectedRoute from './ProtectedRoutes.jsx';
 import StudentHome from '../pages/student/Home.jsx';
 import StudentExams from '../pages/student/Exams.jsx';
 import StudentSettings from '../pages/student/Settings.jsx';
+import StudentResults from '../pages/student/result.jsx';
+import StudentIssues from '../pages/student/issue.jsx';
 import TeacherHome from '../pages/teacher/Home.jsx';
 import TeacherExams from '../pages/teacher/Exams.jsx';
 import TeacherSettings from '../pages/teacher/Home.jsx';
@@ -29,6 +31,8 @@ const AppRoutes = () => {
             >
                 <Route index element={<StudentHome />} />
                 <Route path="exams" element={<StudentExams />} />
+                <Route path="results" element={<StudentResults />} />
+                <Route path="issues" element={<StudentIssues />} />
                 <Route path="settings" element={<StudentSettings />} />
             </Route>
 
