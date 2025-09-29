@@ -8,6 +8,9 @@ import ProtectedRoute from './ProtectedRoutes.jsx';
 import StudentHome from '../pages/student/Home.jsx';
 import StudentExams from '../pages/student/Exams.jsx';
 import StudentSettings from '../pages/student/Settings.jsx';
+import TeacherHome from '../pages/teacher/Home.jsx';
+import TeacherExams from '../pages/teacher/Exams.jsx';
+import TeacherSettings from '../pages/teacher/Home.jsx';
 
 const AppRoutes = () => {
     return (
@@ -36,8 +39,11 @@ const AppRoutes = () => {
                         <TeacherDashboard />
                     </ProtectedRoute>
                 }
-            />
-            {/* Fallback */}
+            >
+                <Route index element={<TeacherHome />} />
+                <Route path="exams" element={<TeacherExams />} />
+                <Route path="settings" element={<TeacherSettings />} />
+            </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
     );
