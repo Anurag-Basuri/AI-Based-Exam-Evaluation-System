@@ -121,6 +121,17 @@ export const changeStudentPassword = async (pwData) => {
     }
 };
 
+export const updateStudentProfile = async (profileData) => {
+    try {
+        const response = await apiClient.put('/api/students/update', profileData);
+        return response.data;
+    } catch (err) {
+        const apiErr = parseAxiosError(err);
+        maybeInvalidateToken(apiErr);
+        throw apiErr;
+    }
+};
+
 export const registerTeacher = async (teacherData) => {
     try {
         const response = await publicClient.post('/api/teachers/register', teacherData);
@@ -162,6 +173,17 @@ export const logoutTeacher = async () => {
 export const changeTeacherPassword = async (pwData) => {
     try {
         const response = await apiClient.put('/api/teachers/change-password', pwData);
+        return response.data;
+    } catch (error) {
+        const apiErr = parseAxiosError(error);
+        maybeInvalidateToken(apiErr);
+        throw apiErr;
+    }
+};
+
+export const updateTeacherProfile = async (profileData) => {
+    try {
+        const response = await apiClient.put('/api/teachers/update', profileData);
         return response.data;
     } catch (error) {
         const apiErr = parseAxiosError(error);
