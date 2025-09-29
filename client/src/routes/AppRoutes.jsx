@@ -7,12 +7,14 @@ import TeacherDashboard from '../pages/TeacherDash.jsx';
 import ProtectedRoute from './ProtectedRoutes.jsx';
 import StudentHome from '../pages/student/Home.jsx';
 import StudentExams from '../pages/student/Exams.jsx';
-import StudentSettings from '../pages/student/Settings.jsx';
 import StudentResults from '../pages/student/result.jsx';
 import StudentIssues from '../pages/student/issue.jsx';
+import StudentSettings from '../pages/student/Settings.jsx';
 import TeacherHome from '../pages/teacher/Home.jsx';
 import TeacherExams from '../pages/teacher/Exams.jsx';
-import TeacherSettings from '../pages/teacher/Home.jsx';
+import TeacherResults from '../pages/teacher/result.jsx';
+import TeacherIssues from '../pages/teacher/issue.jsx';
+import TeacherSettings from '../pages/teacher/Settings.jsx';
 
 const AppRoutes = () => {
     return (
@@ -46,6 +48,8 @@ const AppRoutes = () => {
             >
                 <Route index element={<TeacherHome />} />
                 <Route path="exams" element={<TeacherExams />} />
+                <Route path="results" element={<TeacherResults />} />
+                <Route path="issues" element={<TeacherIssues />} />
                 <Route path="settings" element={<TeacherSettings />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
