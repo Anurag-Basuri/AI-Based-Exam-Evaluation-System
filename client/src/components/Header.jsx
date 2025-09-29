@@ -24,6 +24,7 @@ const Header = ({ transparent = false }) => {
 
 	// Close dropdown on outside click or ESC
 	useEffect(() => {
+		if (typeof document === 'undefined') return;
 		const onDown = e => {
 			if (userDdRef.current && !userDdRef.current.contains(e.target)) {
 				setShowUserDropdown(false);
@@ -40,21 +41,27 @@ const Header = ({ transparent = false }) => {
 
 	const navigateToHome = () => {
 		setShowUserDropdown(false);
-		navigate('/');
+		try {
+			navigate('/');
+		} catch {}
 	};
 
-	// Always default to student when opening auth
+	// Default to student when opening auth
 	const goToLogin = () => {
 		try {
 			localStorage.setItem('preferredRole', 'student');
 		} catch {}
-		navigate('/auth?mode=login');
+		try {
+			navigate('/auth?mode=login&role=student');
+		} catch {}
 	};
 	const goToRegister = () => {
 		try {
 			localStorage.setItem('preferredRole', 'student');
 		} catch {}
-		navigate('/auth?mode=register');
+		try {
+			navigate('/auth?mode=register&role=student');
+		} catch {}
 	};
 
 	const handleLogout = async () => {
@@ -63,14 +70,14 @@ const Header = ({ transparent = false }) => {
 			if (role === 'teacher') await logoutTeacher();
 			else await logoutStudent();
 		} catch {
-			// no-op
+			// ignore
 		}
-		navigate('/', { replace: true });
+		try {
+			navigate('/', { replace: true });
+		} catch {}
 	};
 
-	// Prefer username from auth payload
 	const displayName = user?.username || 'User';
-
 	const headerPadX = isMobile ? '0.75rem' : '2rem';
 
 	return (
@@ -91,12 +98,10 @@ const Header = ({ transparent = false }) => {
 					'background-color 180ms ease, box-shadow 180ms ease, border-color 180ms ease',
 			}}
 		>
-			{/* Logo */}
 			<div
 				onClick={navigateToHome}
 				style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: '0.65rem' }}
 			>
-				{/* Website logo (from public/) */}
 				<img
 					src="/logo512.png"
 					alt="AI Exam System logo"
@@ -115,7 +120,6 @@ const Header = ({ transparent = false }) => {
 				</h1>
 			</div>
 
-			{/* Right side */}
 			<div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
 				{isAuthenticated && user ? (
 					<div ref={userDdRef} style={{ position: 'relative' }}>
@@ -133,7 +137,6 @@ const Header = ({ transparent = false }) => {
 								padding: '0.25rem',
 							}}
 						>
-							{/* Dummy avatar image (not user photo) */}
 							<img
 								src="/logo192.png"
 								alt="User avatar"
@@ -190,9 +193,12 @@ const Header = ({ transparent = false }) => {
 								</div>
 								<button
 									onClick={() => {
-										if (role === 'student') navigate('/student');
-										else navigate('/teacher');
-										setShowUserDropdown(false);
+										try {
+											if (role === 'student') navigate('/student');
+											else navigate('/teacher');
+										} finally {
+											setShowUserDropdown(false);
+										}
 									}}
 									style={menuBtnStyle}
 									onMouseOver={e =>
