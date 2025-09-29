@@ -66,89 +66,183 @@ const Exams = () => {
         }
     };
 
+    const statusPill = (status) => {
+        const map = {
+            active: { bg: '#eef2ff', bd: '#c7d2fe', fg: '#3730a3', label: 'Active' },
+            upcoming: { bg: '#fffbeb', bd: '#fde68a', fg: '#92400e', label: 'Upcoming' },
+            completed: { bg: '#ecfeff', bd: '#a5f3fc', fg: '#155e75', label: 'Completed' },
+        };
+        return map[status] || { bg: '#f1f5f9', bd: '#e2e8f0', fg: '#334155', label: status || '—' };
+    };
+
+    const SkeletonCard = () => (
+        <li
+            style={{
+                background: '#fff',
+                border: '1px solid #e2e8f0',
+                borderRadius: 12,
+                padding: 12,
+                display: 'grid',
+                gridTemplateColumns: '1fr auto',
+                gap: 8,
+                alignItems: 'center',
+            }}
+        >
+            <div>
+                <div style={{ width: 160, height: 16, background: '#e5e7eb', borderRadius: 6, marginBottom: 8 }} />
+                <div style={{ width: 220, height: 12, background: '#e5e7eb', borderRadius: 6 }} />
+            </div>
+            <div style={{ width: 120, height: 36, background: '#e5e7eb', borderRadius: 8 }} />
+        </li>
+    );
+
     return (
         <section>
             <h1 style={{ marginTop: 0 }}>Exams</h1>
 
-            <div style={{ display: 'flex', gap: 10, margin: '10px 0' }}>
-                <input
-                    placeholder="Search exams"
-                    value={query}
-                    onChange={e => setQuery(e.target.value)}
-                    style={{
-                        flex: 1,
-                        border: '1px solid #cbd5e1',
-                        borderRadius: 8,
-                        padding: '10px 12px',
-                        outline: 'none',
-                    }}
-                />
-                <select
-                    value={filter}
-                    onChange={e => setFilter(e.target.value)}
-                    style={{ border: '1px solid #cbd5e1', borderRadius: 8, padding: '10px 12px' }}
-                >
-                    <option value="all">All</option>
-                    <option value="active">Active</option>
-                    <option value="upcoming">Upcoming</option>
-                    <option value="completed">Completed</option>
-                </select>
-            </div>
-
-            {loading && <div>Loading exams…</div>}
-            {!loading && error && <div style={{ color: '#ef4444' }}>{error}</div>}
-
-            <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 10 }}>
-                {filtered.map(exam => (
-                    <li
-                        key={exam.id}
+            {/* Toolbar */}
+            <div
+                style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: 10,
+                    margin: '10px 0',
+                    alignItems: 'center',
+                }}
+            >
+                <div style={{ position: 'relative', flex: 1, minWidth: 220 }}>
+                    <input
+                        placeholder="Search exams"
+                        value={query}
+                        onChange={e => setQuery(e.target.value)}
                         style={{
-                            background: '#fff',
-                            border: '1px solid #e2e8f0',
-                            borderRadius: 12,
-                            padding: 12,
-                            display: 'grid',
-                            gridTemplateColumns: '1fr auto',
-                            gap: 8,
-                            alignItems: 'center',
+                            width: '100%',
+                            border: '1px solid #cbd5e1',
+                            borderRadius: 10,
+                            padding: '10px 34px 10px 36px',
+                            outline: 'none',
+                            background: '#ffffff',
+                        }}
+                    />
+                    <span
+                        aria-hidden
+                        style={{
+                            position: 'absolute',
+                            left: 10,
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            color: '#94a3b8',
                         }}
                     >
-                        <div>
-                            <div style={{ fontWeight: 800 }}>{exam.title}</div>
-                            <div style={{ color: '#64748b', fontSize: 13 }}>
-                                {exam.durationMin} min • {exam.startAt}
-                            </div>
-                            <div style={{ marginTop: 6 }}>
-                                <span
-                                    style={{
-                                        fontSize: 12,
-                                        padding: '2px 6px',
-                                        borderRadius: 999,
-                                        border: '1px solid #cbd5e1',
-                                        background: '#f8fafc',
-                                    }}
-                                >
-                                    Status: {exam.status}
-                                </span>
-                            </div>
-                        </div>
-                        <div style={{ display: 'flex', gap: 8 }}>
-                            {exam.status === 'upcoming' && (
-                                <button disabled style={btnMuted}>Not started</button>
-                            )}
-                            {exam.status === 'active' && (
-                                <button style={btnPrimary} onClick={() => handleStart(exam.id)}>Continue</button>
-                            )}
-                            {exam.status === 'completed' && (
-                                <button style={btnOutline} onClick={() => alert('Results page TBD')}>View Result</button>
-                            )}
-                            {exam.status === 'upcoming' && (
-                                <button style={btnPrimary} onClick={() => handleStart(exam.id)}>Start</button>
-                            )}
-                        </div>
-                    </li>
-                ))}
-            </ul>
+                        🔎
+                    </span>
+                </div>
+
+                {/* Filter pills */}
+                <div style={{ display: 'flex', gap: 8 }}>
+                    {['all', 'active', 'upcoming', 'completed'].map(f => {
+                        const active = filter === f;
+                        return (
+                            <button
+                                key={f}
+                                onClick={() => setFilter(f)}
+                                style={{
+                                    padding: '8px 10px',
+                                    borderRadius: 999,
+                                    border: active ? '1px solid #6366f1' : '1px solid #cbd5e1',
+                                    background: active ? '#eef2ff' : '#ffffff',
+                                    color: active ? '#4f46e5' : '#334155',
+                                    cursor: 'pointer',
+                                    fontWeight: 700,
+                                }}
+                            >
+                                {f[0].toUpperCase() + f.slice(1)}
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
+
+            {loading && (
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 10 }}>
+                    <SkeletonCard />
+                    <SkeletonCard />
+                    <SkeletonCard />
+                </ul>
+            )}
+            {!loading && error && <div style={{ color: '#ef4444' }}>{error}</div>}
+            {!loading && !error && filtered.length === 0 && (
+                <div
+                    style={{
+                        background: '#fff',
+                        border: '1px dashed #cbd5e1',
+                        borderRadius: 12,
+                        padding: 20,
+                        color: '#64748b',
+                    }}
+                >
+                    No exams found. Try a different filter or search term.
+                </div>
+            )}
+
+            {!loading && filtered.length > 0 && (
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 10 }}>
+                    {filtered.map(exam => {
+                        const pill = statusPill(exam.status);
+                        return (
+                            <li
+                                key={exam.id}
+                                style={{
+                                    background: '#fff',
+                                    border: '1px solid #e2e8f0',
+                                    borderRadius: 12,
+                                    padding: 12,
+                                    display: 'grid',
+                                    gridTemplateColumns: '1fr auto',
+                                    gap: 8,
+                                    alignItems: 'center',
+                                }}
+                            >
+                                <div>
+                                    <div style={{ fontWeight: 800 }}>{exam.title}</div>
+                                    <div style={{ color: '#64748b', fontSize: 13 }}>
+                                        {exam.durationMin} min • {exam.startAt}
+                                    </div>
+                                    <div style={{ marginTop: 6 }}>
+                                        <span
+                                            style={{
+                                                fontSize: 12,
+                                                padding: '2px 8px',
+                                                borderRadius: 999,
+                                                border: `1px solid ${pill.bd}`,
+                                                background: pill.bg,
+                                                color: pill.fg,
+                                                fontWeight: 700,
+                                            }}
+                                        >
+                                            {pill.label}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div style={{ display: 'flex', gap: 8 }}>
+                                    {exam.status === 'upcoming' && (
+                                        <button disabled style={btnMuted}>Not started</button>
+                                    )}
+                                    {exam.status === 'active' && (
+                                        <button style={btnPrimary} onClick={() => handleStart(exam.id)}>Continue</button>
+                                    )}
+                                    {exam.status === 'completed' && (
+                                        <button style={btnOutline} onClick={() => alert('Results page TBD')}>View Result</button>
+                                    )}
+                                    {exam.status === 'upcoming' && (
+                                        <button style={btnPrimary} onClick={() => handleStart(exam.id)}>Start</button>
+                                    )}
+                                </div>
+                            </li>
+                        );
+                    })}
+                </ul>
+            )}
         </section>
     );
 };

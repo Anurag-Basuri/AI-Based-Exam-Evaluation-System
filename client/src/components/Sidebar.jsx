@@ -58,12 +58,13 @@ const Sidebar = ({
                 aria-label="Sidebar"
                 style={{
                     height: '100%',
-                    background: '#0f172a',
+                    background: 'linear-gradient(180deg, #0b1220, #0f172a)', // subtle gradient
                     color: '#e2e8f0',
                     borderRight: '1px solid #1f2937',
                     display: 'flex',
                     flexDirection: 'column',
                     userSelect: 'none',
+                    overflow: 'hidden',
                 }}
             >
                 <div style={{ padding: 12, minHeight: 56, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -85,7 +86,16 @@ const Sidebar = ({
                     )}
                 </div>
 
-                <div style={{ flex: 1, padding: 8, display: 'grid', gap: 6 }}>
+                <div
+                    style={{
+                        flex: 1,
+                        padding: 8,
+                        display: 'grid',
+                        gap: 6,
+                        overflowY: 'auto',
+                        scrollbarWidth: 'thin',
+                    }}
+                >
                     {items.map(item => {
                         const baseItemStyle = {
                             position: 'relative',
@@ -97,7 +107,7 @@ const Sidebar = ({
                             padding: '10px 12px',
                             borderRadius: 10,
                             border: '1px solid transparent',
-                            transition: 'background 180ms ease, box-shadow 180ms ease, color 180ms ease',
+                            transition: 'background 180ms ease, box-shadow 180ms ease, color 180ms ease, transform 120ms',
                         };
 
                         // Use NavLink when "to" is provided, otherwise local select
@@ -106,6 +116,7 @@ const Sidebar = ({
                                 <NavLink
                                     key={item.key}
                                     to={item.to}
+                                    aria-label={typeof item.label === 'string' ? item.label : undefined}
                                     end={item.to === '.'}
                                     title={typeof item.label === 'string' ? item.label : undefined}
                                     style={({ isActive }) => ({
@@ -117,6 +128,8 @@ const Sidebar = ({
                                         color: isActive ? '#ffffff' : '#e2e8f0',
                                         boxShadow: isActive ? 'inset 0 0 0 1px rgba(99,102,241,0.45)' : 'none',
                                     })}
+                                    onMouseOver={e => (e.currentTarget.style.transform = 'translateY(-1px)')}
+                                    onMouseOut={e => (e.currentTarget.style.transform = 'translateY(0)')}
                                 >
                                     {({ isActive }) => (
                                         <>
@@ -164,6 +177,7 @@ const Sidebar = ({
                             <button
                                 key={item.key}
                                 type="button"
+                                aria-label={typeof item.label === 'string' ? item.label : undefined}
                                 onClick={() => handleSelect(item.key)}
                                 disabled={item.disabled}
                                 style={{
@@ -175,6 +189,8 @@ const Sidebar = ({
                                     color: item.disabled ? '#64748b' : active ? '#ffffff' : '#e2e8f0',
                                     boxShadow: active ? 'inset 0 0 0 1px rgba(99,102,241,0.45)' : 'none',
                                 }}
+                                onMouseOver={e => (e.currentTarget.style.transform = 'translateY(-1px)')}
+                                onMouseOut={e => (e.currentTarget.style.transform = 'translateY(0)')}
                                 title={typeof item.label === 'string' ? item.label : undefined}
                             >
                                 {active && (
@@ -217,7 +233,7 @@ const Sidebar = ({
                     })}
                 </div>
 
-                <div style={{ padding: 8 }}>
+                <div style={{ padding: 8, borderTop: '1px solid #1f2937' }}>
                     {footer}
                     {collapsible && (
                         <button
@@ -232,10 +248,15 @@ const Sidebar = ({
                                 color: '#cbd5e1',
                                 cursor: 'pointer',
                                 fontWeight: 700,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: 6,
                             }}
                             aria-label={expanded ? 'Collapse sidebar' : 'Expand sidebar'}
                         >
-                            {expanded ? 'Collapse' : 'Expand'}
+                            <span aria-hidden="true">{expanded ? '⟨' : '⟩'}</span>
+                            {expanded ? 'Collapse' : ''}
                         </button>
                     )}
                 </div>

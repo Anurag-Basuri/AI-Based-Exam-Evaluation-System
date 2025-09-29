@@ -24,7 +24,7 @@ const Home = () => {
                 <p style={{ color: '#475569', margin: 0 }}>
                     Track exams, continue active sessions, and view your results.
                 </p>
-                <div style={{ display: 'flex', gap: 12, marginTop: 14 }}>
+                <div style={{ display: 'flex', gap: 12, marginTop: 14, flexWrap: 'wrap' }}>
                     <button
                         onClick={() => navigate('exams')}
                         style={{
@@ -65,9 +65,9 @@ const Home = () => {
                 }}
             >
                 {[
-                    { k: 'Active Exams', v: 1 },
-                    { k: 'Upcoming', v: 2 },
-                    { k: 'Completed', v: 7 },
+                    { k: 'Active Exams', v: 1, i: '🟣' },
+                    { k: 'Upcoming', v: 2, i: '🟡' },
+                    { k: 'Completed', v: 7, i: '🟢' },
                 ].map((s, i) => (
                     <div
                         key={i}
@@ -77,9 +77,15 @@ const Home = () => {
                             borderRadius: 14,
                             padding: 14,
                             boxShadow: '0 8px 24px rgba(15,23,42,0.04)',
+                            display: 'grid',
+                            alignItems: 'start',
+                            gap: 6,
                         }}
                     >
-                        <div style={{ color: '#64748b', fontSize: 13 }}>{s.k}</div>
+                        <div style={{ color: '#64748b', fontSize: 13, display: 'flex', gap: 8, alignItems: 'center' }}>
+                            <span aria-hidden>{s.i}</span>
+                            {s.k}
+                        </div>
                         <div style={{ fontWeight: 800, fontSize: 28, lineHeight: 1.2 }}>{s.v}</div>
                     </div>
                 ))}
