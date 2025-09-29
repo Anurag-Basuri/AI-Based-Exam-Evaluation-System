@@ -2,8 +2,11 @@ import React, { useRef, useLayoutEffect, useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom'; // added
 import AppRoutes from './routes/AppRoutes';
 import Header from './components/Header';
+import { useTheme } from './hooks/useTheme.js';
 
 const App = () => {
+	const { toggleTheme, theme } = useTheme();
+
 	const [atTop, setAtTop] = useState(true);
 	const [visible, setVisible] = useState(true);
 	const [headerHeight, setHeaderHeight] = useState(64);
@@ -87,18 +90,55 @@ const App = () => {
 	};
 
 	return (
-		<>
-			{!isAuthPage && ( // hide header on /auth
-				<div ref={headerWrapRef} className="header-animate" style={headerStyle}>
-					<Header transparent={atTop} />
+		<div className="app-shell">
+			<header
+				className="glass-card"
+				style={{
+					position: 'sticky',
+					top: 0,
+					zIndex: 20,
+					margin: 16,
+					padding: '12px 18px',
+					display: 'flex',
+					alignItems: 'center',
+					gap: 16,
+					justifyContent: 'space-between',
+				}}
+			>
+				<div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+					<img src="/logo192.png" alt="AI Exam" width={32} height={32} style={{ borderRadius: 10 }} />
+					<div>
+						<div style={{ fontWeight: 800, letterSpacing: 0.2 }}>AI Exam Evaluation</div>
+						<div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Insight-driven assessment suite</div>
+					</div>
 				</div>
-			)}
+				<div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+					<button
+						type="button"
+						onClick={toggleTheme}
+						style={{
+							padding: '8px 14px',
+							borderRadius: 999,
+							border: '1px solid var(--border)',
+							background: 'var(--surface)',
+							color: 'var(--text)',
+							fontWeight: 600,
+							cursor: 'pointer',
+							display: 'flex',
+							alignItems: 'center',
+							gap: 8,
+						}}
+					>
+						<span aria-hidden>{theme === 'light' ? '🌞' : '🌙'}</span>
+						{theme === 'light' ? 'Light' : 'Dark'} mode
+					</button>
+				</div>
+			</header>
 
-			{/* Spacer so content isn't covered by the fixed header (not needed on auth) */}
-			<div style={{ paddingTop: isAuthPage ? 0 : headerHeight }}>
+			<main style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
 				<AppRoutes />
-			</div>
-		</>
+			</main>
+		</div>
 	);
 };
 

@@ -1,3 +1,48 @@
 @import "tailwindcss";
 
+:root {
+    --surface: #f8fafc;
+    --surface-alt: #ffffff;
+    --border: rgba(148, 163, 184, 0.22);
+    --text: #0f172a;
+    --text-muted: #475569;
+    --accent: #6366f1;
+    --accent-soft: rgba(99, 102, 241, 0.12);
+    --shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
+    --sidebar-bg: linear-gradient(180deg, #0b1220, #0f172a);
+}
+
+:root[data-theme='dark'] {
+    --surface: #0b1120;
+    --surface-alt: #111827;
+    --border: rgba(71, 85, 105, 0.35);
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --accent: #a855f7;
+    --accent-soft: rgba(168, 85, 247, 0.14);
+    --shadow: 0 20px 50px rgba(2, 6, 23, 0.55);
+    --sidebar-bg: linear-gradient(180deg, #070b16, #0f172a);
+}
+
+body {
+    background: var(--surface);
+    color: var(--text);
+    transition: background 0.25s ease, color 0.25s ease;
+    font-feature-settings: 'liga' 1, 'kern' 1;
+}
+
+.app-shell {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+}
+
+.glass-card {
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    border-radius: 18px;
+}
+
 
