@@ -18,6 +18,7 @@ const TeacherDash = () => {
                 header={headerEl}
                 width={268}
                 collapsedWidth={80}
+                theme="light"
                 items={[
                     { key: 'home', label: 'Overview', icon: '📋', to: '.' },
                     { key: 'exams', label: 'Exams', icon: '📝', to: 'exams' },
