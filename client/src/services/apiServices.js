@@ -110,6 +110,17 @@ export const logoutStudent = async () => {
     }
 };
 
+export const changeStudentPassword = async (pwData) => {
+    try {
+        const response = await apiClient.put('/api/students/change-password', pwData);
+        return response.data;
+    } catch (error) {
+        const apiErr = parseAxiosError(error);
+        maybeInvalidateToken(apiErr);
+        throw apiErr;
+    }
+};
+
 export const registerTeacher = async (teacherData) => {
     try {
         const response = await publicClient.post('/api/teachers/register', teacherData);
@@ -144,6 +155,17 @@ export const logoutTeacher = async () => {
     } catch (err) {
         const apiErr = parseAxiosError(err);
         removeToken();
+        throw apiErr;
+    }
+};
+
+export const changeTeacherPassword = async (pwData) => {
+    try {
+        const response = await apiClient.put('/api/teachers/change-password', pwData);
+        return response.data;
+    } catch (error) {
+        const apiErr = parseAxiosError(error);
+        maybeInvalidateToken(apiErr);
         throw apiErr;
     }
 };
