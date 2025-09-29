@@ -53,7 +53,7 @@ const StudentSettings = () => {
             {msg && <div style={{ marginBottom: 10, color: '#0ea5e9' }}>{msg}</div>}
 
             <form onSubmit={saveProfile} style={cardStyle}>
-                <h3 style={{ marginTop: 0 }}>Profile</h3>
+                <h3 style={{ marginTop: 0, marginBottom: 10 }}>Profile</h3>
                 <div style={gridRow}>
                     <label style={lbl}>Username</label>
                     <input style={inp} value={form.username} onChange={e => onChange('username', e.target.value)} />
@@ -78,7 +78,7 @@ const StudentSettings = () => {
                     <label style={lbl}>Address</label>
                     <input style={inp} value={form.address} onChange={e => onChange('address', e.target.value)} />
                 </div>
-                <div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                     <button disabled={saving} type="submit" style={btnPrimary}>
                         {saving ? 'Saving…' : 'Save profile'}
                     </button>
@@ -86,7 +86,7 @@ const StudentSettings = () => {
             </form>
 
             <form onSubmit={changePw} style={cardStyle}>
-                <h3 style={{ marginTop: 0 }}>Change password</h3>
+                <h3 style={{ marginTop: 0, marginBottom: 10 }}>Change password</h3>
                 <div style={gridRow}>
                     <label style={lbl}>Current</label>
                     <input
@@ -105,7 +105,7 @@ const StudentSettings = () => {
                         onChange={e => setPw(s => ({ ...s, newPassword: e.target.value }))}
                     />
                 </div>
-                <div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                     <button disabled={saving} type="submit" style={btnOutline}>
                         {saving ? 'Changing…' : 'Change password'}
                     </button>

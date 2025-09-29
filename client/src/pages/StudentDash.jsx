@@ -14,6 +14,8 @@ const StudentDash = () => {
             <Sidebar
                 useOutlet
                 header={headerEl}
+                width={260}
+                collapsedWidth={76}
                 items={[
                     { key: 'home', label: 'Dashboard', icon: '🏠', to: '.' },
                     { key: 'exams', label: 'Exams', icon: '📝', to: 'exams' },
