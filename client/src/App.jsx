@@ -1,5 +1,5 @@
 import React, { useRef, useLayoutEffect, useEffect, useState } from 'react';
-import { useLocation } from 'react-router-dom'; // added
+import { useLocation } from 'react-router-dom';
 import AppRoutes from './routes/AppRoutes';
 import Header from './components/Header';
 import { useTheme } from './hooks/useTheme.js';
@@ -11,8 +11,8 @@ const App = () => {
 	const [visible, setVisible] = useState(true);
 	const [headerHeight, setHeaderHeight] = useState(64);
 
-	const location = useLocation(); // added
-	const isAuthPage = location.pathname.toLowerCase().startsWith('/auth'); // added
+	const location = useLocation();
+	const isAuthPage = location.pathname.toLowerCase().startsWith('/auth');
 
 	const headerWrapRef = useRef(null);
 	const prevScrollYRef = useRef(typeof window !== 'undefined' ? window.scrollY : 0);
@@ -90,54 +90,73 @@ const App = () => {
 	};
 
 	return (
-		<div className="app-shell">
-			<header
-				className="glass-card"
-				style={{
-					position: 'sticky',
-					top: 0,
-					zIndex: 20,
-					margin: 16,
-					padding: '12px 18px',
-					display: 'flex',
-					alignItems: 'center',
-					gap: 16,
-					justifyContent: 'space-between',
-				}}
-			>
-				<div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-					<img src="/logo192.png" alt="AI Exam" width={32} height={32} style={{ borderRadius: 10 }} />
-					<div>
-						<div style={{ fontWeight: 800, letterSpacing: 0.2 }}>AI Exam Evaluation</div>
-						<div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Insight-driven assessment suite</div>
+		<div className="app-shell" style={{ minHeight: '100vh' }}>
+			{!isAuthPage && (
+				<header
+					className="glass-card"
+					style={{
+						position: 'sticky',
+						top: 0,
+						zIndex: 20,
+						margin: 16,
+						padding: '12px 18px',
+						display: 'flex',
+						alignItems: 'center',
+						gap: 16,
+						justifyContent: 'space-between',
+					}}
+				>
+					<div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+						<img
+							src="/logo192.png"
+							alt="AI Exam"
+							width={32}
+							height={32}
+							style={{ borderRadius: 10 }}
+						/>
+						<div>
+							<div style={{ fontWeight: 800, letterSpacing: 0.2 }}>
+								AI Exam Evaluation
+							</div>
+							<div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+								Insight-driven assessment suite
+							</div>
+						</div>
 					</div>
-				</div>
-				<div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-					<button
-						type="button"
-						onClick={toggleTheme}
-						style={{
-							padding: '8px 14px',
-							borderRadius: 999,
-							border: '1px solid var(--border)',
-							background: 'var(--surface)',
-							color: 'var(--text)',
-							fontWeight: 600,
-							cursor: 'pointer',
-							display: 'flex',
-							alignItems: 'center',
-							gap: 8,
-						}}
-					>
-						<span aria-hidden>{theme === 'light' ? '🌞' : '🌙'}</span>
-						{theme === 'light' ? 'Light' : 'Dark'} mode
-					</button>
-				</div>
-			</header>
+				</header>
+			)}
 
 			<main style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
 				<AppRoutes />
 			</main>
+
+			{/* Global theme toggle (visible on all pages) */}
+			<button
+				type="button"
+				onClick={toggleTheme}
+				title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+				aria-label="Toggle theme"
+				style={{
+					position: 'fixed',
+					right: 16,
+					bottom: 16,
+					padding: '10px 14px',
+					borderRadius: 999,
+					border: '1px solid var(--border, rgba(0,0,0,0.12))',
+					background: 'var(--surface, #fff)',
+					color: 'var(--text, #111827)',
+					fontWeight: 700,
+					display: 'flex',
+					alignItems: 'center',
+					gap: 8,
+					boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
+					cursor: 'pointer',
+					zIndex: 1000,
+				}}
+			>
+				<span aria-hidden>{theme === 'light' ? '🌞' : '🌙'}</span>
+				{theme === 'light' ? 'Light' : 'Dark'}
+			</button>
 		</div>
 	);
 };
