@@ -8,7 +8,26 @@ import {
 	logoutTeacher,
 } from '../services/apiServices';
 import { getToken, removeToken, isTokenExpired, decodeToken } from '../utils/handleToken';
-import { useNavigate } from 'react-router-dom';
+
+// NOTE: do NOT use useNavigate here (provider may be above <Router>)
+const navigateSafe = (path, opts = { replace: false }) => {
+	try {
+		if (typeof window === 'undefined') return;
+		if (opts.replace) {
+			window.history.replaceState({}, '', path);
+		} else {
+			window.history.pushState({}, '', path);
+		}
+		// Let any Router (if mounted) react to the new location
+		window.dispatchEvent(new PopStateEvent('popstate'));
+	} catch {
+		try {
+			window.location.assign(path);
+		} catch (err) {
+			console.error('Navigation error:', err);
+		}
+	}
+};
 
 export const AuthContext = createContext();
 
@@ -17,7 +36,6 @@ export const AuthProvider = ({ children }) => {
 	const [isAuthenticated, setIsAuthenticated] = useState(false);
 	const [role, setRole] = useState(null);
 	const [loading, setLoading] = useState(true);
-	const navigate = useNavigate();
 
 	// Check token and user info on mount
 	useEffect(() => {
@@ -43,7 +61,7 @@ export const AuthProvider = ({ children }) => {
 				removeToken();
 			} catch {}
 			// Optional: log for diagnostics
-			// console.error('Auth init failed:', err);
+			console.error('Auth init failed:', err);
 		} finally {
 			setLoading(false);
 		}
@@ -66,7 +84,7 @@ export const AuthProvider = ({ children }) => {
 				setUser(decoded);
 				setRole(decoded?.role || 'student');
 				setIsAuthenticated(true);
-				navigate('/student', { replace: true });
+				navigateSafe('/student', { replace: true });
 			}
 			return res;
 		} catch (err) {
@@ -89,7 +107,7 @@ export const AuthProvider = ({ children }) => {
 				setUser(decoded);
 				setRole(decoded?.role || 'student');
 				setIsAuthenticated(true);
-				navigate('/student', { replace: true });
+				navigateSafe('/student', { replace: true });
 			}
 			return res;
 		} catch (err) {
@@ -115,9 +133,11 @@ export const AuthProvider = ({ children }) => {
 			setIsAuthenticated(false);
 			try {
 				removeToken();
-			} catch {}
+			} catch (err) {
+				console.error('Error removing token:', err);
+			}
 			setLoading(false);
-			navigate('/auth?mode=login', { replace: true });
+			navigateSafe('/auth?mode=login', { replace: true });
 		}
 	};
 
@@ -131,7 +151,7 @@ export const AuthProvider = ({ children }) => {
 				setUser(decoded);
 				setRole(decoded?.role || 'teacher');
 				setIsAuthenticated(true);
-				navigate('/teacher', { replace: true });
+				navigateSafe('/teacher', { replace: true });
 			}
 			return res;
 		} catch (err) {
@@ -154,7 +174,7 @@ export const AuthProvider = ({ children }) => {
 				setUser(decoded);
 				setRole(decoded?.role || 'teacher');
 				setIsAuthenticated(true);
-				navigate('/teacher', { replace: true });
+				navigateSafe('/teacher', { replace: true });
 			}
 			return res;
 		} catch (err) {
@@ -180,9 +200,11 @@ export const AuthProvider = ({ children }) => {
 			setIsAuthenticated(false);
 			try {
 				removeToken();
-			} catch {}
+			} catch (err) {
+				console.error('Error removing token:', err);
+			}
 			setLoading(false);
-			navigate('/auth?mode=login', { replace: true });
+			navigateSafe('/auth?mode=login', { replace: true });
 		}
 	};
 
