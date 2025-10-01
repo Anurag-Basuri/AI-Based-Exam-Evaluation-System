@@ -14,7 +14,7 @@ import image8 from '../assets/image8.jpg';
 
 const LandingPage = () => {
 	const navigate = useNavigate();
-	const { theme, toggleTheme } = useTheme();
+	const { theme } = useTheme();
 	const isDark = theme === 'dark';
 
 	const initialWidth = typeof window !== 'undefined' ? window.innerWidth : 1024;
@@ -88,8 +88,8 @@ const LandingPage = () => {
 			style={{
 				fontFamily: "Inter, 'Segoe UI', Roboto, system-ui, -apple-system, sans-serif",
 				overflowX: 'hidden',
-				color: isDark ? '#e5e7eb' : '#0f172a',
-				background: isDark ? '#0b1120' : '#fff',
+				color: 'var(--text)',
+				background: 'var(--bg)',
 			}}
 		>
 			{/* Hero */}
@@ -105,32 +105,6 @@ const LandingPage = () => {
 					minHeight: isMobile ? 'auto' : '78vh',
 				}}
 			>
-				{/* In-hero theme toggle */}
-				<div style={{ position: 'absolute', top: 16, right: 16, zIndex: 2 }}>
-					<button
-						type="button"
-						onClick={toggleTheme}
-						title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-						aria-label="Toggle theme"
-						style={{
-							display: 'inline-flex',
-							alignItems: 'center',
-							gap: 8,
-							padding: '8px 12px',
-							borderRadius: 999,
-							border: `1px solid ${isDark ? 'rgba(148,163,184,0.25)' : 'rgba(99,102,241,0.35)'}`,
-							background: isDark ? '#0b1220' : '#ffffff',
-							color: isDark ? '#e2e8f0' : '#111827',
-							fontWeight: 700,
-							cursor: 'pointer',
-							boxShadow: '0 6px 18px rgba(0,0,0,0.10)',
-						}}
-					>
-						<span aria-hidden>{theme === 'light' ? '🌞' : '🌙'}</span>
-						{!isMobile && (theme === 'light' ? 'Light' : 'Dark')}
-					</button>
-				</div>
-
 				{backgroundImages.map((img, index) => (
 					<div
 						key={index}
@@ -205,7 +179,7 @@ const LandingPage = () => {
 						<p
 							style={{
 								fontSize: 'clamp(1rem, 1.15vw, 1.1rem)',
-								color: isDark ? '#cbd5e1' : '#475569',
+								color: 'var(--text-muted)',
 								marginBottom: '1.6rem',
 								lineHeight: 1.7,
 								maxWidth: 720,
@@ -221,7 +195,7 @@ const LandingPage = () => {
 								aria-label="Get Started"
 								style={{
 									padding: '0.75rem 1.5rem',
-									backgroundColor: '#6366f1',
+									backgroundColor: 'var(--primary-strong)',
 									color: 'white',
 									border: 'none',
 									borderRadius: '0.55rem',
@@ -250,8 +224,8 @@ const LandingPage = () => {
 								style={{
 									padding: '0.75rem 1.5rem',
 									backgroundColor: 'transparent',
-									color: '#6366f1',
-									border: isDark ? '1px solid #334155' : '1px solid #6366f1',
+									color: 'var(--primary)',
+									border: '1px solid var(--primary)',
 									borderRadius: '0.55rem',
 									cursor: 'pointer',
 									fontSize: '1rem',
@@ -334,46 +308,17 @@ const LandingPage = () => {
 				aria-label="Features"
 				style={{
 					padding: isMobile ? '3rem 1rem' : isTablet ? '4rem 2rem' : '5rem 3rem',
-					backgroundColor: '#ffffff',
+					backgroundColor: 'var(--bg)',
 					position: 'relative',
 					overflow: 'hidden',
 				}}
 			>
-				<div
-					aria-hidden
-					style={{
-						position: 'absolute',
-						width: 300,
-						height: 300,
-						borderRadius: '50%',
-						background:
-							'radial-gradient(circle, rgba(224,231,255,0.5) 0%, rgba(248,250,252,0) 70%)',
-						top: -100,
-						left: -100,
-						zIndex: 0,
-					}}
-				/>
-				<div
-					aria-hidden
-					style={{
-						position: 'absolute',
-						width: 400,
-						height: 400,
-						borderRadius: '50%',
-						background:
-							'radial-gradient(circle, rgba(224,231,255,0.5) 0%, rgba(248,250,252,0) 70%)',
-						bottom: -200,
-						right: -150,
-						zIndex: 0,
-					}}
-				/>
-
 				<div style={{ position: 'relative', zIndex: 1, maxWidth: 1200, margin: '0 auto' }}>
 					<h2
 						style={{
 							fontSize: 'clamp(1.6rem, 2.5vw, 2.2rem)',
 							fontWeight: 800,
-							color: '#0f172a',
+							color: 'var(--text)',
 							textAlign: 'center',
 							marginBottom: '1.2rem',
 							letterSpacing: 0.2,
@@ -384,7 +329,7 @@ const LandingPage = () => {
 					<p
 						style={{
 							fontSize: 'clamp(0.95rem, 1vw, 1.08rem)',
-							color: '#5b6472',
+							color: 'var(--text-muted)',
 							textAlign: 'center',
 							maxWidth: 820,
 							margin: '0 auto 2.2rem',
@@ -414,7 +359,8 @@ const LandingPage = () => {
 								key={index}
 								style={{
 									padding: '1.75rem',
-									backgroundColor: '#f8fafc',
+									backgroundColor: 'var(--surface)',
+									border: '1px solid var(--border)',
 									borderRadius: '1rem',
 									boxShadow: '0 4px 14px rgba(0,0,0,0.05)',
 									textAlign: 'center',
@@ -475,7 +421,7 @@ const LandingPage = () => {
 									style={{
 										fontSize: '1.2rem',
 										fontWeight: 700,
-										color: '#1e293b',
+										color: 'var(--text)',
 										marginBottom: '0.6rem',
 									}}
 								>
@@ -483,7 +429,7 @@ const LandingPage = () => {
 								</h3>
 								<p
 									style={{
-										color: '#64748b',
+										color: 'var(--text-muted)',
 										fontSize: '0.98rem',
 										lineHeight: 1.6,
 									}}
@@ -496,38 +442,24 @@ const LandingPage = () => {
 				</div>
 			</section>
 
-			{/* Details (grid) */}
+			{/* Details */}
 			<section
 				ref={detailsRef}
 				aria-label="Details"
 				style={{
 					padding: isMobile ? '3rem 1rem' : isTablet ? '4rem 2rem' : '5rem 3rem',
-					backgroundColor: '#f8fafc',
+					backgroundColor: 'var(--elev)',
 					position: 'relative',
 					overflow: 'hidden',
 					scrollMarginTop: 20,
 				}}
 			>
-				<div
-					aria-hidden
-					style={{
-						position: 'absolute',
-						width: '100%',
-						height: '100%',
-						top: 0,
-						left: 0,
-						background: `url(${image7})`,
-						backgroundSize: 'cover',
-						opacity: 0.03,
-						zIndex: 0,
-					}}
-				/>
 				<div style={{ position: 'relative', zIndex: 1, maxWidth: 1200, margin: '0 auto' }}>
 					<h2
 						style={{
 							fontSize: 'clamp(1.6rem, 2.5vw, 2.2rem)',
 							fontWeight: 800,
-							color: '#0f172a',
+							color: 'var(--text)',
 							textAlign: 'center',
 							marginBottom: '1.8rem',
 							letterSpacing: 0.2,
@@ -598,7 +530,8 @@ const LandingPage = () => {
 							<div
 								key={idx}
 								style={{
-									background: 'white',
+									background: 'var(--surface)',
+									border: '1px solid var(--border)',
 									borderRadius: '1rem',
 									padding: isMobile ? '1.1rem' : '1.4rem',
 									boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
@@ -633,7 +566,7 @@ const LandingPage = () => {
 											width: 28,
 											height: 28,
 											borderRadius: '50%',
-											backgroundColor: '#6366f1',
+											backgroundColor: 'var(--primary)',
 											color: 'white',
 											display: 'inline-flex',
 											justifyContent: 'center',
@@ -648,7 +581,7 @@ const LandingPage = () => {
 										style={{
 											fontSize: '1.15rem',
 											fontWeight: 700,
-											color: '#1e293b',
+											color: 'var(--text)',
 											margin: 0,
 										}}
 									>
@@ -657,7 +590,7 @@ const LandingPage = () => {
 								</div>
 								<div
 									style={{
-										color: '#64748b',
+										color: 'var(--text-muted)',
 										fontSize: '0.98rem',
 										lineHeight: 1.65,
 									}}
@@ -667,65 +600,27 @@ const LandingPage = () => {
 							</div>
 						))}
 					</div>
-
-					<div
-						style={{
-							marginTop: isMobile ? '1.6rem' : '2rem',
-							background: 'linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)',
-							borderRadius: '1rem',
-							padding: isMobile ? '1.2rem' : '2rem',
-							color: 'white',
-							textAlign: 'center',
-							boxShadow: '0 10px 30px rgba(79,70,229,0.3)',
-						}}
-					>
-						<h3
-							style={{
-								fontSize: 'clamp(1.2rem, 1.8vw, 1.6rem)',
-								fontWeight: 800,
-								marginBottom: '0.9rem',
-							}}
-						>
-							Ready to modernize your assessments?
-						</h3>
-						<p
-							style={{
-								fontSize: 'clamp(0.95rem, 1vw, 1.05rem)',
-								opacity: 0.95,
-								maxWidth: 720,
-								margin: '0 auto 1.4rem',
-							}}
-						>
-							Choose your role to continue. Students can take exams and view results.
-							Teachers can build question banks, run exams, and review outcomes.
-						</p>
-						<button
-							onClick={() => scrollToSection(roleSelectionRef)}
-							style={{
-								padding: '0.7rem 1.6rem',
-								backgroundColor: 'white',
-								color: '#6366f1',
-								border: 'none',
-								borderRadius: '0.55rem',
-								cursor: 'pointer',
-								fontSize: '1rem',
-								fontWeight: 700,
-								boxShadow: '0 4px 14px rgba(0,0,0,0.1)',
-								transition: 'transform 0.2s, box-shadow 0.2s',
-							}}
-							onMouseOver={e => {
-								e.currentTarget.style.transform = 'translateY(-2px)';
-								e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.15)';
-							}}
-							onMouseOut={e => {
-								e.currentTarget.style.transform = 'translateY(0)';
-								e.currentTarget.style.boxShadow = '0 4px 14px rgba(0,0,0,0.1)';
-							}}
-						>
-							Get Started Now
-						</button>
-					</div>
 				</div>
+
+				<style>
+					{`
+            @keyframes float {
+              0% { transform: translateY(0px); }
+              100% { transform: translateY(-15px); }
+            }
+            @keyframes fadeInLeft {
+              from { opacity: 0; transform: translateX(-18px); }
+              to { opacity: 1; transform: translateX(0); }
+            }
+            @keyframes fadeInRight {
+              from { opacity: 0; transform: translateX(18px); }
+              to { opacity: 1; transform: translateX(0); }
+            }
+            @media (prefers-reduced-motion: reduce) {
+              * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+            }
+          `}
+				</style>
 			</section>
 
 			{/* Role Selection */}
@@ -734,7 +629,9 @@ const LandingPage = () => {
 				aria-label="Choose Your Role"
 				style={{
 					padding: isMobile ? '3rem 1rem' : isTablet ? '4rem 2rem' : '5rem 3rem',
-					background: 'linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%)',
+					background: isDark
+						? 'linear-gradient(135deg, rgba(30,41,59,0.5) 0%, rgba(2,6,23,0.4) 100%)'
+						: 'linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%)',
 					textAlign: 'center',
 					position: 'relative',
 					overflow: 'hidden',
@@ -760,7 +657,7 @@ const LandingPage = () => {
 						style={{
 							fontSize: 'clamp(1.6rem, 2.5vw, 2.2rem)',
 							fontWeight: 800,
-							color: '#0f172a',
+							color: 'var(--text)',
 							marginBottom: '0.9rem',
 							letterSpacing: 0.2,
 						}}
@@ -770,7 +667,7 @@ const LandingPage = () => {
 					<p
 						style={{
 							fontSize: 'clamp(0.95rem, 1vw, 1.05rem)',
-							color: '#475569',
+							color: 'var(--text-muted)',
 							margin: '0 auto 2.2rem',
 							maxWidth: 720,
 							lineHeight: 1.6,
