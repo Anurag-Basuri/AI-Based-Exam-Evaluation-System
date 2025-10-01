@@ -82,23 +82,14 @@ const Header = ({ transparent = false }) => {
 
 	const bg = transparent
 		? isDark
-			? 'rgba(2,6,23,0.5)'
-			: 'rgba(255,255,255,0.6)'
-		: isDark
-			? '#0b1220'
-			: '#ffffff';
+			? 'rgba(2,6,23,0.55)'
+			: 'rgba(255,255,255,0.7)'
+		: 'var(--surface)';
 
-	const border = transparent
-		? isDark
-			? '1px solid rgba(148,163,184,0.18)'
-			: '1px solid rgba(226,232,240,0.7)'
-		: isDark
-			? '1px solid rgba(148,163,184,0.16)'
-			: '1px solid rgba(226,232,240,0.9)';
-
-	const titleColor = isDark ? '#e5e7eb' : '#1e293b';
-	const textColor = isDark ? '#cbd5e1' : '#374151';
-	const muted = isDark ? '#94a3b8' : '#64748b';
+	const border = `1px solid var(--border)`;
+	const titleColor = 'var(--text)';
+	const textColor = 'var(--text)';
+	const muted = 'var(--text-muted)';
 
 	return (
 		<header
@@ -114,7 +105,7 @@ const Header = ({ transparent = false }) => {
 				backdropFilter: transparent ? 'saturate(180%) blur(10px)' : 'none',
 				WebkitBackdropFilter: transparent ? 'saturate(180%) blur(10px)' : 'none',
 				boxShadow: transparent
-					? '0 6px 20px rgba(0,0,0,0.06)'
+					? '0 8px 26px rgba(0,0,0,0.08)'
 					: '0 2px 10px rgba(0,0,0,0.06)',
 				borderBottom: border,
 				transition:
@@ -151,7 +142,7 @@ const Header = ({ transparent = false }) => {
 			</div>
 
 			<div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-				{/* Theme toggle */}
+				{/* Theme toggle (single global toggle lives here) */}
 				<button
 					type="button"
 					onClick={toggleTheme}
@@ -163,9 +154,9 @@ const Header = ({ transparent = false }) => {
 						gap: 8,
 						padding: '8px 12px',
 						borderRadius: 999,
-						border: `1px solid ${isDark ? 'rgba(148,163,184,0.25)' : 'rgba(226,232,240,0.9)'}`,
-						background: isDark ? '#0b1220' : '#ffffff',
-						color: isDark ? '#e2e8f0' : '#111827',
+						border: `1px solid var(--border)`,
+						background: 'var(--surface)',
+						color: 'var(--text)',
 						fontWeight: 700,
 						cursor: 'pointer',
 						boxShadow: '0 6px 18px rgba(0,0,0,0.08)',
@@ -200,7 +191,7 @@ const Header = ({ transparent = false }) => {
 									height: 36,
 									borderRadius: '50%',
 									objectFit: 'cover',
-									border: `2px solid ${role === 'student' ? '#6366f1' : '#f59e42'}`,
+									border: `2px solid ${role === 'student' ? 'var(--primary-strong)' : '#f59e42'}`,
 								}}
 							/>
 							{!isMobile && (
@@ -218,9 +209,9 @@ const Header = ({ transparent = false }) => {
 									position: 'absolute',
 									top: 'calc(100% + 8px)',
 									right: 0,
-									background: isDark ? '#0f172a' : '#fff',
+									background: 'var(--surface)',
 									borderRadius: '0.6rem',
-									border: `1px solid ${isDark ? '#1f2937' : '#eef2f7'}`,
+									border,
 									boxShadow: '0 10px 30px rgba(0,0,0,0.12)',
 									width: 240,
 									overflow: 'hidden',
@@ -230,7 +221,7 @@ const Header = ({ transparent = false }) => {
 								<div
 									style={{
 										padding: '0.9rem',
-										borderBottom: `1px solid ${isDark ? '#1f2937' : '#eef2f7'}`,
+										borderBottom: border,
 										textAlign: 'center',
 										color: textColor,
 									}}
@@ -251,11 +242,9 @@ const Header = ({ transparent = false }) => {
 											setShowUserDropdown(false);
 										}
 									}}
-									style={getMenuBtnStyle(isDark)}
+									style={menuBtnStyle}
 									onMouseOver={e =>
-										(e.currentTarget.style.backgroundColor = isDark
-											? '#0b1220'
-											: '#f8fafc')
+										(e.currentTarget.style.backgroundColor = 'var(--elev)')
 									}
 									onMouseOut={e =>
 										(e.currentTarget.style.backgroundColor = 'transparent')
@@ -265,11 +254,9 @@ const Header = ({ transparent = false }) => {
 								</button>
 								<button
 									onClick={handleLogout}
-									style={{ ...getMenuBtnStyle(isDark), color: '#ef4444' }}
+									style={{ ...menuBtnStyle, color: '#ef4444' }}
 									onMouseOver={e =>
-										(e.currentTarget.style.backgroundColor = isDark
-											? '#0b1220'
-											: '#f8fafc')
+										(e.currentTarget.style.backgroundColor = 'var(--elev)')
 									}
 									onMouseOut={e =>
 										(e.currentTarget.style.backgroundColor = 'transparent')
@@ -282,10 +269,10 @@ const Header = ({ transparent = false }) => {
 					</div>
 				) : (
 					<>
-						<button onClick={goToLogin} style={getOutlineBtnStyle(isDark)}>
+						<button onClick={goToLogin} style={outlineBtnStyle}>
 							Sign in
 						</button>
-						<button onClick={goToRegister} style={getSolidBtnStyle()}>
+						<button onClick={goToRegister} style={solidBtnStyle}>
 							Create account
 						</button>
 					</>
@@ -311,22 +298,22 @@ const Caret = ({ open, color = '#64748b' }) => (
 	</svg>
 );
 
-const getOutlineBtnStyle = isDark => ({
+const outlineBtnStyle = {
 	padding: '0.5rem 0.9rem',
 	backgroundColor: 'transparent',
-	color: isDark ? '#c7d2fe' : '#6366f1',
-	border: `1px solid ${isDark ? '#334155' : '#6366f1'}`,
+	color: 'var(--primary)',
+	border: '1px solid var(--primary)',
 	borderRadius: '0.6rem',
 	cursor: 'pointer',
 	fontSize: '0.95rem',
 	fontWeight: 800,
 	display: 'flex',
 	alignItems: 'center',
-});
+};
 
-const getSolidBtnStyle = () => ({
+const solidBtnStyle = {
 	padding: '0.5rem 0.9rem',
-	backgroundColor: '#6366f1',
+	backgroundColor: 'var(--primary-strong)',
 	color: '#ffffff',
 	border: 'none',
 	borderRadius: '0.6rem',
@@ -336,9 +323,9 @@ const getSolidBtnStyle = () => ({
 	display: 'flex',
 	alignItems: 'center',
 	boxShadow: '0 6px 18px rgba(99,102,241,0.25)',
-});
+};
 
-const getMenuBtnStyle = isDark => ({
+const menuBtnStyle = {
 	display: 'block',
 	width: '100%',
 	textAlign: 'left',
@@ -346,7 +333,7 @@ const getMenuBtnStyle = isDark => ({
 	border: 'none',
 	padding: '0.8rem 0.95rem',
 	cursor: 'pointer',
-	color: isDark ? '#e2e8f0' : '#1e293b',
-});
+	color: 'var(--text)',
+};
 
 export default Header;
