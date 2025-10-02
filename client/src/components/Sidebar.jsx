@@ -6,7 +6,6 @@ const Sidebar = ({
 	defaultKey,
 	selectedKey,
 	onSelect,
-	header = null,
 	footer = null,
 	collapsible = true,
 	width = 256,
@@ -133,32 +132,6 @@ const Sidebar = ({
 						borderBottom: `1px solid ${palette.border}`,
 					}}
 				>
-					{header ?? (
-						<div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-							<div
-								aria-hidden
-								style={{
-									width: 36,
-									height: 36,
-									borderRadius: 10,
-									background:
-										'conic-gradient(from 180deg at 50% 50%, rgba(99,102,241,1), rgba(99,102,241,0.6), rgba(129,140,248,0.9))',
-									boxShadow: '0 6px 16px rgba(99,102,241,0.25)',
-								}}
-							/>
-							{expanded && (
-								<div
-									style={{
-										fontWeight: 800,
-										letterSpacing: 0.3,
-										color: palette.fg,
-									}}
-								>
-									Portal
-								</div>
-							)}
-						</div>
-					)}
 					{collapsible && (
 						<button
 							type="button"
