@@ -1,5 +1,5 @@
 import React from 'react';
-import { safeApiCall } from '../../services/apiServices.js';
+import { safeApiCall, getStudentResults } from '../../services/apiServices.js';
 
 const statusMap = {
 	pending: { bg: '#fff7ed', border: '#fcd34d', color: '#92400e', label: 'Pending' },
@@ -7,71 +7,31 @@ const statusMap = {
 	flagged: { bg: '#fef2f2', border: '#fca5a5', color: '#b91c1c', label: 'Flagged' },
 };
 
-const fallbackResults = [
-	{
-		id: 'sub-1',
-		examTitle: 'Algebra Midterm',
-		score: 82,
-		maxScore: 100,
-		status: 'evaluated',
-		evaluatedAt: '2025-09-21 11:20',
-		remarks: 'Solid performance. Review quadratic inequalities.',
-	},
-	{
-		id: 'sub-2',
-		examTitle: 'Physics Quiz',
-		score: null,
-		maxScore: 40,
-		status: 'pending',
-		evaluatedAt: null,
-		remarks: 'Awaiting evaluation',
-	},
-	{
-		id: 'sub-3',
-		examTitle: 'History Final',
-		score: 68,
-		maxScore: 100,
-		status: 'flagged',
-		evaluatedAt: '2025-09-19 17:05',
-		remarks: 'Teacher requested clarification on essay question 2.',
-	},
-];
-
 const useResults = () => {
 	const [loading, setLoading] = React.useState(false);
 	const [error, setError] = React.useState('');
 	const [results, setResults] = React.useState([]);
 
 	React.useEffect(() => {
-		let mounted = true;
-		const load = async () => {
+		let alive = true;
+		(async () => {
 			setLoading(true);
 			setError('');
 			try {
-				const { getStudentResults } = await import('../../services/apiServices.js');
-				let data = [];
-				if (typeof getStudentResults === 'function') {
-					const res = await safeApiCall(getStudentResults);
-					data = res?.data || res || [];
-				}
-				if (!data.length) data = fallbackResults;
-				if (mounted) setResults(data);
+				const data = await safeApiCall(getStudentResults);
+				if (alive) setResults(Array.isArray(data) ? data : []);
 			} catch (e) {
-				if (mounted) {
-					setError(e?.message || 'Failed to load results');
-					setResults(fallbackResults);
-				}
+				if (alive) setError(e.message || 'Failed to load results');
 			} finally {
-				if (mounted) setLoading(false);
+				if (alive) setLoading(false);
 			}
-		};
-		load();
+		})();
 		return () => {
-			mounted = false;
+			alive = false;
 		};
 	}, []);
 
-	return { loading, error, results, setResults };
+	return { loading, error, results };
 };
 
 const StudentResults = () => {
@@ -79,17 +39,16 @@ const StudentResults = () => {
 	const [query, setQuery] = React.useState('');
 	const [status, setStatus] = React.useState('all');
 
-	const normalized = results.map(res => {
-		const map = statusMap[res.status] ?? statusMap.pending;
-		return { ...res, chip: map };
-	});
-
-	const q = query.toLowerCase();
-	const filtered = normalized.filter(res => {
-		const matchStatus = status === 'all' ? true : res.status === status;
-		const matchQuery = !q || res.examTitle.toLowerCase().includes(q);
-		return matchStatus && matchQuery;
-	});
+	const filtered = results
+		.map(r => ({
+			...r,
+			chip: statusMap[r.status] || statusMap.pending,
+		}))
+		.filter(r => {
+			const matchesStatus = status === 'all' ? true : r.status === status;
+			const matchesQuery = r.examTitle.toLowerCase().includes(query.toLowerCase());
+			return matchesStatus && matchesQuery;
+		});
 
 	return (
 		<section style={{ color: 'var(--text)' }}>
