@@ -1,21 +1,36 @@
-import React, { Suspense } from 'react';
+import React, { Suspense, lazy } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+
+// Boundaries & Fallbacks
+import ErrorBoundary from '../components/ErrorBoundary.jsx';
 import RouteFallback from '../components/RouteFallback.jsx';
+
+// Route guard
 import ProtectedRoutes from './ProtectedRoutes.jsx';
-import StudentDash from '../pages/StudentDash.jsx';
-import TeacherDash from '../pages/TeacherDash.jsx';
-import StudentHome from '../pages/student/Home.jsx';
-import StudentExams from '../pages/student/Exams.jsx';
-import StudentResults from '../pages/student/result.jsx';
-import StudentIssues from '../pages/student/issue.jsx';
-import StudentSettings from '../pages/student/Settings.jsx';
-import TeacherHome from '../pages/teacher/Home.jsx';
-import TeacherExams from '../pages/teacher/Exams.jsx';
-import TeacherResults from '../pages/teacher/result.jsx';
-import TeacherIssues from '../pages/teacher/issue.jsx';
-import TeacherSettings from '../pages/teacher/Settings.jsx';
-import LandingPage from '../pages/LandingPage.jsx';
-import AuthPage from '../pages/auth.jsx';
+
+// Layouts
+const StudentDash = lazy(() => import('../pages/StudentDash.jsx'));
+const TeacherDash = lazy(() => import('../pages/TeacherDash.jsx'));
+
+// Public pages
+const LandingPage = lazy(() => import('../pages/LandingPage.jsx'));
+const AuthPage = lazy(() => import('../pages/auth.jsx'));
+
+// Student pages
+const StudentHome = lazy(() => import('../pages/student/Home.jsx'));
+const StudentExams = lazy(() => import('../pages/student/Exams.jsx'));
+const StudentResults = lazy(() => import('../pages/student/result.jsx'));
+const StudentIssues = lazy(() => import('../pages/student/issue.jsx'));
+const StudentSettings = lazy(() => import('../pages/student/Settings.jsx'));
+
+// Teacher pages
+const TeacherHome = lazy(() => import('../pages/teacher/Home.jsx'));
+const TeacherExams = lazy(() => import('../pages/teacher/Exams.jsx'));
+const TeacherResults = lazy(() => import('../pages/teacher/result.jsx'));
+const TeacherIssues = lazy(() => import('../pages/teacher/issue.jsx'));
+const TeacherSettings = lazy(() => import('../pages/teacher/Settings.jsx'));
+
+const withBoundary = node => <ErrorBoundary>{node}</ErrorBoundary>;
 
 const NotFound = () => (
 	<div style={{ minHeight: '50vh', display: 'grid', placeItems: 'center', color: 'var(--text)' }}>
@@ -42,35 +57,35 @@ const AppRoutes = () => (
 	<Suspense fallback={<RouteFallback />}>
 		<Routes>
 			{/* Public */}
-			<Route path="/" element={<LandingPage />} />
-			<Route path="/auth" element={<AuthPage />} />
+			<Route path="/" element={withBoundary(<LandingPage />)} />
+			<Route path="/auth" element={withBoundary(<AuthPage />)} />
 
 			{/* Student */}
 			<Route element={<ProtectedRoutes requireRole="student" />}>
-				<Route path="/student" element={<StudentDash />}>
-					<Route index element={<StudentHome />} />
-					<Route path="exams" element={<StudentExams />} />
-					<Route path="results" element={<StudentResults />} />
-					<Route path="issues" element={<StudentIssues />} />
-					<Route path="settings" element={<StudentSettings />} />
+				<Route path="/student" element={withBoundary(<StudentDash />)}>
+					<Route index element={withBoundary(<StudentHome />)} />
+					<Route path="exams" element={withBoundary(<StudentExams />)} />
+					<Route path="results" element={withBoundary(<StudentResults />)} />
+					<Route path="issues" element={withBoundary(<StudentIssues />)} />
+					<Route path="settings" element={withBoundary(<StudentSettings />)} />
 					<Route path="*" element={<Navigate to="/student" replace />} />
 				</Route>
 			</Route>
 
 			{/* Teacher */}
 			<Route element={<ProtectedRoutes requireRole="teacher" />}>
-				<Route path="/teacher" element={<TeacherDash />}>
-					<Route index element={<TeacherHome />} />
-					<Route path="exams" element={<TeacherExams />} />
-					<Route path="results" element={<TeacherResults />} />
-					<Route path="issues" element={<TeacherIssues />} />
-					<Route path="settings" element={<TeacherSettings />} />
+				<Route path="/teacher" element={withBoundary(<TeacherDash />)}>
+					<Route index element={withBoundary(<TeacherHome />)} />
+					<Route path="exams" element={withBoundary(<TeacherExams />)} />
+					<Route path="results" element={withBoundary(<TeacherResults />)} />
+					<Route path="issues" element={withBoundary(<TeacherIssues />)} />
+					<Route path="settings" element={withBoundary(<TeacherSettings />)} />
 					<Route path="*" element={<Navigate to="/teacher" replace />} />
 				</Route>
 			</Route>
 
 			{/* Catch-all */}
-			<Route path="*" element={<NotFound />} />
+			<Route path="*" element={withBoundary(<NotFound />)} />
 		</Routes>
 	</Suspense>
 );
