@@ -1,11 +1,13 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from '../components/Sidebar.jsx';
 import ErrorBoundary from '../components/ErrorBoundary.jsx';
+import RouteFallback from '../components/RouteFallback.jsx';
 import { useTheme } from '../hooks/useTheme.js';
 
 const StudentDash = () => {
 	const { theme } = useTheme();
+	const base = '/student';
 
 	const headerEl = React.useMemo(
 		() => (
@@ -30,6 +32,17 @@ const StudentDash = () => {
 		[],
 	);
 
+	const items = React.useMemo(
+		() => [
+			{ key: 'home', label: 'Overview', icon: '📋', to: base, end: true },
+			{ key: 'exams', label: 'Exams', icon: '📝', to: `${base}/exams` },
+			{ key: 'results', label: 'Results', icon: '📊', to: `${base}/results` },
+			{ key: 'issues', label: 'Issues', icon: '🛠️', to: `${base}/issues` },
+			{ key: 'settings', label: 'Settings', icon: '⚙️', to: `${base}/settings` },
+		],
+		[base],
+	);
+
 	return (
 		<div
 			style={{
@@ -47,19 +60,16 @@ const StudentDash = () => {
 				width={268}
 				collapsedWidth={80}
 				theme={theme}
-				items={[
-					{ key: 'home', label: 'Overview', icon: '📋', to: '.' },
-					{ key: 'exams', label: 'Exams', icon: '📝', to: 'exams' },
-					{ key: 'results', label: 'Results', icon: '📊', to: 'results' },
-					{ key: 'issues', label: 'Issues', icon: '🛠️', to: 'issues' },
-					{ key: 'settings', label: 'Settings', icon: '⚙️', to: 'settings' },
-				]}
+				items={items}
+				aria-label="Student navigation"
 			/>
-			<div style={{ padding: 16 }}>
+			<main style={{ padding: 16 }}>
 				<ErrorBoundary>
-					<Outlet />
+					<Suspense fallback={<RouteFallback />}>
+						<Outlet />
+					</Suspense>
 				</ErrorBoundary>
-			</div>
+			</main>
 		</div>
 	);
 };
