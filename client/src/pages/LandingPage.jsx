@@ -86,7 +86,7 @@ const LandingPage = () => {
 	return (
 		<div
 			style={{
-				fontFamily: "Inter, 'Segoe UI', Roboto, system-ui, -apple-system, sans-serif",
+				fontFamily: "Inter,'Segoe UI',Roboto,system-ui,-apple-system,sans-serif",
 				overflowX: 'hidden',
 				color: 'var(--text)',
 				background: 'var(--bg)',
@@ -480,125 +480,54 @@ const LandingPage = () => {
 							alignItems: 'stretch',
 						}}
 					>
-						{[
+						{
 							{
-								num: 1,
-								title: 'Roles & Modules',
-								content: (
-									<ul style={{ paddingLeft: '1.2rem', margin: 0 }}>
-										<li>Student and Teacher roles</li>
-										<li>Exams, Questions, Submissions, Issues modules</li>
-										<li>Client protected routes and server auth middleware</li>
-									</ul>
-								),
-							},
-							{
-								num: 2,
-								title: 'Security & APIs',
-								content: (
-									<ul style={{ paddingLeft: '1.2rem', margin: 0 }}>
-										<li>JWT‑based authentication, role‑aware access</li>
-										<li>CORS middleware and structured error responses</li>
-										<li>
-											REST endpoints for exams, questions, submissions, issues
-										</li>
-									</ul>
-								),
-							},
-							{
-								num: 3,
-								title: 'Evaluation Service',
-								content: (
-									<p style={{ margin: 0 }}>
-										Scores free‑form answers with rules and similarity checks
-										for reliable grading.
-									</p>
-								),
-							},
-							{
-								num: 4,
-								title: 'Tech Stack',
-								content: (
-									<ul style={{ paddingLeft: '1.2rem', margin: 0 }}>
-										<li>Frontend: React + Vite</li>
-										<li>Backend: Node.js + Express</li>
-										<li>Database: MongoDB</li>
-									</ul>
-								),
-							},
-						].map((card, idx) => (
-							<div
-								key={idx}
-								style={{
-									background: 'var(--surface)',
-									border: '1px solid var(--border)',
-									borderRadius: '1rem',
-									padding: isMobile ? '1.1rem' : '1.4rem',
-									boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
-									display: 'flex',
-									flexDirection: 'column',
-									gap: '0.75rem',
-									minHeight: isMobile ? 0 : 260,
-									height: '100%',
-									transition: 'transform 0.25s, box-shadow 0.25s',
-								}}
-								onMouseOver={e => {
-									if (!isMobile) {
-										e.currentTarget.style.transform = 'translateY(-4px)';
-										e.currentTarget.style.boxShadow =
-											'0 10px 24px rgba(0,0,0,0.08)';
-									}
-								}}
-								onMouseOut={e => {
-									if (!isMobile) {
-										e.currentTarget.style.transform = 'translateY(0)';
-										e.currentTarget.style.boxShadow =
-											'0 4px 20px rgba(0,0,0,0.05)';
-									}
-								}}
-							>
-								<div
-									style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}
-								>
-									<span
-										aria-hidden
-										style={{
-											width: 28,
-											height: 28,
-											borderRadius: '50%',
-											backgroundColor: 'var(--primary)',
-											color: 'white',
-											display: 'inline-flex',
-											justifyContent: 'center',
-											alignItems: 'center',
-											fontWeight: 700,
-											fontSize: '0.95rem',
-										}}
-									>
-										{card.num}
-									</span>
-									<h3
-										style={{
-											fontSize: '1.15rem',
-											fontWeight: 700,
-											color: 'var(--text)',
-											margin: 0,
-										}}
-									>
-										{card.title}
-									</h3>
-								</div>
-								<div
-									style={{
-										color: 'var(--text-muted)',
-										fontSize: '0.98rem',
-										lineHeight: 1.65,
-									}}
-								>
-									{card.content}
-								</div>
-							</div>
-						))}
+								1: {
+									title: 'Roles & Modules',
+									content: (
+										<ul style={{ paddingLeft: '1.2rem', margin: 0 }}>
+											<li>Student and Teacher roles</li>
+											<li>Exams, Questions, Submissions, Issues modules</li>
+											<li>
+												Client protected routes and server auth middleware
+											</li>
+										</ul>
+									),
+								},
+								2: {
+									title: 'Security & APIs',
+									content: (
+										<ul style={{ paddingLeft: '1.2rem', margin: 0 }}>
+											<li>JWT‑based authentication, role‑aware access</li>
+											<li>CORS middleware and structured error responses</li>
+											<li>
+												REST endpoints for exams, questions, submissions,
+												issues
+											</li>
+										</ul>
+									),
+								},
+								3: {
+									title: 'Evaluation Service',
+									content: (
+										<p style={{ margin: 0 }}>
+											Scores free‑form answers with rules and similarity
+											checks for reliable grading.
+										</p>
+									),
+								},
+								4: {
+									title: 'Tech Stack',
+									content: (
+										<ul style={{ paddingLeft: '1.2rem', margin: 0 }}>
+											<li>Frontend: React + Vite</li>
+											<li>Backend: Node.js + Express</li>
+											<li>Database: MongoDB</li>
+										</ul>
+									),
+								},
+							}[1]
+						}
 					</div>
 				</div>
 
@@ -630,7 +559,7 @@ const LandingPage = () => {
 				style={{
 					padding: isMobile ? '3rem 1rem' : isTablet ? '4rem 2rem' : '5rem 3rem',
 					background: isDark
-						? 'linear-gradient(135deg, rgba(30,41,59,0.5) 0%, rgba(2,6,23,0.4) 100%)'
+						? 'linear-gradient(135deg, color-mix(in srgb, #1e293b 50%, transparent), color-mix(in srgb, #020617 40%, transparent))'
 						: 'linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%)',
 					textAlign: 'center',
 					position: 'relative',
@@ -688,9 +617,9 @@ const LandingPage = () => {
 						{/* Student */}
 						<div
 							style={{
-								background: 'white',
+								background: 'var(--surface)',
 								borderRadius: '1.25rem',
-								border: '1px solid #e2e8f0',
+								border: '1px solid var(--border)',
 								boxShadow: '0 10px 28px rgba(2,6,23,0.06)',
 								padding: isMobile ? '1.2rem' : 'clamp(1.4rem, 2.2vw, 2rem)',
 								textAlign: 'center',
@@ -844,9 +773,9 @@ const LandingPage = () => {
 						{/* Teacher */}
 						<div
 							style={{
-								background: 'white',
+								background: 'var(--surface)',
 								borderRadius: '1.25rem',
-								border: '1px solid #e2e8f0',
+								border: '1px solid var(--border)',
 								boxShadow: '0 10px 28px rgba(2,6,23,0.06)',
 								padding: isMobile ? '1.2rem' : 'clamp(1.4rem, 2.2vw, 2rem)',
 								textAlign: 'center',
@@ -1004,12 +933,13 @@ const LandingPage = () => {
 			{/* Footer */}
 			<footer
 				style={{
-					backgroundColor: '#0f172a',
-					color: 'white',
+					backgroundColor: 'var(--surface)',
+					color: 'var(--text)',
 					padding: isMobile ? '2rem 1rem' : '3rem',
 					textAlign: 'center',
 					position: 'relative',
 					overflow: 'hidden',
+					borderTop: '1px solid var(--border)',
 				}}
 			>
 				<div

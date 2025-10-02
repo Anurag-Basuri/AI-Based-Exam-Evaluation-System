@@ -48,9 +48,9 @@ const StudentSettings = () => {
     };
 
     return (
-        <section>
+        <section style={{ color: 'var(--text)' }}>
             <h1 style={{ marginTop: 0 }}>Settings</h1>
-            {msg && <div style={{ marginBottom: 10, color: '#0ea5e9' }}>{msg}</div>}
+            {msg && <div style={{ marginBottom: 10, color: 'var(--primary)' }}>{msg}</div>}
 
             <form onSubmit={saveProfile} style={cardStyle}>
                 <h3 style={{ marginTop: 0, marginBottom: 10 }}>Profile</h3>
@@ -116,32 +116,39 @@ const StudentSettings = () => {
 };
 
 const cardStyle = {
-    background: '#fff',
-    border: '1px solid #e2e8f0',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 16,
+  background: 'var(--surface)',
+  border: '1px solid var(--border)',
+  borderRadius: 12,
+  padding: 12,
+  marginBottom: 16,
 };
 const gridRow = { display: 'grid', gridTemplateColumns: '140px 1fr', gap: 10, marginBottom: 10 };
-const lbl = { color: '#475569', paddingTop: 8 };
-const inp = { border: '1px solid #cbd5e1', borderRadius: 8, padding: '10px 12px', outline: 'none' };
+const lbl = { color: 'var(--text-muted)', paddingTop: 8 };
+const inp = {
+  border: '1px solid var(--border)',
+  background: 'var(--surface)',
+  color: 'var(--text)',
+  borderRadius: 8,
+  padding: '10px 12px',
+  outline: 'none',
+};
 const btnPrimary = {
-    padding: '8px 12px',
-    borderRadius: 8,
-    border: 'none',
-    background: '#6366f1',
-    color: '#fff',
-    cursor: 'pointer',
-    fontWeight: 700,
+  padding: '8px 12px',
+  borderRadius: 8,
+  border: 'none',
+  background: 'var(--primary)',
+  color: '#fff',
+  cursor: 'pointer',
+  fontWeight: 700,
 };
 const btnOutline = {
-    padding: '8px 12px',
-    borderRadius: 8,
-    border: '1px solid #cbd5e1',
-    background: '#fff',
-    color: '#0f172a',
-    cursor: 'pointer',
-    fontWeight: 700,
+  padding: '8px 12px',
+  borderRadius: 8,
+  border: '1px solid var(--border)',
+  background: 'var(--surface)',
+  color: 'var(--text)',
+  cursor: 'pointer',
+  fontWeight: 700,
 };
 
 export default StudentSettings;
