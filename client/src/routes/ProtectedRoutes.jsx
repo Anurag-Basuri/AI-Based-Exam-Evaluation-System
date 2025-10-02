@@ -1,6 +1,7 @@
 import React from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.js';
+import RouteFallback from '../components/RouteFallback.jsx';
 
 const Forbidden = () => (
 	<div style={{ minHeight: '40vh', display: 'grid', placeItems: 'center', color: 'var(--text)' }}>
@@ -25,13 +26,14 @@ const Forbidden = () => (
 
 const ProtectedRoutes = ({ requireRole }) => {
 	const location = useLocation();
-	const { isAuthenticated, user, role } = useAuth();
+	const { isAuthenticated, user, role, loading } = useAuth();
 
-	// Not logged in
+	// Wait for auth to hydrate to avoid redirect loops during HMR/refresh
+	if (loading) return <RouteFallback />;
+
 	if (!isAuthenticated || !user) {
 		return <Navigate to="/auth" replace state={{ from: location.pathname }} />;
 	}
-	// Role mismatch
 	if (requireRole && role !== requireRole) {
 		return <Forbidden />;
 	}
