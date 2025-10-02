@@ -40,10 +40,7 @@ const StudentResults = () => {
 	const [status, setStatus] = React.useState('all');
 
 	const filtered = results
-		.map(r => ({
-			...r,
-			chip: statusMap[r.status] || statusMap.pending,
-		}))
+		.map(r => ({ ...r, chip: statusMap[r.status] || statusMap.pending }))
 		.filter(r => {
 			const matchesStatus = status === 'all' ? true : r.status === status;
 			const matchesQuery = r.examTitle.toLowerCase().includes(query.toLowerCase());
@@ -65,8 +62,7 @@ const StudentResults = () => {
 			>
 				<h1 style={{ margin: 0 }}>Results & Feedback</h1>
 				<p style={{ margin: '6px 0 0', color: 'var(--text-muted)' }}>
-					Review your recent scores and teacher feedback. Filter by status or search by
-					exam title.
+					Review your recent scores and teacher feedback.
 				</p>
 			</header>
 

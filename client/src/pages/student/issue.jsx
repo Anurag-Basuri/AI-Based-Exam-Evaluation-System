@@ -42,7 +42,6 @@ const StudentIssues = () => {
 		e.preventDefault();
 		if (!form.exam || !form.issueType || !form.description) return;
 
-		// If your server expects ObjectId for exam
 		const looksLikeId = /^[a-f\d]{24}$/i.test(form.exam);
 		if (!looksLikeId) {
 			alert('Please enter a valid Exam ID (24-character hex).');
@@ -53,7 +52,7 @@ const StudentIssues = () => {
 		try {
 			await safeApiCall(createStudentIssue, {
 				exam: form.exam,
-				issueType: form.issueType, // e.g., 'evaluation' | 'question'
+				issueType: form.issueType,
 				description: form.description,
 			});
 			await reload();
@@ -87,7 +86,7 @@ const StudentIssues = () => {
 				<div>
 					<h1 style={{ margin: 0 }}>Support & Issues</h1>
 					<p style={{ margin: '6px 0 0', color: 'var(--text-muted)' }}>
-						Raise concerns about exam sessions or evaluations. We respond promptly.
+						Raise concerns about exam sessions or evaluations.
 					</p>
 				</div>
 				<button
@@ -165,7 +164,7 @@ const StudentIssues = () => {
 						<textarea
 							value={form.description}
 							onChange={e => setForm(s => ({ ...s, description: e.target.value }))}
-							placeholder="Describe the problem with details so we can assist quickly."
+							placeholder="Describe the problem"
 							rows={4}
 							style={{
 								padding: '10px 12px',
@@ -229,7 +228,7 @@ const StudentIssues = () => {
 						color: 'var(--text-muted)',
 					}}
 				>
-					No issues yet. Everything looks good!
+					No issues yet.
 				</div>
 			)}
 
