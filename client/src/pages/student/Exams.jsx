@@ -1,5 +1,9 @@
 import React from 'react';
-import { safeApiCall } from '../../services/apiServices.js';
+import {
+	safeApiCall,
+	getStudentExams,
+	startStudentSubmission,
+} from '../../services/apiServices.js';
 
 const useExams = () => {
 	const [loading, setLoading] = React.useState(false);
@@ -7,97 +11,65 @@ const useExams = () => {
 	const [exams, setExams] = React.useState([]);
 
 	React.useEffect(() => {
-		let mounted = true;
-		const load = async () => {
+		let alive = true;
+		(async () => {
 			setLoading(true);
 			setError('');
 			try {
-				// Try API if implemented; fallback to sample data
-				const { getStudentExams } = await import('../../services/apiServices.js');
-				let data = [];
-				if (typeof getStudentExams === 'function') {
-					const res = await safeApiCall(getStudentExams);
-					data = res?.data || res || [];
-				}
-				if (!data.length) {
-					data = [
-						{
-							id: '1',
-							title: 'Algebra Midterm',
-							status: 'active',
-							durationMin: 60,
-							startAt: '2025-10-01 10:00',
-						},
-						{
-							id: '2',
-							title: 'Physics Quiz',
-							status: 'upcoming',
-							durationMin: 30,
-							startAt: '2025-10-05 09:00',
-						},
-						{
-							id: '3',
-							title: 'History Final',
-							status: 'completed',
-							durationMin: 90,
-							startAt: '2025-09-20 11:00',
-						},
-					];
-				}
-				if (mounted) setExams(data);
+				const data = await safeApiCall(getStudentExams);
+				if (alive) setExams(data);
 			} catch (e) {
-				if (mounted) setError(e?.message || 'Failed to load exams');
+				if (alive) setError(e.message || 'Failed to load exams');
 			} finally {
-				if (mounted) setLoading(false);
+				if (alive) setLoading(false);
 			}
-		};
-		load();
+		})();
 		return () => {
-			mounted = false;
+			alive = false;
 		};
 	}, []);
 
 	return { loading, error, exams, setExams };
 };
 
+const statusPill = status => {
+	switch (status) {
+		case 'active':
+			return { label: 'Active', bg: '#eef2ff', bd: '#c7d2fe', fg: '#3730a3' };
+		case 'completed':
+			return { label: 'Completed', bg: '#ecfdf5', bd: '#a7f3d0', fg: '#065f46' };
+		case 'upcoming':
+		default:
+			return { label: 'Upcoming', bg: '#fff7ed', bd: '#fed7aa', fg: '#9a3412' };
+	}
+};
+
 const Exams = () => {
 	const { loading, error, exams, setExams } = useExams();
 	const [query, setQuery] = React.useState('');
-	const [filter, setFilter] = React.useState('all'); // all | active | upcoming | completed
-	const q = query.toLowerCase();
+	const [filter, setFilter] = React.useState('all');
 
 	const filtered = exams.filter(e => {
-		const okFilter = filter === 'all' ? true : e.status === filter;
-		const okQuery = !q || e.title.toLowerCase().includes(q);
-		return okFilter && okQuery;
+		const text = `${e.title}`.toLowerCase();
+		const matchesText = text.includes(query.toLowerCase());
+		const matchesFilter = filter === 'all' ? true : e.status === filter;
+		return matchesText && matchesFilter;
 	});
 
 	const handleStart = async examId => {
 		try {
-			const { startStudentSubmission } = await import('../../services/apiServices.js');
 			await safeApiCall(startStudentSubmission, { examId });
-			alert('Exam session started. Open the exam player to continue.');
-			// Optionally update status locally
 			setExams(prev => prev.map(x => (x.id === examId ? { ...x, status: 'active' } : x)));
+			alert('Exam session started. The exam player can now continue.');
 		} catch (e) {
-			alert(e?.message || 'Failed to start exam');
+			alert(e.message || 'Failed to start exam');
 		}
-	};
-
-	const statusPill = status => {
-		const map = {
-			active: { bg: '#eef2ff', bd: '#c7d2fe', fg: '#3730a3', label: 'Active' },
-			upcoming: { bg: '#fffbeb', bd: '#fde68a', fg: '#92400e', label: 'Upcoming' },
-			completed: { bg: '#ecfeff', bd: '#a5f3fc', fg: '#155e75', label: 'Completed' },
-		};
-		return map[status] || { bg: '#f1f5f9', bd: '#e2e8f0', fg: '#334155', label: status || '—' };
 	};
 
 	return (
 		<section style={{ color: 'var(--text)' }}>
 			<h1 style={{ marginTop: 0 }}>Exams</h1>
 
-			{/* Toolbar */}
 			<div
 				style={{
 					display: 'flex',
@@ -120,7 +92,6 @@ const Exams = () => {
 							outline: 'none',
 							background: 'var(--surface)',
 							color: 'var(--text)',
-							boxShadow: '0 6px 18px rgba(15,23,42,0.06)',
 						}}
 					/>
 					<span
@@ -137,7 +108,6 @@ const Exams = () => {
 					</span>
 				</div>
 
-				{/* Filter pills */}
 				<div style={{ display: 'flex', gap: 8 }}>
 					{['all', 'active', 'upcoming', 'completed'].map(f => {
 						const active = filter === f;
@@ -146,17 +116,17 @@ const Exams = () => {
 								key={f}
 								onClick={() => setFilter(f)}
 								style={{
-									padding: '8px 12px',
+									padding: '8px 10px',
 									borderRadius: 999,
 									border: active
 										? '1px solid var(--primary)'
 										: '1px solid var(--border)',
 									background: active
-										? 'linear-gradient(135deg, color-mix(in srgb, var(--primary) 14%, var(--surface)), var(--surface))'
+										? 'color-mix(in srgb, var(--primary) 10%, var(--surface))'
 										: 'var(--surface)',
 									color: active ? 'var(--primary-strong)' : 'var(--text)',
 									cursor: 'pointer',
-									fontWeight: 800,
+									fontWeight: 700,
 								}}
 							>
 								{f[0].toUpperCase() + f.slice(1)}
@@ -166,75 +136,7 @@ const Exams = () => {
 				</div>
 			</div>
 
-			{loading && (
-				<>
-					<style>
-						{`@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}`}
-					</style>
-					<ul
-						style={{
-							listStyle: 'none',
-							padding: 0,
-							margin: 0,
-							display: 'grid',
-							gap: 10,
-						}}
-					>
-						{[0, 1, 2].map(i => (
-							<li
-								key={i}
-								style={{
-									background: 'var(--surface)',
-									border: '1px solid var(--border)',
-									borderRadius: 12,
-									padding: 12,
-									display: 'grid',
-									gridTemplateColumns: '1fr auto',
-									gap: 8,
-									alignItems: 'center',
-								}}
-							>
-								<div>
-									<div
-										style={{
-											width: 160,
-											height: 16,
-											borderRadius: 6,
-											marginBottom: 8,
-											background:
-												'linear-gradient(90deg, rgba(148,163,184,0.15) 25%, rgba(148,163,184,0.3) 37%, rgba(148,163,184,0.15) 63%)',
-											backgroundSize: '400% 100%',
-											animation: 'shimmer 1.2s ease infinite',
-										}}
-									/>
-									<div
-										style={{
-											width: 220,
-											height: 12,
-											borderRadius: 6,
-											background:
-												'linear-gradient(90deg, rgba(148,163,184,0.15) 25%, rgba(148,163,184,0.3) 37%, rgba(148,163,184,0.15) 63%)',
-											backgroundSize: '400% 100%',
-											animation: 'shimmer 1.2s ease infinite',
-										}}
-									/>
-								</div>
-								<div
-									style={{
-										width: 140,
-										height: 36,
-										borderRadius: 8,
-										background:
-											'linear-gradient(90deg, rgba(148,163,184,0.15) 25%, rgba(148,163,184,0.3) 37%, rgba(148,163,184,0.15) 63%)',
-										backgroundSize: '400% 100%',
-										animation: 'shimmer 1.2s ease infinite',
-									}}
-								/>
-							</li>
-						))}
-					</ul>
-				</>
-			)}
+			{loading && <div style={{ color: 'var(--text-muted)' }}>Loading exams…</div>}
 			{!loading && error && <div style={{ color: '#ef4444' }}>{error}</div>}
 			{!loading && !error && filtered.length === 0 && (
 				<div
@@ -270,22 +172,23 @@ const Exams = () => {
 								}}
 							>
 								<div>
-									<div style={{ fontWeight: 900, color: 'var(--text)' }}>
+									<div style={{ fontWeight: 800, color: 'var(--text)' }}>
 										{exam.title}
 									</div>
 									<div style={{ color: 'var(--text-muted)', fontSize: 13 }}>
-										{exam.durationMin} min • {exam.startAt}
+										{exam.durationMin} min{' '}
+										{exam.startAt ? `• ${exam.startAt}` : ''}
 									</div>
-									<div style={{ marginTop: 8 }}>
+									<div style={{ marginTop: 6 }}>
 										<span
 											style={{
 												fontSize: 12,
-												padding: '3px 10px',
+												padding: '2px 8px',
 												borderRadius: 999,
 												border: `1px solid ${pill.bd}`,
 												background: pill.bg,
 												color: pill.fg,
-												fontWeight: 800,
+												fontWeight: 700,
 											}}
 										>
 											{pill.label}
@@ -294,13 +197,32 @@ const Exams = () => {
 								</div>
 								<div style={{ display: 'flex', gap: 8 }}>
 									{exam.status === 'upcoming' && (
-										<button disabled style={btnMuted}>
-											Not started
+										<button
+											style={{
+												padding: '8px 10px',
+												borderRadius: 8,
+												border: 'none',
+												background: 'var(--primary-strong)',
+												color: '#fff',
+												cursor: 'pointer',
+												fontWeight: 700,
+											}}
+											onClick={() => handleStart(exam.id)}
+										>
+											Start
 										</button>
 									)}
 									{exam.status === 'active' && (
 										<button
-											style={btnPrimary}
+											style={{
+												padding: '8px 10px',
+												borderRadius: 8,
+												border: 'none',
+												background: 'var(--primary-strong)',
+												color: '#fff',
+												cursor: 'pointer',
+												fontWeight: 700,
+											}}
 											onClick={() => handleStart(exam.id)}
 										>
 											Continue
@@ -308,18 +230,18 @@ const Exams = () => {
 									)}
 									{exam.status === 'completed' && (
 										<button
-											style={btnOutline}
-											onClick={() => alert('Results page TBD')}
+											style={{
+												padding: '8px 10px',
+												borderRadius: 8,
+												border: '1px solid var(--border)',
+												background: 'var(--surface)',
+												color: 'var(--text)',
+												cursor: 'pointer',
+												fontWeight: 700,
+											}}
+											onClick={() => alert('Result page will show details.')}
 										>
 											View Result
-										</button>
-									)}
-									{exam.status === 'upcoming' && (
-										<button
-											style={btnPrimary}
-											onClick={() => handleStart(exam.id)}
-										>
-											Start
 										</button>
 									)}
 								</div>
@@ -330,35 +252,6 @@ const Exams = () => {
 			)}
 		</section>
 	);
-};
-
-const btnPrimary = {
-	padding: '9px 12px',
-	borderRadius: 10,
-	border: 'none',
-	background: 'var(--primary-strong)',
-	color: '#fff',
-	cursor: 'pointer',
-	fontWeight: 800,
-	boxShadow: '0 10px 20px rgba(99,102,241,0.25)',
-};
-const btnOutline = {
-	padding: '9px 12px',
-	borderRadius: 10,
-	border: '1px solid var(--border)',
-	background: 'var(--surface)',
-	color: 'var(--text)',
-	cursor: 'pointer',
-	fontWeight: 800,
-};
-const btnMuted = {
-	padding: '9px 12px',
-	borderRadius: 10,
-	border: '1px dashed var(--border)',
-	background: 'var(--surface)',
-	color: 'var(--text-muted)',
-	cursor: 'not-allowed',
-	fontWeight: 800,
 };
 
 export default Exams;
