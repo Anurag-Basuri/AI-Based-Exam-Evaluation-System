@@ -1,29 +1,41 @@
 import React from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.js';
 
-const ProtectedRoute = ({ roles, children }) => {
-    const { isAuthenticated, role } = useAuth();
-    const location = useLocation();
+const Forbidden = () => (
+	<div style={{ minHeight: '40vh', display: 'grid', placeItems: 'center', color: 'var(--text)' }}>
+		<div
+			style={{
+				background: 'var(--surface)',
+				border: '1px solid var(--border)',
+				borderRadius: 16,
+				padding: 24,
+				boxShadow: '0 8px 24px rgba(15,23,42,0.08)',
+				textAlign: 'center',
+				maxWidth: 520,
+			}}
+		>
+			<h1 style={{ margin: '0 0 8px' }}>403 — Forbidden</h1>
+			<p style={{ margin: 0, color: 'var(--text-muted)' }}>
+				You don’t have permission to access this section.
+			</p>
+		</div>
+	</div>
+);
 
-    // Not logged in -> go to login, keep return URL
-    if (!isAuthenticated) {
-        return (
-            <Navigate
-                to={`/auth?mode=login`}
-                replace
-                state={{ from: location.pathname + location.search }}
-            />
-        );
-    }
+const ProtectedRoutes = ({ requireRole }) => {
+	const location = useLocation();
+	const { isAuthenticated, user, role } = useAuth();
 
-    // Logged in but wrong role -> send to their dashboard
-    if (Array.isArray(roles) && roles.length && !roles.includes(role)) {
-        const target = role === 'teacher' ? '/teacher' : '/student';
-        return <Navigate to={target} replace />;
-    }
-
-    return children;
+	// Not logged in
+	if (!isAuthenticated || !user) {
+		return <Navigate to="/auth" replace state={{ from: location.pathname }} />;
+	}
+	// Role mismatch
+	if (requireRole && role !== requireRole) {
+		return <Forbidden />;
+	}
+	return <Outlet />;
 };
 
-export default ProtectedRoute;
+export default ProtectedRoutes;
