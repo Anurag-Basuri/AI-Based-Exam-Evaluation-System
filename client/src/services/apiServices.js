@@ -66,14 +66,14 @@ export const safeApiCall = async (fn, ...args) => {
 
 // Endpoints (adjust here if server paths differ)
 const EP = {
-	examsList: '/exam/all', // expected: list visible exams for student
-	submissionStart: '/submission/start',
-	submissionsMine: '/submission/my',
-	issuesMine: '/issue/student',
-	issueCreate: '/issue/create',
-	studentUpdate: '/student/update',
-	changePassword: '/student/change-password',
-	logout: '/student/logout',
+	examsList: '/api/exams/all',
+	submissionStart: '/api/submissions/start',
+	submissionsMine: '/api/submissions/my',
+	issuesMine: '/api/issues/student',
+	issueCreate: '/api/issues/create',
+	studentUpdate: '/api/students/update',
+	changePassword: '/api/students/change-password',
+	logout: '/api/students/logout',
 };
 
 // Exams
@@ -237,3 +237,37 @@ export const updateTeacherProfile = async profileData => {
 		throw apiErr;
 	}
 };
+
+// --- Teacher data helpers (used by teacher pages) ---
+export const getTeacherExams = async (params = {}) => {
+	const res = await apiClient.get('/api/exams/all', { params });
+	return res?.data?.data || [];
+};
+
+export const getTeacherIssues = async (filters = {}) => {
+	const res = await apiClient.get('/api/issues/all', { params: filters });
+	return res?.data?.data || [];
+};
+
+export const getTeacherSubmissions = async examId => {
+	if (!examId) return [];
+	const res = await apiClient.get(`/api/submissions/exam/${encodeURIComponent(examId)}`);
+	const list = res?.data?.data || [];
+	// normalize defensively
+	return list.map(s => ({
+		id: String(s._id ?? s.id ?? ''),
+		examTitle: s.exam?.title ?? s.examTitle ?? 'Exam',
+		studentName: s.student?.fullname ?? s.student?.username ?? s.studentName ?? 'Student',
+		score: s.totalScore ?? s.score ?? 0,
+		maxScore: s.maxScore ?? s.totalMax ?? 0,
+		status: s.status ?? 'pending',
+		submittedAt: s.submittedAt
+			? new Date(s.submittedAt).toLocaleString()
+			: s.updatedAt
+				? new Date(s.updatedAt).toLocaleString()
+				: null,
+	}));
+};
+
+export const resolveIssue = async (issueId, reply) =>
+	apiClient.patch(`/api/issues/${encodeURIComponent(issueId)}/resolve`, { reply });

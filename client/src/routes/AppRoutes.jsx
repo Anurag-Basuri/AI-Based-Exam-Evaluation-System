@@ -10,6 +10,7 @@ import StudentIssues from '../pages/student/issue.jsx';
 import StudentSettings from '../pages/student/Settings.jsx';
 import ProtectedRoutes from './ProtectedRoutes.jsx';
 import RouteFallback from '../components/RouteFallback.jsx';
+import ErrorBoundary from '../components/ErrorBoundary.jsx';
 
 const NotFound = () => (
 	<div style={{ minHeight: '50vh', display: 'grid', placeItems: 'center', color: 'var(--text)' }}>
@@ -43,7 +44,11 @@ const AppRoutes = () => (
 			<Route element={<ProtectedRoutes requireRole="student" />}>
 				<Route
 					path="/student"
-					element={<StudentDash />}
+					element={
+						<ErrorBoundary>
+							<StudentDash />
+						</ErrorBoundary>
+					}
 				>
 					<Route index element={<StudentHome />} />
 					<Route path="exams" element={<StudentExams />} />
