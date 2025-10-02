@@ -19,19 +19,16 @@ const Header = ({ transparent = false }) => {
 	const navigate = useNavigate();
 	const isMobile = useIsMobile();
 	const { theme, toggleTheme } = useTheme();
-	const isDark = theme === 'dark';
-
 	const { user, isAuthenticated, role, logoutStudent, logoutTeacher } = useAuth();
+
 	const userDdRef = useRef(null);
 	const [showUserDropdown, setShowUserDropdown] = useState(false);
 
-	// Close dropdown on outside click or ESC
 	useEffect(() => {
 		if (typeof document === 'undefined') return;
 		const onDown = e => {
-			if (userDdRef.current && !userDdRef.current.contains(e.target)) {
+			if (userDdRef.current && !userDdRef.current.contains(e.target))
 				setShowUserDropdown(false);
-			}
 		};
 		const onEsc = e => e.key === 'Escape' && setShowUserDropdown(false);
 		document.addEventListener('mousedown', onDown);
@@ -69,8 +66,7 @@ const Header = ({ transparent = false }) => {
 	const handleLogout = async () => {
 		setShowUserDropdown(false);
 		try {
-			if (role === 'teacher') await logoutTeacher();
-			else await logoutStudent();
+			role === 'teacher' ? await logoutTeacher() : await logoutStudent();
 		} catch {}
 		try {
 			navigate('/', { replace: true });
@@ -79,17 +75,6 @@ const Header = ({ transparent = false }) => {
 
 	const displayName = user?.username || 'User';
 	const headerPadX = isMobile ? '0.75rem' : '2rem';
-
-	const bg = transparent
-		? isDark
-			? 'rgba(2,6,23,0.55)'
-			: 'rgba(255,255,255,0.7)'
-		: 'var(--surface)';
-
-	const border = `1px solid var(--border)`;
-	const titleColor = 'var(--text)';
-	const textColor = 'var(--text)';
-	const muted = 'var(--text-muted)';
 
 	return (
 		<header
@@ -101,13 +86,15 @@ const Header = ({ transparent = false }) => {
 				justifyContent: 'space-between',
 				alignItems: 'center',
 				padding: `0.65rem ${headerPadX}`,
-				backgroundColor: bg,
+				backgroundColor: transparent
+					? 'color-mix(in srgb, var(--surface), transparent 30%)'
+					: 'var(--surface)',
 				backdropFilter: transparent ? 'saturate(180%) blur(10px)' : 'none',
 				WebkitBackdropFilter: transparent ? 'saturate(180%) blur(10px)' : 'none',
+				borderBottom: '1px solid var(--border)',
 				boxShadow: transparent
 					? '0 8px 26px rgba(0,0,0,0.08)'
 					: '0 2px 10px rgba(0,0,0,0.06)',
-				borderBottom: border,
 				transition:
 					'background-color 180ms ease, box-shadow 180ms ease, border-color 180ms ease',
 			}}
@@ -127,14 +114,14 @@ const Header = ({ transparent = false }) => {
 							fontSize: 'clamp(1rem, 2vw, 1.2rem)',
 							margin: 0,
 							fontWeight: 800,
-							color: titleColor,
+							color: 'var(--text)',
 							letterSpacing: 0.2,
 						}}
 					>
 						AI Exam System
 					</h1>
 					{!isMobile && (
-						<span style={{ fontSize: 12, color: muted }}>
+						<span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
 							Insight‑driven assessment suite
 						</span>
 					)}
@@ -142,7 +129,6 @@ const Header = ({ transparent = false }) => {
 			</div>
 
 			<div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-				{/* Theme toggle (single global toggle lives here) */}
 				<button
 					type="button"
 					onClick={toggleTheme}
@@ -154,7 +140,7 @@ const Header = ({ transparent = false }) => {
 						gap: 8,
 						padding: '8px 12px',
 						borderRadius: 999,
-						border: `1px solid var(--border)`,
+						border: '1px solid var(--border)',
 						background: 'var(--surface)',
 						color: 'var(--text)',
 						fontWeight: 700,
@@ -180,7 +166,7 @@ const Header = ({ transparent = false }) => {
 								border: 'none',
 								cursor: 'pointer',
 								padding: '0.25rem',
-								color: textColor,
+								color: 'var(--text)',
 							}}
 						>
 							<img
@@ -197,7 +183,7 @@ const Header = ({ transparent = false }) => {
 							{!isMobile && (
 								<>
 									<span style={{ fontWeight: 600 }}>{displayName}</span>
-									<Caret open={showUserDropdown} color={muted} />
+									<Caret open={showUserDropdown} color="var(--text-muted)" />
 								</>
 							)}
 						</button>
@@ -211,7 +197,7 @@ const Header = ({ transparent = false }) => {
 									right: 0,
 									background: 'var(--surface)',
 									borderRadius: '0.6rem',
-									border,
+									border: '1px solid var(--border)',
 									boxShadow: '0 10px 30px rgba(0,0,0,0.12)',
 									width: 240,
 									overflow: 'hidden',
@@ -221,14 +207,18 @@ const Header = ({ transparent = false }) => {
 								<div
 									style={{
 										padding: '0.9rem',
-										borderBottom: border,
+										borderBottom: '1px solid var(--border)',
 										textAlign: 'center',
-										color: textColor,
+										color: 'var(--text)',
 									}}
 								>
 									<div style={{ fontWeight: 700 }}>{displayName}</div>
 									<div
-										style={{ fontSize: '0.85rem', color: muted, marginTop: 4 }}
+										style={{
+											fontSize: '0.85rem',
+											color: 'var(--text-muted)',
+											marginTop: 4,
+										}}
 									>
 										{role === 'student' ? 'Student' : 'Teacher'}
 									</div>
@@ -236,8 +226,9 @@ const Header = ({ transparent = false }) => {
 								<button
 									onClick={() => {
 										try {
-											if (role === 'student') navigate('/student');
-											else navigate('/teacher');
+											role === 'student'
+												? navigate('/student')
+												: navigate('/teacher');
 										} finally {
 											setShowUserDropdown(false);
 										}
