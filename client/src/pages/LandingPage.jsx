@@ -67,6 +67,52 @@ const LandingPage = () => {
 		},
 	];
 
+	// Details cards (fix: use an array and render via map instead of rendering an object)
+	const detailsCards = [
+		{
+			num: 1,
+			title: 'Roles & Modules',
+			content: (
+				<ul style={{ paddingLeft: '1.2rem', margin: 0 }}>
+					<li>Student and Teacher roles</li>
+					<li>Exams, Questions, Submissions, Issues modules</li>
+					<li>Client protected routes and server auth middleware</li>
+				</ul>
+			),
+		},
+		{
+			num: 2,
+			title: 'Security & APIs',
+			content: (
+				<ul style={{ paddingLeft: '1.2rem', margin: 0 }}>
+					<li>JWT‑based authentication, role‑aware access</li>
+					<li>CORS middleware and structured error responses</li>
+					<li>REST endpoints for exams, questions, submissions, issues</li>
+				</ul>
+			),
+		},
+		{
+			num: 3,
+			title: 'Evaluation Service',
+			content: (
+				<p style={{ margin: 0 }}>
+					Scores free‑form answers with rules and similarity checks for reliable grading.
+				</p>
+			),
+		},
+		{
+			num: 4,
+			title: 'Tech Stack',
+			content: (
+				<ul style={{ paddingLeft: '1.2rem', margin: 0 }}>
+					<li>Frontend: React + Vite</li>
+					<li>Backend: Node.js + Express</li>
+					<li>Database: MongoDB</li>
+				</ul>
+			),
+		},
+	];
+
 	const backgroundImages = [
 		{ src: image5, top: '10%', left: '5%', size: 80, delay: 0 },
 		{ src: image6, top: '15%', right: '8%', size: 70, delay: 2 },
@@ -167,14 +213,23 @@ const LandingPage = () => {
 								marginBottom: '1.1rem',
 								lineHeight: 1.15,
 								letterSpacing: 0.2,
-								background: isDark
-									? 'linear-gradient(to right, #e5e7eb, #cbd5e1)'
-									: 'linear-gradient(to right, #0f172a, #334155)',
-								WebkitBackgroundClip: 'text',
-								WebkitTextFillColor: 'transparent',
+								color: 'var(--text)',
 							}}
 						>
-							AI‑Based Exam Evaluation System
+							<span
+								style={{
+									backgroundImage: isDark
+										? 'linear-gradient(to right, #e5e7eb, #cbd5e1)'
+										: 'linear-gradient(to right, #0f172a, #334155)',
+									WebkitBackgroundClip: 'text',
+									backgroundClip: 'text',
+									WebkitTextFillColor: 'transparent',
+									color: 'transparent',
+									display: 'inline-block',
+								}}
+							>
+								AI‑Based Exam Evaluation System
+							</span>
 						</h1>
 						<p
 							style={{
@@ -480,54 +535,79 @@ const LandingPage = () => {
 							alignItems: 'stretch',
 						}}
 					>
-						{
-							{
-								1: {
-									title: 'Roles & Modules',
-									content: (
-										<ul style={{ paddingLeft: '1.2rem', margin: 0 }}>
-											<li>Student and Teacher roles</li>
-											<li>Exams, Questions, Submissions, Issues modules</li>
-											<li>
-												Client protected routes and server auth middleware
-											</li>
-										</ul>
-									),
-								},
-								2: {
-									title: 'Security & APIs',
-									content: (
-										<ul style={{ paddingLeft: '1.2rem', margin: 0 }}>
-											<li>JWT‑based authentication, role‑aware access</li>
-											<li>CORS middleware and structured error responses</li>
-											<li>
-												REST endpoints for exams, questions, submissions,
-												issues
-											</li>
-										</ul>
-									),
-								},
-								3: {
-									title: 'Evaluation Service',
-									content: (
-										<p style={{ margin: 0 }}>
-											Scores free‑form answers with rules and similarity
-											checks for reliable grading.
-										</p>
-									),
-								},
-								4: {
-									title: 'Tech Stack',
-									content: (
-										<ul style={{ paddingLeft: '1.2rem', margin: 0 }}>
-											<li>Frontend: React + Vite</li>
-											<li>Backend: Node.js + Express</li>
-											<li>Database: MongoDB</li>
-										</ul>
-									),
-								},
-							}[1]
-						}
+						{detailsCards.map(card => (
+							<div
+								key={card.num}
+								style={{
+									background: 'var(--surface)',
+									border: '1px solid var(--border)',
+									borderRadius: '1rem',
+									padding: isMobile ? '1.1rem' : '1.4rem',
+									boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
+									display: 'flex',
+									flexDirection: 'column',
+									gap: '0.75rem',
+									minHeight: isMobile ? 0 : 260,
+									height: '100%',
+									transition: 'transform 0.25s, box-shadow 0.25s',
+								}}
+								onMouseOver={e => {
+									if (!isMobile) {
+										e.currentTarget.style.transform = 'translateY(-4px)';
+										e.currentTarget.style.boxShadow =
+											'0 10px 24px rgba(0,0,0,0.08)';
+									}
+								}}
+								onMouseOut={e => {
+									if (!isMobile) {
+										e.currentTarget.style.transform = 'translateY(0)';
+										e.currentTarget.style.boxShadow =
+											'0 4px 20px rgba(0,0,0,0.05)';
+									}
+								}}
+							>
+								<div
+									style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}
+								>
+									<span
+										aria-hidden
+										style={{
+											width: 28,
+											height: 28,
+											borderRadius: '50%',
+											backgroundColor: 'var(--primary)',
+											color: 'white',
+											display: 'inline-flex',
+											justifyContent: 'center',
+											alignItems: 'center',
+											fontWeight: 700,
+											fontSize: '0.95rem',
+										}}
+									>
+										{card.num}
+									</span>
+									<h3
+										style={{
+											fontSize: '1.15rem',
+											fontWeight: 700,
+											color: 'var(--text)',
+											margin: 0,
+										}}
+									>
+										{card.title}
+									</h3>
+								</div>
+								<div
+									style={{
+										color: 'var(--text-muted)',
+										fontSize: '0.98rem',
+										lineHeight: 1.65,
+									}}
+								>
+									{card.content}
+								</div>
+							</div>
+						))}
 					</div>
 				</div>
 
