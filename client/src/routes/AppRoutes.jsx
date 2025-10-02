@@ -1,20 +1,15 @@
 import React, { Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import RouteFallback from '../components/RouteFallback.jsx';
-import ErrorBoundary from '../components/ErrorBoundary.jsx';
-
-// Pages
 import LandingPage from '../pages/LandingPage.jsx';
 import AuthPage from '../pages/auth.jsx';
-
-// Student Dashboard + nested
-import ProtectedRoutes from './ProtectedRoutes.jsx';
 import StudentDash from '../pages/StudentDash.jsx';
 import StudentHome from '../pages/student/Home.jsx';
 import StudentExams from '../pages/student/Exams.jsx';
 import StudentResults from '../pages/student/result.jsx';
 import StudentIssues from '../pages/student/issue.jsx';
 import StudentSettings from '../pages/student/Settings.jsx';
+import ProtectedRoutes from './ProtectedRoutes.jsx';
+import RouteFallback from '../components/RouteFallback.jsx';
 
 const NotFound = () => (
 	<div style={{ minHeight: '50vh', display: 'grid', placeItems: 'center', color: 'var(--text)' }}>
@@ -48,11 +43,7 @@ const AppRoutes = () => (
 			<Route element={<ProtectedRoutes requireRole="student" />}>
 				<Route
 					path="/student"
-					element={
-						<ErrorBoundary>
-							<StudentDash />
-						</ErrorBoundary>
-					}
+					element={<StudentDash />}
 				>
 					<Route index element={<StudentHome />} />
 					<Route path="exams" element={<StudentExams />} />
