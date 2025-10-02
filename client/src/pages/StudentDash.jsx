@@ -1,5 +1,6 @@
 import React from 'react';
 import Sidebar from '../components/Sidebar.jsx';
+import { Outlet } from 'react-router-dom';
 import { useTheme } from '../hooks/useTheme.js';
 
 const StudentDash = () => {
@@ -23,13 +24,13 @@ const StudentDash = () => {
 
 	return (
 		<div
-			className="student-dash"
 			style={{
 				background:
 					theme === 'dark'
 						? 'radial-gradient(900px 300px at 80% -10%, rgba(2,132,199,0.08), transparent 45%), var(--bg)'
 						: 'radial-gradient(900px 300px at 80% -10%, rgba(99,102,241,0.12), transparent 45%), var(--bg)',
 				color: 'var(--text)',
+				minHeight: '100vh',
 			}}
 		>
 			<Sidebar
@@ -45,7 +46,9 @@ const StudentDash = () => {
 					{ key: 'issues', label: 'Issues', icon: '🛠️', to: 'issues' },
 					{ key: 'settings', label: 'Settings', icon: '⚙️', to: 'settings' },
 				]}
-			/>
+			>
+				<Outlet />
+			</Sidebar>
 		</div>
 	);
 };
