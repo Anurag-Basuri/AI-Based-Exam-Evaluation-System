@@ -1,6 +1,6 @@
 import React from 'react';
-import Sidebar from '../components/Sidebar.jsx';
 import { Outlet } from 'react-router-dom';
+import Sidebar from '../components/Sidebar.jsx';
 import { useTheme } from '../hooks/useTheme.js';
 
 const StudentDash = () => {
@@ -46,9 +46,8 @@ const StudentDash = () => {
 					{ key: 'issues', label: 'Issues', icon: '🛠️', to: 'issues' },
 					{ key: 'settings', label: 'Settings', icon: '⚙️', to: 'settings' },
 				]}
-			>
-				<Outlet />
-			</Sidebar>
+			/>
+			<Outlet />
 		</div>
 	);
 };
