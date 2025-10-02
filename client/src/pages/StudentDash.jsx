@@ -1,25 +1,33 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from '../components/Sidebar.jsx';
+import ErrorBoundary from '../components/ErrorBoundary.jsx';
 import { useTheme } from '../hooks/useTheme.js';
 
 const StudentDash = () => {
 	const { theme } = useTheme();
 
-	const headerEl = (
-		<div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-			<img
-				src="/logo192.png"
-				alt="Student"
-				style={{ width: 34, height: 34, borderRadius: 10 }}
-			/>
-			<div style={{ display: 'grid', lineHeight: 1 }}>
-				<div style={{ fontWeight: 900, letterSpacing: 0.3 }}>Student Portal</div>
-				<span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-					Your exams and results
-				</span>
+	const headerEl = React.useMemo(
+		() => (
+			<div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+				<img
+					src="/logo192.png"
+					alt="Student"
+					onError={e => {
+						e.currentTarget.onerror = null;
+						e.currentTarget.src = '/logo512.png';
+					}}
+					style={{ width: 34, height: 34, borderRadius: 10 }}
+				/>
+				<div style={{ display: 'grid', lineHeight: 1 }}>
+					<div style={{ fontWeight: 900, letterSpacing: 0.3 }}>Student Portal</div>
+					<span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+						Your exams and results
+					</span>
+				</div>
 			</div>
-		</div>
+		),
+		[],
 	);
 
 	return (
@@ -47,7 +55,11 @@ const StudentDash = () => {
 					{ key: 'settings', label: 'Settings', icon: '⚙️', to: 'settings' },
 				]}
 			/>
-			<Outlet />
+			<div style={{ padding: 16 }}>
+				<ErrorBoundary>
+					<Outlet />
+				</ErrorBoundary>
+			</div>
 		</div>
 	);
 };
