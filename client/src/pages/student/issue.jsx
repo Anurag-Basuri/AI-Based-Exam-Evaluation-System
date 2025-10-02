@@ -1,32 +1,10 @@
 import React from 'react';
-import { safeApiCall } from '../../services/apiServices.js';
-
-const fallbackIssues = [
-	{
-		id: 'iss-1',
-		examTitle: 'Algebra Midterm',
-		issueType: 'Technical',
-		description: 'Calculator froze during section 2, question 4.',
-		status: 'open',
-		reply: null,
-		createdAt: '2025-09-22 09:45',
-	},
-	{
-		id: 'iss-2',
-		examTitle: 'Physics Quiz',
-		issueType: 'Evaluation',
-		description: 'Score seems low for essay question. Please recheck.',
-		status: 'resolved',
-		reply: 'Score adjusted to 18/20 after reevaluation.',
-		createdAt: '2025-09-18 14:10',
-		resolvedAt: '2025-09-19 09:20',
-	},
-];
+import { safeApiCall, getStudentIssues, createStudentIssue } from '../../services/apiServices.js';
 
 const statusStyles = {
-	open: { label: 'Open', color: '#b45309', bg: '#fffbeb', border: '#fcd34d' },
-	pending: { label: 'Pending', color: '#4338ca', bg: '#eef2ff', border: '#c7d2fe' },
-	resolved: { label: 'Resolved', color: '#047857', bg: '#ecfdf5', border: '#6ee7b7' },
+	open: { bg: '#fff7ed', border: '#fed7aa', color: '#9a3412', label: 'Open' },
+	pending: { bg: '#eef2ff', border: '#c7d2fe', color: '#3730a3', label: 'Pending' },
+	resolved: { bg: '#ecfdf5', border: '#a7f3d0', color: '#065f46', label: 'Resolved' },
 };
 
 const useIssues = () => {
@@ -38,17 +16,10 @@ const useIssues = () => {
 		setLoading(true);
 		setError('');
 		try {
-			const { getStudentIssues } = await import('../../services/apiServices.js');
-			let data = [];
-			if (typeof getStudentIssues === 'function') {
-				const res = await safeApiCall(getStudentIssues);
-				data = res?.data || res || [];
-			}
-			if (!data.length) data = fallbackIssues;
-			setIssues(data);
+			const data = await safeApiCall(getStudentIssues);
+			setIssues(Array.isArray(data) ? data : []);
 		} catch (e) {
-			setError(e?.message || 'Failed to load issues');
-			setIssues(fallbackIssues);
+			setError(e.message || 'Failed to load issues');
 		} finally {
 			setLoading(false);
 		}
@@ -58,44 +29,38 @@ const useIssues = () => {
 		load();
 	}, [load]);
 
-	return { loading, error, issues, setIssues, reload: load };
+	return { loading, error, issues, reload: load };
 };
 
 const StudentIssues = () => {
-	const { loading, error, issues, setIssues, reload } = useIssues();
+	const { loading, error, issues, reload } = useIssues();
 	const [showForm, setShowForm] = React.useState(false);
 	const [saving, setSaving] = React.useState(false);
-	const [form, setForm] = React.useState({
-		exam: '',
-		issueType: '',
-		description: '',
-	});
+	const [form, setForm] = React.useState({ exam: '', issueType: '', description: '' });
 
 	const handleSubmit = async e => {
 		e.preventDefault();
 		if (!form.exam || !form.issueType || !form.description) return;
+
+		// If your server expects ObjectId for exam
+		const looksLikeId = /^[a-f\d]{24}$/i.test(form.exam);
+		if (!looksLikeId) {
+			alert('Please enter a valid Exam ID (24-character hex).');
+			return;
+		}
+
 		setSaving(true);
 		try {
-			const { createStudentIssue } = await import('../../services/apiServices.js');
-			if (typeof createStudentIssue === 'function') {
-				await safeApiCall(createStudentIssue, form);
-				await reload();
-			} else {
-				// Fallback optimistic add
-				const optimistic = {
-					id: `temp-${Date.now()}`,
-					examTitle: form.exam,
-					issueType: form.issueType,
-					description: form.description,
-					status: 'open',
-					createdAt: new Date().toLocaleString(),
-				};
-				setIssues(prev => [optimistic, ...prev]);
-			}
+			await safeApiCall(createStudentIssue, {
+				exam: form.exam,
+				issueType: form.issueType, // e.g., 'evaluation' | 'question'
+				description: form.description,
+			});
+			await reload();
 			setForm({ exam: '', issueType: '', description: '' });
 			setShowForm(false);
 		} catch (e) {
-			alert(e?.message || 'Could not submit issue');
+			alert(e.message || 'Could not submit issue');
 		} finally {
 			setSaving(false);
 		}
@@ -157,11 +122,11 @@ const StudentIssues = () => {
 					}}
 				>
 					<div style={{ display: 'grid', gap: 10 }}>
-						<label style={{ fontWeight: 700, color: 'var(--text)' }}>Exam</label>
+						<label style={{ fontWeight: 700, color: 'var(--text)' }}>Exam ID</label>
 						<input
 							value={form.exam}
 							onChange={e => setForm(s => ({ ...s, exam: e.target.value }))}
-							placeholder="Exam title or ID"
+							placeholder="24-character exam ObjectId"
 							style={{
 								padding: '10px 12px',
 								borderRadius: 10,
@@ -190,10 +155,8 @@ const StudentIssues = () => {
 							required
 						>
 							<option value="">Select</option>
-							<option value="Technical">Technical</option>
-							<option value="Evaluation">Evaluation</option>
-							<option value="Content">Content</option>
-							<option value="Other">Other</option>
+							<option value="evaluation">Evaluation issue</option>
+							<option value="question">Question issue</option>
 						</select>
 					</div>
 
@@ -275,7 +238,7 @@ const StudentIssues = () => {
 					const chip = statusStyles[issue.status] ?? statusStyles.open;
 					return (
 						<article
-							key={issue.id}
+							key={issue._id || issue.id}
 							style={{
 								background: 'var(--surface)',
 								borderRadius: 16,
@@ -302,10 +265,12 @@ const StudentIssues = () => {
 											color: 'var(--text)',
 										}}
 									>
-										{issue.examTitle}
+										{issue.examTitle || 'Exam'}
 									</h2>
 									<div style={{ color: 'var(--text-muted)', fontSize: 13 }}>
-										{issue.createdAt ? `Submitted on ${issue.createdAt}` : ''}
+										{issue.createdAt
+											? `Submitted on ${new Date(issue.createdAt).toLocaleString()}`
+											: ''}
 									</div>
 								</div>
 								<span
@@ -370,7 +335,8 @@ const StudentIssues = () => {
 										<div
 											style={{ marginTop: 6, fontSize: 12, color: '#0f766e' }}
 										>
-											Resolved on {issue.resolvedAt}
+											Resolved on{' '}
+											{new Date(issue.resolvedAt).toLocaleString()}
 										</div>
 									)}
 								</div>
