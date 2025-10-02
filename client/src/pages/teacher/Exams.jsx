@@ -1,11 +1,13 @@
 import React from 'react';
-import { safeApiCall, getTeacherExams } from '../../services/apiServices.js';
+import { safeApiCall, getTeacherExams, updateExamStatus } from '../../services/apiServices.js';
 
 const statusChip = {
 	live: { bg: '#dcfce7', border: '#86efac', color: '#15803d', label: 'Live' },
+	active: { bg: '#dcfce7', border: '#86efac', color: '#15803d', label: 'Live' },
 	scheduled: { bg: '#e0f2fe', border: '#bae6fd', color: '#0369a1', label: 'Scheduled' },
 	draft: { bg: '#f3f4f6', border: '#e5e7eb', color: '#475569', label: 'Draft' },
 	completed: { bg: '#ede9fe', border: '#ddd6fe', color: '#6d28d9', label: 'Completed' },
+	cancelled: { bg: '#fee2e2', border: '#fecaca', color: '#991b1b', label: 'Cancelled' },
 };
 
 const useTeacherExams = () => {
@@ -13,33 +15,32 @@ const useTeacherExams = () => {
 	const [error, setError] = React.useState('');
 	const [exams, setExams] = React.useState([]);
 
-	React.useEffect(() => {
-		let mounted = true;
-		const load = async () => {
-			setLoading(true);
-			setError('');
-			try {
-				const data = await safeApiCall(getTeacherExams);
-				if (mounted) setExams(Array.isArray(data) ? data : []);
-			} catch (e) {
-				if (mounted) setError(e?.message || 'Failed to load exams');
-			} finally {
-				if (mounted) setLoading(false);
-			}
-		};
-		load();
-		return () => {
-			mounted = false;
-		};
+	const load = React.useCallback(async () => {
+		setLoading(true);
+		setError('');
+		try {
+			const data = await safeApiCall(getTeacherExams);
+			setExams(Array.isArray(data) ? data : []);
+		} catch (e) {
+			setError(e?.message || 'Failed to load exams');
+		} finally {
+			setLoading(false);
+		}
 	}, []);
 
-	return { loading, error, exams, setExams };
+	React.useEffect(() => {
+		load();
+	}, [load]);
+
+	return { loading, error, exams, setExams, reload: load };
 };
 
 const TeacherExams = () => {
-	const { loading, error, exams, setExams } = useTeacherExams();
+	const { loading, error, exams, setExams, reload } = useTeacherExams();
 	const [query, setQuery] = React.useState('');
 	const [status, setStatus] = React.useState('all');
+	const [msg, setMsg] = React.useState('');
+	const [busy, setBusy] = React.useState({}); // per-exam saving flags
 
 	const filtered = exams.filter(exam => {
 		const matchesStatus = status === 'all' ? true : exam.status === status;
@@ -49,15 +50,18 @@ const TeacherExams = () => {
 		return matchesStatus && matchesQuery;
 	});
 
-	const handlePublish = examId => {
-		setExams(prev =>
-			prev.map(ex =>
-				ex.id === examId
-					? { ...ex, status: 'live', startAt: new Date().toLocaleString() }
-					: ex,
-			),
-		);
-		alert('Exam published successfully.');
+	const handlePublish = async examId => {
+		setBusy(b => ({ ...b, [examId]: true }));
+		setMsg('');
+		try {
+			await safeApiCall(updateExamStatus, examId, { status: 'active' });
+			setExams(prev => prev.map(ex => (ex.id === examId ? { ...ex, status: 'active' } : ex)));
+			setMsg('Exam published successfully.');
+		} catch (e) {
+			setMsg(e.message || 'Failed to publish exam');
+		} finally {
+			setBusy(b => ({ ...b, [examId]: false }));
+		}
 	};
 
 	const handleClone = exam => {
@@ -71,7 +75,7 @@ const TeacherExams = () => {
 			startAt: '—',
 		};
 		setExams(prev => [clone, ...prev]);
-		alert('Exam duplicated. Adjust details before publishing.');
+		setMsg('Exam duplicated locally. Adjust details before publishing.');
 	};
 
 	return (
@@ -98,22 +102,57 @@ const TeacherExams = () => {
 						Create, schedule, and monitor exams across all classes.
 					</p>
 				</div>
-				<button
-					onClick={() => alert('Open create-exam drawer')}
+				<div style={{ display: 'flex', gap: 8 }}>
+					<button
+						onClick={reload}
+						style={{
+							padding: '12px 14px',
+							borderRadius: 10,
+							border: '1px solid #cbd5e1',
+							background: '#ffffff',
+							color: '#0f172a',
+							cursor: 'pointer',
+							fontWeight: 700,
+						}}
+					>
+						Refresh
+					</button>
+					<button
+						onClick={() => setMsg('Open create-exam drawer (to be implemented)')}
+						style={{
+							padding: '12px 16px',
+							borderRadius: 12,
+							border: 'none',
+							background: '#14b8a6',
+							color: '#ffffff',
+							fontWeight: 700,
+							cursor: 'pointer',
+							boxShadow: '0 14px 28px rgba(20,184,166,0.28)',
+						}}
+					>
+						➕ Create exam
+					</button>
+				</div>
+			</header>
+
+			{msg && (
+				<div
+					role="status"
 					style={{
-						padding: '12px 16px',
-						borderRadius: 12,
-						border: 'none',
-						background: '#14b8a6',
-						color: '#ffffff',
-						fontWeight: 700,
-						cursor: 'pointer',
-						boxShadow: '0 14px 28px rgba(20,184,166,0.28)',
+						marginBottom: 12,
+						padding: '10px 12px',
+						borderRadius: 10,
+						border: '1px solid #c7d2fe',
+						background: '#eef2ff',
+						color: '#3730a3',
+						fontWeight: 600,
 					}}
 				>
-					➕ Create exam
-				</button>
-			</header>
+					{msg}
+				</div>
+			)}
+			{loading && <div style={{ color: '#475569', marginBottom: 12 }}>Loading exams…</div>}
+			{!loading && error && <div style={{ color: '#b91c1c', marginBottom: 12 }}>{error}</div>}
 
 			<div
 				style={{
@@ -153,32 +192,32 @@ const TeacherExams = () => {
 				</div>
 
 				<div style={{ display: 'flex', gap: 8 }}>
-					{['all', 'live', 'scheduled', 'draft', 'completed'].map(st => {
-						const active = status === st;
-						return (
-							<button
-								key={st}
-								onClick={() => setStatus(st)}
-								style={{
-									padding: '8px 12px',
-									borderRadius: 999,
-									border: active ? '1px solid #14b8a6' : '1px solid #cbd5e1',
-									background: active ? '#ccfbf1' : '#ffffff',
-									color: active ? '#0f766e' : '#334155',
-									cursor: 'pointer',
-									fontWeight: 700,
-								}}
-							>
-								{st[0].toUpperCase() + st.slice(1)}
-							</button>
-						);
-					})}
+					{['all', 'live', 'active', 'scheduled', 'draft', 'completed', 'cancelled'].map(
+						st => {
+							const active = status === st;
+							return (
+								<button
+									key={st}
+									onClick={() => setStatus(st)}
+									style={{
+										padding: '8px 12px',
+										borderRadius: 999,
+										border: active ? '1px solid #14b8a6' : '1px solid #cbd5e1',
+										background: active ? '#ccfbf1' : '#ffffff',
+										color: active ? '#0f766e' : '#334155',
+										cursor: 'pointer',
+										fontWeight: 700,
+									}}
+								>
+									{st[0].toUpperCase() + st.slice(1)}
+								</button>
+							);
+						},
+					)}
 				</div>
 			</div>
 
-			{loading && <div style={{ color: '#475569' }}>Loading exams…</div>}
-			{!loading && error && <div style={{ color: '#b91c1c', marginBottom: 12 }}>{error}</div>}
-			{!loading && !filtered.length && (
+			{!loading && !error && !filtered.length && (
 				<div
 					style={{
 						padding: 22,
@@ -195,6 +234,7 @@ const TeacherExams = () => {
 			<div style={{ display: 'grid', gap: 16 }}>
 				{filtered.map(exam => {
 					const chip = statusChip[exam.status] ?? statusChip.draft;
+					const publishing = !!busy[exam.id];
 					return (
 						<article
 							key={exam.id}
@@ -263,7 +303,7 @@ const TeacherExams = () => {
 										fontWeight: 700,
 										boxShadow: '0 12px 22px rgba(99,102,241,0.25)',
 									}}
-									onClick={() => alert('Open exam editor')}
+									onClick={() => setMsg('Open exam editor (to be implemented)')}
 								>
 									Edit exam
 								</button>
@@ -281,20 +321,22 @@ const TeacherExams = () => {
 								>
 									Duplicate
 								</button>
-								{exam.status !== 'live' && (
+								{exam.status !== 'active' && exam.status !== 'live' && (
 									<button
+										disabled={publishing}
 										style={{
 											padding: '10px 12px',
 											borderRadius: 10,
 											border: '1px solid #14b8a6',
 											background: '#ccfbf1',
 											color: '#0f766e',
-											cursor: 'pointer',
+											cursor: publishing ? 'not-allowed' : 'pointer',
 											fontWeight: 700,
+											opacity: publishing ? 0.7 : 1,
 										}}
 										onClick={() => handlePublish(exam.id)}
 									>
-										Publish now
+										{publishing ? 'Publishing…' : 'Publish now'}
 									</button>
 								)}
 							</div>

@@ -8,9 +8,50 @@ import {
 	getTeacherSubmissions,
 } from '../../services/apiServices.js';
 
+const Banner = ({ type = 'info', children, onClose }) => (
+	<div
+		role="status"
+		style={{
+			padding: '10px 12px',
+			borderRadius: 10,
+			border: `1px solid ${type === 'error' ? '#fecaca' : '#bfdbfe'}`,
+			background: type === 'error' ? '#fef2f2' : '#eff6ff',
+			color: type === 'error' ? '#991b1b' : '#1e3a8a',
+			fontWeight: 600,
+		}}
+	>
+		<div
+			style={{
+				display: 'flex',
+				justifyContent: 'space-between',
+				gap: 10,
+				alignItems: 'center',
+			}}
+		>
+			<span>{children}</span>
+			{onClose && (
+				<button
+					onClick={onClose}
+					style={{
+						border: 'none',
+						background: 'transparent',
+						cursor: 'pointer',
+						color: 'inherit',
+						fontWeight: 800,
+					}}
+					aria-label="Dismiss message"
+				>
+					×
+				</button>
+			)}
+		</div>
+	</div>
+);
+
 const TeacherHome = () => {
 	const navigate = useNavigate();
 	const { user } = useAuth();
+	const teacherId = user?._id || user?.id;
 	const name = user?.fullname || user?.username || 'Teacher';
 
 	const [stats, setStats] = React.useState({
@@ -22,36 +63,45 @@ const TeacherHome = () => {
 	});
 	const [loading, setLoading] = React.useState(false);
 	const [err, setErr] = React.useState('');
+	const [info, setInfo] = React.useState('');
+
+	const load = React.useCallback(async () => {
+		setLoading(true);
+		setErr('');
+		setInfo('');
+		try {
+			const [exams, issues, subs] = await Promise.all([
+				safeApiCall(getTeacherExams, { teacher: teacherId }),
+				safeApiCall(getTeacherIssues),
+				safeApiCall(getTeacherSubmissions, undefined, { teacher: teacherId }),
+			]);
+			const live = exams.filter(e => e.status === 'active' || e.status === 'live').length;
+			const scheduled = exams.filter(e => e.status === 'scheduled').length;
+			const draft = exams.filter(e => e.status === 'draft').length;
+			const pendingSubs = subs.filter(
+				s => s.status === 'pending' || s.status === 'submitted',
+			).length;
+			const openIssues = issues.filter(
+				i => (i.status || '').toLowerCase() !== 'resolved',
+			).length;
+			setStats({ live, scheduled, draft, pendingSubs, openIssues });
+			if (!exams.length) setInfo('No exams yet. Create your first exam to get started.');
+		} catch (e) {
+			setErr(e.message || 'Failed to load overview');
+		} finally {
+			setLoading(false);
+		}
+	}, [teacherId]);
 
 	React.useEffect(() => {
 		let alive = true;
 		(async () => {
-			setLoading(true);
-			setErr('');
-			try {
-				const [exams, issues, subs] = await Promise.all([
-					safeApiCall(getTeacherExams),
-					safeApiCall(getTeacherIssues),
-					safeApiCall(getTeacherSubmissions), // no examId → aggregate if supported
-				]);
-				const live = exams.filter(e => e.status === 'live').length;
-				const scheduled = exams.filter(e => e.status === 'scheduled').length;
-				const draft = exams.filter(e => e.status === 'draft').length;
-				const pendingSubs = subs.filter(s => s.status === 'pending').length;
-				const openIssues = issues.filter(
-					i => i.status === 'open' || i.status === 'pending',
-				).length;
-				if (alive) setStats({ live, scheduled, draft, pendingSubs, openIssues });
-			} catch (e) {
-				if (alive) setErr(e.message || 'Failed to load overview');
-			} finally {
-				if (alive) setLoading(false);
-			}
+			if (alive) await load();
 		})();
 		return () => {
 			alive = false;
 		};
-	}, []);
+	}, [load]);
 
 	const insightCards = [
 		{ label: 'Live exams', value: stats.live, tone: '🟢' },
@@ -115,7 +165,30 @@ const TeacherHome = () => {
 						</button>
 					))}
 				</div>
-				{err && <div style={{ color: '#b91c1c' }}>{err}</div>}
+				{err && (
+					<Banner type="error" onClose={() => setErr('')}>
+						{err}
+					</Banner>
+				)}
+				{!err && info && <Banner onClose={() => setInfo('')}>{info}</Banner>}
+				{!err && loading && <div style={{ color: '#334155' }}>Loading overview…</div>}
+				{!err && !loading && (
+					<button
+						onClick={load}
+						style={{
+							justifySelf: 'start',
+							padding: '8px 12px',
+							borderRadius: 10,
+							border: '1px solid #e2e8f0',
+							background: '#ffffff',
+							cursor: 'pointer',
+							fontWeight: 700,
+							color: '#0f172a',
+						}}
+					>
+						Refresh
+					</button>
+				)}
 			</div>
 
 			<div
