@@ -47,7 +47,7 @@ const StudentSettings = () => {
 		setMsg('');
 		try {
 			await safeApiCall(changeStudentPassword, {
-				oldPassword: pw.oldPassword,
+				currentPassword: pw.oldPassword,
 				newPassword: pw.newPassword,
 			});
 			setMsg('Password changed successfully.');

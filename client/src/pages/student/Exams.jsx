@@ -57,10 +57,13 @@ const Exams = () => {
 	});
 
 	const handleStart = async examId => {
+		if (!examId) return;
 		try {
 			await safeApiCall(startStudentSubmission, { examId });
-			setExams(prev => prev.map(x => (x.id === examId ? { ...x, status: 'active' } : x)));
-			alert('Exam session started. The exam player can now continue.');
+			// Optionally reflect state locally so user can continue immediately
+			setExams(list =>
+				list.map(e => (String(e.id) === String(examId) ? { ...e, status: 'active' } : e)),
+			);
 		} catch (e) {
 			alert(e.message || 'Failed to start exam');
 		}
