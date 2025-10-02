@@ -6,6 +6,7 @@ import img1 from '../assets/image1.jpg';
 import img2 from '../assets/image2.jpg';
 import img3 from '../assets/image3.jpg';
 import img4 from '../assets/image4.jpg';
+import { useTheme } from '../hooks/useTheme.js';
 
 // Keep your media query utility if needed
 const useMediaQuery = (query, defaultState = false) => {
@@ -172,8 +173,36 @@ const AuthPage = () => {
 		</div>
 	);
 
+	const { theme, toggleTheme } = useTheme();
+	const isDark = theme === 'dark';
+
 	return (
-		<div style={styles.page}>
+		<div style={{ ...styles.page, color: 'var(--text)', background: 'var(--bg)' }}>
+			{/* Theme toggle (auth page only) */}
+			<div style={{ position: 'fixed', top: 16, right: 16, zIndex: 10 }}>
+				<button
+					type="button"
+					onClick={toggleTheme}
+					title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+					aria-label="Toggle theme"
+					style={{
+						padding: '8px 12px',
+						borderRadius: 999,
+						border: '1px solid var(--border)',
+						background: 'var(--surface)',
+						color: 'var(--text)',
+						fontWeight: 700,
+						cursor: 'pointer',
+						boxShadow: '0 6px 18px rgba(0,0,0,0.08)',
+					}}
+				>
+					<span aria-hidden style={{ marginRight: 8 }}>
+						{theme === 'light' ? '🌞' : '🌙'}
+					</span>
+					{theme === 'light' ? 'Light' : 'Dark'}
+				</button>
+			</div>
+
 			{/* Background layers */}
 			<div
 				aria-hidden="true"
@@ -196,10 +225,7 @@ const AuthPage = () => {
 			<div aria-hidden="true" style={{ ...styles.blob, ...styles.blobC }} />
 
 			<section
-				style={{
-					...styles.shell,
-					padding: isCompact ? '12px' : 'clamp(1rem, 3vw, 2rem)',
-				}}
+				style={{ ...styles.shell, padding: isCompact ? '12px' : 'clamp(1rem, 3vw, 2rem)' }}
 			>
 				<div
 					style={{
@@ -217,6 +243,9 @@ const AuthPage = () => {
 								...styles.card,
 								padding: isCompact ? 12 : 'clamp(1rem, 2.2vw, 1.4rem)',
 								borderRadius: isCompact ? 16 : 20,
+								background: 'var(--surface)',
+								border: '1px solid var(--border)',
+								boxShadow: '0 20px 60px rgba(2,6,23,0.10)',
 							}}
 						>
 							{isRegister ? (
@@ -225,7 +254,7 @@ const AuthPage = () => {
 								<Login onSwitchToRegister={handleSwitchToRegister} />
 							)}
 						</div>
-						<p style={styles.subtleNote}>
+						<p style={{ ...styles.subtleNote, color: 'var(--text-muted)' }}>
 							Tip: Use the role switch inside the form to switch Student/Teacher
 							styles.
 						</p>
@@ -238,20 +267,26 @@ const AuthPage = () => {
 							padding: isCompact ? 12 : 'clamp(1rem, 2.4vw, 1.8rem)',
 							borderRadius: isCompact ? 16 : 20,
 							background: isRegister
-								? 'linear-gradient(135deg, rgba(249,115,22,0.12), rgba(251,146,60,0.18))'
-								: 'linear-gradient(135deg, rgba(99,102,241,0.12), rgba(99,102,241,0.18))',
-							border: `1px solid ${
-								isRegister ? 'rgba(251,146,60,0.35)' : 'rgba(99,102,241,0.35)'
-							}`,
+								? 'linear-gradient(135deg, color-mix(in srgb, #f97316 16%, transparent), color-mix(in srgb, #fb923c 18%, transparent))'
+								: 'linear-gradient(135deg, color-mix(in srgb, #4f46e5 16%, transparent), color-mix(in srgb, #6366f1 18%, transparent))',
+							border: `1px solid ${isRegister ? 'rgba(251,146,60,0.35)' : 'rgba(99,102,241,0.35)'}`,
 							boxShadow: isRegister
 								? '0 20px 60px rgba(249,115,22,0.18)'
 								: '0 20px 60px rgba(79,70,229,0.18)',
-							WebkitBackdropFilter: 'saturate(140%) blur(4px)',
-							backdropFilter: 'saturate(140%) blur(4px)',
 						}}
 					>
-						<h2 style={styles.heroTitle}>AI‑Based Exam Evaluation</h2>
-						<p style={styles.heroCopy}>
+						<h2
+							style={{
+								...styles.heroTitle,
+								background:
+									'linear-gradient(90deg, var(--text), color-mix(in srgb, var(--text), transparent 40%))',
+								WebkitBackgroundClip: 'text',
+								WebkitTextFillColor: 'transparent',
+							}}
+						>
+							AI‑Based Exam Evaluation
+						</h2>
+						<p style={{ ...styles.heroCopy, color: 'var(--text-muted)' }}>
 							Plan, deliver, and evaluate exams end‑to‑end. Secure sessions,
 							consistent scoring, insightful feedback.
 						</p>
