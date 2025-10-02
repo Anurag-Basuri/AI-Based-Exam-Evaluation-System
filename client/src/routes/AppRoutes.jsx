@@ -1,60 +1,73 @@
-import React from 'react';
-import { Route, Routes, Navigate } from 'react-router-dom';
+import React, { Suspense } from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import RouteFallback from '../components/RouteFallback.jsx';
+import ErrorBoundary from '../components/ErrorBoundary.jsx';
+
+// Pages
 import LandingPage from '../pages/LandingPage.jsx';
 import AuthPage from '../pages/auth.jsx';
-import StudentDashboard from '../pages/StudentDash.jsx';
-import TeacherDashboard from '../pages/TeacherDash.jsx';
-import ProtectedRoute from './ProtectedRoutes.jsx';
+
+// Student Dashboard + nested
+import ProtectedRoutes from './ProtectedRoutes.jsx';
+import StudentDash from '../pages/StudentDash.jsx';
 import StudentHome from '../pages/student/Home.jsx';
 import StudentExams from '../pages/student/Exams.jsx';
 import StudentResults from '../pages/student/result.jsx';
 import StudentIssues from '../pages/student/issue.jsx';
 import StudentSettings from '../pages/student/Settings.jsx';
-import TeacherHome from '../pages/teacher/Home.jsx';
-import TeacherExams from '../pages/teacher/Exams.jsx';
-import TeacherResults from '../pages/teacher/result.jsx';
-import TeacherIssues from '../pages/teacher/issue.jsx';
-import TeacherSettings from '../pages/teacher/Settings.jsx';
 
-const AppRoutes = () => {
-    return (
-        <Routes>
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/auth" element={<AuthPage />} />
+const NotFound = () => (
+	<div style={{ minHeight: '50vh', display: 'grid', placeItems: 'center', color: 'var(--text)' }}>
+		<div
+			style={{
+				background: 'var(--surface)',
+				border: '1px solid var(--border)',
+				borderRadius: 16,
+				padding: 24,
+				boxShadow: '0 8px 24px rgba(15,23,42,0.08)',
+				textAlign: 'center',
+				maxWidth: 520,
+			}}
+		>
+			<h1 style={{ margin: '0 0 8px' }}>404 — Not Found</h1>
+			<p style={{ margin: 0, color: 'var(--text-muted)' }}>
+				The page you’re looking for doesn’t exist.
+			</p>
+		</div>
+	</div>
+);
 
-            {/* Protected dashboards */}
-            <Route
-                path="/student"
-                element={
-                    <ProtectedRoute roles={['student']}>
-                        <StudentDashboard />
-                    </ProtectedRoute>
-                }
-            >
-                <Route index element={<StudentHome />} />
-                <Route path="exams" element={<StudentExams />} />
-                <Route path="results" element={<StudentResults />} />
-                <Route path="issues" element={<StudentIssues />} />
-                <Route path="settings" element={<StudentSettings />} />
-            </Route>
+const AppRoutes = () => (
+	<Suspense fallback={<RouteFallback />}>
+		<Routes>
+			{/* Public */}
+			<Route path="/" element={<LandingPage />} />
+			<Route path="/auth" element={<AuthPage />} />
 
-            <Route
-                path="/teacher"
-                element={
-                    <ProtectedRoute roles={['teacher']}>
-                        <TeacherDashboard />
-                    </ProtectedRoute>
-                }
-            >
-                <Route index element={<TeacherHome />} />
-                <Route path="exams" element={<TeacherExams />} />
-                <Route path="results" element={<TeacherResults />} />
-                <Route path="issues" element={<TeacherIssues />} />
-                <Route path="settings" element={<TeacherSettings />} />
-            </Route>
-            <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-    );
-};
+			{/* Student dashboard */}
+			<Route element={<ProtectedRoutes requireRole="student" />}>
+				<Route
+					path="/student"
+					element={
+						<ErrorBoundary>
+							<StudentDash />
+						</ErrorBoundary>
+					}
+				>
+					<Route index element={<StudentHome />} />
+					<Route path="exams" element={<StudentExams />} />
+					<Route path="results" element={<StudentResults />} />
+					<Route path="issues" element={<StudentIssues />} />
+					<Route path="settings" element={<StudentSettings />} />
+					{/* Unknown child route under /student */}
+					<Route path="*" element={<Navigate to="/student" replace />} />
+				</Route>
+			</Route>
+
+			{/* Catch-all */}
+			<Route path="*" element={<NotFound />} />
+		</Routes>
+	</Suspense>
+);
 
 export default AppRoutes;
