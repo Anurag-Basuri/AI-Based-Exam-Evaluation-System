@@ -10,22 +10,36 @@ const StudentDash = () => {
 			<img
 				src="/logo192.png"
 				alt="Student"
-				style={{ width: 32, height: 32, borderRadius: 8 }}
+				style={{ width: 34, height: 34, borderRadius: 10 }}
 			/>
-			<div style={{ fontWeight: 800, letterSpacing: 0.2 }}>Student Portal</div>
+			<div style={{ display: 'grid', lineHeight: 1 }}>
+				<div style={{ fontWeight: 900, letterSpacing: 0.3 }}>Student Portal</div>
+				<span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+					Your exams and results
+				</span>
+			</div>
 		</div>
 	);
 
 	return (
-		<div className="student-dash" style={{ background: 'var(--bg)', color: 'var(--text)' }}>
+		<div
+			className="student-dash"
+			style={{
+				background:
+					theme === 'dark'
+						? 'radial-gradient(900px 300px at 80% -10%, rgba(2,132,199,0.08), transparent 45%), var(--bg)'
+						: 'radial-gradient(900px 300px at 80% -10%, rgba(99,102,241,0.12), transparent 45%), var(--bg)',
+				color: 'var(--text)',
+			}}
+		>
 			<Sidebar
 				useOutlet
 				header={headerEl}
-				width={260}
-				collapsedWidth={76}
+				width={268}
+				collapsedWidth={80}
 				theme={theme}
 				items={[
-					{ key: 'home', label: 'Dashboard', icon: '🏠', to: '.' },
+					{ key: 'home', label: 'Overview', icon: '📋', to: '.' },
 					{ key: 'exams', label: 'Exams', icon: '📝', to: 'exams' },
 					{ key: 'results', label: 'Results', icon: '📊', to: 'results' },
 					{ key: 'issues', label: 'Issues', icon: '🛠️', to: 'issues' },

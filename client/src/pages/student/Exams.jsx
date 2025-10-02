@@ -93,35 +93,6 @@ const Exams = () => {
 		return map[status] || { bg: '#f1f5f9', bd: '#e2e8f0', fg: '#334155', label: status || '—' };
 	};
 
-	const SkeletonCard = () => (
-		<li
-			style={{
-				background: '#fff',
-				border: '1px solid #e2e8f0',
-				borderRadius: 12,
-				padding: 12,
-				display: 'grid',
-				gridTemplateColumns: '1fr auto',
-				gap: 8,
-				alignItems: 'center',
-			}}
-		>
-			<div>
-				<div
-					style={{
-						width: 160,
-						height: 16,
-						background: '#e5e7eb',
-						borderRadius: 6,
-						marginBottom: 8,
-					}}
-				/>
-				<div style={{ width: 220, height: 12, background: '#e5e7eb', borderRadius: 6 }} />
-			</div>
-			<div style={{ width: 120, height: 36, background: '#e5e7eb', borderRadius: 8 }} />
-		</li>
-	);
-
 	return (
 		<section style={{ color: 'var(--text)' }}>
 			<h1 style={{ marginTop: 0 }}>Exams</h1>
@@ -144,11 +115,12 @@ const Exams = () => {
 						style={{
 							width: '100%',
 							border: '1px solid var(--border)',
-							borderRadius: 10,
+							borderRadius: 12,
 							padding: '10px 34px 10px 36px',
 							outline: 'none',
 							background: 'var(--surface)',
 							color: 'var(--text)',
+							boxShadow: '0 6px 18px rgba(15,23,42,0.06)',
 						}}
 					/>
 					<span
@@ -174,17 +146,17 @@ const Exams = () => {
 								key={f}
 								onClick={() => setFilter(f)}
 								style={{
-									padding: '8px 10px',
+									padding: '8px 12px',
 									borderRadius: 999,
 									border: active
 										? '1px solid var(--primary)'
 										: '1px solid var(--border)',
 									background: active
-										? 'color-mix(in srgb, var(--primary) 10%, var(--surface))'
+										? 'linear-gradient(135deg, color-mix(in srgb, var(--primary) 14%, var(--surface)), var(--surface))'
 										: 'var(--surface)',
 									color: active ? 'var(--primary-strong)' : 'var(--text)',
 									cursor: 'pointer',
-									fontWeight: 700,
+									fontWeight: 800,
 								}}
 							>
 								{f[0].toUpperCase() + f.slice(1)}
@@ -195,11 +167,73 @@ const Exams = () => {
 			</div>
 
 			{loading && (
-				<ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 10 }}>
-					<SkeletonCard />
-					<SkeletonCard />
-					<SkeletonCard />
-				</ul>
+				<>
+					<style>
+						{`@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}`}
+					</style>
+					<ul
+						style={{
+							listStyle: 'none',
+							padding: 0,
+							margin: 0,
+							display: 'grid',
+							gap: 10,
+						}}
+					>
+						{[0, 1, 2].map(i => (
+							<li
+								key={i}
+								style={{
+									background: 'var(--surface)',
+									border: '1px solid var(--border)',
+									borderRadius: 12,
+									padding: 12,
+									display: 'grid',
+									gridTemplateColumns: '1fr auto',
+									gap: 8,
+									alignItems: 'center',
+								}}
+							>
+								<div>
+									<div
+										style={{
+											width: 160,
+											height: 16,
+											borderRadius: 6,
+											marginBottom: 8,
+											background:
+												'linear-gradient(90deg, rgba(148,163,184,0.15) 25%, rgba(148,163,184,0.3) 37%, rgba(148,163,184,0.15) 63%)',
+											backgroundSize: '400% 100%',
+											animation: 'shimmer 1.2s ease infinite',
+										}}
+									/>
+									<div
+										style={{
+											width: 220,
+											height: 12,
+											borderRadius: 6,
+											background:
+												'linear-gradient(90deg, rgba(148,163,184,0.15) 25%, rgba(148,163,184,0.3) 37%, rgba(148,163,184,0.15) 63%)',
+											backgroundSize: '400% 100%',
+											animation: 'shimmer 1.2s ease infinite',
+										}}
+									/>
+								</div>
+								<div
+									style={{
+										width: 140,
+										height: 36,
+										borderRadius: 8,
+										background:
+											'linear-gradient(90deg, rgba(148,163,184,0.15) 25%, rgba(148,163,184,0.3) 37%, rgba(148,163,184,0.15) 63%)',
+										backgroundSize: '400% 100%',
+										animation: 'shimmer 1.2s ease infinite',
+									}}
+								/>
+							</li>
+						))}
+					</ul>
+				</>
 			)}
 			{!loading && error && <div style={{ color: '#ef4444' }}>{error}</div>}
 			{!loading && !error && filtered.length === 0 && (
@@ -217,7 +251,7 @@ const Exams = () => {
 			)}
 
 			{!loading && filtered.length > 0 && (
-				<ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 10 }}>
+				<ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 12 }}>
 					{filtered.map(exam => {
 						const pill = statusPill(exam.status);
 						return (
@@ -226,31 +260,32 @@ const Exams = () => {
 								style={{
 									background: 'var(--surface)',
 									border: '1px solid var(--border)',
-									borderRadius: 12,
-									padding: 12,
+									borderRadius: 14,
+									padding: 14,
 									display: 'grid',
 									gridTemplateColumns: '1fr auto',
-									gap: 8,
+									gap: 10,
 									alignItems: 'center',
+									boxShadow: '0 8px 24px rgba(15,23,42,0.06)',
 								}}
 							>
 								<div>
-									<div style={{ fontWeight: 800, color: 'var(--text)' }}>
+									<div style={{ fontWeight: 900, color: 'var(--text)' }}>
 										{exam.title}
 									</div>
 									<div style={{ color: 'var(--text-muted)', fontSize: 13 }}>
 										{exam.durationMin} min • {exam.startAt}
 									</div>
-									<div style={{ marginTop: 6 }}>
+									<div style={{ marginTop: 8 }}>
 										<span
 											style={{
 												fontSize: 12,
-												padding: '2px 8px',
+												padding: '3px 10px',
 												borderRadius: 999,
 												border: `1px solid ${pill.bd}`,
 												background: pill.bg,
 												color: pill.fg,
-												fontWeight: 700,
+												fontWeight: 800,
 											}}
 										>
 											{pill.label}
@@ -298,31 +333,32 @@ const Exams = () => {
 };
 
 const btnPrimary = {
-	padding: '8px 10px',
-	borderRadius: 8,
+	padding: '9px 12px',
+	borderRadius: 10,
 	border: 'none',
 	background: 'var(--primary-strong)',
 	color: '#fff',
 	cursor: 'pointer',
-	fontWeight: 700,
+	fontWeight: 800,
+	boxShadow: '0 10px 20px rgba(99,102,241,0.25)',
 };
 const btnOutline = {
-	padding: '8px 10px',
-	borderRadius: 8,
+	padding: '9px 12px',
+	borderRadius: 10,
 	border: '1px solid var(--border)',
 	background: 'var(--surface)',
 	color: 'var(--text)',
 	cursor: 'pointer',
-	fontWeight: 700,
+	fontWeight: 800,
 };
 const btnMuted = {
-	padding: '8px 10px',
-	borderRadius: 8,
+	padding: '9px 12px',
+	borderRadius: 10,
 	border: '1px dashed var(--border)',
 	background: 'var(--surface)',
 	color: 'var(--text-muted)',
 	cursor: 'not-allowed',
-	fontWeight: 700,
+	fontWeight: 800,
 };
 
 export default Exams;

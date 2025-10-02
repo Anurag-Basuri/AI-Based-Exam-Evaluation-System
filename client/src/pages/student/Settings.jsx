@@ -131,7 +131,8 @@ const inp = {
   borderRadius: 8,
   padding: '10px 12px',
   outline: 'none',
-};
+  boxShadow: '0 0 0 0 rgba(0,0,0,0)',
+}; // Add subtle focus ring for better UX
 const btnPrimary = {
   padding: '8px 12px',
   borderRadius: 8,
