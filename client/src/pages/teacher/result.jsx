@@ -16,33 +16,32 @@ const useSubmissions = () => {
 	const [error, setError] = React.useState('');
 	const [submissions, setSubmissions] = React.useState([]);
 
-	React.useEffect(() => {
-		let mounted = true;
-		const load = async () => {
-			setLoading(true);
-			setError('');
-			try {
-				const data = await safeApiCall(getTeacherSubmissions);
-				if (mounted) setSubmissions(Array.isArray(data) ? data : []);
-			} catch (e) {
-				if (mounted) setError(e?.message || 'Failed to load submissions');
-			} finally {
-				if (mounted) setLoading(false);
-			}
-		};
-		load();
-		return () => {
-			mounted = false;
-		};
+	const load = React.useCallback(async () => {
+		setLoading(true);
+		setError('');
+		try {
+			const data = await safeApiCall(getTeacherSubmissions);
+			setSubmissions(Array.isArray(data) ? data : []);
+		} catch (e) {
+			setError(e?.message || 'Failed to load submissions');
+		} finally {
+			setLoading(false);
+		}
 	}, []);
 
-	return { loading, error, submissions, setSubmissions };
+	React.useEffect(() => {
+		load();
+	}, [load]);
+
+	return { loading, error, submissions, setSubmissions, reload: load };
 };
 
 const TeacherResults = () => {
-	const { loading, error, submissions, setSubmissions } = useSubmissions();
+	const { loading, error, submissions, setSubmissions, reload } = useSubmissions();
 	const [query, setQuery] = React.useState('');
 	const [status, setStatus] = React.useState('all');
+	const [msg, setMsg] = React.useState('');
+	const [evaluatingId, setEvaluatingId] = React.useState('');
 
 	const q = query.toLowerCase();
 	const filtered = submissions.filter(sub => {
@@ -56,9 +55,10 @@ const TeacherResults = () => {
 
 	const handleEvaluate = async submission => {
 		const { id, examTitle, studentName } = submission;
+		setEvaluatingId(id);
+		setMsg('');
 		try {
-			await safeApiCall(evaluateTeacherSubmission, id, {});
-			// Optimistic update
+			await safeApiCall(evaluateTeacherSubmission, id);
 			setSubmissions(prev =>
 				prev.map(item =>
 					item.id === id
@@ -70,14 +70,18 @@ const TeacherResults = () => {
 						: item,
 				),
 			);
-			alert(`Auto evaluation triggered for ${studentName} (${examTitle}).`);
+			setMsg(`Auto-evaluation triggered for ${studentName} (${examTitle}).`);
 		} catch (e) {
-			alert(e?.message || 'Failed to trigger evaluation');
+			setMsg(e?.message || 'Failed to trigger evaluation');
+		} finally {
+			setEvaluatingId('');
 		}
 	};
 
 	const handleGrade = submission => {
-		alert(`Open grading panel for ${submission.studentName} – ${submission.examTitle}.`);
+		setMsg(
+			`Open grading panel for ${submission.studentName} – ${submission.examTitle} (to be implemented).`,
+		);
 	};
 
 	return (
@@ -98,6 +102,23 @@ const TeacherResults = () => {
 					Manage grading, trigger auto-evaluation, and monitor flagged submissions.
 				</p>
 			</header>
+
+			{msg && (
+				<div
+					role="status"
+					style={{
+						marginBottom: 12,
+						padding: '10px 12px',
+						borderRadius: 10,
+						border: '1px solid #c7d2fe',
+						background: '#eef2ff',
+						color: '#3730a3',
+						fontWeight: 600,
+					}}
+				>
+					{msg}
+				</div>
+			)}
 
 			<div
 				style={{
@@ -179,6 +200,7 @@ const TeacherResults = () => {
 			<div style={{ display: 'grid', gap: 16 }}>
 				{filtered.map(sub => {
 					const chip = statusMap[sub.status] ?? statusMap.pending;
+					const isEvaluating = evaluatingId === sub.id;
 					return (
 						<article
 							key={sub.id}
@@ -289,20 +311,22 @@ const TeacherResults = () => {
 								</button>
 								<button
 									onClick={() => handleEvaluate(sub)}
+									disabled={isEvaluating}
 									style={{
 										padding: '10px 12px',
 										borderRadius: 10,
 										border: '1px solid #cbd5e1',
 										background: '#ffffff',
 										color: '#4338ca',
-										cursor: 'pointer',
+										cursor: isEvaluating ? 'not-allowed' : 'pointer',
 										fontWeight: 700,
+										opacity: isEvaluating ? 0.7 : 1,
 									}}
 								>
-									Auto evaluate
+									{isEvaluating ? 'Evaluating…' : 'Auto evaluate'}
 								</button>
 								<button
-									onClick={() => alert('Download report coming soon')}
+									onClick={reload}
 									style={{
 										padding: '10px 12px',
 										borderRadius: 10,
@@ -313,7 +337,7 @@ const TeacherResults = () => {
 										fontWeight: 700,
 									}}
 								>
-									Download report
+									Refresh list
 								</button>
 							</div>
 						</article>

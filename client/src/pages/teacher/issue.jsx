@@ -33,7 +33,7 @@ const useIssues = () => {
 };
 
 const TeacherIssues = () => {
-	const { loading, error, issues, setIssues, reload } = useIssues();
+	const { loading, error, issues, reload } = useIssues();
 	const [status, setStatus] = React.useState('all');
 	const [query, setQuery] = React.useState('');
 	const [activeReply, setActiveReply] = React.useState({
@@ -41,9 +41,10 @@ const TeacherIssues = () => {
 		message: '',
 		submitting: false,
 	});
+	const [msg, setMsg] = React.useState('');
 
 	const filtered = issues.filter(issue => {
-		const statusMatch = status === 'all' ? true : issue.status === status;
+		const statusMatch = status === 'all' ? true : (issue.status || '').toLowerCase() === status;
 		const q = query.trim().toLowerCase();
 		const text = `${issue.studentName} ${issue.examTitle} ${issue.issueType}`.toLowerCase();
 		const queryMatch = !q || text.includes(q);
@@ -53,12 +54,14 @@ const TeacherIssues = () => {
 	const handleResolve = async issueId => {
 		if (!activeReply.message.trim()) return;
 		setActiveReply(prev => ({ ...prev, submitting: true }));
+		setMsg('');
 		try {
 			await safeApiCall(resolveTeacherIssue, issueId, { reply: activeReply.message.trim() });
 			await reload();
 			setActiveReply({ id: '', message: '', submitting: false });
+			setMsg('Issue resolved and reply sent to student.');
 		} catch (e) {
-			alert(e?.message || 'Could not resolve issue');
+			setMsg(e?.message || 'Could not resolve issue');
 			setActiveReply(prev => ({ ...prev, submitting: false }));
 		}
 	};
@@ -81,6 +84,23 @@ const TeacherIssues = () => {
 					Review, filter, and resolve student-reported issues quickly.
 				</p>
 			</header>
+
+			{msg && (
+				<div
+					role="status"
+					style={{
+						marginBottom: 12,
+						padding: '10px 12px',
+						borderRadius: 10,
+						border: '1px solid #fed7aa',
+						background: '#fff7ed',
+						color: '#9a3412',
+						fontWeight: 600,
+					}}
+				>
+					{msg}
+				</div>
+			)}
 
 			<div
 				style={{
@@ -161,7 +181,8 @@ const TeacherIssues = () => {
 
 			<div style={{ display: 'grid', gap: 16 }}>
 				{filtered.map(issue => {
-					const chip = statusStyles[issue.status] ?? statusStyles.open;
+					const chip =
+						statusStyles[(issue.status || '').toLowerCase()] ?? statusStyles.open;
 					const replying = activeReply.id === issue.id;
 					return (
 						<article
@@ -317,7 +338,9 @@ const TeacherIssues = () => {
 												border: 'none',
 												background: '#f97316',
 												color: '#ffffff',
-												cursor: 'pointer',
+												cursor: activeReply.submitting
+													? 'not-allowed'
+													: 'pointer',
 												fontWeight: 700,
 												opacity: activeReply.submitting ? 0.7 : 1,
 												boxShadow: '0 10px 20px rgba(249,115,22,0.25)',
