@@ -1,262 +1,524 @@
 import React from 'react';
-import { safeApiCall, getStudentResults } from '../../services/apiServices.js';
+import { safeApiCall, getMySubmissions } from '../../services/studentServices.js';
 
-const statusMap = {
-	pending: { bg: '#fff7ed', border: '#fcd34d', color: '#92400e', label: 'Pending' },
-	evaluated: { bg: '#ecfdf5', border: '#6ee7b7', color: '#047857', label: 'Evaluated' },
-	flagged: { bg: '#fef2f2', border: '#fca5a5', color: '#b91c1c', label: 'Flagged' },
+const statusStyles = {
+	pending: { bg: '#fff7ed', border: '#fcd34d', color: '#92400e', label: 'Pending', icon: '⏳' },
+	evaluated: {
+		bg: '#ecfdf5',
+		border: '#6ee7b7',
+		color: '#047857',
+		label: 'Evaluated',
+		icon: '✅',
+	},
+	submitted: {
+		bg: '#dbeafe',
+		border: '#93c5fd',
+		color: '#1d4ed8',
+		label: 'Submitted',
+		icon: '📋',
+	},
+	flagged: { bg: '#fef2f2', border: '#fca5a5', color: '#b91c1c', label: 'Flagged', icon: '🚨' },
 };
 
-const useResults = () => {
-	const [loading, setLoading] = React.useState(false);
-	const [error, setError] = React.useState('');
-	const [results, setResults] = React.useState([]);
-
-	React.useEffect(() => {
-		let alive = true;
-		(async () => {
-			setLoading(true);
-			setError('');
-			try {
-				const data = await safeApiCall(getStudentResults);
-				if (alive) setResults(Array.isArray(data) ? data : []);
-			} catch (e) {
-				if (alive) setError(e.message || 'Failed to load results');
-			} finally {
-				if (alive) setLoading(false);
-			}
-		})();
-		return () => {
-			alive = false;
-		};
-	}, []);
-
-	return { loading, error, results };
-};
-
-const StudentResults = () => {
-	const { loading, error, results } = useResults();
-	const [query, setQuery] = React.useState('');
-	const [status, setStatus] = React.useState('all');
-
-	const filtered = results
-		.map(r => ({ ...r, chip: statusMap[r.status] || statusMap.pending }))
-		.filter(r => {
-			const matchesStatus = status === 'all' ? true : r.status === status;
-			const matchesQuery = r.examTitle.toLowerCase().includes(query.toLowerCase());
-			return matchesStatus && matchesQuery;
-		});
+const ResultCard = ({ result }) => {
+	const config = statusStyles[result.status] || statusStyles.pending;
+	const hasScore = result.score !== null && result.score !== undefined;
+	const percentage =
+		hasScore && result.maxScore > 0 ? Math.round((result.score / result.maxScore) * 100) : 0;
 
 	return (
-		<section style={{ color: 'var(--text)' }}>
-			<header
-				style={{
-					background:
-						'linear-gradient(135deg, color-mix(in srgb, var(--primary) 18%, transparent), color-mix(in srgb, var(--primary) 6%, transparent))',
-					padding: 18,
-					borderRadius: 16,
-					border: '1px solid color-mix(in srgb, var(--primary) 20%, transparent)',
-					boxShadow: '0 12px 24px rgba(15,23,42,0.08)',
-					marginBottom: 18,
-				}}
-			>
-				<h1 style={{ margin: 0 }}>Results & Feedback</h1>
-				<p style={{ margin: '6px 0 0', color: 'var(--text-muted)' }}>
-					Review your recent scores and teacher feedback.
-				</p>
-			</header>
+		<article
+			style={{
+				background: '#ffffff',
+				borderRadius: 16,
+				border: '1px solid #e5e7eb',
+				boxShadow: '0 4px 16px rgba(15,23,42,0.06)',
+				padding: '24px',
+				display: 'grid',
+				gridTemplateColumns: '1fr auto',
+				gap: 24,
+				alignItems: 'start',
+				transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+			}}
+			onMouseEnter={e => {
+				e.currentTarget.style.transform = 'translateY(-2px)';
+				e.currentTarget.style.boxShadow = '0 8px 28px rgba(15,23,42,0.12)';
+			}}
+			onMouseLeave={e => {
+				e.currentTarget.style.transform = 'translateY(0)';
+				e.currentTarget.style.boxShadow = '0 4px 16px rgba(15,23,42,0.06)';
+			}}
+		>
+			<div>
+				<header style={{ marginBottom: '16px' }}>
+					<div
+						style={{
+							display: 'flex',
+							alignItems: 'center',
+							gap: '12px',
+							marginBottom: '8px',
+						}}
+					>
+						<h3
+							style={{
+								margin: 0,
+								fontSize: '18px',
+								fontWeight: 700,
+								color: '#0f172a',
+								flex: 1,
+							}}
+						>
+							{result.examTitle}
+						</h3>
+						<span
+							style={{
+								display: 'flex',
+								alignItems: 'center',
+								gap: '6px',
+								fontSize: '12px',
+								padding: '6px 12px',
+								borderRadius: '20px',
+								border: `1px solid ${config.border}`,
+								background: config.bg,
+								color: config.color,
+								fontWeight: 700,
+							}}
+						>
+							<span>{config.icon}</span>
+							{config.label}
+						</span>
+					</div>
+
+					{result.submittedAt && (
+						<div
+							style={{
+								color: '#64748b',
+								fontSize: '13px',
+							}}
+						>
+							Submitted: {result.submittedAt}
+						</div>
+					)}
+				</header>
+
+				<div
+					style={{
+						display: 'flex',
+						alignItems: 'baseline',
+						gap: '8px',
+						padding: '16px',
+						background: '#f8fafc',
+						borderRadius: '12px',
+						border: '1px solid #e2e8f0',
+						marginBottom: '16px',
+					}}
+				>
+					{hasScore ? (
+						<>
+							<span
+								style={{
+									fontSize: '32px',
+									fontWeight: 800,
+									color: '#0f172a',
+									lineHeight: 1,
+								}}
+							>
+								{result.score}
+							</span>
+							<span
+								style={{
+									fontSize: '18px',
+									fontWeight: 600,
+									color: '#64748b',
+								}}
+							>
+								/ {result.maxScore || 100}
+							</span>
+							<span
+								style={{
+									fontSize: '14px',
+									color:
+										percentage >= 70
+											? '#047857'
+											: percentage >= 50
+												? '#f59e0b'
+												: '#dc2626',
+									marginLeft: '8px',
+									fontWeight: 600,
+								}}
+							>
+								({percentage}%)
+							</span>
+						</>
+					) : (
+						<span
+							style={{
+								fontSize: '16px',
+								fontWeight: 600,
+								color: '#f59e0b',
+							}}
+						>
+							📝 Awaiting evaluation
+						</span>
+					)}
+				</div>
+
+				{result.remarks && (
+					<div
+						style={{
+							background: '#f0f9ff',
+							borderRadius: 12,
+							padding: '14px',
+							border: '1px solid #bae6fd',
+						}}
+					>
+						<div
+							style={{
+								fontWeight: 600,
+								color: '#0c4a6e',
+								marginBottom: '6px',
+								fontSize: '14px',
+							}}
+						>
+							Feedback
+						</div>
+						<p
+							style={{
+								margin: 0,
+								color: '#1e40af',
+								lineHeight: 1.5,
+								fontSize: '14px',
+							}}
+						>
+							{result.remarks}
+						</p>
+					</div>
+				)}
+			</div>
 
 			<div
 				style={{
+					background: '#f8fafc',
+					borderRadius: 12,
+					padding: '20px',
+					border: '1px solid #e2e8f0',
 					display: 'flex',
-					flexWrap: 'wrap',
-					gap: 12,
-					marginBottom: 16,
-					alignItems: 'center',
+					flexDirection: 'column',
+					gap: '12px',
+					minWidth: '160px',
+					textAlign: 'center',
 				}}
 			>
-				<div style={{ position: 'relative', flex: 1, minWidth: 240 }}>
-					<input
-						value={query}
-						onChange={e => setQuery(e.target.value)}
-						placeholder="Search exams"
-						style={{
-							width: '100%',
-							padding: '10px 14px 10px 40px',
-							borderRadius: 12,
-							border: '1px solid var(--border)',
-							background: 'var(--surface)',
-							color: 'var(--text)',
-							outline: 'none',
-						}}
-					/>
-					<span
-						aria-hidden
-						style={{
-							position: 'absolute',
-							left: 12,
-							top: '50%',
-							transform: 'translateY(-50%)',
-							color: 'var(--text-muted)',
-						}}
-					>
-						🔎
-					</span>
+				<div style={{ fontSize: '14px', fontWeight: 600, color: '#374151' }}>
+					Performance
 				</div>
 
-				<div style={{ display: 'flex', gap: 8 }}>
-					{['all', 'evaluated', 'pending', 'flagged'].map(st => {
-						const active = status === st;
-						return (
+				{hasScore && (
+					<div
+						style={{
+							width: '60px',
+							height: '60px',
+							borderRadius: '50%',
+							background: `conic-gradient(${
+								percentage >= 70
+									? '#10b981'
+									: percentage >= 50
+										? '#f59e0b'
+										: '#ef4444'
+							} ${percentage * 3.6}deg, #e5e7eb 0deg)`,
+							display: 'flex',
+							alignItems: 'center',
+							justifyContent: 'center',
+							margin: '0 auto',
+							position: 'relative',
+						}}
+					>
+						<div
+							style={{
+								width: '44px',
+								height: '44px',
+								borderRadius: '50%',
+								background: '#ffffff',
+								display: 'flex',
+								alignItems: 'center',
+								justifyContent: 'center',
+								fontSize: '12px',
+								fontWeight: 800,
+								color: '#374151',
+							}}
+						>
+							{percentage}%
+						</div>
+					</div>
+				)}
+
+				<button
+					onClick={() => alert('Detailed breakdown coming soon')}
+					style={{
+						padding: '8px 12px',
+						borderRadius: '8px',
+						border: '1px solid #d1d5db',
+						background: '#ffffff',
+						color: '#374151',
+						cursor: 'pointer',
+						fontWeight: 600,
+						fontSize: '12px',
+					}}
+				>
+					View Details
+				</button>
+			</div>
+		</article>
+	);
+};
+
+const StudentResults = () => {
+	const [loading, setLoading] = React.useState(false);
+	const [error, setError] = React.useState('');
+	const [results, setResults] = React.useState([]);
+	const [query, setQuery] = React.useState('');
+	const [status, setStatus] = React.useState('all');
+
+	const loadResults = React.useCallback(async () => {
+		setLoading(true);
+		setError('');
+		try {
+			const data = await safeApiCall(getMySubmissions);
+			setResults(Array.isArray(data) ? data : []);
+		} catch (e) {
+			setError(e?.message || 'Failed to load results');
+		} finally {
+			setLoading(false);
+		}
+	}, []);
+
+	React.useEffect(() => {
+		loadResults();
+	}, [loadResults]);
+
+	const filteredResults = React.useMemo(() => {
+		const q = query.toLowerCase();
+		return results.filter(result => {
+			const matchesStatus = status === 'all' || result.status === status;
+			const matchesQuery = !q || result.examTitle.toLowerCase().includes(q);
+			return matchesStatus && matchesQuery;
+		});
+	}, [results, status, query]);
+
+	const statusCounts = React.useMemo(() => {
+		const counts = { all: results.length };
+		results.forEach(result => {
+			counts[result.status] = (counts[result.status] || 0) + 1;
+		});
+		return counts;
+	}, [results]);
+
+	const filterOptions = [
+		{ key: 'all', label: 'All Results' },
+		{ key: 'evaluated', label: 'Evaluated' },
+		{ key: 'submitted', label: 'Submitted' },
+		{ key: 'pending', label: 'Pending' },
+		{ key: 'flagged', label: 'Flagged' },
+	];
+
+	return (
+		<div style={{ maxWidth: '1200px' }}>
+			{/* Header */}
+			<header
+				style={{
+					background:
+						'linear-gradient(135deg, rgba(99,102,241,0.1), rgba(139,92,246,0.05))',
+					padding: '32px 28px',
+					borderRadius: 20,
+					border: '1px solid rgba(99,102,241,0.2)',
+					marginBottom: 32,
+				}}
+			>
+				<div
+					style={{
+						display: 'flex',
+						justifyContent: 'space-between',
+						alignItems: 'flex-start',
+						gap: 20,
+					}}
+				>
+					<div>
+						<h1 style={{ margin: '0 0 8px 0', fontSize: '28px', fontWeight: 800 }}>
+							Results & Feedback
+						</h1>
+						<p style={{ margin: 0, color: '#64748b', fontSize: '16px' }}>
+							Review your exam scores and teacher feedback.
+						</p>
+					</div>
+					<button
+						onClick={loadResults}
+						disabled={loading}
+						style={{
+							padding: '12px 16px',
+							borderRadius: '10px',
+							border: '1px solid #d1d5db',
+							background: '#ffffff',
+							color: '#374151',
+							cursor: loading ? 'not-allowed' : 'pointer',
+							fontWeight: 600,
+							fontSize: '14px',
+							opacity: loading ? 0.7 : 1,
+						}}
+					>
+						{loading ? '⏳' : '🔄'} Refresh
+					</button>
+				</div>
+			</header>
+
+			{/* Search and Filters */}
+			<div
+				style={{
+					background: '#ffffff',
+					padding: '24px',
+					borderRadius: 16,
+					border: '1px solid #e5e7eb',
+					marginBottom: 24,
+					boxShadow: '0 2px 8px rgba(15,23,42,0.04)',
+				}}
+			>
+				<div style={{ display: 'flex', gap: 20, alignItems: 'center', flexWrap: 'wrap' }}>
+					<div style={{ position: 'relative', flex: '1 1 300px' }}>
+						<input
+							value={query}
+							onChange={e => setQuery(e.target.value)}
+							placeholder="Search by exam title..."
+							style={{
+								width: '100%',
+								padding: '12px 16px 12px 48px',
+								borderRadius: 12,
+								border: '1px solid #d1d5db',
+								background: '#f9fafb',
+								outline: 'none',
+								fontSize: '14px',
+								fontWeight: 500,
+							}}
+						/>
+						<span
+							style={{
+								position: 'absolute',
+								left: 16,
+								top: '50%',
+								transform: 'translateY(-50%)',
+								color: '#9ca3af',
+								fontSize: '16px',
+							}}
+						>
+							🔍
+						</span>
+					</div>
+
+					<div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+						{filterOptions.map(option => (
 							<button
-								key={st}
-								onClick={() => setStatus(st)}
+								key={option.key}
+								onClick={() => setStatus(option.key)}
 								style={{
-									padding: '8px 12px',
-									borderRadius: 999,
-									border: active
-										? '1px solid var(--primary)'
-										: '1px solid var(--border)',
-									background: active
-										? 'color-mix(in srgb, var(--primary) 10%, var(--surface))'
-										: 'var(--surface)',
-									color: active ? 'var(--primary-strong)' : 'var(--text)',
+									padding: '10px 16px',
+									borderRadius: 25,
+									border:
+										status === option.key
+											? '2px solid #6366f1'
+											: '1px solid #d1d5db',
+									background: status === option.key ? '#eef2ff' : '#ffffff',
+									color: status === option.key ? '#4338ca' : '#374151',
 									cursor: 'pointer',
-									fontWeight: 700,
+									fontWeight: 600,
+									fontSize: '14px',
+									display: 'flex',
+									alignItems: 'center',
+									gap: 8,
+									transition: 'all 0.2s ease',
 								}}
 							>
-								{st[0].toUpperCase() + st.slice(1)}
+								{option.label}
+								<span
+									style={{
+										background: status === option.key ? '#6366f1' : '#6b7280',
+										color: '#ffffff',
+										borderRadius: '12px',
+										padding: '2px 8px',
+										fontSize: '12px',
+										fontWeight: 700,
+										minWidth: '20px',
+										textAlign: 'center',
+									}}
+								>
+									{statusCounts[option.key] || 0}
+								</span>
 							</button>
-						);
-					})}
+						))}
+					</div>
 				</div>
 			</div>
 
-			{loading && <div style={{ color: 'var(--text-muted)' }}>Loading recent results…</div>}
-			{!loading && error && <div style={{ color: '#b91c1c', marginBottom: 12 }}>{error}</div>}
-			{!loading && !filtered.length && (
+			{/* Error State */}
+			{error && (
 				<div
 					style={{
-						border: '1px dashed var(--border)',
-						borderRadius: 16,
-						padding: 20,
+						padding: '20px',
+						borderRadius: 12,
+						background: '#fef2f2',
+						border: '1px solid #fca5a5',
+						color: '#b91c1c',
 						textAlign: 'center',
-						color: 'var(--text-muted)',
+						marginBottom: 24,
 					}}
 				>
-					No results match your filters.
+					❌ {error}
 				</div>
 			)}
 
-			<div style={{ display: 'grid', gap: 14 }}>
-				{filtered.map(res => (
-					<article
-						key={res.id}
-						style={{
-							background: 'var(--surface)',
-							borderRadius: 16,
-							border: '1px solid var(--border)',
-							boxShadow: '0 10px 24px rgba(15,23,42,0.05)',
-							padding: 18,
-							display: 'grid',
-							gridTemplateColumns: '1fr minmax(120px, 200px)',
-							gap: 16,
-						}}
-					>
-						<div>
-							<header
-								style={{
-									display: 'flex',
-									alignItems: 'center',
-									gap: 10,
-									marginBottom: 10,
-								}}
-							>
-								<h2 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text)' }}>
-									{res.examTitle}
-								</h2>
-								<span
-									style={{
-										fontSize: 12,
-										padding: '2px 10px',
-										borderRadius: 999,
-										border: `1px solid ${res.chip.border}`,
-										background: res.chip.bg,
-										color: res.chip.color,
-										fontWeight: 700,
-									}}
-								>
-									{res.chip.label}
-								</span>
-							</header>
-							<div style={{ color: 'var(--text-muted)', marginBottom: 10 }}>
-								{res.score != null ? (
-									<span
-										style={{
-											fontSize: 24,
-											fontWeight: 800,
-											color: 'var(--text)',
-										}}
-									>
-										{res.score}
-										<span
-											style={{
-												fontSize: 16,
-												fontWeight: 600,
-												color: 'var(--text-muted)',
-											}}
-										>
-											/{res.maxScore}
-										</span>
-									</span>
-								) : (
-									<span style={{ fontSize: 16, fontWeight: 600 }}>
-										Awaiting score
-									</span>
-								)}
-							</div>
-							<p style={{ margin: 0, color: 'var(--text-muted)', lineHeight: 1.6 }}>
-								{res.remarks}
-							</p>
-						</div>
+			{/* Loading State */}
+			{loading && (
+				<div
+					style={{
+						padding: '60px 20px',
+						textAlign: 'center',
+						color: '#64748b',
+					}}
+				>
+					<div style={{ fontSize: '32px', marginBottom: 16 }}>⏳</div>
+					<p style={{ margin: 0, fontWeight: 600 }}>Loading your results...</p>
+				</div>
+			)}
 
-						<div
-							style={{
-								background: 'var(--elev)',
-								borderRadius: 12,
-								padding: 14,
-								border: '1px solid var(--border)',
-								display: 'grid',
-								gap: 6,
-								alignContent: 'start',
-							}}
-						>
-							<div style={{ fontWeight: 700, color: 'var(--text)' }}>Evaluation</div>
-							<div style={{ color: 'var(--text-muted)', fontSize: 13 }}>
-								{res.evaluatedAt
-									? `Evaluated on ${res.evaluatedAt}`
-									: 'Pending review'}
-							</div>
-							<button
-								style={{
-									marginTop: 6,
-									padding: '8px 10px',
-									borderRadius: 10,
-									border: '1px solid var(--border)',
-									background: 'var(--surface)',
-									cursor: 'pointer',
-									fontWeight: 700,
-									color: 'var(--primary-strong)',
-								}}
-								onClick={() => alert('Detailed view coming soon')}
-							>
-								View details
-							</button>
-						</div>
-					</article>
-				))}
-			</div>
-		</section>
+			{/* Empty State */}
+			{!loading && !error && filteredResults.length === 0 && (
+				<div
+					style={{
+						padding: '60px 20px',
+						textAlign: 'center',
+						background: '#ffffff',
+						borderRadius: 16,
+						border: '2px dashed #d1d5db',
+					}}
+				>
+					<div style={{ fontSize: '48px', marginBottom: 16 }}>📊</div>
+					<h3 style={{ margin: '0 0 8px 0', color: '#374151' }}>
+						{query || status !== 'all' ? 'No matching results' : 'No results yet'}
+					</h3>
+					<p style={{ margin: 0, color: '#6b7280' }}>
+						{query || status !== 'all'
+							? 'Try adjusting your search or filters'
+							: 'Complete some exams to see your results here'}
+					</p>
+				</div>
+			)}
+
+			{/* Results List */}
+			{!loading && !error && filteredResults.length > 0 && (
+				<div style={{ display: 'grid', gap: 20 }}>
+					{filteredResults.map(result => (
+						<ResultCard key={result.id} result={result} />
+					))}
+				</div>
+			)}
+		</div>
 	);
 };
 
