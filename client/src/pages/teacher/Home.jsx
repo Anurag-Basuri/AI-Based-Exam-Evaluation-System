@@ -8,45 +8,158 @@ import {
 	getTeacherSubmissions,
 } from '../../services/teacherServices.js';
 
-const Banner = ({ type = 'info', children, onClose }) => (
+const StatusBanner = ({ type = 'info', children, onClose }) => (
 	<div
 		role="status"
+		aria-live="polite"
 		style={{
-			padding: '10px 12px',
-			borderRadius: 10,
-			border: `1px solid ${type === 'error' ? '#fecaca' : '#bfdbfe'}`,
-			background: type === 'error' ? '#fef2f2' : '#eff6ff',
-			color: type === 'error' ? '#991b1b' : '#1e3a8a',
+			padding: '14px 18px',
+			borderRadius: 12,
+			border: `1px solid ${type === 'error' ? '#fca5a5' : type === 'success' ? '#86efac' : '#93c5fd'}`,
+			background: type === 'error' ? '#fef2f2' : type === 'success' ? '#ecfdf5' : '#eff6ff',
+			color: type === 'error' ? '#b91c1c' : type === 'success' ? '#047857' : '#1d4ed8',
 			fontWeight: 600,
+			display: 'flex',
+			alignItems: 'center',
+			justifyContent: 'space-between',
+			gap: 12,
+			boxShadow: '0 4px 12px rgba(15,23,42,0.05)',
+		}}
+	>
+		<span>{children}</span>
+		{onClose && (
+			<button
+				onClick={onClose}
+				style={{
+					border: 'none',
+					background: 'transparent',
+					cursor: 'pointer',
+					color: 'inherit',
+					fontWeight: 800,
+					fontSize: '18px',
+					padding: '4px',
+					borderRadius: '4px',
+				}}
+				aria-label="Dismiss message"
+			>
+				×
+			</button>
+		)}
+	</div>
+);
+
+const StatCard = ({ icon, label, value, loading, color = '#6366f1' }) => (
+	<div
+		style={{
+			background: '#ffffff',
+			borderRadius: 16,
+			padding: '24px 20px',
+			border: '1px solid #e2e8f0',
+			boxShadow: '0 8px 24px rgba(15,23,42,0.06)',
+			display: 'flex',
+			alignItems: 'center',
+			gap: 16,
+			transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+		}}
+		onMouseEnter={e => {
+			e.currentTarget.style.transform = 'translateY(-2px)';
+			e.currentTarget.style.boxShadow = '0 12px 32px rgba(15,23,42,0.12)';
+		}}
+		onMouseLeave={e => {
+			e.currentTarget.style.transform = 'translateY(0)';
+			e.currentTarget.style.boxShadow = '0 8px 24px rgba(15,23,42,0.06)';
 		}}
 	>
 		<div
 			style={{
+				width: 48,
+				height: 48,
+				borderRadius: 12,
+				background: `${color}15`,
 				display: 'flex',
-				justifyContent: 'space-between',
-				gap: 10,
 				alignItems: 'center',
+				justifyContent: 'center',
+				fontSize: '20px',
 			}}
 		>
-			<span>{children}</span>
-			{onClose && (
-				<button
-					onClick={onClose}
-					style={{
-						border: 'none',
-						background: 'transparent',
-						cursor: 'pointer',
-						color: 'inherit',
-						fontWeight: 800,
-					}}
-					aria-label="Dismiss message"
-				>
-					×
-				</button>
-			)}
+			{icon}
+		</div>
+		<div style={{ flex: 1 }}>
+			<div
+				style={{
+					fontSize: '14px',
+					color: '#64748b',
+					fontWeight: 500,
+					marginBottom: 4,
+				}}
+			>
+				{label}
+			</div>
+			<div
+				style={{
+					fontSize: '28px',
+					fontWeight: 800,
+					color: '#0f172a',
+					lineHeight: 1,
+				}}
+			>
+				{loading ? '⋯' : value}
+			</div>
 		</div>
 	</div>
 );
+
+const ActionButton = ({ icon, label, onClick, variant = 'primary' }) => {
+	const styles = {
+		primary: {
+			background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+			color: '#ffffff',
+			border: 'none',
+			boxShadow: '0 8px 20px rgba(59,130,246,0.3)',
+		},
+		secondary: {
+			background: '#ffffff',
+			color: '#374151',
+			border: '1px solid #d1d5db',
+			boxShadow: '0 4px 12px rgba(15,23,42,0.08)',
+		},
+	};
+
+	return (
+		<button
+			onClick={onClick}
+			style={{
+				flex: '1 1 200px',
+				display: 'flex',
+				alignItems: 'center',
+				justifyContent: 'center',
+				gap: 12,
+				padding: '16px 20px',
+				borderRadius: 12,
+				cursor: 'pointer',
+				fontWeight: 700,
+				fontSize: '14px',
+				transition: 'all 0.2s ease',
+				...styles[variant],
+			}}
+			onMouseEnter={e => {
+				e.currentTarget.style.transform = 'translateY(-1px)';
+				if (variant === 'primary') {
+					e.currentTarget.style.boxShadow = '0 12px 28px rgba(59,130,246,0.4)';
+				}
+			}}
+			onMouseLeave={e => {
+				e.currentTarget.style.transform = 'translateY(0)';
+				if (variant === 'primary') {
+					e.currentTarget.style.boxShadow = '0 8px 20px rgba(59,130,246,0.3)';
+				}
+			}}
+		>
+			<span style={{ fontSize: '18px' }}>{icon}</span>
+			{label}
+		</button>
+	);
+};
 
 const TeacherHome = () => {
 	const navigate = useNavigate();
@@ -62,12 +175,12 @@ const TeacherHome = () => {
 		openIssues: 0,
 	});
 	const [loading, setLoading] = React.useState(false);
-	const [err, setErr] = React.useState('');
+	const [error, setError] = React.useState('');
 	const [info, setInfo] = React.useState('');
 
-	const load = React.useCallback(async () => {
+	const loadData = React.useCallback(async () => {
 		setLoading(true);
-		setErr('');
+		setError('');
 		setInfo('');
 		try {
 			const [exams, issues, subs] = await Promise.all([
@@ -75,6 +188,7 @@ const TeacherHome = () => {
 				safeApiCall(getTeacherIssues),
 				safeApiCall(getTeacherSubmissions, undefined, { teacher: teacherId }),
 			]);
+
 			const live = exams.filter(e => e.status === 'active' || e.status === 'live').length;
 			const scheduled = exams.filter(e => e.status === 'scheduled').length;
 			const draft = exams.filter(e => e.status === 'draft').length;
@@ -84,152 +198,205 @@ const TeacherHome = () => {
 			const openIssues = issues.filter(
 				i => (i.status || '').toLowerCase() !== 'resolved',
 			).length;
+
 			setStats({ live, scheduled, draft, pendingSubs, openIssues });
-			if (!exams.length) setInfo('No exams yet. Create your first exam to get started.');
+
+			if (!exams.length) {
+				setInfo('Welcome! Create your first exam to get started with the platform.');
+			}
 		} catch (e) {
-			setErr(e.message || 'Failed to load overview');
+			setError(e.message || 'Failed to load dashboard data');
 		} finally {
 			setLoading(false);
 		}
 	}, [teacherId]);
 
 	React.useEffect(() => {
-		let alive = true;
-		(async () => {
-			if (alive) await load();
-		})();
-		return () => {
-			alive = false;
-		};
-	}, [load]);
+		loadData();
+	}, [loadData]);
 
-	const insightCards = [
-		{ label: 'Live exams', value: stats.live, tone: '🟢' },
-		{ label: 'Scheduled', value: stats.scheduled, tone: '🟦' },
-		{ label: 'Drafts', value: stats.draft, tone: '🟤' },
-		{ label: 'Pending submissions', value: stats.pendingSubs, tone: '🟠' },
-		{ label: 'Open issues', value: stats.openIssues, tone: '🟥' },
+	const quickActions = [
+		{ label: 'Create Exam', icon: '➕', onClick: () => navigate('exams'), variant: 'primary' },
+		{
+			label: 'Review Submissions',
+			icon: '📋',
+			onClick: () => navigate('results'),
+			variant: 'secondary',
+		},
+		{
+			label: 'Handle Issues',
+			icon: '🛠️',
+			onClick: () => navigate('issues'),
+			variant: 'secondary',
+		},
+		{
+			label: 'Account Settings',
+			icon: '⚙️',
+			onClick: () => navigate('settings'),
+			variant: 'secondary',
+		},
 	];
 
-	const quick = [
-		{ label: 'Manage exams', icon: '📝', onClick: () => navigate('exams') },
-		{ label: 'Review submissions', icon: '📊', onClick: () => navigate('results') },
-		{ label: 'Handle issues', icon: '🛠️', onClick: () => navigate('issues') },
-		{ label: 'Settings', icon: '⚙️', onClick: () => navigate('settings') },
+	const statCards = [
+		{ icon: '🟢', label: 'Live Exams', value: stats.live, color: '#10b981' },
+		{ icon: '🗓️', label: 'Scheduled', value: stats.scheduled, color: '#3b82f6' },
+		{ icon: '📄', label: 'Drafts', value: stats.draft, color: '#64748b' },
+		{ icon: '⏳', label: 'Pending Reviews', value: stats.pendingSubs, color: '#f59e0b' },
+		{ icon: '🚨', label: 'Open Issues', value: stats.openIssues, color: '#ef4444' },
 	];
 
 	return (
-		<section>
+		<div style={{ maxWidth: '1200px' }}>
+			{/* Header Section */}
 			<div
 				style={{
-					display: 'grid',
-					gap: 18,
-					marginBottom: 20,
 					background:
-						'linear-gradient(135deg, rgba(14,165,233,0.18), rgba(99,102,241,0.12))',
-					padding: 22,
-					borderRadius: 18,
-					boxShadow: '0 16px 40px rgba(15,23,42,0.10)',
+						'linear-gradient(135deg, rgba(59,130,246,0.1), rgba(147,51,234,0.05))',
+					padding: '32px 28px',
+					borderRadius: 20,
 					border: '1px solid rgba(59,130,246,0.15)',
+					marginBottom: 32,
+					position: 'relative',
+					overflow: 'hidden',
 				}}
 			>
-				<div>
-					<h1 style={{ margin: 0 }}>Welcome back, {name}</h1>
-					<p style={{ margin: '8px 0 0', color: '#1e293b', fontSize: 15 }}>
-						Create, schedule, and evaluate exams from one place.
-					</p>
-				</div>
-				<div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-					{quick.map(link => (
-						<button
-							key={link.label}
-							onClick={link.onClick}
-							style={{
-								flex: '1 1 180px',
-								display: 'flex',
-								alignItems: 'center',
-								justifyContent: 'center',
-								gap: 10,
-								padding: '12px 16px',
-								borderRadius: 12,
-								border: 'none',
-								background: '#0ea5e9',
-								color: '#ffffff',
-								cursor: 'pointer',
-								fontWeight: 700,
-								boxShadow: '0 14px 28px rgba(14,165,233,0.26)',
-							}}
-						>
-							<span aria-hidden>{link.icon}</span>
-							{link.label}
-						</button>
-					))}
-				</div>
-				{err && (
-					<Banner type="error" onClose={() => setErr('')}>
-						{err}
-					</Banner>
-				)}
-				{!err && info && <Banner onClose={() => setInfo('')}>{info}</Banner>}
-				{!err && loading && <div style={{ color: '#334155' }} aria-live="polite">Loading overview…</div>}
-				{!err && !loading && (
-					<button
-						onClick={load}
+				<div
+					style={{
+						position: 'absolute',
+						top: -50,
+						right: -50,
+						width: 200,
+						height: 200,
+						borderRadius: '50%',
+						background:
+							'radial-gradient(circle, rgba(59,130,246,0.1), transparent 70%)',
+					}}
+				/>
+
+				<div style={{ position: 'relative', zIndex: 1 }}>
+					<h1
 						style={{
-							justifySelf: 'start',
-							padding: '8px 12px',
-							borderRadius: 10,
-							border: '1px solid #e2e8f0',
-							background: '#ffffff',
-							cursor: 'pointer',
-							fontWeight: 700,
-							color: '#0f172a',
+							margin: '0 0 8px 0',
+							fontSize: '32px',
+							fontWeight: 800,
+							background: 'linear-gradient(135deg, #1e40af, #7c3aed)',
+							WebkitBackgroundClip: 'text',
+							WebkitTextFillColor: 'transparent',
+							backgroundClip: 'text',
 						}}
 					>
-						Refresh
-					</button>
-				)}
+						Welcome back, {name}! 👋
+					</h1>
+					<p
+						style={{
+							margin: '0 0 24px 0',
+							color: '#475569',
+							fontSize: '16px',
+							fontWeight: 500,
+						}}
+					>
+						Manage your exams, track submissions, and engage with students all in one
+						place.
+					</p>
+
+					<div
+						style={{
+							display: 'flex',
+							gap: 16,
+							flexWrap: 'wrap',
+							marginBottom: 20,
+						}}
+					>
+						{quickActions.map(action => (
+							<ActionButton key={action.label} {...action} />
+						))}
+					</div>
+
+					{/* Status Messages */}
+					{error && (
+						<StatusBanner type="error" onClose={() => setError('')}>
+							{error}
+						</StatusBanner>
+					)}
+					{!error && info && (
+						<StatusBanner type="info" onClose={() => setInfo('')}>
+							{info}
+						</StatusBanner>
+					)}
+
+					{!error && !info && !loading && (
+						<button
+							onClick={loadData}
+							style={{
+								padding: '10px 16px',
+								borderRadius: 8,
+								border: '1px solid #d1d5db',
+								background: '#ffffff',
+								cursor: 'pointer',
+								fontWeight: 600,
+								color: '#374151',
+								fontSize: '14px',
+								boxShadow: '0 2px 8px rgba(15,23,42,0.04)',
+							}}
+						>
+							🔄 Refresh Dashboard
+						</button>
+					)}
+				</div>
 			</div>
 
+			{/* Stats Grid */}
 			<div
 				style={{
 					display: 'grid',
-					gap: 14,
-					gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+					gap: 20,
+					gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+					marginBottom: 32,
 				}}
-				aria-busy={loading ? 'true' : 'false'}
 			>
-				{insightCards.map(card => (
-					<div
-						key={card.label}
-						style={{
-							background: '#ffffff',
-							borderRadius: 16,
-							padding: 18,
-							border: '1px solid #e2e8f0',
-							boxShadow: '0 12px 28px rgba(15,23,42,0.06)',
-							display: 'grid',
-							gap: 10,
-						}}
-					>
-						<div
-							style={{
-								display: 'flex',
-								alignItems: 'center',
-								gap: 10,
-								color: '#64748b',
-							}}
-						>
-							<span aria-hidden>{card.tone}</span>
-							{card.label}
-						</div>
-						<div style={{ fontSize: 30, fontWeight: 800, color: '#0f172a' }}>
-							{loading ? '…' : card.value}
-						</div>
-					</div>
+				{statCards.map(card => (
+					<StatCard key={card.label} {...card} loading={loading} />
 				))}
 			</div>
-		</section>
+
+			{/* Recent Activity Placeholder */}
+			<div
+				style={{
+					background: '#ffffff',
+					borderRadius: 16,
+					padding: 28,
+					border: '1px solid #e2e8f0',
+					boxShadow: '0 8px 24px rgba(15,23,42,0.06)',
+				}}
+			>
+				<h2
+					style={{
+						margin: '0 0 16px 0',
+						fontSize: '20px',
+						fontWeight: 700,
+						color: '#0f172a',
+					}}
+				>
+					Recent Activity
+				</h2>
+				<div
+					style={{
+						padding: '40px 20px',
+						textAlign: 'center',
+						color: '#64748b',
+						background: '#f8fafc',
+						borderRadius: 12,
+						border: '2px dashed #cbd5e1',
+					}}
+				>
+					<div style={{ fontSize: '48px', marginBottom: 12 }}>📊</div>
+					<p style={{ margin: 0, fontWeight: 600 }}>Activity feed coming soon</p>
+					<p style={{ margin: '4px 0 0 0', fontSize: '14px' }}>
+						Track recent submissions, student interactions, and system updates
+					</p>
+				</div>
+			</div>
+		</div>
 	);
 };
 
