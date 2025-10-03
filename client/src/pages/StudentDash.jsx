@@ -23,7 +23,7 @@ const StudentDash = () => {
 						height: 36,
 						borderRadius: 12,
 						objectFit: 'cover',
-						border: '2px solid rgba(59,130,246,0.2)',
+						border: '2px solid rgba(16,185,129,0.2)',
 					}}
 				/>
 				<div style={{ display: 'grid', lineHeight: 1.2 }}>
@@ -44,7 +44,7 @@ const StudentDash = () => {
 							opacity: 0.8,
 						}}
 					>
-						Your exams and results
+						Your academic journey
 					</span>
 				</div>
 			</div>
@@ -54,10 +54,10 @@ const StudentDash = () => {
 
 	const items = React.useMemo(
 		() => [
-			{ key: 'home', label: 'Overview', icon: '📊', to: '/student', end: true },
-			{ key: 'exams', label: 'Available Exams', icon: '📝', to: '/student/exams' },
-			{ key: 'results', label: 'Results', icon: '📋', to: '/student/results' },
-			{ key: 'issues', label: 'Support', icon: '🛠️', to: '/student/issues' },
+			{ key: 'home', label: 'Dashboard', icon: '🏠', to: '/student', end: true },
+			{ key: 'exams', label: 'Exams', icon: '📝', to: '/student/exams' },
+			{ key: 'results', label: 'Results', icon: '📊', to: '/student/results' },
+			{ key: 'issues', label: 'Support', icon: '🆘', to: '/student/issues' },
 			{ key: 'settings', label: 'Settings', icon: '⚙️', to: '/student/settings' },
 		],
 		[],
@@ -68,7 +68,7 @@ const StudentDash = () => {
 			style={{
 				background:
 					theme === 'dark'
-						? 'radial-gradient(1200px 400px at 50% -5%, rgba(59,130,246,0.08), transparent 40%), var(--bg)'
+						? 'radial-gradient(1200px 400px at 50% -5%, rgba(16,185,129,0.08), transparent 40%), var(--bg)'
 						: 'radial-gradient(1200px 400px at 50% -5%, rgba(16,185,129,0.10), transparent 40%), var(--bg)',
 				color: 'var(--text)',
 				minHeight: '100vh',
@@ -90,6 +90,7 @@ const StudentDash = () => {
 					marginLeft: '280px',
 					minHeight: '100vh',
 					transition: 'margin-left 0.3s ease',
+					maxWidth: 'calc(100% - 280px)',
 				}}
 			>
 				<ErrorBoundary>
