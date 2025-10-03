@@ -1,48 +1,223 @@
 import React from 'react';
-import { safeApiCall, getStudentIssues, createStudentIssue } from '../../services/apiServices.js';
+import { safeApiCall, getMyIssues, createIssue } from '../../services/studentServices.js';
 
 const statusStyles = {
-	open: { bg: '#fff7ed', border: '#fed7aa', color: '#9a3412', label: 'Open' },
-	pending: { bg: '#eef2ff', border: '#c7d2fe', color: '#3730a3', label: 'Pending' },
-	resolved: { bg: '#ecfdf5', border: '#a7f3d0', color: '#065f46', label: 'Resolved' },
+	open: { bg: '#fff7ed', border: '#fed7aa', color: '#9a3412', label: 'Open', icon: '🔴' },
+	pending: { bg: '#eef2ff', border: '#c7d2fe', color: '#3730a3', label: 'Pending', icon: '🟡' },
+	resolved: { bg: '#ecfdf5', border: '#a7f3d0', color: '#065f46', label: 'Resolved', icon: '🟢' },
 };
 
-const useIssues = () => {
+const IssueCard = ({ issue }) => {
+	const config = statusStyles[issue.status] || statusStyles.open;
+
+	return (
+		<article
+			style={{
+				background: '#ffffff',
+				borderRadius: 16,
+				border: '1px solid #e5e7eb',
+				boxShadow: '0 4px 16px rgba(15,23,42,0.06)',
+				padding: '24px',
+				transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+			}}
+			onMouseEnter={e => {
+				e.currentTarget.style.transform = 'translateY(-2px)';
+				e.currentTarget.style.boxShadow = '0 8px 28px rgba(15,23,42,0.12)';
+			}}
+			onMouseLeave={e => {
+				e.currentTarget.style.transform = 'translateY(0)';
+				e.currentTarget.style.boxShadow = '0 4px 16px rgba(15,23,42,0.06)';
+			}}
+		>
+			<header style={{ marginBottom: '16px' }}>
+				<div
+					style={{
+						display: 'flex',
+						alignItems: 'center',
+						gap: '12px',
+						marginBottom: '8px',
+					}}
+				>
+					<h3
+						style={{
+							margin: 0,
+							fontSize: '18px',
+							fontWeight: 700,
+							color: '#0f172a',
+							flex: 1,
+						}}
+					>
+						{issue.examTitle}
+					</h3>
+					<span
+						style={{
+							display: 'flex',
+							alignItems: 'center',
+							gap: '6px',
+							fontSize: '12px',
+							padding: '6px 12px',
+							borderRadius: '20px',
+							border: `1px solid ${config.border}`,
+							background: config.bg,
+							color: config.color,
+							fontWeight: 700,
+						}}
+					>
+						<span>{config.icon}</span>
+						{config.label}
+					</span>
+				</div>
+
+				<div
+					style={{
+						display: 'flex',
+						gap: '16px',
+						color: '#64748b',
+						fontSize: '13px',
+					}}
+				>
+					<div>
+						<strong style={{ color: '#374151' }}>Type:</strong> {issue.issueType}
+					</div>
+					{issue.createdAt && (
+						<div>
+							<strong style={{ color: '#374151' }}>Created:</strong> {issue.createdAt}
+						</div>
+					)}
+				</div>
+			</header>
+
+			<div
+				style={{
+					background: '#f8fafc',
+					borderRadius: 12,
+					padding: '16px',
+					border: '1px solid #e2e8f0',
+					marginBottom: '16px',
+				}}
+			>
+				<div
+					style={{
+						fontWeight: 600,
+						color: '#374151',
+						marginBottom: '8px',
+						fontSize: '14px',
+					}}
+				>
+					Issue Description
+				</div>
+				<p
+					style={{
+						margin: 0,
+						color: '#64748b',
+						lineHeight: 1.5,
+						fontSize: '14px',
+					}}
+				>
+					{issue.description}
+				</p>
+			</div>
+
+			{issue.reply ? (
+				<div
+					style={{
+						background: '#ecfdf5',
+						borderRadius: 12,
+						padding: '16px',
+						border: '1px solid #6ee7b7',
+					}}
+				>
+					<div
+						style={{
+							fontWeight: 600,
+							color: '#047857',
+							marginBottom: '8px',
+							fontSize: '14px',
+							display: 'flex',
+							alignItems: 'center',
+							gap: '6px',
+						}}
+					>
+						👨‍🏫 Teacher Response
+					</div>
+					<p
+						style={{
+							margin: 0,
+							color: '#065f46',
+							lineHeight: 1.5,
+							fontSize: '14px',
+						}}
+					>
+						{issue.reply}
+					</p>
+					{issue.resolvedAt && (
+						<div
+							style={{
+								marginTop: '8px',
+								fontSize: '12px',
+								color: '#047857',
+								fontWeight: 500,
+							}}
+						>
+							Resolved on {issue.resolvedAt}
+						</div>
+					)}
+				</div>
+			) : (
+				<div
+					style={{
+						color: '#f59e0b',
+						fontSize: '14px',
+						fontWeight: 500,
+						textAlign: 'center',
+						padding: '12px',
+						background: '#fffbeb',
+						borderRadius: 8,
+						border: '1px solid #fed7aa',
+					}}
+				>
+					⏳ Awaiting teacher response
+				</div>
+			)}
+		</article>
+	);
+};
+
+const StudentIssues = () => {
 	const [loading, setLoading] = React.useState(false);
 	const [error, setError] = React.useState('');
 	const [issues, setIssues] = React.useState([]);
+	const [showForm, setShowForm] = React.useState(false);
+	const [saving, setSaving] = React.useState(false);
+	const [message, setMessage] = React.useState('');
+	const [form, setForm] = React.useState({
+		examId: '',
+		issueType: '',
+		description: '',
+	});
 
-	const load = React.useCallback(async () => {
+	const loadIssues = React.useCallback(async () => {
 		setLoading(true);
 		setError('');
 		try {
-			const data = await safeApiCall(getStudentIssues);
+			const data = await safeApiCall(getMyIssues);
 			setIssues(Array.isArray(data) ? data : []);
 		} catch (e) {
-			setError(e.message || 'Failed to load issues');
+			setError(e?.message || 'Failed to load issues');
 		} finally {
 			setLoading(false);
 		}
 	}, []);
 
 	React.useEffect(() => {
-		load();
-	}, [load]);
-
-	return { loading, error, issues, reload: load };
-};
-
-const StudentIssues = () => {
-	const { loading, error, issues, reload } = useIssues();
-	const [showForm, setShowForm] = React.useState(false);
-	const [saving, setSaving] = React.useState(false);
-	const [form, setForm] = React.useState({ exam: '', issueType: '', description: '' });
+		loadIssues();
+	}, [loadIssues]);
 
 	const handleSubmit = async e => {
 		e.preventDefault();
-		if (!form.exam || !form.issueType || !form.description) return;
+		if (!form.examId || !form.issueType || !form.description) return;
 
-		const looksLikeId = /^[a-f\d]{24}$/i.test(form.exam);
+		const looksLikeId = /^[a-f\d]{24}$/i.test(form.examId);
 		if (!looksLikeId) {
 			alert('Please enter a valid Exam ID (24-character hex).');
 			return;
@@ -50,13 +225,13 @@ const StudentIssues = () => {
 
 		setSaving(true);
 		try {
-			await safeApiCall(createStudentIssue, {
-				exam: form.exam,
+			await safeApiCall(createIssue, {
+				examId: form.examId,
 				issueType: form.issueType,
 				description: form.description,
 			});
-			await reload();
-			setForm({ exam: '', issueType: '', description: '' });
+			await loadIssues();
+			setForm({ examId: '', issueType: '', description: '' });
 			setShowForm(false);
 		} catch (e) {
 			alert(e.message || 'Could not submit issue');
@@ -123,8 +298,8 @@ const StudentIssues = () => {
 					<div style={{ display: 'grid', gap: 10 }}>
 						<label style={{ fontWeight: 700, color: 'var(--text)' }}>Exam ID</label>
 						<input
-							value={form.exam}
-							onChange={e => setForm(s => ({ ...s, exam: e.target.value }))}
+							value={form.examId}
+							onChange={e => setForm(s => ({ ...s, examId: e.target.value }))}
 							placeholder="24-character exam ObjectId"
 							style={{
 								padding: '10px 12px',
@@ -217,7 +392,7 @@ const StudentIssues = () => {
 			)}
 
 			{loading && <div style={{ color: 'var(--text-muted)' }}>Loading your issues…</div>}
-			{!loading && error && <div style={{ color: '#b91c1c', marginBottom: 12 }}>{error}</div>}
+			{error && <div style={{ color: '#b91c1c', marginBottom: 12 }}>{error}</div>}
 			{!loading && !issues.length && (
 				<div
 					style={{
@@ -233,120 +408,9 @@ const StudentIssues = () => {
 			)}
 
 			<div style={{ display: 'grid', gap: 16 }}>
-				{issues.map(issue => {
-					const chip = statusStyles[issue.status] ?? statusStyles.open;
-					return (
-						<article
-							key={issue._id || issue.id}
-							style={{
-								background: 'var(--surface)',
-								borderRadius: 16,
-								border: '1px solid var(--border)',
-								boxShadow: '0 12px 26px rgba(15,23,42,0.07)',
-								padding: 18,
-								display: 'grid',
-								gap: 12,
-							}}
-						>
-							<header
-								style={{
-									display: 'flex',
-									flexWrap: 'wrap',
-									gap: 10,
-									justifyContent: 'space-between',
-								}}
-							>
-								<div>
-									<h2
-										style={{
-											margin: 0,
-											fontSize: '1.05rem',
-											color: 'var(--text)',
-										}}
-									>
-										{issue.examTitle || 'Exam'}
-									</h2>
-									<div style={{ color: 'var(--text-muted)', fontSize: 13 }}>
-										{issue.createdAt
-											? `Submitted on ${new Date(issue.createdAt).toLocaleString()}`
-											: ''}
-									</div>
-								</div>
-								<span
-									style={{
-										alignSelf: 'flex-start',
-										fontSize: 12,
-										padding: '3px 10px',
-										borderRadius: 999,
-										border: `1px solid ${chip.border}`,
-										background: chip.bg,
-										color: chip.color,
-										fontWeight: 700,
-									}}
-								>
-									{chip.label}
-								</span>
-							</header>
-
-							<div
-								style={{
-									background: 'var(--elev)',
-									borderRadius: 12,
-									padding: 14,
-									border: '1px solid var(--border)',
-								}}
-							>
-								<div
-									style={{
-										fontWeight: 700,
-										marginBottom: 6,
-										color: 'var(--text)',
-									}}
-								>
-									{issue.issueType} Issue
-								</div>
-								<p
-									style={{
-										margin: 0,
-										color: 'var(--text-muted)',
-										lineHeight: 1.6,
-									}}
-								>
-									{issue.description}
-								</p>
-							</div>
-
-							{issue.reply ? (
-								<div
-									style={{
-										background: '#ecfdf5',
-										borderRadius: 12,
-										padding: 14,
-										border: '1px solid #6ee7b7',
-										color: '#047857',
-									}}
-								>
-									<strong style={{ display: 'block', marginBottom: 6 }}>
-										Teacher reply
-									</strong>
-									{issue.reply}
-									{issue.resolvedAt && (
-										<div
-											style={{ marginTop: 6, fontSize: 12, color: '#0f766e' }}
-										>
-											Resolved on{' '}
-											{new Date(issue.resolvedAt).toLocaleString()}
-										</div>
-									)}
-								</div>
-							) : (
-								<div style={{ color: '#a16207', fontSize: 13 }}>
-									Awaiting teacher response.
-								</div>
-							)}
-						</article>
-					);
-				})}
+				{issues.map(issue => (
+					<IssueCard key={issue._id || issue.id} issue={issue} />
+				))}
 			</div>
 		</section>
 	);
