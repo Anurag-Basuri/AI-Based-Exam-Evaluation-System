@@ -77,42 +77,60 @@ const normalizeExam = (e) => ({
     createdBy: e.createdBy ?? null,
 });
 
+// Small helper to coerce possibly-object values to readable strings
+const toName = (v, fallback = 'Student') => {
+  if (!v) return fallback;
+  if (typeof v === 'string') return v;
+  if (typeof v === 'object') {
+    return v.fullname || v.username || v.email || v.name || fallback;
+  }
+  return String(v);
+};
+const toTitle = (v, fallback = 'Exam') => {
+  if (!v) return fallback;
+  if (typeof v === 'string') return v;
+  if (typeof v === 'object') return v.title || v.name || fallback;
+  return String(v);
+};
+
+// Replace the normalizeSubmission with this safer version
 const normalizeSubmission = (s) => ({
-    id: String(s._id ?? s.id ?? ''),
-    examId: String(s.exam?._id ?? s.examId ?? s.exam ?? ''),
-    examTitle: s.exam?.title ?? s.examTitle ?? 'Exam',
-    studentId: String(s.student?._id ?? s.studentId ?? s.student ?? ''),
-    studentName: s.student?.fullname ?? s.student?.username ?? s.studentName ?? 'Student',
-    score:
-        s.totalScore ??
-        (Array.isArray(s.evaluations)
-            ? s.evaluations.reduce((acc, ev) => acc + (ev?.evaluation?.marks || 0), 0)
-            : (s.score ?? null)),
-    maxScore:
-        s.maxScore ??
-        (Array.isArray(s.answers)
-            ? s.answers.reduce((acc, ans) => acc + (ans?.question?.max_marks || 0), 0)
-            : (s.totalMax ?? 0)),
-    status: s.status ?? 'pending',
-    submittedAt: s.submittedAt
-        ? new Date(s.submittedAt).toLocaleString()
-        : s.updatedAt
-            ? new Date(s.updatedAt).toLocaleString()
-            : '',
+  id: String(s._id ?? s.id ?? ''),
+  examId: String(s.exam?._id ?? s.examId ?? s.exam ?? ''),
+  examTitle: toTitle(s.exam ?? s.examTitle, 'Exam'),
+  studentId: String(s.student?._id ?? s.studentId ?? s.student ?? ''),
+  studentName: toName(s.student ?? s.studentName, 'Student'),
+  score:
+    s.totalScore ??
+    (Array.isArray(s.evaluations)
+      ? s.evaluations.reduce((acc, ev) => acc + (ev?.evaluation?.marks || 0), 0)
+      : s.score ?? null),
+  maxScore:
+    s.maxScore ??
+    (Array.isArray(s.answers)
+      ? s.answers.reduce((acc, ans) => acc + (ans?.question?.max_marks || 0), 0)
+      : s.totalMax ?? 0),
+  status: s.status ?? 'pending',
+  submittedAt: s.submittedAt
+    ? new Date(s.submittedAt).toLocaleString()
+    : s.updatedAt
+    ? new Date(s.updatedAt).toLocaleString()
+    : '',
 });
 
+// Replace the normalizeIssue with this safer version
 const normalizeIssue = (i) => ({
-    id: String(i._id ?? i.id ?? ''),
-    studentId: String(i.student?._id ?? i.student ?? ''),
-    studentName: i.student?.fullname ?? i.student?.username ?? i.studentName ?? 'Student',
-    examId: String(i.exam?._id ?? i.exam ?? ''),
-    examTitle: i.exam?.title ?? i.examTitle ?? 'Exam',
-    issueType: i.issueType ?? i.type ?? 'General',
-    description: i.description ?? '',
-    status: String(i.status || '').toLowerCase() || 'open',
-    reply: i.reply ?? '',
-    createdAt: i.createdAt ? new Date(i.createdAt).toLocaleString() : (i.created_at ?? ''),
-    resolvedAt: i.resolvedAt ? new Date(i.resolvedAt).toLocaleString() : (i.resolved_at ?? ''),
+  id: String(i._id ?? i.id ?? ''),
+  studentId: String(i.student?._id ?? i.student ?? ''),
+  studentName: toName(i.student ?? i.studentName, 'Student'),
+  examId: String(i.exam?._id ?? i.exam ?? ''),
+  examTitle: toTitle(i.exam ?? i.examTitle, 'Exam'),
+  issueType: i.issueType ?? i.type ?? 'General',
+  description: i.description ?? '',
+  status: String(i.status || '').toLowerCase() || 'open',
+  reply: i.reply ?? '',
+  createdAt: i.createdAt ? new Date(i.createdAt).toLocaleString() : i.created_at ?? '',
+  resolvedAt: i.resolvedAt ? new Date(i.resolvedAt).toLocaleString() : i.resolved_at ?? '',
 });
 
 const normalizeQuestion = (q) => ({
