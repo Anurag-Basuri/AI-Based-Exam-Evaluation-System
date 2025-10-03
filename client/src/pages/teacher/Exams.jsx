@@ -1,21 +1,264 @@
 import React from 'react';
 import { safeApiCall, getTeacherExams, updateExamStatus } from '../../services/teacherServices.js';
 
-const statusChip = {
-	live: { bg: '#dcfce7', border: '#86efac', color: '#15803d', label: 'Live' },
-	active: { bg: '#dcfce7', border: '#86efac', color: '#15803d', label: 'Live' },
-	scheduled: { bg: '#e0f2fe', border: '#bae6fd', color: '#0369a1', label: 'Scheduled' },
-	draft: { bg: '#f3f4f6', border: '#e5e7eb', color: '#475569', label: 'Draft' },
-	completed: { bg: '#ede9fe', border: '#ddd6fe', color: '#6d28d9', label: 'Completed' },
-	cancelled: { bg: '#fee2e2', border: '#fecaca', color: '#991b1b', label: 'Cancelled' },
+const statusConfig = {
+	live: { bg: '#dcfce7', border: '#86efac', color: '#15803d', label: 'Live', icon: '🟢' },
+	active: { bg: '#dcfce7', border: '#86efac', color: '#15803d', label: 'Live', icon: '🟢' },
+	scheduled: {
+		bg: '#dbeafe',
+		border: '#93c5fd',
+		color: '#1d4ed8',
+		label: 'Scheduled',
+		icon: '🗓️',
+	},
+	draft: { bg: '#f1f5f9', border: '#cbd5e1', color: '#475569', label: 'Draft', icon: '📄' },
+	completed: {
+		bg: '#f3e8ff',
+		border: '#c4b5fd',
+		color: '#7c3aed',
+		label: 'Completed',
+		icon: '✅',
+	},
+	cancelled: {
+		bg: '#fee2e2',
+		border: '#fca5a5',
+		color: '#dc2626',
+		label: 'Cancelled',
+		icon: '❌',
+	},
 };
 
-const useTeacherExams = () => {
+const FilterButton = ({ active, children, onClick, count }) => (
+	<button
+		onClick={onClick}
+		style={{
+			padding: '10px 16px',
+			borderRadius: 25,
+			border: active ? '2px solid #3b82f6' : '1px solid #d1d5db',
+			background: active ? '#eff6ff' : '#ffffff',
+			color: active ? '#1d4ed8' : '#374151',
+			cursor: 'pointer',
+			fontWeight: 600,
+			fontSize: '14px',
+			display: 'flex',
+			alignItems: 'center',
+			gap: 8,
+			transition: 'all 0.2s ease',
+			boxShadow: active
+				? '0 4px 12px rgba(59,130,246,0.15)'
+				: '0 2px 4px rgba(15,23,42,0.04)',
+		}}
+		onMouseEnter={e => {
+			if (!active) {
+				e.currentTarget.style.borderColor = '#9ca3af';
+				e.currentTarget.style.boxShadow = '0 4px 8px rgba(15,23,42,0.08)';
+			}
+		}}
+		onMouseLeave={e => {
+			if (!active) {
+				e.currentTarget.style.borderColor = '#d1d5db';
+				e.currentTarget.style.boxShadow = '0 2px 4px rgba(15,23,42,0.04)';
+			}
+		}}
+	>
+		{children}
+		{count !== undefined && (
+			<span
+				style={{
+					background: active ? '#3b82f6' : '#6b7280',
+					color: '#ffffff',
+					borderRadius: '12px',
+					padding: '2px 8px',
+					fontSize: '12px',
+					fontWeight: 700,
+					minWidth: '20px',
+					textAlign: 'center',
+				}}
+			>
+				{count}
+			</span>
+		)}
+	</button>
+);
+
+const ExamCard = ({ exam, onPublish, onClone, onEdit, publishing }) => {
+	const config = statusConfig[exam.status] || statusConfig.draft;
+
+	return (
+		<article
+			style={{
+				background: '#ffffff',
+				borderRadius: 16,
+				border: '1px solid #e5e7eb',
+				boxShadow: '0 4px 16px rgba(15,23,42,0.06)',
+				padding: '24px',
+				transition: 'all 0.2s ease',
+				position: 'relative',
+				overflow: 'hidden',
+			}}
+			onMouseEnter={e => {
+				e.currentTarget.style.transform = 'translateY(-2px)';
+				e.currentTarget.style.boxShadow = '0 8px 28px rgba(15,23,42,0.12)';
+			}}
+			onMouseLeave={e => {
+				e.currentTarget.style.transform = 'translateY(0)';
+				e.currentTarget.style.boxShadow = '0 4px 16px rgba(15,23,42,0.06)';
+			}}
+		>
+			{/* Status Indicator */}
+			<div
+				style={{
+					position: 'absolute',
+					top: 0,
+					right: 0,
+					width: '4px',
+					height: '100%',
+					background: config.color,
+				}}
+			/>
+
+			<header style={{ marginBottom: '16px' }}>
+				<div
+					style={{
+						display: 'flex',
+						alignItems: 'center',
+						gap: '12px',
+						marginBottom: '8px',
+					}}
+				>
+					<h3
+						style={{
+							margin: 0,
+							fontSize: '18px',
+							fontWeight: 700,
+							color: '#0f172a',
+							flex: 1,
+						}}
+					>
+						{exam.title}
+					</h3>
+					<span
+						style={{
+							display: 'flex',
+							alignItems: 'center',
+							gap: '6px',
+							fontSize: '12px',
+							padding: '6px 12px',
+							borderRadius: '20px',
+							border: `1px solid ${config.border}`,
+							background: config.bg,
+							color: config.color,
+							fontWeight: 700,
+						}}
+					>
+						<span>{config.icon}</span>
+						{config.label}
+					</span>
+				</div>
+
+				<div
+					style={{
+						display: 'grid',
+						gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+						gap: '12px',
+						color: '#64748b',
+						fontSize: '14px',
+					}}
+				>
+					<div>
+						<strong style={{ color: '#374151' }}>Start:</strong> {exam.startAt}
+					</div>
+					<div>
+						<strong style={{ color: '#374151' }}>Enrolled:</strong> {exam.enrolled}
+					</div>
+					<div>
+						<strong style={{ color: '#374151' }}>Submissions:</strong>{' '}
+						{exam.submissions}
+					</div>
+				</div>
+			</header>
+
+			<div
+				style={{
+					display: 'flex',
+					gap: '10px',
+					flexWrap: 'wrap',
+					paddingTop: '16px',
+					borderTop: '1px solid #f1f5f9',
+				}}
+			>
+				<button
+					onClick={() => onEdit(exam)}
+					style={{
+						flex: '1 1 120px',
+						padding: '10px 14px',
+						borderRadius: '8px',
+						border: 'none',
+						background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+						color: '#ffffff',
+						cursor: 'pointer',
+						fontWeight: 600,
+						fontSize: '14px',
+						boxShadow: '0 4px 12px rgba(99,102,241,0.25)',
+					}}
+				>
+					✏️ Edit
+				</button>
+
+				<button
+					onClick={() => onClone(exam)}
+					style={{
+						flex: '1 1 120px',
+						padding: '10px 14px',
+						borderRadius: '8px',
+						border: '1px solid #d1d5db',
+						background: '#ffffff',
+						color: '#374151',
+						cursor: 'pointer',
+						fontWeight: 600,
+						fontSize: '14px',
+					}}
+				>
+					📋 Clone
+				</button>
+
+				{exam.status !== 'active' && exam.status !== 'live' && (
+					<button
+						onClick={() => onPublish(exam.id)}
+						disabled={publishing}
+						style={{
+							flex: '1 1 120px',
+							padding: '10px 14px',
+							borderRadius: '8px',
+							border: 'none',
+							background: publishing
+								? '#9ca3af'
+								: 'linear-gradient(135deg, #10b981, #059669)',
+							color: '#ffffff',
+							cursor: publishing ? 'not-allowed' : 'pointer',
+							fontWeight: 600,
+							fontSize: '14px',
+							boxShadow: publishing ? 'none' : '0 4px 12px rgba(16,185,129,0.25)',
+						}}
+					>
+						{publishing ? '⏳ Publishing...' : '🚀 Publish'}
+					</button>
+				)}
+			</div>
+		</article>
+	);
+};
+
+const TeacherExams = () => {
 	const [loading, setLoading] = React.useState(false);
 	const [error, setError] = React.useState('');
 	const [exams, setExams] = React.useState([]);
+	const [query, setQuery] = React.useState('');
+	const [status, setStatus] = React.useState('all');
+	const [message, setMessage] = React.useState('');
+	const [publishingIds, setPublishingIds] = React.useState(new Set());
 
-	const load = React.useCallback(async () => {
+	const loadExams = React.useCallback(async () => {
 		setLoading(true);
 		setError('');
 		try {
@@ -29,38 +272,41 @@ const useTeacherExams = () => {
 	}, []);
 
 	React.useEffect(() => {
-		load();
-	}, [load]);
+		loadExams();
+	}, [loadExams]);
 
-	return { loading, error, exams, setExams, reload: load };
-};
+	const filteredExams = React.useMemo(() => {
+		return exams.filter(exam => {
+			const matchesStatus = status === 'all' || exam.status === status;
+			const matchesQuery =
+				!query.trim() || exam.title.toLowerCase().includes(query.toLowerCase());
+			return matchesStatus && matchesQuery;
+		});
+	}, [exams, status, query]);
 
-const TeacherExams = () => {
-	const { loading, error, exams, setExams, reload } = useTeacherExams();
-	const [query, setQuery] = React.useState('');
-	const [status, setStatus] = React.useState('all');
-	const [msg, setMsg] = React.useState('');
-	const [busy, setBusy] = React.useState({}); // per-exam saving flags
-
-	const filtered = exams.filter(exam => {
-		const matchesStatus = status === 'all' ? true : exam.status === status;
-		const matchesQuery = !query.trim()
-			? true
-			: exam.title.toLowerCase().includes(query.trim().toLowerCase());
-		return matchesStatus && matchesQuery;
-	});
+	const statusCounts = React.useMemo(() => {
+		const counts = { all: exams.length };
+		exams.forEach(exam => {
+			counts[exam.status] = (counts[exam.status] || 0) + 1;
+		});
+		return counts;
+	}, [exams]);
 
 	const handlePublish = async examId => {
-		setBusy(b => ({ ...b, [examId]: true }));
-		setMsg('');
+		setPublishingIds(prev => new Set([...prev, examId]));
+		setMessage('');
 		try {
 			await safeApiCall(updateExamStatus, examId, { status: 'active' });
 			setExams(prev => prev.map(ex => (ex.id === examId ? { ...ex, status: 'active' } : ex)));
-			setMsg('Exam published successfully.');
+			setMessage('✅ Exam published successfully!');
 		} catch (e) {
-			setMsg(e.message || 'Failed to publish exam');
+			setMessage(`❌ ${e.message || 'Failed to publish exam'}`);
 		} finally {
-			setBusy(b => ({ ...b, [examId]: false }));
+			setPublishingIds(prev => {
+				const next = new Set(prev);
+				next.delete(examId);
+				return next;
+			});
 		}
 	};
 
@@ -75,277 +321,256 @@ const TeacherExams = () => {
 			startAt: '—',
 		};
 		setExams(prev => [clone, ...prev]);
-		setMsg('Exam duplicated locally. Adjust details before publishing.');
+		setMessage('📋 Exam duplicated! Edit details before publishing.');
 	};
 
+	const handleEdit = exam => {
+		setMessage(`✏️ Opening editor for "${exam.title}" (to be implemented)`);
+	};
+
+	const filterOptions = [
+		{ key: 'all', label: 'All Exams' },
+		{ key: 'live', label: 'Live' },
+		{ key: 'scheduled', label: 'Scheduled' },
+		{ key: 'draft', label: 'Drafts' },
+		{ key: 'completed', label: 'Completed' },
+		{ key: 'cancelled', label: 'Cancelled' },
+	];
+
 	return (
-		<section>
+		<div style={{ maxWidth: '1200px' }}>
+			{/* Header */}
 			<header
 				style={{
 					background:
-						'linear-gradient(135deg, rgba(20,184,166,0.16), rgba(99,102,241,0.08))',
-					padding: 20,
-					borderRadius: 18,
-					border: '1px solid rgba(45,212,191,0.18)',
-					boxShadow: '0 16px 32px rgba(15,23,42,0.08)',
-					marginBottom: 18,
-					display: 'flex',
-					flexWrap: 'wrap',
-					gap: 12,
-					alignItems: 'center',
-					justifyContent: 'space-between',
+						'linear-gradient(135deg, rgba(16,185,129,0.1), rgba(59,130,246,0.05))',
+					padding: '32px 28px',
+					borderRadius: 20,
+					border: '1px solid rgba(16,185,129,0.2)',
+					marginBottom: 32,
 				}}
 			>
-				<div>
-					<h1 style={{ margin: 0 }}>Manage Exams</h1>
-					<p style={{ margin: '6px 0 0', color: '#0f172a', fontSize: 15 }}>
-						Create, schedule, and monitor exams across all classes.
-					</p>
-				</div>
-				<div style={{ display: 'flex', gap: 8 }}>
-					<button
-						onClick={reload}
-						style={{
-							padding: '12px 14px',
-							borderRadius: 10,
-							border: '1px solid #cbd5e1',
-							background: '#ffffff',
-							color: '#0f172a',
-							cursor: 'pointer',
-							fontWeight: 700,
-						}}
-					>
-						Refresh
-					</button>
-					<button
-						onClick={() => setMsg('Open create-exam drawer (to be implemented)')}
-						style={{
-							padding: '12px 16px',
-							borderRadius: 12,
-							border: 'none',
-							background: '#14b8a6',
-							color: '#ffffff',
-							fontWeight: 700,
-							cursor: 'pointer',
-							boxShadow: '0 14px 28px rgba(20,184,166,0.28)',
-						}}
-					>
-						➕ Create exam
-					</button>
+				<div
+					style={{
+						display: 'flex',
+						justifyContent: 'space-between',
+						alignItems: 'flex-start',
+						gap: 20,
+					}}
+				>
+					<div>
+						<h1 style={{ margin: '0 0 8px 0', fontSize: '28px', fontWeight: 800 }}>
+							Exam Management
+						</h1>
+						<p style={{ margin: 0, color: '#64748b', fontSize: '16px' }}>
+							Create, schedule, and monitor all your exams in one place.
+						</p>
+					</div>
+					<div style={{ display: 'flex', gap: 12, flexShrink: 0 }}>
+						<button
+							onClick={loadExams}
+							disabled={loading}
+							style={{
+								padding: '12px 16px',
+								borderRadius: '10px',
+								border: '1px solid #d1d5db',
+								background: '#ffffff',
+								color: '#374151',
+								cursor: loading ? 'not-allowed' : 'pointer',
+								fontWeight: 600,
+								fontSize: '14px',
+								opacity: loading ? 0.7 : 1,
+							}}
+						>
+							{loading ? '⏳' : '🔄'} Refresh
+						</button>
+						<button
+							onClick={() => setMessage('➕ Create exam functionality coming soon!')}
+							style={{
+								padding: '12px 20px',
+								borderRadius: '10px',
+								border: 'none',
+								background: 'linear-gradient(135deg, #10b981, #059669)',
+								color: '#ffffff',
+								fontWeight: 700,
+								cursor: 'pointer',
+								boxShadow: '0 8px 20px rgba(16,185,129,0.3)',
+								fontSize: '14px',
+							}}
+						>
+							➕ Create Exam
+						</button>
+					</div>
 				</div>
 			</header>
 
-			{msg && (
+			{/* Status Message */}
+			{message && (
 				<div
-					role="status"
-					aria-live="polite"
 					style={{
-						marginBottom: 12,
-						padding: '10px 12px',
-						borderRadius: 10,
-						border: '1px solid #c7d2fe',
-						background: '#eef2ff',
-						color: '#3730a3',
+						marginBottom: 24,
+						padding: '14px 18px',
+						borderRadius: 12,
+						background: '#f0f9ff',
+						border: '1px solid #bae6fd',
+						color: '#0c4a6e',
 						fontWeight: 600,
+						display: 'flex',
+						justifyContent: 'space-between',
+						alignItems: 'center',
 					}}
 				>
-					{msg}
-				</div>
-			)}
-			{loading && <div style={{ color: '#475569', marginBottom: 12 }} aria-live="polite">Loading exams…</div>}
-			{!loading && error && <div style={{ color: '#b91c1c', marginBottom: 12 }} role="alert">{error}</div>}
-
-			<div
-				style={{
-					display: 'flex',
-					flexWrap: 'wrap',
-					gap: 12,
-					marginBottom: 16,
-					alignItems: 'center',
-				}}
-			>
-				<div style={{ position: 'relative', flex: 1, minWidth: 260 }}>
-					<input
-						value={query}
-						onChange={e => setQuery(e.target.value)}
-						placeholder="Search exams"
+					<span>{message}</span>
+					<button
+						onClick={() => setMessage('')}
 						style={{
-							width: '100%',
-							padding: '10px 14px 10px 40px',
-							borderRadius: 12,
-							border: '1px solid #cbd5e1',
-							background: '#ffffff',
-							outline: 'none',
-						}}
-					/>
-					<span
-						aria-hidden
-						style={{
-							position: 'absolute',
-							left: 12,
-							top: '50%',
-							transform: 'translateY(-50%)',
-							color: '#94a3b8',
+							border: 'none',
+							background: 'transparent',
+							cursor: 'pointer',
+							color: 'inherit',
+							fontWeight: 800,
+							fontSize: '16px',
+							padding: '4px',
 						}}
 					>
-						🔎
-					</span>
+						×
+					</button>
 				</div>
+			)}
 
-				<div style={{ display: 'flex', gap: 8 }}>
-					{['all', 'live', 'active', 'scheduled', 'draft', 'completed', 'cancelled'].map(
-						st => {
-							const active = status === st;
-							return (
-								<button
-									key={st}
-									onClick={() => setStatus(st)}
-									style={{
-										padding: '8px 12px',
-										borderRadius: 999,
-										border: active ? '1px solid #14b8a6' : '1px solid #cbd5e1',
-										background: active ? '#ccfbf1' : '#ffffff',
-										color: active ? '#0f766e' : '#334155',
-										cursor: 'pointer',
-										fontWeight: 700,
-									}}
-								>
-									{st[0].toUpperCase() + st.slice(1)}
-								</button>
-							);
-						},
-					)}
+			{/* Search and Filters */}
+			<div
+				style={{
+					background: '#ffffff',
+					padding: '24px',
+					borderRadius: 16,
+					border: '1px solid #e5e7eb',
+					marginBottom: 24,
+					boxShadow: '0 2px 8px rgba(15,23,42,0.04)',
+				}}
+			>
+				<div style={{ display: 'flex', gap: 20, alignItems: 'center', flexWrap: 'wrap' }}>
+					<div style={{ position: 'relative', flex: '1 1 300px' }}>
+						<input
+							value={query}
+							onChange={e => setQuery(e.target.value)}
+							placeholder="Search exams by title..."
+							style={{
+								width: '100%',
+								padding: '12px 16px 12px 48px',
+								borderRadius: 12,
+								border: '1px solid #d1d5db',
+								background: '#f9fafb',
+								outline: 'none',
+								fontSize: '14px',
+								fontWeight: 500,
+							}}
+						/>
+						<span
+							style={{
+								position: 'absolute',
+								left: 16,
+								top: '50%',
+								transform: 'translateY(-50%)',
+								color: '#9ca3af',
+								fontSize: '16px',
+							}}
+						>
+							🔍
+						</span>
+					</div>
+
+					<div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+						{filterOptions.map(option => (
+							<FilterButton
+								key={option.key}
+								active={status === option.key}
+								onClick={() => setStatus(option.key)}
+								count={statusCounts[option.key] || 0}
+							>
+								{option.label}
+							</FilterButton>
+						))}
+					</div>
 				</div>
 			</div>
 
-			{!loading && !error && !filtered.length && (
+			{/* Error State */}
+			{error && (
 				<div
 					style={{
-						padding: 22,
-						borderRadius: 16,
-						border: '1px dashed #cbd5e1',
+						padding: '20px',
+						borderRadius: 12,
+						background: '#fef2f2',
+						border: '1px solid #fca5a5',
+						color: '#b91c1c',
+						textAlign: 'center',
+						marginBottom: 24,
+					}}
+				>
+					❌ {error}
+				</div>
+			)}
+
+			{/* Loading State */}
+			{loading && (
+				<div
+					style={{
+						padding: '60px 20px',
 						textAlign: 'center',
 						color: '#64748b',
 					}}
 				>
-					No exams match your filters.
+					<div style={{ fontSize: '32px', marginBottom: 16 }}>⏳</div>
+					<p style={{ margin: 0, fontWeight: 600 }}>Loading your exams...</p>
 				</div>
 			)}
 
-			<div style={{ display: 'grid', gap: 16 }} aria-busy={loading ? 'true' : 'false'}>
-				{filtered.map(exam => {
-					const chip = statusChip[exam.status] ?? statusChip.draft;
-					const publishing = !!busy[exam.id];
-					return (
-						<article
-							key={exam.id}
-							style={{
-								background: '#ffffff',
-								borderRadius: 18,
-								border: '1px solid #e2e8f0',
-								boxShadow: '0 12px 26px rgba(15,23,42,0.08)',
-								padding: 20,
-								display: 'grid',
-								gridTemplateColumns: '1fr minmax(180px, 220px)',
-								gap: 18,
-								alignItems: 'start',
-							}}
-						>
-							<div>
-								<header
-									style={{
-										display: 'flex',
-										alignItems: 'center',
-										gap: 10,
-										marginBottom: 10,
-									}}
-								>
-									<h2 style={{ margin: 0, fontSize: '1.05rem' }}>{exam.title}</h2>
-									<span
-										style={{
-											fontSize: 12,
-											padding: '3px 10px',
-											borderRadius: 999,
-											border: `1px solid ${chip.border}`,
-											background: chip.bg,
-											color: chip.color,
-											fontWeight: 700,
-										}}
-									>
-										{chip.label}
-									</span>
-								</header>
-								<div style={{ color: '#475569', fontSize: 14 }}>
-									Start: <strong>{exam.startAt}</strong>
-								</div>
-								<div style={{ color: '#64748b', marginTop: 6, fontSize: 13 }}>
-									Enrolled: {exam.enrolled} • Submissions: {exam.submissions}
-								</div>
-							</div>
+			{/* Empty State */}
+			{!loading && !error && filteredExams.length === 0 && (
+				<div
+					style={{
+						padding: '60px 20px',
+						textAlign: 'center',
+						background: '#ffffff',
+						borderRadius: 16,
+						border: '2px dashed #d1d5db',
+					}}
+				>
+					<div style={{ fontSize: '48px', marginBottom: 16 }}>📝</div>
+					<h3 style={{ margin: '0 0 8px 0', color: '#374151' }}>
+						{query || status !== 'all' ? 'No matching exams found' : 'No exams yet'}
+					</h3>
+					<p style={{ margin: 0, color: '#6b7280' }}>
+						{query || status !== 'all'
+							? 'Try adjusting your search or filters'
+							: 'Create your first exam to get started'}
+					</p>
+				</div>
+			)}
 
-							<div
-								style={{
-									background: '#f8fafc',
-									borderRadius: 14,
-									padding: 16,
-									border: '1px solid #e2e8f0',
-									display: 'grid',
-									gap: 10,
-								}}
-							>
-								<button
-									style={{
-										padding: '10px 12px',
-										borderRadius: 10,
-										border: 'none',
-										background: '#6366f1',
-										color: '#ffffff',
-										cursor: 'pointer',
-										fontWeight: 700,
-										boxShadow: '0 12px 22px rgba(99,102,241,0.25)',
-									}}
-									onClick={() => setMsg('Open exam editor (to be implemented)')}
-								>
-									Edit exam
-								</button>
-								<button
-									style={{
-										padding: '10px 12px',
-										borderRadius: 10,
-										border: '1px solid #cbd5e1',
-										background: '#ffffff',
-										color: '#4338ca',
-										cursor: 'pointer',
-										fontWeight: 700,
-									}}
-									onClick={() => handleClone(exam)}
-								>
-									Duplicate
-								</button>
-								{exam.status !== 'active' && exam.status !== 'live' && (
-									<button
-										disabled={publishing}
-										style={{
-											padding: '10px 12px',
-											borderRadius: 10,
-											border: '1px solid #14b8a6',
-											background: '#ccfbf1',
-											color: '#0f766e',
-											cursor: publishing ? 'not-allowed' : 'pointer',
-											fontWeight: 700,
-											opacity: publishing ? 0.7 : 1,
-										}}
-										onClick={() => handlePublish(exam.id)}
-									>
-										{publishing ? 'Publishing…' : 'Publish now'}
-									</button>
-								)}
-							</div>
-						</article>
-					);
-				})}
-			</div>
-		</section>
+			{/* Exams Grid */}
+			{!loading && !error && filteredExams.length > 0 && (
+				<div
+					style={{
+						display: 'grid',
+						gap: 20,
+						gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))',
+					}}
+				>
+					{filteredExams.map(exam => (
+						<ExamCard
+							key={exam.id}
+							exam={exam}
+							onPublish={handlePublish}
+							onClone={handleClone}
+							onEdit={handleEdit}
+							publishing={publishingIds.has(exam.id)}
+						/>
+					))}
+				</div>
+			)}
+		</div>
 	);
 };
 
