@@ -242,3 +242,13 @@ export const getIssueById = async issueId => {
 };
 
 export const replyToIssue = (issueId, message) => tryPost(EP.issueReply(issueId), { message });
+
+// ---------------- Student: Account (non-auth) ----------------
+export const updateStudentProfile = (profile) => 
+  apiClient.put('/api/students/update', profile);
+
+export const changeStudentPassword = (payload) =>
+  apiClient.put('/api/students/change-password', payload);
+
+export const logoutStudentApi = () => 
+  apiClient.post('/api/students/logout');
