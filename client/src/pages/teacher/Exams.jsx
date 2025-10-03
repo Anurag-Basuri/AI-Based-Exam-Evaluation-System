@@ -1,5 +1,5 @@
 import React from 'react';
-import { safeApiCall, getTeacherExams, updateExamStatus } from '../../services/apiServices.js';
+import { safeApiCall, getTeacherExams, updateExamStatus } from '../../services/teacherServices.js';
 
 const statusChip = {
 	live: { bg: '#dcfce7', border: '#86efac', color: '#15803d', label: 'Live' },
@@ -138,6 +138,7 @@ const TeacherExams = () => {
 			{msg && (
 				<div
 					role="status"
+					aria-live="polite"
 					style={{
 						marginBottom: 12,
 						padding: '10px 12px',
@@ -151,8 +152,8 @@ const TeacherExams = () => {
 					{msg}
 				</div>
 			)}
-			{loading && <div style={{ color: '#475569', marginBottom: 12 }}>Loading exams…</div>}
-			{!loading && error && <div style={{ color: '#b91c1c', marginBottom: 12 }}>{error}</div>}
+			{loading && <div style={{ color: '#475569', marginBottom: 12 }} aria-live="polite">Loading exams…</div>}
+			{!loading && error && <div style={{ color: '#b91c1c', marginBottom: 12 }} role="alert">{error}</div>}
 
 			<div
 				style={{
@@ -231,7 +232,7 @@ const TeacherExams = () => {
 				</div>
 			)}
 
-			<div style={{ display: 'grid', gap: 16 }}>
+			<div style={{ display: 'grid', gap: 16 }} aria-busy={loading ? 'true' : 'false'}>
 				{filtered.map(exam => {
 					const chip = statusChip[exam.status] ?? statusChip.draft;
 					const publishing = !!busy[exam.id];

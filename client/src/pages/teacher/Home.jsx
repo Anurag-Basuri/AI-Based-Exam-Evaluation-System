@@ -6,7 +6,7 @@ import {
 	getTeacherExams,
 	getTeacherIssues,
 	getTeacherSubmissions,
-} from '../../services/apiServices.js';
+} from '../../services/teacherServices.js';
 
 const Banner = ({ type = 'info', children, onClose }) => (
 	<div
@@ -171,7 +171,7 @@ const TeacherHome = () => {
 					</Banner>
 				)}
 				{!err && info && <Banner onClose={() => setInfo('')}>{info}</Banner>}
-				{!err && loading && <div style={{ color: '#334155' }}>Loading overview…</div>}
+				{!err && loading && <div style={{ color: '#334155' }} aria-live="polite">Loading overview…</div>}
 				{!err && !loading && (
 					<button
 						onClick={load}
@@ -197,6 +197,7 @@ const TeacherHome = () => {
 					gap: 14,
 					gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
 				}}
+				aria-busy={loading ? 'true' : 'false'}
 			>
 				{insightCards.map(card => (
 					<div

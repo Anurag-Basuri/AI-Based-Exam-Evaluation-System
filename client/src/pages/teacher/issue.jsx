@@ -1,5 +1,5 @@
 import React from 'react';
-import { safeApiCall, getTeacherIssues, resolveTeacherIssue } from '../../services/apiServices.js';
+import { safeApiCall, getTeacherIssues, resolveTeacherIssue } from '../../services/teacherServices.js';
 
 const statusStyles = {
 	open: { label: 'Open', color: '#b45309', bg: '#fffbeb', border: '#fcd34d' },
@@ -88,6 +88,7 @@ const TeacherIssues = () => {
 			{msg && (
 				<div
 					role="status"
+					aria-live="polite"
 					style={{
 						marginBottom: 12,
 						padding: '10px 12px',
@@ -163,8 +164,8 @@ const TeacherIssues = () => {
 				</div>
 			</div>
 
-			{loading && <div style={{ color: '#475569' }}>Loading student issues…</div>}
-			{!loading && error && <div style={{ color: '#b91c1c', marginBottom: 12 }}>{error}</div>}
+			{loading && <div style={{ color: '#475569' }} aria-live="polite">Loading student issues…</div>}
+			{!loading && error && <div style={{ color: '#b91c1c', marginBottom: 12 }} role="alert">{error}</div>}
 			{!loading && !filtered.length && (
 				<div
 					style={{
@@ -179,7 +180,7 @@ const TeacherIssues = () => {
 				</div>
 			)}
 
-			<div style={{ display: 'grid', gap: 16 }}>
+			<div style={{ display: 'grid', gap: 16 }} aria-busy={loading ? 'true' : 'false'}>
 				{filtered.map(issue => {
 					const chip =
 						statusStyles[(issue.status || '').toLowerCase()] ?? statusStyles.open;

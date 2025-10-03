@@ -1,9 +1,14 @@
 import React from 'react';
 import {
-	safeApiCall,
-	getTeacherSubmissions,
-	evaluateTeacherSubmission,
+    // safeApiCall,
+    // getTeacherSubmissions,
+    // evaluateTeacherSubmission,
 } from '../../services/apiServices.js';
+import {
+  safeApiCall,
+  getTeacherSubmissions,
+  evaluateTeacherSubmission,
+} from '../../services/teacherServices.js';
 
 const statusMap = {
 	pending: { bg: '#fff7ed', border: '#fcd34d', color: '#92400e', label: 'Pending' },
@@ -106,6 +111,7 @@ const TeacherResults = () => {
 			{msg && (
 				<div
 					role="status"
+					aria-live="polite"
 					style={{
 						marginBottom: 12,
 						padding: '10px 12px',
@@ -181,8 +187,8 @@ const TeacherResults = () => {
 				</div>
 			</div>
 
-			{loading && <div style={{ color: '#475569' }}>Loading submissions…</div>}
-			{!loading && error && <div style={{ color: '#b91c1c', marginBottom: 12 }}>{error}</div>}
+			{loading && <div style={{ color: '#475569' }} aria-live="polite">Loading submissions…</div>}
+            {!loading && error && <div style={{ color: '#b91c1c', marginBottom: 12 }} role="alert">{error}</div>}
 			{!loading && !filtered.length && (
 				<div
 					style={{
@@ -197,7 +203,7 @@ const TeacherResults = () => {
 				</div>
 			)}
 
-			<div style={{ display: 'grid', gap: 16 }}>
+			<div style={{ display: 'grid', gap: 16 }} aria-busy={loading ? 'true' : 'false'}>
 				{filtered.map(sub => {
 					const chip = statusMap[sub.status] ?? statusMap.pending;
 					const isEvaluating = evaluatingId === sub.id;

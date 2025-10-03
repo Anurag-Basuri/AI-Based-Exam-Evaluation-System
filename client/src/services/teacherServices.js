@@ -223,3 +223,9 @@ export const getIssueById = async (issueId) => {
 
 export const resolveTeacherIssue = (issueId, payload = { reply: '' }) =>
     apiClient.patch(EP.issueResolve(issueId), payload);
+
+// ---------------- Teacher: Account (non-auth) ----------------
+export const updateTeacherProfile = (profile) => apiClient.put('/api/teachers/update', profile);
+
+export const changeTeacherPassword = (payload) =>
+    apiClient.put('/api/teachers/change-password', payload);
