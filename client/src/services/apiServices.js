@@ -1,4 +1,3 @@
-// Centralized, typed-ish client helpers using your apiClient/publicClient
 import { apiClient, publicClient } from './api.js';
 import { setToken, removeToken } from '../utils/handleToken.js';
 
@@ -64,59 +63,7 @@ export const safeApiCall = async (fn, ...args) => {
 	}
 };
 
-// Endpoints (adjust here if server paths differ)
-const EP = {
-	examsList: '/api/exams/all',
-	submissionStart: '/api/submissions/start',
-	submissionsMine: '/api/submissions/my',
-	issuesMine: '/api/issues/student',
-	issueCreate: '/api/issues/create',
-	studentUpdate: '/api/students/update',
-	changePassword: '/api/students/change-password',
-	logout: '/api/students/logout',
-};
-
-// Exams
-export const getStudentExams = async () => {
-	const res = await apiClient.get(EP.examsList);
-	const list = res?.data?.data || [];
-	return list.map(e => ({
-		id: String(e._id),
-		title: e.title,
-		status: e.status || 'upcoming',
-		durationMin: e.duration ?? e.durationMin ?? 0,
-		startAt: e.startTime ? new Date(e.startTime).toLocaleString() : '',
-	}));
-};
-
-export const startStudentSubmission = body => apiClient.post(EP.submissionStart, body);
-
-// Results
-export const getStudentResults = async () => {
-	const res = await apiClient.get(EP.submissionsMine);
-	const list = res?.data?.data || [];
-	return list.map(r => ({
-		id: String(r.id ?? r._id),
-		examTitle: r.examTitle ?? r.exam?.title ?? 'Exam',
-		score: r.score ?? 0,
-		maxScore: r.maxScore ?? 0,
-		status: r.status ?? 'pending',
-		evaluatedAt: r.evaluatedAt ?? (r.updatedAt ? new Date(r.updatedAt).toLocaleString() : null),
-		remarks: r.remarks ?? '',
-	}));
-};
-
-// Issues
-export const getStudentIssues = async () => {
-	const res = await apiClient.get(EP.issuesMine);
-	return res?.data?.data || [];
-};
-
-export const createStudentIssue = payload => apiClient.post(EP.issueCreate, payload);
-
-export const logoutStudentApi = () => apiClient.post(EP.logout);
-
-// --- Auth Services ---
+// ------ Student AuthServices ------
 export const registerStudent = async studentData => {
 	try {
 		const response = await publicClient.post('/api/students/register', studentData);
@@ -178,6 +125,7 @@ export const updateStudentProfile = async profileData => {
 	}
 };
 
+// ------ Teacher AuthServices ------
 export const registerTeacher = async teacherData => {
 	try {
 		const response = await publicClient.post('/api/teachers/register', teacherData);
@@ -237,37 +185,3 @@ export const updateTeacherProfile = async profileData => {
 		throw apiErr;
 	}
 };
-
-// --- Teacher data helpers (used by teacher pages) ---
-export const getTeacherExams = async (params = {}) => {
-	const res = await apiClient.get('/api/exams/all', { params });
-	return res?.data?.data || [];
-};
-
-export const getTeacherIssues = async (filters = {}) => {
-	const res = await apiClient.get('/api/issues/all', { params: filters });
-	return res?.data?.data || [];
-};
-
-export const getTeacherSubmissions = async examId => {
-	if (!examId) return [];
-	const res = await apiClient.get(`/api/submissions/exam/${encodeURIComponent(examId)}`);
-	const list = res?.data?.data || [];
-	// normalize defensively
-	return list.map(s => ({
-		id: String(s._id ?? s.id ?? ''),
-		examTitle: s.exam?.title ?? s.examTitle ?? 'Exam',
-		studentName: s.student?.fullname ?? s.student?.username ?? s.studentName ?? 'Student',
-		score: s.totalScore ?? s.score ?? 0,
-		maxScore: s.maxScore ?? s.totalMax ?? 0,
-		status: s.status ?? 'pending',
-		submittedAt: s.submittedAt
-			? new Date(s.submittedAt).toLocaleString()
-			: s.updatedAt
-				? new Date(s.updatedAt).toLocaleString()
-				: null,
-	}));
-};
-
-export const resolveIssue = async (issueId, reply) =>
-	apiClient.patch(`/api/issues/${encodeURIComponent(issueId)}/resolve`, { reply });
