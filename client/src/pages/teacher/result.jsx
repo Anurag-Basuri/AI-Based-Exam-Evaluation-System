@@ -1,27 +1,256 @@
 import React from 'react';
 import {
-    // safeApiCall,
-    // getTeacherSubmissions,
-    // evaluateTeacherSubmission,
-} from '../../services/apiServices.js';
-import {
-  safeApiCall,
-  getTeacherSubmissions,
-  evaluateTeacherSubmission,
+	safeApiCall,
+	getTeacherSubmissions,
+	evaluateTeacherSubmission,
 } from '../../services/teacherServices.js';
 
-const statusMap = {
-	pending: { bg: '#fff7ed', border: '#fcd34d', color: '#92400e', label: 'Pending' },
-	evaluated: { bg: '#ecfdf5', border: '#6ee7b7', color: '#047857', label: 'Evaluated' },
-	flagged: { bg: '#fef2f2', border: '#fca5a5', color: '#b91c1c', label: 'Flagged' },
+// Guard helper for rendering any possibly-object text
+const safeText = (v, fallback = '') => {
+	if (v == null) return fallback;
+	if (typeof v === 'string') return v;
+	if (typeof v === 'number' || typeof v === 'boolean') return String(v);
+	if (typeof v === 'object') return v.fullname || v.username || v.title || v.name || fallback;
+	return fallback;
 };
 
-const useSubmissions = () => {
+const statusConfig = {
+	pending: { bg: '#fef3c7', border: '#fbbf24', color: '#92400e', label: 'Pending', icon: '⏳' },
+	evaluated: {
+		bg: '#d1fae5',
+		border: '#34d399',
+		color: '#047857',
+		label: 'Evaluated',
+		icon: '✅',
+	},
+	submitted: {
+		bg: '#dbeafe',
+		border: '#60a5fa',
+		color: '#1d4ed8',
+		label: 'Submitted',
+		icon: '📋',
+	},
+	flagged: { bg: '#fee2e2', border: '#f87171', color: '#dc2626', label: 'Flagged', icon: '🚨' },
+};
+
+const SubmissionCard = ({ submission, onEvaluate, onGrade, isEvaluating }) => {
+	const config = statusConfig[submission.status] || statusConfig.pending;
+	const studentName = safeText(submission.studentName, 'Student');
+	const examTitle = safeText(submission.examTitle, 'Exam');
+
+	return (
+		<article
+			style={{
+				background: '#ffffff',
+				borderRadius: 16,
+				border: '1px solid #e5e7eb',
+				boxShadow: '0 4px 16px rgba(15,23,42,0.06)',
+				padding: '24px',
+				display: 'grid',
+				gridTemplateColumns: '1fr auto',
+				gap: 24,
+				alignItems: 'start',
+				transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+			}}
+			onMouseEnter={e => {
+				e.currentTarget.style.transform = 'translateY(-2px)';
+				e.currentTarget.style.boxShadow = '0 8px 28px rgba(15,23,42,0.12)';
+			}}
+			onMouseLeave={e => {
+				e.currentTarget.style.transform = 'translateY(0)';
+				e.currentTarget.style.boxShadow = '0 4px 16px rgba(15,23,42,0.06)';
+			}}
+		>
+			<div>
+				<header style={{ marginBottom: '16px' }}>
+					<div
+						style={{
+							display: 'flex',
+							alignItems: 'center',
+							gap: '12px',
+							marginBottom: '8px',
+						}}
+					>
+						<h3
+							style={{
+								margin: 0,
+								fontSize: '18px',
+								fontWeight: 700,
+								color: '#0f172a',
+								flex: 1,
+							}}
+						>
+							{examTitle}
+						</h3>
+						<span
+							style={{
+								display: 'flex',
+								alignItems: 'center',
+								gap: '6px',
+								fontSize: '12px',
+								padding: '6px 12px',
+								borderRadius: '20px',
+								border: `1px solid ${config.border}`,
+								background: config.bg,
+								color: config.color,
+								fontWeight: 700,
+							}}
+						>
+							<span>{config.icon}</span>
+							{config.label}
+						</span>
+					</div>
+
+					<div
+						style={{
+							color: '#64748b',
+							fontSize: '14px',
+							marginBottom: '8px',
+						}}
+					>
+						<strong style={{ color: '#374151' }}>Student:</strong> {studentName}
+					</div>
+
+					{submission.submittedAt && (
+						<div
+							style={{
+								color: '#64748b',
+								fontSize: '13px',
+							}}
+						>
+							Submitted: {submission.submittedAt}
+						</div>
+					)}
+				</header>
+
+				<div
+					style={{
+						display: 'flex',
+						alignItems: 'baseline',
+						gap: '8px',
+						padding: '16px',
+						background: '#f8fafc',
+						borderRadius: '12px',
+						border: '1px solid #e2e8f0',
+					}}
+				>
+					{submission.score !== null && submission.score !== undefined ? (
+						<>
+							<span
+								style={{
+									fontSize: '32px',
+									fontWeight: 800,
+									color: '#0f172a',
+									lineHeight: 1,
+								}}
+							>
+								{submission.score}
+							</span>
+							<span
+								style={{
+									fontSize: '18px',
+									fontWeight: 600,
+									color: '#64748b',
+								}}
+							>
+								/ {submission.maxScore || 100}
+							</span>
+							<span
+								style={{
+									fontSize: '14px',
+									color: '#6b7280',
+									marginLeft: '8px',
+								}}
+							>
+								(
+								{Math.round(
+									(submission.score / (submission.maxScore || 100)) * 100,
+								)}
+								%)
+							</span>
+						</>
+					) : (
+						<span
+							style={{
+								fontSize: '16px',
+								fontWeight: 600,
+								color: '#f59e0b',
+							}}
+						>
+							📝 Awaiting evaluation
+						</span>
+					)}
+				</div>
+			</div>
+
+			<div
+				style={{
+					background: '#f8fafc',
+					borderRadius: 12,
+					padding: '20px',
+					border: '1px solid #e2e8f0',
+					display: 'flex',
+					flexDirection: 'column',
+					gap: '12px',
+					minWidth: '180px',
+				}}
+			>
+				<button
+					onClick={() => onGrade(submission)}
+					style={{
+						padding: '12px 16px',
+						borderRadius: '8px',
+						border: 'none',
+						background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+						color: '#ffffff',
+						cursor: 'pointer',
+						fontWeight: 600,
+						fontSize: '14px',
+						boxShadow: '0 4px 12px rgba(99,102,241,0.25)',
+						display: 'flex',
+						alignItems: 'center',
+						justifyContent: 'center',
+						gap: '8px',
+					}}
+				>
+					✏️ Grade Manually
+				</button>
+
+				<button
+					onClick={() => onEvaluate(submission)}
+					disabled={isEvaluating}
+					style={{
+						padding: '12px 16px',
+						borderRadius: '8px',
+						border: '1px solid #d1d5db',
+						background: isEvaluating ? '#f3f4f6' : '#ffffff',
+						color: isEvaluating ? '#6b7280' : '#374151',
+						cursor: isEvaluating ? 'not-allowed' : 'pointer',
+						fontWeight: 600,
+						fontSize: '14px',
+						display: 'flex',
+						alignItems: 'center',
+						justifyContent: 'center',
+						gap: '8px',
+					}}
+				>
+					{isEvaluating ? '⏳ Evaluating...' : '🤖 Auto Evaluate'}
+				</button>
+			</div>
+		</article>
+	);
+};
+
+const TeacherResults = () => {
 	const [loading, setLoading] = React.useState(false);
 	const [error, setError] = React.useState('');
 	const [submissions, setSubmissions] = React.useState([]);
+	const [query, setQuery] = React.useState('');
+	const [status, setStatus] = React.useState('all');
+	const [message, setMessage] = React.useState('');
+	const [evaluatingId, setEvaluatingId] = React.useState('');
 
-	const load = React.useCallback(async () => {
+	const loadSubmissions = React.useCallback(async () => {
 		setLoading(true);
 		setError('');
 		try {
@@ -35,33 +264,35 @@ const useSubmissions = () => {
 	}, []);
 
 	React.useEffect(() => {
-		load();
-	}, [load]);
+		loadSubmissions();
+	}, [loadSubmissions]);
 
-	return { loading, error, submissions, setSubmissions, reload: load };
-};
+	const filteredSubmissions = React.useMemo(() => {
+		const q = query.toLowerCase();
+		return submissions.filter(sub => {
+			const statusMatch = status === 'all' || sub.status === status;
+			const name = safeText(sub.studentName, '').toLowerCase();
+			const title = safeText(sub.examTitle, '').toLowerCase();
+			const queryMatch = !q || title.includes(q) || name.includes(q);
+			return statusMatch && queryMatch;
+		});
+	}, [submissions, status, query]);
 
-const TeacherResults = () => {
-	const { loading, error, submissions, setSubmissions, reload } = useSubmissions();
-	const [query, setQuery] = React.useState('');
-	const [status, setStatus] = React.useState('all');
-	const [msg, setMsg] = React.useState('');
-	const [evaluatingId, setEvaluatingId] = React.useState('');
-
-	const q = query.toLowerCase();
-	const filtered = submissions.filter(sub => {
-		const statusMatch = status === 'all' ? true : sub.status === status;
-		const queryMatch =
-			!q ||
-			sub.examTitle.toLowerCase().includes(q) ||
-			sub.studentName.toLowerCase().includes(q);
-		return statusMatch && queryMatch;
-	});
+	const statusCounts = React.useMemo(() => {
+		const counts = { all: submissions.length };
+		submissions.forEach(sub => {
+			counts[sub.status] = (counts[sub.status] || 0) + 1;
+		});
+		return counts;
+	}, [submissions]);
 
 	const handleEvaluate = async submission => {
-		const { id, examTitle, studentName } = submission;
+		const id = submission.id;
+		const examTitle = safeText(submission.examTitle, 'Exam');
+		const studentName = safeText(submission.studentName, 'Student');
+
 		setEvaluatingId(id);
-		setMsg('');
+		setMessage('');
 		try {
 			await safeApiCall(evaluateTeacherSubmission, id);
 			setSubmissions(prev =>
@@ -75,282 +306,270 @@ const TeacherResults = () => {
 						: item,
 				),
 			);
-			setMsg(`Auto-evaluation triggered for ${studentName} (${examTitle}).`);
+			setMessage(`✅ Auto-evaluation completed for ${studentName} - ${examTitle}`);
 		} catch (e) {
-			setMsg(e?.message || 'Failed to trigger evaluation');
+			setMessage(`❌ ${e?.message || 'Failed to trigger evaluation'}`);
 		} finally {
 			setEvaluatingId('');
 		}
 	};
 
 	const handleGrade = submission => {
-		setMsg(
-			`Open grading panel for ${submission.studentName} – ${submission.examTitle} (to be implemented).`,
+		const examTitle = safeText(submission.examTitle, 'Exam');
+		const studentName = safeText(submission.studentName, 'Student');
+		setMessage(
+			`📝 Opening manual grading interface for ${studentName} - ${examTitle} (coming soon)`,
 		);
 	};
 
+	const filterOptions = [
+		{ key: 'all', label: 'All Submissions' },
+		{ key: 'pending', label: 'Pending' },
+		{ key: 'submitted', label: 'Submitted' },
+		{ key: 'evaluated', label: 'Evaluated' },
+		{ key: 'flagged', label: 'Flagged' },
+	];
+
 	return (
-		<section>
+		<div style={{ maxWidth: '1200px' }}>
+			{/* Header */}
 			<header
 				style={{
 					background:
-						'linear-gradient(135deg, rgba(99,102,241,0.18), rgba(99,102,241,0.05))',
-					padding: 20,
-					borderRadius: 18,
+						'linear-gradient(135deg, rgba(99,102,241,0.1), rgba(139,92,246,0.05))',
+					padding: '32px 28px',
+					borderRadius: 20,
 					border: '1px solid rgba(99,102,241,0.2)',
-					boxShadow: '0 12px 28px rgba(15,23,42,0.08)',
-					marginBottom: 18,
+					marginBottom: 32,
 				}}
 			>
-				<h1 style={{ margin: 0 }}>Exam Submissions</h1>
-				<p style={{ margin: '8px 0 0', color: '#475569' }}>
-					Manage grading, trigger auto-evaluation, and monitor flagged submissions.
-				</p>
-			</header>
-
-			{msg && (
 				<div
-					role="status"
-					aria-live="polite"
 					style={{
-						marginBottom: 12,
-						padding: '10px 12px',
-						borderRadius: 10,
-						border: '1px solid #c7d2fe',
-						background: '#eef2ff',
-						color: '#3730a3',
-						fontWeight: 600,
+						display: 'flex',
+						justifyContent: 'space-between',
+						alignItems: 'flex-start',
+						gap: 20,
 					}}
 				>
-					{msg}
+					<div>
+						<h1 style={{ margin: '0 0 8px 0', fontSize: '28px', fontWeight: 800 }}>
+							Exam Submissions
+						</h1>
+						<p style={{ margin: 0, color: '#64748b', fontSize: '16px' }}>
+							Review, evaluate, and provide feedback on student submissions.
+						</p>
+					</div>
+					<button
+						onClick={loadSubmissions}
+						disabled={loading}
+						style={{
+							padding: '12px 16px',
+							borderRadius: '10px',
+							border: '1px solid #d1d5db',
+							background: '#ffffff',
+							color: '#374151',
+							cursor: loading ? 'not-allowed' : 'pointer',
+							fontWeight: 600,
+							fontSize: '14px',
+							opacity: loading ? 0.7 : 1,
+						}}
+					>
+						{loading ? '⏳' : '🔄'} Refresh
+					</button>
+				</div>
+			</header>
+
+			{/* Status Message */}
+			{message && (
+				<div
+					style={{
+						marginBottom: 24,
+						padding: '14px 18px',
+						borderRadius: 12,
+						background: '#f0f9ff',
+						border: '1px solid #bae6fd',
+						color: '#0c4a6e',
+						fontWeight: 600,
+						display: 'flex',
+						justifyContent: 'space-between',
+						alignItems: 'center',
+					}}
+				>
+					<span>{message}</span>
+					<button
+						onClick={() => setMessage('')}
+						style={{
+							border: 'none',
+							background: 'transparent',
+							cursor: 'pointer',
+							color: 'inherit',
+							fontWeight: 800,
+							fontSize: '16px',
+							padding: '4px',
+						}}
+					>
+						×
+					</button>
 				</div>
 			)}
 
+			{/* Search and Filters */}
 			<div
 				style={{
-					display: 'flex',
-					flexWrap: 'wrap',
-					gap: 12,
-					marginBottom: 16,
-					alignItems: 'center',
+					background: '#ffffff',
+					padding: '24px',
+					borderRadius: 16,
+					border: '1px solid #e5e7eb',
+					marginBottom: 24,
+					boxShadow: '0 2px 8px rgba(15,23,42,0.04)',
 				}}
 			>
-				<div style={{ position: 'relative', flex: 1, minWidth: 260 }}>
-					<input
-						value={query}
-						onChange={e => setQuery(e.target.value)}
-						placeholder="Search by student or exam"
-						style={{
-							width: '100%',
-							padding: '10px 14px 10px 40px',
-							borderRadius: 12,
-							border: '1px solid #cbd5e1',
-							background: '#ffffff',
-							outline: 'none',
-						}}
-					/>
-					<span
-						aria-hidden
-						style={{
-							position: 'absolute',
-							left: 12,
-							top: '50%',
-							transform: 'translateY(-50%)',
-							color: '#94a3b8',
-						}}
-					>
-						🔎
-					</span>
-				</div>
+				<div style={{ display: 'flex', gap: 20, alignItems: 'center', flexWrap: 'wrap' }}>
+					<div style={{ position: 'relative', flex: '1 1 300px' }}>
+						<input
+							value={query}
+							onChange={e => setQuery(e.target.value)}
+							placeholder="Search by student name or exam title..."
+							style={{
+								width: '100%',
+								padding: '12px 16px 12px 48px',
+								borderRadius: 12,
+								border: '1px solid #d1d5db',
+								background: '#f9fafb',
+								outline: 'none',
+								fontSize: '14px',
+								fontWeight: 500,
+							}}
+						/>
+						<span
+							style={{
+								position: 'absolute',
+								left: 16,
+								top: '50%',
+								transform: 'translateY(-50%)',
+								color: '#9ca3af',
+								fontSize: '16px',
+							}}
+						>
+							🔍
+						</span>
+					</div>
 
-				<div style={{ display: 'flex', gap: 8 }}>
-					{['all', 'evaluated', 'pending', 'flagged'].map(st => {
-						const active = status === st;
-						return (
+					<div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+						{filterOptions.map(option => (
 							<button
-								key={st}
-								onClick={() => setStatus(st)}
+								key={option.key}
+								onClick={() => setStatus(option.key)}
 								style={{
-									padding: '8px 12px',
-									borderRadius: 999,
-									border: active ? '1px solid #6366f1' : '1px solid #cbd5e1',
-									background: active ? '#eef2ff' : '#ffffff',
-									color: active ? '#4338ca' : '#334155',
+									padding: '10px 16px',
+									borderRadius: 25,
+									border:
+										status === option.key
+											? '2px solid #6366f1'
+											: '1px solid #d1d5db',
+									background: status === option.key ? '#eef2ff' : '#ffffff',
+									color: status === option.key ? '#4338ca' : '#374151',
 									cursor: 'pointer',
-									fontWeight: 700,
+									fontWeight: 600,
+									fontSize: '14px',
+									display: 'flex',
+									alignItems: 'center',
+									gap: 8,
+									transition: 'all 0.2s ease',
 								}}
 							>
-								{st[0].toUpperCase() + st.slice(1)}
+								{option.label}
+								<span
+									style={{
+										background: status === option.key ? '#6366f1' : '#6b7280',
+										color: '#ffffff',
+										borderRadius: '12px',
+										padding: '2px 8px',
+										fontSize: '12px',
+										fontWeight: 700,
+										minWidth: '20px',
+										textAlign: 'center',
+									}}
+								>
+									{statusCounts[option.key] || 0}
+								</span>
 							</button>
-						);
-					})}
+						))}
+					</div>
 				</div>
 			</div>
 
-			{loading && <div style={{ color: '#475569' }} aria-live="polite">Loading submissions…</div>}
-            {!loading && error && <div style={{ color: '#b91c1c', marginBottom: 12 }} role="alert">{error}</div>}
-			{!loading && !filtered.length && (
+			{/* Error State */}
+			{error && (
 				<div
 					style={{
-						padding: 20,
-						borderRadius: 16,
-						border: '1px dashed #cbd5e1',
+						padding: '20px',
+						borderRadius: 12,
+						background: '#fef2f2',
+						border: '1px solid #fca5a5',
+						color: '#b91c1c',
+						textAlign: 'center',
+						marginBottom: 24,
+					}}
+				>
+					❌ {error}
+				</div>
+			)}
+
+			{/* Loading State */}
+			{loading && (
+				<div
+					style={{
+						padding: '60px 20px',
 						textAlign: 'center',
 						color: '#64748b',
 					}}
 				>
-					No submissions match your filters.
+					<div style={{ fontSize: '32px', marginBottom: 16 }}>⏳</div>
+					<p style={{ margin: 0, fontWeight: 600 }}>Loading submissions...</p>
 				</div>
 			)}
 
-			<div style={{ display: 'grid', gap: 16 }} aria-busy={loading ? 'true' : 'false'}>
-				{filtered.map(sub => {
-					const chip = statusMap[sub.status] ?? statusMap.pending;
-					const isEvaluating = evaluatingId === sub.id;
-					return (
-						<article
-							key={sub.id}
-							style={{
-								background: '#ffffff',
-								borderRadius: 18,
-								border: '1px solid #e2e8f0',
-								boxShadow: '0 12px 26px rgba(15,23,42,0.07)',
-								padding: 20,
-								display: 'grid',
-								gridTemplateColumns: '1fr minmax(160px, 220px)',
-								gap: 18,
-								alignItems: 'start',
-							}}
-						>
-							<div>
-								<header
-									style={{
-										display: 'flex',
-										alignItems: 'center',
-										gap: 10,
-										marginBottom: 10,
-									}}
-								>
-									<h2 style={{ margin: 0, fontSize: '1.05rem' }}>
-										{sub.examTitle}
-									</h2>
-									<span
-										style={{
-											fontSize: 12,
-											padding: '3px 10px',
-											borderRadius: 999,
-											border: `1px solid ${chip.border}`,
-											background: chip.bg,
-											color: chip.color,
-											fontWeight: 700,
-										}}
-									>
-										{chip.label}
-									</span>
-								</header>
-								<div style={{ color: '#475569', fontSize: 14, marginBottom: 6 }}>
-									Student: <strong>{sub.studentName}</strong>
-								</div>
-								<div style={{ color: '#475569', fontSize: 13, marginBottom: 12 }}>
-									Submitted at {sub.submittedAt}
-								</div>
-								<div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-									{sub.score != null ? (
-										<>
-											<span
-												style={{
-													fontSize: 28,
-													fontWeight: 800,
-													color: '#0f172a',
-												}}
-											>
-												{sub.score}
-											</span>
-											<span
-												style={{
-													fontSize: 16,
-													fontWeight: 600,
-													color: '#64748b',
-												}}
-											>
-												/{sub.maxScore}
-											</span>
-										</>
-									) : (
-										<span
-											style={{
-												fontSize: 16,
-												fontWeight: 600,
-												color: '#9a3412',
-											}}
-										>
-											Pending grading
-										</span>
-									)}
-								</div>
-							</div>
+			{/* Empty State */}
+			{!loading && !error && filteredSubmissions.length === 0 && (
+				<div
+					style={{
+						padding: '60px 20px',
+						textAlign: 'center',
+						background: '#ffffff',
+						borderRadius: 16,
+						border: '2px dashed #d1d5db',
+					}}
+				>
+					<div style={{ fontSize: '48px', marginBottom: 16 }}>📋</div>
+					<h3 style={{ margin: '0 0 8px 0', color: '#374151' }}>
+						{query || status !== 'all'
+							? 'No matching submissions'
+							: 'No submissions yet'}
+					</h3>
+					<p style={{ margin: 0, color: '#6b7280' }}>
+						{query || status !== 'all'
+							? 'Try adjusting your search or filters'
+							: 'Submissions will appear here once students start taking exams'}
+					</p>
+				</div>
+			)}
 
-							<div
-								style={{
-									background: '#f8fafc',
-									borderRadius: 14,
-									padding: 16,
-									border: '1px solid #e2e8f0',
-									display: 'grid',
-									gap: 10,
-								}}
-							>
-								<button
-									onClick={() => handleGrade(sub)}
-									style={{
-										padding: '10px 12px',
-										borderRadius: 10,
-										border: 'none',
-										background: '#6366f1',
-										color: '#ffffff',
-										cursor: 'pointer',
-										fontWeight: 700,
-										boxShadow: '0 12px 22px rgba(99,102,241,0.25)',
-									}}
-								>
-									Open grading
-								</button>
-								<button
-									onClick={() => handleEvaluate(sub)}
-									disabled={isEvaluating}
-									style={{
-										padding: '10px 12px',
-										borderRadius: 10,
-										border: '1px solid #cbd5e1',
-										background: '#ffffff',
-										color: '#4338ca',
-										cursor: isEvaluating ? 'not-allowed' : 'pointer',
-										fontWeight: 700,
-										opacity: isEvaluating ? 0.7 : 1,
-									}}
-								>
-									{isEvaluating ? 'Evaluating…' : 'Auto evaluate'}
-								</button>
-								<button
-									onClick={reload}
-									style={{
-										padding: '10px 12px',
-										borderRadius: 10,
-										border: '1px solid #e2e8f0',
-										background: '#f1f5f9',
-										color: '#1e293b',
-										cursor: 'pointer',
-										fontWeight: 700,
-									}}
-								>
-									Refresh list
-								</button>
-							</div>
-						</article>
-					);
-				})}
-			</div>
-		</section>
+			{/* Submissions List */}
+			{!loading && !error && filteredSubmissions.length > 0 && (
+				<div style={{ display: 'grid', gap: 20 }}>
+					{filteredSubmissions.map(submission => (
+						<SubmissionCard
+							key={submission.id}
+							submission={submission}
+							onEvaluate={handleEvaluate}
+							onGrade={handleGrade}
+							isEvaluating={evaluatingId === submission.id}
+						/>
+					))}
+				</div>
+			)}
+		</div>
 	);
 };
 
