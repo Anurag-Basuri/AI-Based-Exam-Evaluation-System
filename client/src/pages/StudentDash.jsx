@@ -9,6 +9,12 @@ import { useAuth } from '../hooks/useAuth.js';
 const StudentDash = () => {
 	const { theme } = useTheme();
 	const { user, logout } = useAuth();
+	const [sidebarError, setSidebarError] = React.useState(null);
+
+	const handleSidebarError = React.useCallback(error => {
+		console.error('Sidebar error:', error);
+		setSidebarError(error);
+	}, []);
 
 	const headerEl = React.useMemo(
 		() => (
@@ -169,9 +175,59 @@ const StudentDash = () => {
 		[],
 	);
 
+	// Custom error fallback for sidebar
+	const sidebarErrorFallback = React.useCallback(
+		(error, reset) => (
+			<div
+				style={{
+					width: 320,
+					height: '100vh',
+					background: 'var(--bg-secondary)',
+					display: 'flex',
+					alignItems: 'center',
+					justifyContent: 'center',
+					padding: '20px',
+					borderRight: '1px solid var(--border)',
+				}}
+			>
+				<div style={{ textAlign: 'center' }}>
+					<div style={{ fontSize: '32px', marginBottom: '16px' }}>⚠️</div>
+					<h3 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: 700 }}>
+						Navigation Error
+					</h3>
+					<p
+						style={{
+							margin: '0 0 16px 0',
+							fontSize: '14px',
+							color: 'var(--text-muted)',
+						}}
+					>
+						Failed to load sidebar
+					</p>
+					<button
+						onClick={reset}
+						style={{
+							padding: '8px 16px',
+							borderRadius: 8,
+							border: '1px solid var(--border)',
+							background: 'var(--bg)',
+							color: 'var(--text)',
+							cursor: 'pointer',
+							fontSize: '12px',
+							fontWeight: 600,
+						}}
+					>
+						Try Again
+					</button>
+				</div>
+			</div>
+		),
+		[],
+	);
+
 	return (
 		<>
-			{/* Add CSS animations */}
+			{/* CSS animations */}
 			<style>{`
                 @keyframes spin {
                     from { transform: rotate(0deg); }
@@ -187,26 +243,58 @@ const StudentDash = () => {
                     from { transform: translateX(-20px); opacity: 0; }
                     to { transform: translateX(0); opacity: 1; }
                 }
+                
+                @keyframes fadeIn {
+                    from { opacity: 0; }
+                    to { opacity: 1; }
+                }
             `}</style>
 
-			<Sidebar
-				header={headerEl}
-				footer={footerEl}
-				width={320}
-				collapsedWidth={80}
-				theme={theme}
-				items={items}
-				useOutlet={true}
-				style={{
-					fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif',
-				}}
-				contentStyle={{
-					background:
-						theme === 'dark'
-							? 'radial-gradient(ellipse at top left, rgba(16,185,129,0.05) 0%, transparent 50%), radial-gradient(ellipse at bottom right, rgba(59,130,246,0.05) 0%, transparent 50%), #0f172a'
-							: 'radial-gradient(ellipse at top left, rgba(16,185,129,0.08) 0%, transparent 50%), radial-gradient(ellipse at bottom right, rgba(59,130,246,0.08) 0%, transparent 50%), #ffffff',
-				}}
-			/>
+			{/* Wrap entire dashboard in error boundary */}
+			<ErrorBoundary>
+				{/* Sidebar with its own error handling */}
+				<ErrorBoundary fallback={sidebarErrorFallback}>
+					<Sidebar
+						header={headerEl}
+						footer={footerEl}
+						width={320}
+						collapsedWidth={80}
+						theme={theme}
+						items={items}
+						useOutlet={true}
+						style={{
+							fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif',
+						}}
+						contentStyle={{
+							background:
+								theme === 'dark'
+									? 'radial-gradient(ellipse at top left, rgba(16,185,129,0.05) 0%, transparent 50%), radial-gradient(ellipse at bottom right, rgba(59,130,246,0.05) 0%, transparent 50%), #0f172a'
+									: 'radial-gradient(ellipse at top left, rgba(16,185,129,0.08) 0%, transparent 50%), radial-gradient(ellipse at bottom right, rgba(59,130,246,0.08) 0%, transparent 50%), #ffffff',
+						}}
+					/>
+				</ErrorBoundary>
+
+				{/* Main content with error boundary and suspense */}
+				<div
+					style={{
+						marginLeft: 320,
+						minHeight: '100vh',
+						padding: '32px',
+						position: 'relative',
+						animation: 'fadeIn 0.3s ease-in-out',
+					}}
+				>
+					<ErrorBoundary>
+						<Suspense
+							fallback={
+								<RouteFallback message="Loading page content" fullscreen={false} />
+							}
+						>
+							<Outlet />
+						</Suspense>
+					</ErrorBoundary>
+				</div>
+			</ErrorBoundary>
 		</>
 	);
 };
