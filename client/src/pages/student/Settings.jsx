@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth.js';
 import {
 	safeApiCall,
@@ -160,9 +161,9 @@ const normalizePhone = v =>
 
 const StudentSettings = () => {
 	const { user, setUser, logout } = useAuth();
-
-	// Keep address as a simple string (your storage format)
-	const [profile, setProfile] = useState({
+	const navigate = useNavigate();
+    // Keep address as a simple string (your storage format)
+    const [profile, setProfile] = useState({
 		username: '',
 		fullname: '',
 		email: '',
@@ -306,6 +307,8 @@ const StudentSettings = () => {
 			// ignore API errors and proceed to local logout
 		} finally {
 			logout?.();
+			// ensure the user lands on auth page
+			try { navigate('/auth', { replace: true }); } catch {}
 			setLoggingOut(false);
 		}
 	};
@@ -340,7 +343,7 @@ const StudentSettings = () => {
 			<Card
 				title="Profile"
 				submitText={
-					savingProfile || loadingProfile ? 'Saving…' : isDirty ? 'Save Profile' : 'Saved'
+					savingProfile || loadingProfile ? 'Saving…' : 'Save Profile'
 				}
 				submitting={savingProfile || loadingProfile || !isDirty}
 				onSubmit={onSaveProfile}
@@ -417,6 +420,43 @@ const StudentSettings = () => {
 							autoComplete="street-address"
 						/>
 					</Field>
+				</div>
+				<div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+					<button
+						type="button"
+						onClick={() => setProfile(initialProfileRef.current)}
+						disabled={!isDirty || loadingProfile || savingProfile}
+						title="Reset changes"
+						style={{
+							padding: '10px 14px',
+							borderRadius: 10,
+							border: '1px solid var(--border)',
+							background: 'var(--surface)',
+							color: 'var(--text-muted)',
+							fontWeight: 700,
+							cursor: !isDirty ? 'not-allowed' : 'pointer',
+							opacity: !isDirty ? 0.6 : 1,
+						}}
+					>
+						Reset
+					</button>
+					<button
+						type="submit"
+						disabled={savingProfile || loadingProfile || !isDirty}
+						style={{
+							padding: '10px 14px',
+							borderRadius: 10,
+							border: '1px solid color-mix(in srgb, var(--text) 10%, var(--border))',
+							background: 'linear-gradient(135deg, #22c55e, #16a34a)',
+							color: '#fff',
+							fontWeight: 800,
+							minWidth: 120,
+							cursor: savingProfile || loadingProfile || !isDirty ? 'not-allowed' : 'pointer',
+							opacity: savingProfile || loadingProfile || !isDirty ? 0.8 : 1,
+						}}
+					>
+						{savingProfile ? 'Saving…' : 'Save Profile'}
+					</button>
 				</div>
 			</Card>
 
