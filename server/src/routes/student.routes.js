@@ -3,6 +3,7 @@ import {
     createStudent,
     loginStudent,
     logoutStudent,
+    getStudentProfile,
     updateStudent,
     changePassword
 } from '../controllers/student.controller.js';
@@ -36,6 +37,14 @@ router.post(
     checkAuth,
     verifyStudent,
     logoutStudent
+);
+
+// Get student profile
+router.get(
+    '/profile',
+    checkAuth,
+    verifyStudent,
+    getStudentProfile
 );
 
 // Update student profile

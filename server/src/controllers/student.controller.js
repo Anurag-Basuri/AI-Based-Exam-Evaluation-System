@@ -101,6 +101,22 @@ const logoutStudent = asyncHandler(async (req, res) => {
     return ApiResponse.success(res, { message: 'Logged out successfully' });
 });
 
+// Student Profile
+const getStudentProfile = asyncHandler(async (req, res) => {
+    const studentId = req.student?._id || req.user?.id;
+
+    const student = await Student.findById(studentId).select('-password -refreshToken -resetPasswordToken -resetPasswordExpires');
+    if (!student) {
+        throw ApiError.NotFound('Student not found');
+    }
+
+    return ApiResponse.success(
+        res,
+        student,
+        'Student profile fetched successfully'
+    );
+});
+
 // Update student details
 const updateStudent = asyncHandler(async (req, res) => {
     const studentId = req.student?._id || req.user?.id;
@@ -148,6 +164,7 @@ export {
     createStudent,
     loginStudent,
     logoutStudent,
+    getStudentProfile,
     updateStudent,
     changePassword
 };
