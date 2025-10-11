@@ -29,13 +29,6 @@ const Sidebar = ({
 		return () => window.removeEventListener('resize', onResize);
 	}, [mobileBreakpoint]);
 
-	// Close sidebar when switching to mobile
-	useEffect(() => {
-		if (isMobile && expanded) {
-			// keep user state; do nothing
-		}
-	}, [isMobile, expanded]);
-
 	const toggle = () => {
 		if (isControlled) {
 			onToggle?.(!controlledExpanded);
@@ -58,20 +51,20 @@ const Sidebar = ({
 					borderStrong: 'rgba(148,163,184,0.3)',
 					fg: '#f1f5f9',
 					fgMuted: '#94a3b8',
-					accent: '#3b82f6',
-					accentStrong: '#2563eb',
-					hover: 'rgba(59,130,246,0.08)',
+					accent: '#22c55e',
+					accentStrong: '#16a34a',
+					hover: 'rgba(34,197,94,0.10)',
 					activeBg:
-						'linear-gradient(135deg, rgba(59,130,246,0.18), rgba(99,102,241,0.12))',
-					activeGlow: '0 0 20px rgba(59,130,246,0.25)',
+						'linear-gradient(135deg, rgba(34,197,94,0.18), rgba(16,185,129,0.12))',
+					activeGlow: '0 0 20px rgba(34,197,94,0.25)',
 					shadow: '0 20px 40px rgba(15,23,42,0.4)',
 				}
 			: {
 					bg: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
 					card: 'rgba(255,255,255,0.9)',
 					cardHover: 'rgba(248,250,252,0.95)',
-					border: 'rgba(15,23,42,0.1)',
-					borderStrong: 'rgba(15,23,42,0.15)',
+					border: 'rgba(15,23,42,0.08)',
+					borderStrong: 'rgba(15,23,42,0.12)',
 					fg: '#0f172a',
 					fgMuted: '#64748b',
 					accent: '#0ea5e9',
@@ -83,8 +76,7 @@ const Sidebar = ({
 					shadow: '0 20px 40px rgba(15,23,42,0.1)',
 				};
 
-	const navWidth = isMobile ? width : expanded ? width : collapsedWidth;
-
+	const navWidth = isMobile ? Math.min(width, 320) : expanded ? width : collapsedWidth;
 	const safeItems = useMemo(() => (Array.isArray(items) ? items : []), [items]);
 
 	const NavItem = ({ item }) => {
@@ -165,7 +157,7 @@ const Sidebar = ({
 								{item.icon ?? '●'}
 							</div>
 							{expanded && (
-								<span style={{ fontWeight: isActive ? 700 : 500, flex: 1 }}>
+								<span style={{ fontWeight: isActive ? 700 : 600, flex: 1 }}>
 									{item.label}
 								</span>
 							)}
@@ -177,7 +169,7 @@ const Sidebar = ({
 										padding: '2px 8px',
 										fontSize: 11,
 										borderRadius: 10,
-										fontWeight: 700,
+										fontWeight: 800,
 										minWidth: 18,
 										textAlign: 'center',
 										boxShadow: '0 2px 8px rgba(2,132,199,0.25)',
@@ -231,21 +223,28 @@ const Sidebar = ({
 				>
 					{item.icon ?? '●'}
 				</div>
-				{expanded && <span style={{ flex: 1 }}>{item.label}</span>}
+				{expanded && <span style={{ flex: 1, fontWeight: 600 }}>{item.label}</span>}
 			</button>
 		);
 	};
 
+	// Drawer (mobile) vs Sticky (desktop)
+	const isDrawer = isMobile;
+	const topOffset = isDrawer ? 'var(--header-h, 64px)' : 'calc(var(--header-h, 64px) + 12px)';
+
 	return (
 		<>
-			{/* Mobile overlay */}
-			{isMobile && expanded && (
+			{/* Mobile overlay drawer backdrop (under the header) */}
+			{isDrawer && expanded && (
 				<div
 					onClick={() => toggle()}
 					style={{
 						position: 'fixed',
-						inset: 0,
-						background: 'rgba(0,0,0,0.35)',
+						top: 'var(--header-h, 64px)',
+						left: 0,
+						right: 0,
+						bottom: 0,
+						background: 'rgba(0,0,0,0.45)',
 						zIndex: 999,
 					}}
 				/>
@@ -253,42 +252,46 @@ const Sidebar = ({
 
 			<nav
 				style={{
-					position: 'fixed',
-					left: 0,
-					top: 0,
-					height: '100vh',
-					width: navWidth,
+					position: isDrawer ? 'fixed' : 'sticky',
+					top: topOffset,
+					left: isDrawer ? 0 : 'auto',
+					height: isDrawer ? `calc(100dvh - var(--header-h, 64px))` : 'auto',
+					maxHeight: isDrawer
+						? `calc(100dvh - var(--header-h, 64px))`
+						: 'calc(100dvh - var(--header-h, 64px) - 24px)',
+					width: isDrawer ? navWidth : '100%',
 					display: 'flex',
 					flexDirection: 'column',
 					background: palette.bg,
-					borderRight: `1px solid ${palette.borderStrong}`,
+					border: `1px solid ${palette.borderStrong}`,
 					color: palette.fg,
-					backdropFilter: 'saturate(140%) blur(12px)',
-					WebkitBackdropFilter: 'saturate(140%) blur(12px)',
 					boxShadow: palette.shadow,
-					zIndex: 1000,
-					transition: 'width 0.25s ease, transform 0.25s ease',
-					transform: isMobile
+					zIndex: isDrawer ? 1000 : 1,
+					transition: 'transform 0.25s ease, width 0.25s ease',
+					transform: isDrawer
 						? expanded
 							? 'translateX(0)'
-							: 'translateX(-100%)'
+							: 'translateX(-105%)'
 						: 'none',
+					borderRadius: isDrawer ? '0 12px 12px 0' : 12,
+					overflow: 'hidden',
 					...style,
 				}}
 			>
 				{/* Header */}
 				<div
 					style={{
-						padding: expanded ? '16px' : '16px 10px',
-						minHeight: 72,
+						padding: '14px 14px',
+						minHeight: 60,
 						display: 'flex',
 						alignItems: 'center',
 						justifyContent: 'space-between',
 						borderBottom: `1px solid ${palette.border}`,
 						background: palette.card,
+						backdropFilter: 'blur(6px)',
 					}}
 				>
-					{expanded && header ? <div style={{ flex: 1 }}>{header}</div> : <div />}
+					{header ? <div style={{ flex: 1, minWidth: 0 }}>{header}</div> : <div />}
 					{collapsible && (
 						<button
 							type="button"
@@ -300,10 +303,10 @@ const Sidebar = ({
 								border: `1px solid ${palette.border}`,
 								background: palette.card,
 								color: palette.fg,
-								padding: '8px',
+								padding: '8px 10px',
 								borderRadius: 10,
 								cursor: 'pointer',
-								fontWeight: 700,
+								fontWeight: 800,
 								fontSize: 12,
 								transition: 'all 0.2s ease',
 							}}
@@ -316,7 +319,7 @@ const Sidebar = ({
 								e.currentTarget.style.transform = 'scale(1)';
 							}}
 						>
-							{isMobile ? '✖' : expanded ? '◀' : '▶'}
+							{isDrawer ? '✖' : expanded ? '◀' : '▶'}
 						</button>
 					)}
 				</div>
@@ -330,6 +333,7 @@ const Sidebar = ({
 						flexDirection: 'column',
 						gap: 8,
 						overflowY: 'auto',
+						background: 'transparent',
 					}}
 				>
 					{safeItems.map(item => (
