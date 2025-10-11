@@ -23,6 +23,24 @@ const Header = ({ transparent = false }) => {
 
 	const userDdRef = useRef(null);
 	const [showUserDropdown, setShowUserDropdown] = useState(false);
+	const rootRef = useRef(null);
+
+	// Sync --header-h to real header height for perfect sticky offsets
+	useEffect(() => {
+		if (!rootRef.current) return;
+		const setVar = () => {
+			const h = rootRef.current.getBoundingClientRect().height;
+			document.documentElement.style.setProperty('--header-h', `${Math.round(h)}px`);
+		};
+		setVar();
+		const ro = new ResizeObserver(setVar);
+		ro.observe(rootRef.current);
+		window.addEventListener('resize', setVar);
+		return () => {
+			ro.disconnect();
+			window.removeEventListener('resize', setVar);
+		};
+	}, []);
 
 	useEffect(() => {
 		if (typeof document === 'undefined') return;
@@ -78,6 +96,7 @@ const Header = ({ transparent = false }) => {
 
 	return (
 		<header
+			ref={rootRef}
 			style={{
 				position: 'sticky',
 				top: 0,
