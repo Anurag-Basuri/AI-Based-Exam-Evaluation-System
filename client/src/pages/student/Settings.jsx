@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useAuth } from '../../hooks/useAuth.js';
 import {
 	safeApiCall,
@@ -75,7 +75,7 @@ const Field = ({ label, required, children }) => (
 	</label>
 );
 
-const Input = ({ style, ...props }) => (
+const Input = props => (
 	<input
 		{...props}
 		style={{
@@ -86,18 +86,6 @@ const Input = ({ style, ...props }) => (
 			color: 'var(--text)',
 			fontSize: 14,
 			outline: 'none',
-			transition: 'border-color .15s ease, box-shadow .15s ease',
-			boxShadow: 'none',
-			...style,
-		}}
-		onFocus={e => {
-			e.currentTarget.style.borderColor = 'var(--text-muted)';
-			e.currentTarget.style.boxShadow =
-				'0 0 0 3px color-mix(in srgb, var(--text-muted) 20%, transparent)';
-		}}
-		onBlur={e => {
-			e.currentTarget.style.borderColor = 'var(--border)';
-			e.currentTarget.style.boxShadow = 'none';
 		}}
 	/>
 );
@@ -155,6 +143,7 @@ const Card = ({ title, children, onSubmit, submitText, submitting }) => (
 					fontWeight: 800,
 					cursor: submitting ? 'not-allowed' : 'pointer',
 					opacity: submitting ? 0.7 : 1,
+					minWidth: 120,
 				}}
 			>
 				{submitting ? 'Please wait…' : submitText}
@@ -163,13 +152,17 @@ const Card = ({ title, children, onSubmit, submitText, submitting }) => (
 	</form>
 );
 
-const StudentSettings = () => {
-	const auth = useAuth();
-	const user = auth?.user;
-	const logout = auth?.logout;
+const validateEmail = v => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v || '').trim());
+const normalizePhone = v =>
+	String(v || '')
+		.replace(/[^\d+]/g, '')
+		.slice(0, 20);
 
-	// Start empty; fill from API (token may not include full details)
-	const [profile, setProfile] = React.useState({
+const StudentSettings = () => {
+	const { user, setUser, logout } = useAuth();
+
+	// Keep address as a simple string (your storage format)
+	const [profile, setProfile] = useState({
 		username: '',
 		fullname: '',
 		email: '',
@@ -178,26 +171,27 @@ const StudentSettings = () => {
 		address: '',
 	});
 
-	const [pwd, setPwd] = React.useState({
+	const initialProfileRef = useRef(profile);
+	const [pwd, setPwd] = useState({
 		currentPassword: '',
 		newPassword: '',
 		confirmPassword: '',
 	});
 
-	const [savingProfile, setSavingProfile] = React.useState(false);
-	const [savingPwd, setSavingPwd] = React.useState(false);
-	const [loadingProfile, setLoadingProfile] = React.useState(true);
-	const [loggingOut, setLoggingOut] = React.useState(false);
-	const [msg, setMsg] = React.useState({ type: 'info', text: '' });
+	const [savingProfile, setSavingProfile] = useState(false);
+	const [savingPwd, setSavingPwd] = useState(false);
+	const [loadingProfile, setLoadingProfile] = useState(true);
+	const [loggingOut, setLoggingOut] = useState(false);
+	const [msg, setMsg] = useState({ type: 'info', text: '' });
 
-	// Load full profile from server (fallback to token fields if any)
-	React.useEffect(() => {
-		let isMounted = true;
+	// Load full profile (token may be minimal)
+	useEffect(() => {
+		let mounted = true;
 		(async () => {
 			try {
 				setLoadingProfile(true);
 				const server = await safeApiCall(getStudentProfile);
-				if (!isMounted) return;
+				if (!mounted) return;
 				const merged = {
 					username: server?.username ?? user?.username ?? '',
 					fullname: server?.fullname ?? user?.fullname ?? '',
@@ -207,28 +201,46 @@ const StudentSettings = () => {
 					address: server?.address ?? user?.address ?? '',
 				};
 				setProfile(merged);
-				// Optionally sync auth user with fetched profile if setter exists
-				if (auth?.setUser) auth.setUser(prev => ({ ...(prev || {}), ...merged }));
-			} catch (e) {
-				// show non-blocking info
+				initialProfileRef.current = merged;
+				if (setUser) setUser(prev => ({ ...(prev || {}), ...merged }));
+			} catch {
+				// Fall back to token user if available
+				const fallback = {
+					username: user?.username ?? '',
+					fullname: user?.fullname ?? '',
+					email: user?.email ?? '',
+					phonenumber: user?.phonenumber ?? '',
+					gender: user?.gender ?? '',
+					address: user?.address ?? '',
+				};
+				setProfile(fallback);
+				initialProfileRef.current = fallback;
 				setMsg({
 					type: 'info',
 					text: 'Using cached account info. Live profile unavailable.',
 				});
 			} finally {
-				if (isMounted) setLoadingProfile(false);
+				if (mounted) setLoadingProfile(false);
 			}
 		})();
 		return () => {
-			isMounted = false;
+			mounted = false;
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
-	const show = (text, type = 'info') => setMsg({ text, type });
+	const show = useCallback((text, type = 'info') => setMsg({ text, type }), []);
+
+	const isDirty =
+		JSON.stringify(profile) !== JSON.stringify(initialProfileRef.current) && !loadingProfile;
 
 	const onSaveProfile = async e => {
 		e.preventDefault();
+		if (!validateEmail(profile.email)) {
+			show('Please enter a valid email address.', 'error');
+			return;
+		}
+
 		setSavingProfile(true);
 		setMsg({ text: '', type: 'info' });
 
@@ -237,17 +249,18 @@ const StudentSettings = () => {
 				username: String(profile.username || '').trim(),
 				fullname: String(profile.fullname || '').trim(),
 				email: String(profile.email || '').trim(),
-				phonenumber: String(profile.phonenumber || '').trim(),
+				phonenumber: normalizePhone(profile.phonenumber),
 				gender: String(profile.gender || '').trim(),
-				address: String(profile.address || '').trim(),
+				address: String(profile.address || '').trim(), // address is a string in your model
 			};
 
-			const payload = await safeApiCall(updateStudentProfile, body);
+			const saved = await safeApiCall(updateStudentProfile, body);
 
-			// Update auth context if setter exists
-			if (auth?.setUser) {
-				auth.setUser(prev => ({ ...(prev || {}), ...(payload || body) }));
-			}
+			// Sync UI state and auth context
+			const merged = { ...(saved || body) };
+			setProfile(merged);
+			initialProfileRef.current = merged;
+			if (setUser) setUser(prev => ({ ...(prev || {}), ...merged }));
 
 			show('Profile updated successfully.', 'success');
 		} catch (err) {
@@ -290,7 +303,7 @@ const StudentSettings = () => {
 		try {
 			await safeApiCall(logoutStudentApi);
 		} catch {
-			// proceed to local logout regardless
+			// ignore API errors and proceed to local logout
 		} finally {
 			logout?.();
 			setLoggingOut(false);
@@ -299,7 +312,7 @@ const StudentSettings = () => {
 
 	return (
 		<div style={{ maxWidth: 860, display: 'grid', gap: 16 }}>
-			{/* Page heading */}
+			{/* Heading */}
 			<div
 				style={{
 					background: 'var(--surface)',
@@ -326,8 +339,10 @@ const StudentSettings = () => {
 			{/* Profile */}
 			<Card
 				title="Profile"
-				submitText={savingProfile ? 'Saving…' : 'Save Profile'}
-				submitting={savingProfile || loadingProfile}
+				submitText={
+					savingProfile || loadingProfile ? 'Saving…' : isDirty ? 'Save Profile' : 'Saved'
+				}
+				submitting={savingProfile || loadingProfile || !isDirty}
 				onSubmit={onSaveProfile}
 			>
 				<div
@@ -488,7 +503,7 @@ const StudentSettings = () => {
 						fontWeight: 900,
 						cursor: 'pointer',
 						opacity: loggingOut ? 0.8 : 1,
-						minWidth: 110,
+						minWidth: 130,
 					}}
 				>
 					{loggingOut ? 'Logging out…' : 'Logout'}
