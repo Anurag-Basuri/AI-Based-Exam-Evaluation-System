@@ -92,44 +92,50 @@ const tryPut = async (urls, body, config) => {
 
 // ---------- Endpoints (with fallbacks) ----------
 const EP = {
-    // Exams visible to a student
-    examsAvailable: ['/api/exams/available', '/api/exams/student', '/api/exams/my'],
-    examById: id => `/api/exams/${encodeURIComponent(id)}`,
+	// Exams visible to a student
+	examsAvailable: ['/api/exams/available', '/api/exams/student', '/api/exams/my'],
+	examById: id => `/api/exams/${encodeURIComponent(id)}`,
 
-    // Submissions (student-facing)
-    submissionStart: examId => [
-        `/api/submissions/start/${encodeURIComponent(examId)}`,
-        '/api/submissions/start', // body: { examId }
-        '/api/submissions', // body: { examId }
-    ],
-    submissionsMine: ['/api/submissions/me', '/api/submissions/student', '/api/submissions/my'],
-    submissionById: id => `/api/submissions/${encodeURIComponent(id)}`,
-    submissionSaveAnswers: id => [
-        `'/api/submissions/${encodeURIComponent(id)}/answers`,
-        `'/api/submissions/${encodeURIComponent(id)}/answer`,
-    ],
-    submissionSubmit: id => [
-        `'/api/submissions/${encodeURIComponent(id)}/submit`,
-        `'/api/submissions/${encodeURIComponent(id)}/finalize`,
-    ],
+	// Submissions (student-facing)
+	submissionStart: examId => [
+		`/api/submissions/start/${encodeURIComponent(examId)}`,
+		'/api/submissions/start', // body: { examId }
+		'/api/submissions', // body: { examId }
+	],
+	submissionsMine: ['/api/submissions/me', '/api/submissions/student', '/api/submissions/my'],
+	submissionById: id => `/api/submissions/${encodeURIComponent(id)}`,
+	submissionSaveAnswers: id => [
+		`'/api/submissions/${encodeURIComponent(id)}/answers`,
+		`'/api/submissions/${encodeURIComponent(id)}/answer`,
+	],
+	submissionSubmit: id => [
+		`'/api/submissions/${encodeURIComponent(id)}/submit`,
+		`'/api/submissions/${encodeURIComponent(id)}/finalize`,
+	],
 
-    // Issues (student-facing)
-    issuesMine: ['/api/issues/me', '/api/issues/student', '/api/issues/my'],
-    issueCreate: ['/api/issues/create', '/api/issues'],
-    issueById: id => `/api/issues/${encodeURIComponent(id)}`,
-    issueReply: id => [
-        `'/api/issues/${encodeURIComponent(id)}/reply`,
-        `'/api/issues/${encodeURIComponent(id)}`,
-    ],
+	// Issues (student-facing)
+	issuesMine: ['/api/issues/me', '/api/issues/student', '/api/issues/my'],
+	issueCreate: ['/api/issues/create', '/api/issues'],
+	issueById: id => `/api/issues/${encodeURIComponent(id)}`,
+	issueReply: id => [
+		`'/api/issues/${encodeURIComponent(id)}/reply`,
+		`'/api/issues/${encodeURIComponent(id)}`,
+	],
 
-    // Student account (match server: /api/student/*)
-    me: ['/api/student/profile', '/api/students/profile', '/api/students/me'],
-    updateMe: ['/api/student/update', '/api/students/update', '/api/students/me'],
-    changePassword: [
-        '/api/student/change-password',
-        '/api/students/change-password',
-        '/api/students/password',
-    ],
+	// Student account (match server: /student/*, also support /api/student/*)
+	me: ['/student/profile', '/api/student/profile', '/api/students/profile', '/api/students/me'],
+	updateMe: [
+		'/student/update',
+		'/api/student/update',
+		'/api/students/update',
+		'/api/students/me',
+	],
+	changePassword: [
+		'/student/change-password',
+		'/api/student/change-password',
+		'/api/students/change-password',
+		'/api/students/password',
+	],
 };
 
 // ---------- Normalizers ----------
