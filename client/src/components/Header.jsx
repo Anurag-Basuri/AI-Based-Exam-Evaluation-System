@@ -81,7 +81,7 @@ const Header = ({ transparent = false }) => {
 		} catch {}
 	};
 
-	const handleLogout = async () => {
+	const handleLogout = async () => { 
 		setShowUserDropdown(false);
 		try {
 			role === 'teacher' ? await logoutTeacher() : await logoutStudent();

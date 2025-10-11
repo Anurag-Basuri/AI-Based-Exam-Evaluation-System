@@ -5,6 +5,7 @@ import ErrorBoundary from '../components/ErrorBoundary.jsx';
 import RouteFallback from '../components/RouteFallback.jsx';
 import { useTheme } from '../hooks/useTheme.js';
 import { useAuth } from '../hooks/useAuth.js';
+import { safeApiCall, logoutStudentApi } from '../services/studentServices.js';
 
 const SIDEBAR_WIDTH = 280;
 const MOBILE_BREAKPOINT = 1024;
@@ -17,6 +18,7 @@ const StudentDash = () => {
 		typeof window !== 'undefined' ? window.innerWidth < MOBILE_BREAKPOINT : false,
 	);
 	const [sidebarOpen, setSidebarOpen] = React.useState(false);
+	const [loggingOutFooter, setLoggingOutFooter] = React.useState(false);
 
 	React.useEffect(() => {
 		const onResize = () => {
@@ -130,7 +132,12 @@ const StudentDash = () => {
 				</div>
 
 				<button
-					onClick={logout}
+					onClick={async () => {
+						if (loggingOutFooter) return;
+						setLoggingOutFooter(true);
+						try { await safeApiCall(logoutStudentApi); } catch {}
+						finally { logout?.(); setLoggingOutFooter(false); }
+					}}
 					style={{
 						width: '100%',
 						padding: '10px 14px',
@@ -142,15 +149,16 @@ const StudentDash = () => {
 						fontWeight: 800,
 						cursor: 'pointer',
 						transition: 'transform 0.15s ease, filter 0.15s ease',
+						opacity: loggingOutFooter ? 0.8 : 1,
 					}}
 					onMouseEnter={e => (e.currentTarget.style.transform = 'translateY(-1px)')}
 					onMouseLeave={e => (e.currentTarget.style.transform = 'translateY(0)')}
 				>
-					🚪 Logout
+					{loggingOutFooter ? 'Logging out…' : '🚪 Logout'}
 				</button>
 			</div>
 		),
-		[user, logout],
+		[user, logout, loggingOutFooter],
 	);
 
 	const items = React.useMemo(
