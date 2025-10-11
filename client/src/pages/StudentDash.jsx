@@ -5,7 +5,6 @@ import ErrorBoundary from '../components/ErrorBoundary.jsx';
 import RouteFallback from '../components/RouteFallback.jsx';
 import { useTheme } from '../hooks/useTheme.js';
 import { useAuth } from '../hooks/useAuth.js';
-import { safeApiCall, logoutStudentApi } from '../services/studentServices.js';
 
 const SIDEBAR_WIDTH = 280;
 const MOBILE_BREAKPOINT = 1024;
@@ -135,8 +134,11 @@ const StudentDash = () => {
 					onClick={async () => {
 						if (loggingOutFooter) return;
 						setLoggingOutFooter(true);
-						try { await safeApiCall(logoutStudentApi); } catch {}
-						finally { logout?.(); setLoggingOutFooter(false); }
+						try {
+							await Promise.resolve(logout?.());
+						} finally {
+							setLoggingOutFooter(false);
+						}
 					}}
 					style={{
 						width: '100%',

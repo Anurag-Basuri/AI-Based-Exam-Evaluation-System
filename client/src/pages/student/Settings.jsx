@@ -5,7 +5,6 @@ import {
 	safeApiCall,
 	updateStudentProfile,
 	changeStudentPassword,
-	logoutStudentApi,
 	getStudentProfile,
 } from '../../services/studentServices.js';
 
@@ -302,13 +301,9 @@ const StudentSettings = () => {
 		if (loggingOut) return;
 		setLoggingOut(true);
 		try {
-			await safeApiCall(logoutStudentApi);
-		} catch {
-			// ignore API errors and proceed to local logout
+			await Promise.resolve(logout?.());
+			navigate('/auth', { replace: true });
 		} finally {
-			logout?.();
-			// ensure the user lands on auth page
-			try { navigate('/auth', { replace: true }); } catch {}
 			setLoggingOut(false);
 		}
 	};
