@@ -5,6 +5,7 @@ import {
 	updateStudentProfile,
 	changeStudentPassword,
 	logoutStudentApi,
+	getStudentProfile,
 } from '../../services/studentServices.js';
 
 const Message = ({ type = 'info', text, onClose }) => {
@@ -167,14 +168,14 @@ const StudentSettings = () => {
 	const user = auth?.user;
 	const logout = auth?.logout;
 
-	// Profile state: only fields supported by controller (username, fullname, email, phonenumber, gender, address)
+	// Start empty; fill from API (token may not include full details)
 	const [profile, setProfile] = React.useState({
-		username: user?.username || '',
-		fullname: user?.fullname || '',
-		email: user?.email || '',
-		phonenumber: user?.phonenumber || '',
-		gender: user?.gender || '',
-		address: user?.address || '',
+		username: '',
+		fullname: '',
+		email: '',
+		phonenumber: '',
+		gender: '',
+		address: '',
 	});
 
 	const [pwd, setPwd] = React.useState({
@@ -185,19 +186,44 @@ const StudentSettings = () => {
 
 	const [savingProfile, setSavingProfile] = React.useState(false);
 	const [savingPwd, setSavingPwd] = React.useState(false);
+	const [loadingProfile, setLoadingProfile] = React.useState(true);
+	const [loggingOut, setLoggingOut] = React.useState(false);
 	const [msg, setMsg] = React.useState({ type: 'info', text: '' });
 
+	// Load full profile from server (fallback to token fields if any)
 	React.useEffect(() => {
-		if (!user) return;
-		setProfile({
-			username: user.username || '',
-			fullname: user.fullname || '',
-			email: user.email || '',
-			phonenumber: user.phonenumber || '',
-			gender: user.gender || '',
-			address: user.address || '',
-		});
-	}, [user]);
+		let isMounted = true;
+		(async () => {
+			try {
+				setLoadingProfile(true);
+				const server = await safeApiCall(getStudentProfile);
+				if (!isMounted) return;
+				const merged = {
+					username: server?.username ?? user?.username ?? '',
+					fullname: server?.fullname ?? user?.fullname ?? '',
+					email: server?.email ?? user?.email ?? '',
+					phonenumber: server?.phonenumber ?? user?.phonenumber ?? '',
+					gender: server?.gender ?? user?.gender ?? '',
+					address: server?.address ?? user?.address ?? '',
+				};
+				setProfile(merged);
+				// Optionally sync auth user with fetched profile if setter exists
+				if (auth?.setUser) auth.setUser(prev => ({ ...(prev || {}), ...merged }));
+			} catch (e) {
+				// show non-blocking info
+				setMsg({
+					type: 'info',
+					text: 'Using cached account info. Live profile unavailable.',
+				});
+			} finally {
+				if (isMounted) setLoadingProfile(false);
+			}
+		})();
+		return () => {
+			isMounted = false;
+		};
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
 
 	const show = (text, type = 'info') => setMsg({ text, type });
 
@@ -259,10 +285,15 @@ const StudentSettings = () => {
 	};
 
 	const onLogout = async () => {
+		if (loggingOut) return;
+		setLoggingOut(true);
 		try {
-			await safeApiCall(logoutStudentApi).catch(() => {});
+			await safeApiCall(logoutStudentApi);
+		} catch {
+			// proceed to local logout regardless
 		} finally {
 			logout?.();
+			setLoggingOut(false);
 		}
 	};
 
@@ -282,6 +313,7 @@ const StudentSettings = () => {
 				</h1>
 				<p style={{ margin: '6px 0 0', fontSize: 14, color: 'var(--text-muted)' }}>
 					Update your profile and change your password.
+					{loadingProfile ? ' Loading profile…' : ''}
 				</p>
 			</div>
 
@@ -294,8 +326,8 @@ const StudentSettings = () => {
 			{/* Profile */}
 			<Card
 				title="Profile"
-				submitText="Save Profile"
-				submitting={savingProfile}
+				submitText={savingProfile ? 'Saving…' : 'Save Profile'}
+				submitting={savingProfile || loadingProfile}
 				onSubmit={onSaveProfile}
 			>
 				<div
@@ -303,6 +335,8 @@ const StudentSettings = () => {
 						display: 'grid',
 						gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
 						gap: 12,
+						opacity: loadingProfile ? 0.6 : 1,
+						pointerEvents: loadingProfile ? 'none' : 'auto',
 					}}
 				>
 					<Field label="Username" required>
@@ -374,7 +408,7 @@ const StudentSettings = () => {
 			{/* Password */}
 			<Card
 				title="Change Password"
-				submitText="Change Password"
+				submitText={savingPwd ? 'Changing…' : 'Change Password'}
 				submitting={savingPwd}
 				onSubmit={onChangePassword}
 			>
@@ -444,6 +478,7 @@ const StudentSettings = () => {
 				<button
 					type="button"
 					onClick={onLogout}
+					disabled={loggingOut}
 					style={{
 						padding: '10px 14px',
 						borderRadius: 10,
@@ -452,9 +487,11 @@ const StudentSettings = () => {
 						color: '#fff',
 						fontWeight: 900,
 						cursor: 'pointer',
+						opacity: loggingOut ? 0.8 : 1,
+						minWidth: 110,
 					}}
 				>
-					Logout
+					{loggingOut ? 'Logging out…' : 'Logout'}
 				</button>
 			</div>
 		</div>
