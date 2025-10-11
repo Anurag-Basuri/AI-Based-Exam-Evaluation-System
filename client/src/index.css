@@ -36,6 +36,7 @@
     --text-muted: #64748b;
     --border: #e5e7eb;
     --border-light: #f1f5f9;
+    --header-h: 64px; /* used to place sidebar under header */
   
     /* Shadows */
     --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
@@ -54,13 +55,25 @@
 
 [data-theme="dark"] {
   --bg: #0f172a;
-  --bg-secondary: #1e293b;
+  --bg-secondary: #0b1220;
   --surface: #111827;
   --text: #e5e7eb;
   --text-muted: #94a3b8;
   --text-light: #64748b;
   --border: #334155;
   --border-light: #1f2937;
+}
+
+/* Buttons: consistent look */
+button {
+  transition: transform 120ms ease, box-shadow 120ms ease, background 160ms ease, color 160ms ease;
+}
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+button:active {
+  transform: translateY(1px);
 }
 
 body {
@@ -121,15 +134,6 @@ body {
   outline: none;
 }
 
-/* Button Reset */
-button {
-  font-family: inherit;
-  cursor: pointer;
-  border: none;
-  background: none;
-  color: inherit;
-}
-
 /* Input Reset */
 input, textarea, select {
   font-family: inherit;
@@ -182,6 +186,14 @@ a {
 .card:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-xl);
+}
+
+/* Utility: soft card surface */
+.surface-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow-md);
 }
 
 /* Responsive Design */
