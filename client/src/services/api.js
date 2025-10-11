@@ -51,4 +51,15 @@ apiClient.interceptors.response.use(
   }
 );
 
+// Ensure cookies are sent if server uses them, and expose a helper to manage Authorization
+if (apiClient?.defaults) {
+  apiClient.defaults.withCredentials = true;
+}
+
+export const setAuthToken = (token) => {
+  if (!apiClient?.defaults) return;
+  if (token) apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+  else delete apiClient.defaults.headers.common['Authorization'];
+};
+
 export { apiClient, publicClient };
