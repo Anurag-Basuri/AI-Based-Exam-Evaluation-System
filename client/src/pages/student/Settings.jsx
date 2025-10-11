@@ -1,5 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useAuth } from '../../hooks/useAuth.js';
 import {
 	safeApiCall,
@@ -161,8 +160,8 @@ const normalizePhone = v =>
 const StudentSettings = () => {
 	const { user, setUser, logout } = useAuth();
 	const navigate = useNavigate();
-    // Keep address as a simple string (your storage format)
-    const [profile, setProfile] = useState({
+	// Keep address as a simple string (your storage format)
+	const [profile, setProfile] = useState({
 		username: '',
 		fullname: '',
 		email: '',
@@ -301,8 +300,7 @@ const StudentSettings = () => {
 		if (loggingOut) return;
 		setLoggingOut(true);
 		try {
-			await Promise.resolve(logout?.());
-			navigate('/auth', { replace: true });
+			await logout?.(); // unified logout clears tokens, state, and navigates
 		} finally {
 			setLoggingOut(false);
 		}
@@ -337,9 +335,7 @@ const StudentSettings = () => {
 			{/* Profile */}
 			<Card
 				title="Profile"
-				submitText={
-					savingProfile || loadingProfile ? 'Saving…' : 'Save Profile'
-				}
+				submitText={savingProfile || loadingProfile ? 'Saving…' : 'Save Profile'}
 				submitting={savingProfile || loadingProfile || !isDirty}
 				onSubmit={onSaveProfile}
 			>
@@ -446,7 +442,10 @@ const StudentSettings = () => {
 							color: '#fff',
 							fontWeight: 800,
 							minWidth: 120,
-							cursor: savingProfile || loadingProfile || !isDirty ? 'not-allowed' : 'pointer',
+							cursor:
+								savingProfile || loadingProfile || !isDirty
+									? 'not-allowed'
+									: 'pointer',
 							opacity: savingProfile || loadingProfile || !isDirty ? 0.8 : 1,
 						}}
 					>

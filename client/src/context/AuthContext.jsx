@@ -208,6 +208,15 @@ export const AuthProvider = ({ children }) => {
 		}
 	};
 
+	// Unified logout for consumers
+	const logout = React.useCallback(async () => {
+		if (role === 'teacher') {
+			await handleLogoutTeacher();
+		} else {
+			await handleLogoutStudent();
+		}
+	}, [role]);
+
 	const value = {
 		user,
 		isAuthenticated,
@@ -219,6 +228,8 @@ export const AuthProvider = ({ children }) => {
 		registerTeacher: handleRegisterTeacher,
 		loginTeacher: handleLoginTeacher,
 		logoutTeacher: handleLogoutTeacher,
+		// unified alias so UI can just call `logout()`
+		logout,
 		setUser,
 		setRole,
 		setIsAuthenticated,
