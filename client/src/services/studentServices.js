@@ -122,15 +122,15 @@ const EP = {
 		`/api/issues/${encodeURIComponent(id)}`,
 	],
 
-	// Student account
-	me: ['/api/students/me', '/api/student/profile', '/api/students/profile'],
-	updateMe: ['/api/students/me', '/api/students/update', '/api/student/profile'],
+	// Student account (match server: /api/student/*)
+	me: ['/api/student/profile', '/api/students/profile', '/api/students/me'],
+	updateMe: ['/api/student/update', '/api/students/update', '/api/students/me'],
 	changePassword: [
-		'/api/students/change-password',
 		'/api/student/change-password',
+		'/api/students/change-password',
 		'/api/students/password',
 	],
-	logout: ['/api/students/logout', '/api/student/logout', '/api/auth/logout'],
+	logout: ['/api/student/logout', '/api/students/logout', '/api/auth/logout'],
 };
 
 // ---------- Normalizers ----------
@@ -183,15 +183,24 @@ const normalizeIssue = i => ({
 });
 
 // ---------- Normalizers: Student ----------
-const normalizeStudent = s => ({
-	id: String(s._id ?? s.id ?? s.userId ?? ''),
-	username: s.username ?? '',
-	fullname: s.fullname ?? s.name ?? '',
-	email: s.email ?? '',
-	phonenumber: s.phonenumber ?? s.phone ?? '',
-	gender: s.gender ?? '',
-	address: s.address ?? '',
-});
+const normalizeStudent = s => {
+	const a = s?.address || {};
+	return {
+		id: String(s?._id ?? s?.id ?? s?.userId ?? ''),
+		username: s?.username ?? '',
+		fullname: s?.fullname ?? s?.name ?? '',
+		email: s?.email ?? '',
+		phonenumber: s?.phonenumber ?? s?.phone ?? '',
+		gender: s?.gender ?? '',
+		address: {
+			street: a?.street ?? '',
+			city: a?.city ?? '',
+			state: a?.state ?? '',
+			postalCode: a?.postalCode ?? a?.postal_code ?? '',
+			country: a?.country ?? '',
+		},
+	};
+};
 
 // ---------------- Student: Account (non-auth) ----------------
 export const getStudentProfile = async () => {
@@ -201,14 +210,20 @@ export const getStudentProfile = async () => {
 };
 
 export const updateStudentProfile = async profile => {
-	// Only send allowed profile fields
+	// Only allowed fields; address as object per model
 	const payload = {
 		username: profile?.username ?? '',
 		fullname: profile?.fullname ?? '',
 		email: profile?.email ?? '',
 		phonenumber: profile?.phonenumber ?? '',
 		gender: profile?.gender ?? '',
-		address: profile?.address ?? '',
+		address: {
+			street: profile?.address?.street ?? '',
+			city: profile?.address?.city ?? '',
+			state: profile?.address?.state ?? '',
+			postalCode: profile?.address?.postalCode ?? '',
+			country: profile?.address?.country ?? '',
+		},
 	};
 	const res = await tryPut(EP.updateMe, payload);
 	const data = res?.data?.data ?? res?.data ?? {};
