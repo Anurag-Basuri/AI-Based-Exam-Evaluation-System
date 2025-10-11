@@ -3,7 +3,7 @@ import { useAuth } from '../../hooks/useAuth.js';
 import { safeApiCall } from '../../services/studentServices.js';
 
 // Create student-specific service functions using studentServices
-const updateStudentProfile = profile => {
+const  updateStudentProfile = profile => {
 	// This should be implemented in studentServices.js
 	return fetch('/api/students/update', {
 		method: 'PUT',
@@ -80,9 +80,9 @@ const FormCard = ({ title, children, onSubmit, loading = false }) => (
 	<form
 		onSubmit={onSubmit}
 		style={{
-			background: '#ffffff',
+			background: 'var(--surface)', // was #ffffff
 			borderRadius: 18,
-			border: '1px solid #e2e8f0',
+			border: '1px solid var(--border)', // was #e2e8f0
 			padding: '28px',
 			marginBottom: 24,
 			boxShadow: '0 8px 24px rgba(15,23,42,0.06)',
@@ -93,9 +93,9 @@ const FormCard = ({ title, children, onSubmit, loading = false }) => (
 				margin: '0 0 24px 0',
 				fontSize: '20px',
 				fontWeight: 700,
-				color: '#0f172a',
+				color: 'var(--text)', // was #0f172a
 				paddingBottom: '12px',
-				borderBottom: '1px solid #f1f5f9',
+				borderBottom: '1px solid var(--border-light)', // was #f1f5f9
 			}}
 		>
 			{title}
@@ -209,6 +209,8 @@ const StudentSettings = () => {
 	const [saving, setSaving] = React.useState(false);
 	const [message, setMessage] = React.useState('');
 	const [messageType, setMessageType] = React.useState('info');
+
+	console.log("user ", user);
 
 	const [profile, setProfile] = React.useState({
 		username: user?.username || '',
@@ -486,7 +488,7 @@ const StudentSettings = () => {
 			{/* Logout Section */}
 			<div
 				style={{
-					background: '#ffffff',
+					background: 'var(--surface)', // was #ffffff
 					borderRadius: 18,
 					border: '1px solid #fee2e2',
 					padding: '28px',
