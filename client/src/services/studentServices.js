@@ -77,6 +77,19 @@ const tryPatch = async (urls, body, config) => {
 	throw lastErr || new Error('All PATCH endpoints failed');
 };
 
+const tryPut = async (urls, body, config) => {
+	let lastErr;
+	for (const url of urls) {
+		try {
+			const res = await apiClient.put(typeof url === 'function' ? url() : url, body, config);
+			return res;
+		} catch (e) {
+			lastErr = e;
+		}
+	}
+	throw lastErr || new Error('All PUT endpoints failed');
+};
+
 // ---------- Endpoints (with fallbacks) ----------
 const EP = {
 	// Exams visible to a student
@@ -108,6 +121,16 @@ const EP = {
 		`/api/issues/${encodeURIComponent(id)}/reply`,
 		`/api/issues/${encodeURIComponent(id)}`,
 	],
+
+	// Student account
+	me: ['/api/students/me', '/api/student/profile', '/api/students/profile'],
+	updateMe: ['/api/students/me', '/api/students/update', '/api/student/profile'],
+	changePassword: [
+		'/api/students/change-password',
+		'/api/student/change-password',
+		'/api/students/password',
+	],
+	logout: ['/api/students/logout', '/api/student/logout', '/api/auth/logout'],
 };
 
 // ---------- Normalizers ----------
@@ -158,6 +181,51 @@ const normalizeIssue = i => ({
 	createdAt: i.createdAt ? new Date(i.createdAt).toLocaleString() : (i.created_at ?? ''),
 	resolvedAt: i.resolvedAt ? new Date(i.resolvedAt).toLocaleString() : (i.resolved_at ?? ''),
 });
+
+// ---------- Normalizers: Student ----------
+const normalizeStudent = s => ({
+	id: String(s._id ?? s.id ?? s.userId ?? ''),
+	username: s.username ?? '',
+	fullname: s.fullname ?? s.name ?? '',
+	email: s.email ?? '',
+	phonenumber: s.phonenumber ?? s.phone ?? '',
+	gender: s.gender ?? '',
+	address: s.address ?? '',
+});
+
+// ---------------- Student: Account (non-auth) ----------------
+export const getStudentProfile = async () => {
+	const res = await tryGet(EP.me);
+	const data = res?.data?.data ?? res?.data ?? {};
+	return normalizeStudent(data);
+};
+
+export const updateStudentProfile = async profile => {
+	// Only send allowed profile fields
+	const payload = {
+		username: profile?.username ?? '',
+		fullname: profile?.fullname ?? '',
+		email: profile?.email ?? '',
+		phonenumber: profile?.phonenumber ?? '',
+		gender: profile?.gender ?? '',
+		address: profile?.address ?? '',
+	};
+	const res = await tryPut(EP.updateMe, payload);
+	const data = res?.data?.data ?? res?.data ?? {};
+	return normalizeStudent(data);
+};
+
+export const changeStudentPassword = async ({ currentPassword, newPassword }) => {
+	const res = await tryPut(EP.changePassword, { currentPassword, newPassword });
+	const data = res?.data?.data ?? res?.data ?? { success: true };
+	return data;
+};
+
+export const logoutStudentApi = async () => {
+	const res = await tryPost(EP.logout, {});
+	const data = res?.data?.data ?? res?.data ?? { success: true };
+	return data;
+};
 
 // ---------- Exams (Student) ----------
 export const getStudentExams = async (params = {}) => {
@@ -242,13 +310,3 @@ export const getIssueById = async issueId => {
 };
 
 export const replyToIssue = (issueId, message) => tryPost(EP.issueReply(issueId), { message });
-
-// ---------------- Student: Account (non-auth) ----------------
-export const updateStudentProfile = (profile) => 
-  apiClient.put('/api/students/update', profile);
-
-export const changeStudentPassword = (payload) =>
-  apiClient.put('/api/students/change-password', payload);
-
-export const logoutStudentApi = () => 
-  apiClient.post('/api/students/logout');
