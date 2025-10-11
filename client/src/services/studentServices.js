@@ -184,7 +184,16 @@ const normalizeIssue = i => ({
 
 // ---------- Normalizers: Student ----------
 const normalizeStudent = s => {
-	const a = s?.address || {};
+	// address can come as object or string; always return a single string to the UI
+	const addr = s?.address;
+	let address = '';
+	if (typeof addr === 'string') address = addr;
+	else if (addr && typeof addr === 'object') {
+		const parts = [addr.street, addr.city, addr.state, addr.postalCode, addr.country]
+			.filter(Boolean)
+			.join(', ');
+		address = parts || '';
+	}
 	return {
 		id: String(s?._id ?? s?.id ?? s?.userId ?? ''),
 		username: s?.username ?? '',
@@ -192,13 +201,7 @@ const normalizeStudent = s => {
 		email: s?.email ?? '',
 		phonenumber: s?.phonenumber ?? s?.phone ?? '',
 		gender: s?.gender ?? '',
-		address: {
-			street: a?.street ?? '',
-			city: a?.city ?? '',
-			state: a?.state ?? '',
-			postalCode: a?.postalCode ?? a?.postal_code ?? '',
-			country: a?.country ?? '',
-		},
+		address,
 	};
 };
 
@@ -210,20 +213,14 @@ export const getStudentProfile = async () => {
 };
 
 export const updateStudentProfile = async profile => {
-	// Only allowed fields; address as object per model
+	// Only allowed fields; address is a plain string in your model
 	const payload = {
 		username: profile?.username ?? '',
 		fullname: profile?.fullname ?? '',
 		email: profile?.email ?? '',
 		phonenumber: profile?.phonenumber ?? '',
 		gender: profile?.gender ?? '',
-		address: {
-			street: profile?.address?.street ?? '',
-			city: profile?.address?.city ?? '',
-			state: profile?.address?.state ?? '',
-			postalCode: profile?.address?.postalCode ?? '',
-			country: profile?.address?.country ?? '',
-		},
+		address: profile?.address ?? '',
 	};
 	const res = await tryPut(EP.updateMe, payload);
 	const data = res?.data?.data ?? res?.data ?? {};
@@ -237,9 +234,16 @@ export const changeStudentPassword = async ({ currentPassword, newPassword }) =>
 };
 
 export const logoutStudentApi = async () => {
-	const res = await tryPost(EP.logout, {});
-	const data = res?.data?.data ?? res?.data ?? { success: true };
-	return data;
+	// Some backends require POST with empty body; others allow GET. Try POST first.
+	try {
+		const res = await tryPost(EP.logout, {});
+		const data = res?.data?.data ?? res?.data ?? { success: true };
+		return data;
+	} catch (e) {
+		const res = await tryGet(EP.logout);
+		const data = res?.data?.data ?? res?.data ?? { success: true };
+		return data;
+	}
 };
 
 // ---------- Exams (Student) ----------
@@ -325,3 +329,10 @@ export const getIssueById = async issueId => {
 };
 
 export const replyToIssue = (issueId, message) => tryPost(EP.issueReply(issueId), { message });
+
+// Ensure cookies (if server sets session cookies)
+try {
+	if (apiClient?.defaults) {
+		apiClient.defaults.withCredentials = true;
+	}
+} catch {}
