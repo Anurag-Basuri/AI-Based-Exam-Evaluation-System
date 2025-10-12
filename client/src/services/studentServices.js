@@ -123,18 +123,14 @@ const EP = {
 	],
 
 	// Student account (match server: /student/*, also support /api/student/*)
-	me: ['/student/profile', '/api/student/profile', '/api/students/profile', '/api/students/me'],
+	me: [
+		'/api/students/profile',
+	],
 	updateMe: [
-		'/student/update',
 		'/api/student/update',
-		'/api/students/update',
-		'/api/students/me',
 	],
 	changePassword: [
-		'/student/change-password',
-		'/api/student/change-password',
 		'/api/students/change-password',
-		'/api/students/password',
 	],
 };
 
