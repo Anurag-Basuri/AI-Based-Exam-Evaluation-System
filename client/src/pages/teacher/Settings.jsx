@@ -64,15 +64,16 @@ const TeacherSettings = () => {
 				style={{
 					padding: 18,
 					borderRadius: 16,
-					border: '1px solid rgba(129,140,248,0.25)',
+					border: '1px solid var(--border)',
 					background:
-						'linear-gradient(135deg, rgba(129,140,248,0.18), rgba(59,130,246,0.10))',
-					boxShadow: '0 16px 32px rgba(15,23,42,0.08)',
+						'linear-gradient(135deg, color-mix(in srgb, #818cf8 12%, transparent), color-mix(in srgb, #3b82f6 6%, transparent))',
+					boxShadow: 'var(--shadow-md)',
 					marginBottom: 20,
+					color: 'var(--text)',
 				}}
 			>
 				<h1 style={{ margin: 0 }}>Account Settings</h1>
-				<p style={{ margin: '6px 0 0', color: '#334155' }}>
+				<p style={{ margin: '6px 0 0', color: 'var(--text-muted)' }}>
 					Update your profile details and manage account security.
 				</p>
 			</header>
@@ -84,9 +85,9 @@ const TeacherSettings = () => {
 						marginBottom: 16,
 						padding: 12,
 						borderRadius: 12,
-						background: '#dbeafe',
-						border: '1px solid #bfdbfe',
-						color: '#1e40af',
+						background: 'var(--surface)',
+						border: '1px solid var(--border)',
+						color: 'var(--text)',
 					}}
 				>
 					{message}
@@ -96,14 +97,15 @@ const TeacherSettings = () => {
 			<form
 				onSubmit={saveProfile}
 				style={{
-					background: '#ffffff',
+					background: 'var(--surface)',
 					borderRadius: 18,
-					border: '1px solid #e2e8f0',
+					border: '1px solid var(--border)',
 					padding: 20,
 					marginBottom: 20,
-					boxShadow: '0 12px 28px rgba(15,23,42,0.06)',
+					boxShadow: 'var(--shadow-md)',
 					display: 'grid',
 					gap: 14,
+					color: 'var(--text)',
 				}}
 			>
 				<h3 style={{ margin: 0 }}>Profile information</h3>
@@ -116,7 +118,7 @@ const TeacherSettings = () => {
 					address: 'Address',
 				}).map(([key, label]) => (
 					<label key={key} style={{ display: 'grid', gap: 6 }}>
-						<span style={{ color: '#475569', fontWeight: 700 }}>{label}</span>
+						<span style={{ color: 'var(--text)', fontWeight: 700 }}>{label}</span>
 						<input
 							name={key}
 							type={key === 'email' ? 'email' : 'text'}
@@ -126,9 +128,10 @@ const TeacherSettings = () => {
 							style={{
 								padding: '10px 12px',
 								borderRadius: 10,
-								border: '1px solid #cbd5e1',
+								border: '1px solid var(--border)',
 								outline: 'none',
-								background: '#f8fafc',
+								background: 'var(--bg)',
+								color: 'var(--text)',
 							}}
 						/>
 					</label>
@@ -141,7 +144,7 @@ const TeacherSettings = () => {
 							padding: '10px 16px',
 							borderRadius: 12,
 							border: 'none',
-							background: '#6366f1',
+							background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
 							color: '#ffffff',
 							fontWeight: 700,
 							cursor: 'pointer',
@@ -157,18 +160,19 @@ const TeacherSettings = () => {
 			<form
 				onSubmit={changePassword}
 				style={{
-					background: '#ffffff',
+					background: 'var(--surface)',
 					borderRadius: 18,
-					border: '1px solid #e2e8f0',
+					border: '1px solid var(--border)',
 					padding: 20,
-					boxShadow: '0 12px 28px rgba(15,23,42,0.06)',
+					boxShadow: 'var(--shadow-md)',
 					display: 'grid',
 					gap: 14,
+					color: 'var(--text)',
 				}}
 			>
 				<h3 style={{ margin: 0 }}>Security</h3>
 				<label style={{ display: 'grid', gap: 6 }}>
-					<span style={{ color: '#475569', fontWeight: 700 }}>Current password</span>
+					<span style={{ color: 'var(--text)', fontWeight: 700 }}>Current password</span>
 					<input
 						name="currentPassword"
 						type="password"
@@ -180,14 +184,15 @@ const TeacherSettings = () => {
 						style={{
 							padding: '10px 12px',
 							borderRadius: 10,
-							border: '1px solid #cbd5e1',
+							border: '1px solid var(--border)',
 							outline: 'none',
-							background: '#f8fafc',
+							background: 'var(--bg)',
+							color: 'var(--text)',
 						}}
 					/>
 				</label>
 				<label style={{ display: 'grid', gap: 6 }}>
-					<span style={{ color: '#475569', fontWeight: 700 }}>New password</span>
+					<span style={{ color: 'var(--text)', fontWeight: 700 }}>New password</span>
 					<input
 						name="newPassword"
 						type="password"
@@ -199,9 +204,10 @@ const TeacherSettings = () => {
 						style={{
 							padding: '10px 12px',
 							borderRadius: 10,
-							border: '1px solid #cbd5e1',
+							border: '1px solid var(--border)',
 							outline: 'none',
-							background: '#f8fafc',
+							background: 'var(--bg)',
+							color: 'var(--text)',
 						}}
 					/>
 				</label>
@@ -212,9 +218,9 @@ const TeacherSettings = () => {
 						style={{
 							padding: '10px 16px',
 							borderRadius: 12,
-							border: '1px solid #cbd5e1',
-							background: '#ffffff',
-							color: '#4338ca',
+							border: '1px solid var(--border)',
+							background: 'var(--surface)',
+							color: 'var(--text)',
 							fontWeight: 700,
 							cursor: 'pointer',
 							opacity: saving ? 0.7 : 1,
