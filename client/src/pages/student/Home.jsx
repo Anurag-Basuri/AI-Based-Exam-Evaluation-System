@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth.js';
-import { safeApiCall, getStudentExams } from '../../services/studentServices.js';
+import { safeApiCall, getMySubmissions } from '../../services/studentServices.js';
 
 const StatCard = ({ icon, label, value, loading, color = '#6366f1' }) => (
 	<div
@@ -122,9 +122,9 @@ const StudentHome = () => {
 	const username = user?.fullname || user?.username || 'Student';
 
 	const [stats, setStats] = React.useState({
-		active: 0,
-		upcoming: 0,
-		completed: 0,
+		inProgress: 0,
+		submitted: 0,
+		evaluated: 0,
 		total: 0,
 	});
 	const [loading, setLoading] = React.useState(false);
@@ -135,30 +135,29 @@ const StudentHome = () => {
 		setLoading(true);
 		setError('');
 		try {
-			const exams = await safeApiCall(getStudentExams);
-			const counts = Array.isArray(exams)
-				? exams.reduce(
-						(acc, e) => {
-							const status = e.status?.toLowerCase() || 'upcoming';
-							if (status === 'active' || status === 'live') acc.active += 1;
-							else if (status === 'completed') acc.completed += 1;
-							else acc.upcoming += 1;
+			const submissions = await safeApiCall(getMySubmissions);
+			const counts = Array.isArray(submissions)
+				? submissions.reduce(
+						(acc, s) => {
+							const status = s.status?.toLowerCase() || 'pending';
+							if (status === 'in-progress' || status === 'started')
+								acc.inProgress += 1;
+							else if (status === 'submitted') acc.submitted += 1;
+							else if (status === 'evaluated') acc.evaluated += 1;
 							acc.total += 1;
 							return acc;
 						},
-						{ active: 0, upcoming: 0, completed: 0, total: 0 },
+						{ inProgress: 0, submitted: 0, evaluated: 0, total: 0 },
 					)
-				: { active: 0, upcoming: 0, completed: 0, total: 0 };
+				: { inProgress: 0, submitted: 0, evaluated: 0, total: 0 };
 
 			setStats(counts);
 
 			if (counts.total === 0) {
+				setInfo('No exam attempts yet. Use an exam search ID to start your first exam!');
+			} else if (counts.inProgress > 0) {
 				setInfo(
-					'No exams available at the moment. Check back later or contact your instructor.',
-				);
-			} else if (counts.active > 0) {
-				setInfo(
-					`You have ${counts.active} active exam${counts.active > 1 ? 's' : ''} waiting!`,
+					`You have ${counts.inProgress} exam${counts.inProgress > 1 ? 's' : ''} in progress!`,
 				);
 			}
 		} catch (e) {
@@ -173,7 +172,7 @@ const StudentHome = () => {
 	}, [loadStats]);
 
 	const quickActions = [
-		{ label: 'Browse Exams', icon: '📝', onClick: () => navigate('exams'), variant: 'primary' },
+		{ label: 'Find Exam', icon: '🔍', onClick: () => navigate('exams'), variant: 'primary' },
 		{
 			label: 'View Results',
 			icon: '📊',
@@ -195,10 +194,10 @@ const StudentHome = () => {
 	];
 
 	const statCards = [
-		{ icon: '🟢', label: 'Active Exams', value: stats.active, color: '#10b981' },
-		{ icon: '🕐', label: 'Upcoming', value: stats.upcoming, color: '#f59e0b' },
-		{ icon: '✅', label: 'Completed', value: stats.completed, color: '#3b82f6' },
-		{ icon: '📋', label: 'Total Available', value: stats.total, color: '#6366f1' },
+		{ icon: '🟡', label: 'In Progress', value: stats.inProgress, color: '#f59e0b' },
+		{ icon: '📋', label: 'Submitted', value: stats.submitted, color: '#3b82f6' },
+		{ icon: '✅', label: 'Evaluated', value: stats.evaluated, color: '#10b981' },
+		{ icon: '📊', label: 'Total Attempts', value: stats.total, color: '#6366f1' },
 	];
 
 	return (
@@ -251,7 +250,8 @@ const StudentHome = () => {
 							fontWeight: 500,
 						}}
 					>
-						Track your exam progress, view results, and manage your academic journey.
+						Use your exam search ID to find and take exams. Track your progress and
+						results.
 					</p>
 
 					<div
@@ -377,7 +377,7 @@ const StudentHome = () => {
 				))}
 			</div>
 
-			{/* Recent Activity Placeholder */}
+			{/* Quick Access */}
 			<div
 				style={{
 					background: '#ffffff',
@@ -395,12 +395,12 @@ const StudentHome = () => {
 						color: '#0f172a',
 					}}
 				>
-					Quick Access
+					How to Take an Exam
 				</h2>
 				<div
 					style={{
 						display: 'grid',
-						gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+						gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
 						gap: 16,
 					}}
 				>
@@ -411,23 +411,12 @@ const StudentHome = () => {
 							borderRadius: 12,
 							border: '1px solid #e2e8f0',
 							textAlign: 'center',
-							cursor: 'pointer',
-							transition: 'all 0.2s ease',
-						}}
-						onClick={() => navigate('exams')}
-						onMouseEnter={e => {
-							e.currentTarget.style.background = '#f1f5f9';
-							e.currentTarget.style.transform = 'translateY(-2px)';
-						}}
-						onMouseLeave={e => {
-							e.currentTarget.style.background = '#f8fafc';
-							e.currentTarget.style.transform = 'translateY(0)';
 						}}
 					>
-						<div style={{ fontSize: '24px', marginBottom: 8 }}>📝</div>
-						<div style={{ fontWeight: 600, color: '#374151' }}>Take Exam</div>
+						<div style={{ fontSize: '24px', marginBottom: 8 }}>🔍</div>
+						<div style={{ fontWeight: 600, color: '#374151' }}>1. Get Search ID</div>
 						<div style={{ fontSize: '12px', color: '#6b7280', marginTop: 4 }}>
-							Start or continue exams
+							Obtain exam search ID from your instructor
 						</div>
 					</div>
 
@@ -438,23 +427,28 @@ const StudentHome = () => {
 							borderRadius: 12,
 							border: '1px solid #e2e8f0',
 							textAlign: 'center',
-							cursor: 'pointer',
-							transition: 'all 0.2s ease',
 						}}
-						onClick={() => navigate('results')}
-						onMouseEnter={e => {
-							e.currentTarget.style.background = '#f1f5f9';
-							e.currentTarget.style.transform = 'translateY(-2px)';
-						}}
-						onMouseLeave={e => {
-							e.currentTarget.style.background = '#f8fafc';
-							e.currentTarget.style.transform = 'translateY(0)';
+					>
+						<div style={{ fontSize: '24px', marginBottom: 8 }}>📝</div>
+						<div style={{ fontWeight: 600, color: '#374151' }}>2. Find & Start</div>
+						<div style={{ fontSize: '12px', color: '#6b7280', marginTop: 4 }}>
+							Enter search ID in Exams section to begin
+						</div>
+					</div>
+
+					<div
+						style={{
+							padding: '20px',
+							background: '#f8fafc',
+							borderRadius: 12,
+							border: '1px solid #e2e8f0',
+							textAlign: 'center',
 						}}
 					>
 						<div style={{ fontSize: '24px', marginBottom: 8 }}>📊</div>
-						<div style={{ fontWeight: 600, color: '#374151' }}>Check Results</div>
+						<div style={{ fontWeight: 600, color: '#374151' }}>3. View Results</div>
 						<div style={{ fontSize: '12px', color: '#6b7280', marginTop: 4 }}>
-							View scores and feedback
+							Check your scores and feedback after evaluation
 						</div>
 					</div>
 				</div>
