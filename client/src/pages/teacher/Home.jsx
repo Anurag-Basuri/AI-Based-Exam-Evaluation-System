@@ -199,7 +199,7 @@ const TeacherHome = () => {
 					Welcome back, {name}! 👋
 				</h1>
 				<p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '16px' }}>
-					Here's a snapshot of your teaching dashboard.
+					Review, evaluate, and provide feedback on student submissions.
 				</p>
 			</header>
 

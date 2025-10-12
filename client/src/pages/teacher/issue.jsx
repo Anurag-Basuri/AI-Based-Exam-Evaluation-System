@@ -61,7 +61,8 @@ const TeacherIssues = () => {
 		const st = (issue.status || '').toLowerCase();
 		const statusMatch = status === 'all' ? true : st === status;
 		const q = query.trim().toLowerCase();
-		const text = `${issue.studentName} ${issue.examTitle} ${issue.issueType}`.toLowerCase();
+		const text =
+			`${issue.studentName || ''} ${issue.examTitle || ''} ${issue.issueType || ''}`.toLowerCase();
 		const queryMatch = !q || text.includes(q);
 		return statusMatch && queryMatch;
 	});
