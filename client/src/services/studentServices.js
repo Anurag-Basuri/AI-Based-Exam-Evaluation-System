@@ -92,9 +92,10 @@ const tryPut = async (urls, body, config) => {
 
 // ---------- Endpoints (with fallbacks) ----------
 const EP = {
-	// Exams visible to a student
+	// Exams
 	examsAvailable: ['/api/exams/available', '/api/exams/student', '/api/exams/my'],
 	examById: id => `/api/exams/${encodeURIComponent(id)}`,
+	examSearch: code => `/api/exams/search/${encodeURIComponent(code)}`,
 
 	// Submissions (student-facing)
 	submissionStart: examId => [
@@ -105,33 +106,27 @@ const EP = {
 	submissionsMine: ['/api/submissions/me', '/api/submissions/student', '/api/submissions/my'],
 	submissionById: id => `/api/submissions/${encodeURIComponent(id)}`,
 	submissionSaveAnswers: id => [
-		`'/api/submissions/${encodeURIComponent(id)}/answers`,
-		`'/api/submissions/${encodeURIComponent(id)}/answer`,
+		`/api/submissions/${encodeURIComponent(id)}/answers`,
+		`/api/submissions/${encodeURIComponent(id)}/answer`,
 	],
 	submissionSubmit: id => [
-		`'/api/submissions/${encodeURIComponent(id)}/submit`,
-		`'/api/submissions/${encodeURIComponent(id)}/finalize`,
+		`/api/submissions/${encodeURIComponent(id)}/submit`,
+		`/api/submissions/${encodeURIComponent(id)}/finalize`,
 	],
 
-	// Issues (student-facing)
+	// Issues
 	issuesMine: ['/api/issues/me', '/api/issues/student', '/api/issues/my'],
 	issueCreate: ['/api/issues/create', '/api/issues'],
 	issueById: id => `/api/issues/${encodeURIComponent(id)}`,
 	issueReply: id => [
-		`'/api/issues/${encodeURIComponent(id)}/reply`,
-		`'/api/issues/${encodeURIComponent(id)}`,
+		`/api/issues/${encodeURIComponent(id)}/reply`,
+		`/api/issues/${encodeURIComponent(id)}`,
 	],
 
-	// Student account (match server: /student/*, also support /api/student/*)
-	me: [
-		'/api/students/profile',
-	],
-	updateMe: [
-		'/api/student/update',
-	],
-	changePassword: [
-		'/api/students/change-password',
-	],
+	// Student account
+	me: ['/api/students/profile'],
+	updateMe: ['/api/students/update'],
+	changePassword: ['/api/students/change-password'],
 };
 
 // ---------- Normalizers ----------
@@ -235,12 +230,18 @@ export const changeStudentPassword = async ({ currentPassword, newPassword }) =>
 };
 
 // ---------- Exams (Student) ----------
-export const getStudentExams = async (params = {}) => {
-	const res = await tryGet(EP.examsAvailable, { params });
-	const list = res?.data?.data || res?.data || [];
-	return Array.isArray(list) ? list.map(normalizeExam) : [];
+export const searchExamByCode = async code => {
+	const res = await tryGet([() => EP.examSearch(code)]);
+	const data = res?.data?.data ?? res?.data ?? {};
+	return normalizeExam(data);
 };
 
+export const startExam = async examId => {
+	// create a submission and return normalized submission
+	return startSubmission(examId);
+};
+
+// Keep existing helpers:
 export const getExamById = async examId => {
 	const res = await apiClient.get(EP.examById(examId));
 	const data = res?.data?.data ?? res?.data ?? {};
@@ -248,43 +249,11 @@ export const getExamById = async examId => {
 };
 
 // ---------- Submissions (Student) ----------
-export const startSubmission = async (examId, payload = {}) => {
-	// try various endpoints; if second/third used, send { examId, ...payload }
-	const res = await tryPost(
-		[
-			() => EP.submissionStart(examId)[0],
-			EP.submissionStart(examId)[1],
-			EP.submissionStart(examId)[2],
-		],
-		{ examId, ...payload },
-	);
-	const data = res?.data?.data ?? res?.data ?? {};
-	return normalizeSubmission(data);
-};
-
-export const getMySubmissions = async (params = {}) => {
-	const res = await tryGet(EP.submissionsMine, { params });
-	const list = res?.data?.data || res?.data || [];
-	return Array.isArray(list) ? list.map(normalizeSubmission) : [];
-};
-
-export const getSubmissionById = async submissionId => {
-	const res = await apiClient.get(EP.submissionById(submissionId));
-	const data = res?.data?.data ?? res?.data ?? {};
-	return normalizeSubmission(data);
-};
-
 export const saveSubmissionAnswers = (submissionId, answers = []) => {
-	// answers: [{ questionId, answer, timeSpent, ... }]
-	// first try PATCH /answers, then fallback to /answer
 	return tryPatch(EP.submissionSaveAnswers(submissionId), { answers });
 };
 
-export const saveSubmissionAnswer = (submissionId, { questionId, answer, timeSpent, ...rest }) =>
-	saveSubmissionAnswers(submissionId, [{ questionId, answer, timeSpent, ...rest }]);
-
 export const submitSubmission = async (submissionId, payload = {}) => {
-	// try PATCH first, then fallback POST if supported
 	try {
 		const res = await tryPatch(EP.submissionSubmit(submissionId), { ...payload });
 		const data = res?.data?.data ?? res?.data ?? {};
