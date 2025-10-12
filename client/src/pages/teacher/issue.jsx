@@ -1,10 +1,24 @@
 import React from 'react';
-import { safeApiCall, getTeacherIssues, resolveTeacherIssue } from '../../services/teacherServices.js';
+import {
+	safeApiCall,
+	getTeacherIssues,
+	resolveTeacherIssue,
+} from '../../services/teacherServices.js';
 
 const statusStyles = {
-	open: { label: 'Open', color: '#b45309', bg: '#fffbeb', border: '#fcd34d' },
-	pending: { label: 'Pending', color: '#4338ca', bg: '#eef2ff', border: '#c7d2fe' },
-	resolved: { label: 'Resolved', color: '#047857', bg: '#ecfdf5', border: '#6ee7b7' },
+	open: { label: 'Open', color: '#b45309', bg: 'var(--surface)', border: 'var(--border)' },
+	'in-progress': {
+		label: 'In Progress',
+		color: '#4338ca',
+		bg: 'var(--surface)',
+		border: 'var(--border)',
+	},
+	resolved: {
+		label: 'Resolved',
+		color: '#047857',
+		bg: 'var(--surface)',
+		border: 'var(--border)',
+	},
 };
 
 const useIssues = () => {
@@ -44,7 +58,8 @@ const TeacherIssues = () => {
 	const [msg, setMsg] = React.useState('');
 
 	const filtered = issues.filter(issue => {
-		const statusMatch = status === 'all' ? true : (issue.status || '').toLowerCase() === status;
+		const st = (issue.status || '').toLowerCase();
+		const statusMatch = status === 'all' ? true : st === status;
 		const q = query.trim().toLowerCase();
 		const text = `${issue.studentName} ${issue.examTitle} ${issue.issueType}`.toLowerCase();
 		const queryMatch = !q || text.includes(q);
@@ -67,20 +82,20 @@ const TeacherIssues = () => {
 	};
 
 	return (
-		<section>
+		<section style={{ color: 'var(--text)' }}>
 			<header
 				style={{
 					background:
-						'linear-gradient(135deg, rgba(249,115,22,0.18), rgba(249,115,22,0.06))',
+						'linear-gradient(135deg, color-mix(in srgb, #f97316 12%, transparent), color-mix(in srgb, #3b82f6 6%, transparent))',
 					padding: 20,
 					borderRadius: 18,
-					border: '1px solid rgba(249,115,22,0.2)',
-					boxShadow: '0 12px 28px rgba(15,23,42,0.08)',
+					border: '1px solid var(--border)',
+					boxShadow: 'var(--shadow-md)',
 					marginBottom: 18,
 				}}
 			>
-				<h1 style={{ margin: 0 }}>Student Issues</h1>
-				<p style={{ margin: '8px 0 0', color: '#4b5563' }}>
+				<h1 style={{ margin: 0, color: 'var(--text)' }}>Student Issues</h1>
+				<p style={{ margin: '8px 0 0', color: 'var(--text-muted)' }}>
 					Review, filter, and resolve student-reported issues quickly.
 				</p>
 			</header>
@@ -93,9 +108,9 @@ const TeacherIssues = () => {
 						marginBottom: 12,
 						padding: '10px 12px',
 						borderRadius: 10,
-						border: '1px solid #fed7aa',
-						background: '#fff7ed',
-						color: '#9a3412',
+						border: '1px solid var(--border)',
+						background: 'var(--surface)',
+						color: 'var(--text)',
 						fontWeight: 600,
 					}}
 				>
@@ -121,8 +136,9 @@ const TeacherIssues = () => {
 							width: '100%',
 							padding: '10px 14px 10px 40px',
 							borderRadius: 12,
-							border: '1px solid #cbd5e1',
-							background: '#ffffff',
+							border: '1px solid var(--border)',
+							background: 'var(--surface)',
+							color: 'var(--text)',
 							outline: 'none',
 						}}
 					/>
@@ -133,7 +149,7 @@ const TeacherIssues = () => {
 							left: 12,
 							top: '50%',
 							transform: 'translateY(-50%)',
-							color: '#94a3b8',
+							color: 'var(--text-muted)',
 						}}
 					>
 						🔎
@@ -141,7 +157,7 @@ const TeacherIssues = () => {
 				</div>
 
 				<div style={{ display: 'flex', gap: 8 }}>
-					{['all', 'open', 'pending', 'resolved'].map(st => {
+					{['all', 'open', 'in-progress', 'resolved'].map(st => {
 						const active = status === st;
 						return (
 							<button
@@ -150,9 +166,11 @@ const TeacherIssues = () => {
 								style={{
 									padding: '8px 12px',
 									borderRadius: 999,
-									border: active ? '1px solid #f97316' : '1px solid #cbd5e1',
-									background: active ? '#fff7ed' : '#ffffff',
-									color: active ? '#9a3412' : '#334155',
+									border: active
+										? '2px solid #f97316'
+										: '1px solid var(--border)',
+									background: 'var(--surface)',
+									color: active ? '#9a3412' : 'var(--text)',
 									cursor: 'pointer',
 									fontWeight: 700,
 								}}
@@ -164,16 +182,25 @@ const TeacherIssues = () => {
 				</div>
 			</div>
 
-			{loading && <div style={{ color: '#475569' }} aria-live="polite">Loading student issues…</div>}
-			{!loading && error && <div style={{ color: '#b91c1c', marginBottom: 12 }} role="alert">{error}</div>}
+			{loading && (
+				<div style={{ color: 'var(--text-muted)' }} aria-live="polite">
+					Loading student issues…
+				</div>
+			)}
+			{!loading && error && (
+				<div style={{ color: '#ef4444', marginBottom: 12 }} role="alert">
+					❌ {error}
+				</div>
+			)}
 			{!loading && !filtered.length && (
 				<div
 					style={{
 						padding: 20,
 						borderRadius: 16,
-						border: '1px dashed #cbd5e1',
+						border: '1px dashed var(--border)',
 						textAlign: 'center',
-						color: '#64748b',
+						color: 'var(--text-muted)',
+						background: 'var(--surface)',
 					}}
 				>
 					No issues match your filters.
@@ -189,10 +216,10 @@ const TeacherIssues = () => {
 						<article
 							key={issue.id}
 							style={{
-								background: '#ffffff',
+								background: 'var(--surface)',
 								borderRadius: 18,
-								border: '1px solid #e2e8f0',
-								boxShadow: '0 12px 26px rgba(15,23,42,0.07)',
+								border: '1px solid var(--border)',
+								boxShadow: 'var(--shadow-md)',
 								padding: 20,
 								display: 'grid',
 								gap: 12,
@@ -207,10 +234,16 @@ const TeacherIssues = () => {
 								}}
 							>
 								<div>
-									<h2 style={{ margin: 0, fontSize: '1.05rem' }}>
+									<h2
+										style={{
+											margin: 0,
+											fontSize: '1.05rem',
+											color: 'var(--text)',
+										}}
+									>
 										{issue.examTitle}
 									</h2>
-									<div style={{ color: '#64748b', fontSize: 13 }}>
+									<div style={{ color: 'var(--text-muted)', fontSize: 13 }}>
 										From {issue.studentName} • {issue.createdAt}
 									</div>
 								</div>
@@ -221,7 +254,7 @@ const TeacherIssues = () => {
 										padding: '3px 10px',
 										borderRadius: 999,
 										border: `1px solid ${chip.border}`,
-										background: chip.bg,
+										background: 'var(--surface)',
 										color: chip.color,
 										fontWeight: 700,
 									}}
@@ -232,16 +265,28 @@ const TeacherIssues = () => {
 
 							<div
 								style={{
-									background: '#f8fafc',
+									background: 'var(--surface)',
 									borderRadius: 14,
 									padding: 16,
-									border: '1px solid #e2e8f0',
+									border: '1px solid var(--border)',
 								}}
 							>
-								<div style={{ fontWeight: 700, marginBottom: 6, color: '#0f172a' }}>
+								<div
+									style={{
+										fontWeight: 700,
+										marginBottom: 6,
+										color: 'var(--text)',
+									}}
+								>
 									{issue.issueType} Issue
 								</div>
-								<p style={{ margin: 0, color: '#475569', lineHeight: 1.6 }}>
+								<p
+									style={{
+										margin: 0,
+										color: 'var(--text-muted)',
+										lineHeight: 1.6,
+									}}
+								>
 									{issue.description}
 								</p>
 							</div>
@@ -249,20 +294,30 @@ const TeacherIssues = () => {
 							{issue.reply ? (
 								<div
 									style={{
-										background: '#ecfdf5',
+										background: 'var(--surface)',
 										borderRadius: 14,
 										padding: 16,
-										border: '1px solid #6ee7b7',
-										color: '#047857',
+										border: '1px solid var(--border)',
+										color: 'var(--text)',
 									}}
 								>
-									<strong style={{ display: 'block', marginBottom: 6 }}>
+									<strong
+										style={{
+											display: 'block',
+											marginBottom: 6,
+											color: 'var(--text)',
+										}}
+									>
 										Your reply
 									</strong>
 									{issue.reply}
 									{issue.resolvedAt && (
 										<div
-											style={{ marginTop: 6, fontSize: 12, color: '#0f766e' }}
+											style={{
+												marginTop: 6,
+												fontSize: 12,
+												color: 'var(--text-muted)',
+											}}
 										>
 											Resolved on {issue.resolvedAt}
 										</div>
@@ -277,10 +332,10 @@ const TeacherIssues = () => {
 									style={{
 										display: 'grid',
 										gap: 10,
-										background: '#f9fafb',
+										background: 'var(--surface)',
 										padding: 16,
 										borderRadius: 14,
-										border: '1px solid #e2e8f0',
+										border: '1px solid var(--border)',
 									}}
 								>
 									<textarea
@@ -296,9 +351,11 @@ const TeacherIssues = () => {
 										required
 										style={{
 											borderRadius: 10,
-											border: '1px solid #cbd5e1',
+											border: '1px solid var(--border)',
 											padding: '10px 12px',
 											outline: 'none',
+											background: 'var(--bg)',
+											color: 'var(--text)',
 											resize: 'vertical',
 										}}
 									/>
@@ -321,9 +378,9 @@ const TeacherIssues = () => {
 											style={{
 												padding: '8px 12px',
 												borderRadius: 10,
-												border: '1px solid #cbd5e1',
-												background: '#ffffff',
-												color: '#0f172a',
+												border: '1px solid var(--border)',
+												background: 'var(--surface)',
+												color: 'var(--text)',
 												cursor: 'pointer',
 												fontWeight: 700,
 											}}
@@ -337,7 +394,8 @@ const TeacherIssues = () => {
 												padding: '8px 12px',
 												borderRadius: 10,
 												border: 'none',
-												background: '#f97316',
+												background:
+													'linear-gradient(135deg, #f97316, #ea580c)',
 												color: '#ffffff',
 												cursor: activeReply.submitting
 													? 'not-allowed'
@@ -364,9 +422,9 @@ const TeacherIssues = () => {
 										alignSelf: 'flex-start',
 										padding: '8px 12px',
 										borderRadius: 10,
-										border: '1px solid #f97316',
-										background: '#fff7ed',
-										color: '#9a3412',
+										border: '1px solid var(--border)',
+										background: 'var(--surface)',
+										color: 'var(--text)',
 										cursor: 'pointer',
 										fontWeight: 700,
 									}}
