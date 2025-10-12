@@ -114,15 +114,17 @@ const removeQuestionsFromExam = asyncHandler(async (req, res) => {
 
 // Get all exams (optionally filter by teacher)
 const getAllExams = asyncHandler(async (req, res) => {
-	const { teacher } = req.query;
-	const filter = teacher ? { createdBy: teacher } : {};
+	const { teacher, status, q } = req.query;
+	const filter = {};
+	if (teacher) filter.createdBy = teacher;
+	if (status) filter.status = String(status).toLowerCase();
+	if (q) filter.title = { $regex: String(q), $options: 'i' };
+
 	const exams = await Exam.find(filter)
-		.populate('createdBy', 'fullname email')
-		.populate({
-			path: 'questions',
-			populate: { path: 'createdBy', select: 'fullname email' },
-		})
 		.sort({ createdAt: -1 })
+		.select(
+			'_id title description status searchId startTime endTime duration questions createdBy',
+		)
 		.lean();
 
 	return ApiResponse.success(res, exams, 'Exams fetched');
@@ -221,24 +223,18 @@ const deleteExam = asyncHandler(async (req, res) => {
 // Search exam by searchId/code (student flow)
 const searchExamByCode = asyncHandler(async (req, res) => {
 	const raw = String(req.params.code || req.query.code || '').trim();
-	if (!raw) {
-		throw ApiError.BadRequest('Exam search ID is required');
-	}
-	const code = raw.toUpperCase();
+	if (!raw) throw ApiError.BadRequest('Exam search ID is required');
 
-	// Strict: search by searchId only
+	const code = raw.toUpperCase();
 	const exam = await Exam.findOne({ searchId: code })
-		.select('_id title description duration status startTime endTime questions maxScore')
+		.select('_id title description duration status startTime endTime questions')
 		.lean();
 
-	if (!exam) {
-		throw ApiError.NotFound('No exam found for the provided search ID');
-	}
+	if (!exam) throw ApiError.NotFound('No exam found for the provided search ID');
 
-	// Gate by status and time window
+	// Gate by status/time window
 	const now = new Date();
-	const status = String(exam.status || '').toLowerCase();
-	if (status !== 'active') {
+	if (String(exam.status).toLowerCase() !== 'active') {
 		throw ApiError.Forbidden('This exam is not active');
 	}
 	if (exam.startTime && now < new Date(exam.startTime)) {
