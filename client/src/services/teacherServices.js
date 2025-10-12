@@ -20,6 +20,17 @@ const safe = async p => {
 	}
 };
 
+// Expose a safe invoker used by UI (fixes missing export, normalizes errors)
+export const safeApiCall = async (fn, ...args) => {
+	try {
+		return await fn(...args);
+	} catch (e) {
+		// Re-wrap unknown errors to keep UI messages consistent
+		if (e instanceof ApiError) throw e;
+		throw parseAxiosError(e);
+	}
+};
+
 // Exams
 export const getTeacherExams = async (params = {}) => safe(api.get('/api/exams/all', { params }));
 

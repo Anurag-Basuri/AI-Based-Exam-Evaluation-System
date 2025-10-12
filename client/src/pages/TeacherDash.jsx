@@ -1,5 +1,5 @@
 import React from 'react';
-import { Outlet } from 'react-router-dom';
+// import { Outlet } from 'react-router-dom'; // removed unused import
 import Sidebar from '../components/Sidebar.jsx';
 import { useTheme } from '../hooks/useTheme.js';
 import { useAuth } from '../hooks/useAuth.js';
@@ -39,7 +39,7 @@ const SidebarHeader = () => (
 	</div>
 );
 
-const SidebarFooter = ({ user, onLogout, theme }) => (
+const SidebarFooter = ({ user, onLogout /* theme not used */ }) => (
 	<div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
 		<div
 			style={{
