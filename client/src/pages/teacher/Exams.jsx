@@ -2,26 +2,44 @@ import React from 'react';
 import { safeApiCall, getTeacherExams, updateExamStatus } from '../../services/teacherServices.js';
 
 const statusConfig = {
-	live: { bg: '#dcfce7', border: '#86efac', color: '#15803d', label: 'Live', icon: '🟢' },
-	active: { bg: '#dcfce7', border: '#86efac', color: '#15803d', label: 'Live', icon: '🟢' },
+	live: {
+		bg: 'var(--surface)',
+		border: 'var(--border)',
+		color: '#10b981',
+		label: 'Live',
+		icon: '🟢',
+	},
+	active: {
+		bg: 'var(--surface)',
+		border: 'var(--border)',
+		color: '#10b981',
+		label: 'Live',
+		icon: '🟢',
+	},
 	scheduled: {
-		bg: '#dbeafe',
-		border: '#93c5fd',
+		bg: 'var(--surface)',
+		border: 'var(--border)',
 		color: '#1d4ed8',
 		label: 'Scheduled',
 		icon: '🗓️',
 	},
-	draft: { bg: '#f1f5f9', border: '#cbd5e1', color: '#475569', label: 'Draft', icon: '📄' },
+	draft: {
+		bg: 'var(--surface)',
+		border: 'var(--border)',
+		color: 'var(--text-muted)',
+		label: 'Draft',
+		icon: '📄',
+	},
 	completed: {
-		bg: '#f3e8ff',
-		border: '#c4b5fd',
+		bg: 'var(--surface)',
+		border: 'var(--border)',
 		color: '#7c3aed',
 		label: 'Completed',
 		icon: '✅',
 	},
 	cancelled: {
-		bg: '#fee2e2',
-		border: '#fca5a5',
+		bg: 'var(--surface)',
+		border: 'var(--border)',
 		color: '#dc2626',
 		label: 'Cancelled',
 		icon: '❌',
@@ -87,10 +105,10 @@ const ExamCard = ({ exam, onPublish, onClone, onEdit, publishing }) => {
 	return (
 		<article
 			style={{
-				background: '#ffffff',
+				background: 'var(--surface)',
 				borderRadius: 16,
-				border: '1px solid #e5e7eb',
-				boxShadow: '0 4px 16px rgba(15,23,42,0.06)',
+				border: '1px solid var(--border)',
+				boxShadow: 'var(--shadow-md)',
 				padding: '24px',
 				transition: 'all 0.2s ease',
 				position: 'relative',
@@ -98,40 +116,31 @@ const ExamCard = ({ exam, onPublish, onClone, onEdit, publishing }) => {
 			}}
 			onMouseEnter={e => {
 				e.currentTarget.style.transform = 'translateY(-2px)';
-				e.currentTarget.style.boxShadow = '0 8px 28px rgba(15,23,42,0.12)';
+				e.currentTarget.style.boxShadow = 'var(--shadow-md)';
 			}}
 			onMouseLeave={e => {
 				e.currentTarget.style.transform = 'translateY(0)';
-				e.currentTarget.style.boxShadow = '0 4px 16px rgba(15,23,42,0.06)';
+				e.currentTarget.style.boxShadow = 'var(--shadow-md)';
 			}}
 		>
-			{/* Status Indicator */}
 			<div
 				style={{
 					position: 'absolute',
 					top: 0,
 					right: 0,
-					width: '4px',
+					width: 4,
 					height: '100%',
 					background: config.color,
 				}}
 			/>
-
 			<header style={{ marginBottom: '16px' }}>
-				<div
-					style={{
-						display: 'flex',
-						alignItems: 'center',
-						gap: '12px',
-						marginBottom: '8px',
-					}}
-				>
+				<div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
 					<h3
 						style={{
 							margin: 0,
-							fontSize: '18px',
+							fontSize: 18,
 							fontWeight: 700,
-							color: '#0f172a',
+							color: 'var(--text)',
 							flex: 1,
 						}}
 					>
@@ -141,10 +150,10 @@ const ExamCard = ({ exam, onPublish, onClone, onEdit, publishing }) => {
 						style={{
 							display: 'flex',
 							alignItems: 'center',
-							gap: '6px',
-							fontSize: '12px',
+							gap: 6,
+							fontSize: 12,
 							padding: '6px 12px',
-							borderRadius: '20px',
+							borderRadius: 20,
 							border: `1px solid ${config.border}`,
 							background: config.bg,
 							color: config.color,
@@ -160,19 +169,19 @@ const ExamCard = ({ exam, onPublish, onClone, onEdit, publishing }) => {
 					style={{
 						display: 'grid',
 						gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-						gap: '12px',
-						color: '#64748b',
-						fontSize: '14px',
+						gap: 12,
+						color: 'var(--text-muted)',
+						fontSize: 14,
 					}}
 				>
 					<div>
-						<strong style={{ color: '#374151' }}>Start:</strong> {exam.startAt}
+						<strong style={{ color: 'var(--text)' }}>Start:</strong> {exam.startAt}
 					</div>
 					<div>
-						<strong style={{ color: '#374151' }}>Enrolled:</strong> {exam.enrolled}
+						<strong style={{ color: 'var(--text)' }}>Enrolled:</strong> {exam.enrolled}
 					</div>
 					<div>
-						<strong style={{ color: '#374151' }}>Submissions:</strong>{' '}
+						<strong style={{ color: 'var(--text)' }}>Submissions:</strong>{' '}
 						{exam.submissions}
 					</div>
 				</div>
@@ -181,10 +190,10 @@ const ExamCard = ({ exam, onPublish, onClone, onEdit, publishing }) => {
 			<div
 				style={{
 					display: 'flex',
-					gap: '10px',
+					gap: 10,
 					flexWrap: 'wrap',
-					paddingTop: '16px',
-					borderTop: '1px solid #f1f5f9',
+					paddingTop: 16,
+					borderTop: '1px solid var(--border)',
 				}}
 			>
 				<button
@@ -192,13 +201,13 @@ const ExamCard = ({ exam, onPublish, onClone, onEdit, publishing }) => {
 					style={{
 						flex: '1 1 120px',
 						padding: '10px 14px',
-						borderRadius: '8px',
+						borderRadius: 8,
 						border: 'none',
 						background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
 						color: '#ffffff',
 						cursor: 'pointer',
 						fontWeight: 600,
-						fontSize: '14px',
+						fontSize: 14,
 						boxShadow: '0 4px 12px rgba(99,102,241,0.25)',
 					}}
 				>
@@ -210,13 +219,13 @@ const ExamCard = ({ exam, onPublish, onClone, onEdit, publishing }) => {
 					style={{
 						flex: '1 1 120px',
 						padding: '10px 14px',
-						borderRadius: '8px',
-						border: '1px solid #d1d5db',
-						background: '#ffffff',
-						color: '#374151',
+						borderRadius: 8,
+						border: '1px solid var(--border)',
+						background: 'var(--surface)',
+						color: 'var(--text)',
 						cursor: 'pointer',
 						fontWeight: 600,
-						fontSize: '14px',
+						fontSize: 14,
 					}}
 				>
 					📋 Clone
@@ -229,7 +238,7 @@ const ExamCard = ({ exam, onPublish, onClone, onEdit, publishing }) => {
 						style={{
 							flex: '1 1 120px',
 							padding: '10px 14px',
-							borderRadius: '8px',
+							borderRadius: 8,
 							border: 'none',
 							background: publishing
 								? '#9ca3af'
@@ -237,7 +246,7 @@ const ExamCard = ({ exam, onPublish, onClone, onEdit, publishing }) => {
 							color: '#ffffff',
 							cursor: publishing ? 'not-allowed' : 'pointer',
 							fontWeight: 600,
-							fontSize: '14px',
+							fontSize: 14,
 							boxShadow: publishing ? 'none' : '0 4px 12px rgba(16,185,129,0.25)',
 						}}
 					>
@@ -343,10 +352,10 @@ const TeacherExams = () => {
 			<header
 				style={{
 					background:
-						'linear-gradient(135deg, rgba(16,185,129,0.1), rgba(59,130,246,0.05))',
+						'linear-gradient(135deg, color-mix(in srgb, #10b981 10%, transparent), color-mix(in srgb, #3b82f6 5%, transparent))',
 					padding: '32px 28px',
 					borderRadius: 20,
-					border: '1px solid rgba(16,185,129,0.2)',
+					border: '1px solid var(--border)',
 					marginBottom: 32,
 				}}
 			>
@@ -441,12 +450,12 @@ const TeacherExams = () => {
 			{/* Search and Filters */}
 			<div
 				style={{
-					background: '#ffffff',
-					padding: '24px',
+					background: 'var(--surface)',
+					padding: 24,
 					borderRadius: 16,
-					border: '1px solid #e5e7eb',
+					border: '1px solid var(--border)',
 					marginBottom: 24,
-					boxShadow: '0 2px 8px rgba(15,23,42,0.04)',
+					boxShadow: 'var(--shadow-md)',
 				}}
 			>
 				<div style={{ display: 'flex', gap: 20, alignItems: 'center', flexWrap: 'wrap' }}>
