@@ -188,7 +188,7 @@ const normalizeIssue = i => ({
 	examTitle: i.exam?.title ?? i.examTitle ?? 'Exam',
 	issueType: i.issueType ?? i.type ?? 'General',
 	description: i.description ?? '',
-	status: String(i.status || '').toLowerCase() || 'open',
+	status: String(i.status || 'open').toLowerCase(),
 	reply: i.reply ?? '',
 	createdAt: i.createdAt ? new Date(i.createdAt).toLocaleString() : (i.created_at ?? ''),
 	resolvedAt: i.resolvedAt ? new Date(i.resolvedAt).toLocaleString() : (i.resolved_at ?? ''),
@@ -292,7 +292,7 @@ export const getMyIssues = async (params = {}) => {
 };
 
 export const createIssue = async payload => {
-	// payload: { examId, issueType, description }
+	// payload: { submissionId, issueType, description }
 	const res = await tryPost(EP.issueCreate, payload);
 	const data = res?.data?.data ?? res?.data ?? {};
 	return normalizeIssue(data);
@@ -326,9 +326,21 @@ export const getSubmissionById = async submissionId => {
 	return normalizeSubmission(data);
 };
 
+// New helper to get submissions for the issue form dropdown
+export const getMySubmissionsForIssues = async () => {
+	const submissions = await getMySubmissions();
+	// Return a simplified list for the dropdown
+	return submissions.map(s => ({
+		id: s.id,
+		label: `${s.examTitle} (Submitted: ${s.submittedAt || s.startedAt})`,
+	}));
+};
+
 // Ensure cookies (if server sets session cookies)
 try {
 	if (apiClient?.defaults) {
 		apiClient.defaults.withCredentials = true;
 	}
-} catch (e) { void e; }
+} catch (e) {
+	void e;
+}
