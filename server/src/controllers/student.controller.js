@@ -144,7 +144,8 @@ const changePassword = asyncHandler(async (req, res) => {
         throw ApiError.BadRequest('Current and new passwords are required');
     }
 
-    const student = await Student.findById(studentId);
+    // Ensure password hash is available for comparison
+    const student = await Student.findById(studentId).select('+password');
     if (!student) {
         throw ApiError.NotFound('Student not found');
     }
