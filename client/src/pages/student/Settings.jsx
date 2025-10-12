@@ -483,56 +483,6 @@ const StudentSettings = () => {
 								onChange={e => setPwd(p => ({ ...p, currentPassword: e.target.value }))}
 								autoComplete="current-password"
 								required
-							/>
-						</div>
-					</Field>
-
-					<Field label="New password" required>
-						<div style={{ position: 'relative', display: 'flex' }}>
-							<Input
-								type={showPwd.new ? 'text' : 'password'}
-								name="newPassword"
-								value={pwd.newPassword}
-								onChange={e => setPwd(p => ({ ...p, newPassword: e.target.value }))}
-								minLength={6}
-								autoComplete="new-password"
-								required
-								style={{ flex: 1, paddingRight: 42 }}
-							/>
-							<button
-								type="button"
-								onClick={() => setShowPwd(s => ({ ...s, new: !s.new }))}
-								aria-label={showPwd.new ? 'Hide new password' : 'Show new password'}
-								title={showPwd.new ? 'Hide' : 'Show'}
-								style={{
-									position: 'absolute',
-									right: 8,
-									top: '50%',
-									transform: 'translateY(-50%)',
-									border: '1px solid var(--border)',
-									background: 'var(--surface)',
-									color: 'var(--text-muted)',
-									borderRadius: 8,
-									padding: '4px 8px',
-									fontSize: 12,
-									cursor: 'pointer',
-								}}
-							>
-								{showPwd.new ? 'Hide' : 'Show'}
-							</button>
-						</div>
-					</Field>
-
-					<Field label="Confirm new password" required>
-						<div style={{ position: 'relative', display: 'flex' }}>
-							<Input
-								type={showPwd.confirm ? 'text' : 'password'}
-								name="confirmPassword"
-								value={pwd.confirmPassword}
-								onChange={e => setPwd(p => ({ ...p, confirmPassword: e.target.value }))}
-								minLength={6}
-								autoComplete="new-password"
-								required
 								style={{ flex: 1, paddingRight: 42 }}
 							/>
 							<button
@@ -568,16 +518,6 @@ const StudentSettings = () => {
 								onChange={e => setPwd(p => ({ ...p, newPassword: e.target.value }))}
 								minLength={6}
 								autoComplete="new-password"
-							required
-						/>
-						<div style={{ position: 'relative', display: 'flex' }}>
-							<Input
-								type={showPwd.new ? 'text' : 'password'}
-								name="newPassword"
-								value={pwd.newPassword}
-								onChange={e => setPwd(p => ({ ...p, newPassword: e.target.value }))}
-								minLength={6}
-								autoComplete="new-password"
 								required
 								style={{ flex: 1, paddingRight: 42 }}
 							/>
@@ -604,16 +544,8 @@ const StudentSettings = () => {
 							</button>
 						</div>
 					</Field>
+
 					<Field label="Confirm new password" required>
-						<Input
-							type="password"
-							name="confirmPassword"
-							value={pwd.confirmPassword}
-							onChange={e => setPwd(p => ({ ...p, confirmPassword: e.target.value }))}
-							minLength={6}
-							autoComplete="new-password"
-							required
-						/>
 						<div style={{ position: 'relative', display: 'flex' }}>
 							<Input
 								type={showPwd.confirm ? 'text' : 'password'}
