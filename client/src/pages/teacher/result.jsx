@@ -15,22 +15,34 @@ const safeText = (v, fallback = '') => {
 };
 
 const statusConfig = {
-	pending: { bg: '#fef3c7', border: '#fbbf24', color: '#92400e', label: 'Pending', icon: '⏳' },
+	pending: {
+		bg: 'var(--surface)',
+		border: 'var(--border)',
+		color: 'var(--text-muted)',
+		label: 'Pending',
+		icon: '⏳',
+	},
 	evaluated: {
-		bg: '#d1fae5',
-		border: '#34d399',
-		color: '#047857',
+		bg: 'var(--surface)',
+		border: 'var(--border)',
+		color: '#10b981',
 		label: 'Evaluated',
 		icon: '✅',
 	},
 	submitted: {
-		bg: '#dbeafe',
-		border: '#60a5fa',
-		color: '#1d4ed8',
+		bg: 'var(--surface)',
+		border: 'var(--border)',
+		color: '#3b82f6',
 		label: 'Submitted',
 		icon: '📋',
 	},
-	flagged: { bg: '#fee2e2', border: '#f87171', color: '#dc2626', label: 'Flagged', icon: '🚨' },
+	flagged: {
+		bg: 'var(--surface)',
+		border: 'var(--border)',
+		color: '#dc2626',
+		label: 'Flagged',
+		icon: '🚨',
+	},
 };
 
 const SubmissionCard = ({ submission, onEvaluate, onGrade, isEvaluating }) => {
@@ -41,24 +53,16 @@ const SubmissionCard = ({ submission, onEvaluate, onGrade, isEvaluating }) => {
 	return (
 		<article
 			style={{
-				background: '#ffffff',
+				background: 'var(--surface)',
 				borderRadius: 16,
-				border: '1px solid #e5e7eb',
-				boxShadow: '0 4px 16px rgba(15,23,42,0.06)',
+				border: '1px solid var(--border)',
+				boxShadow: 'var(--shadow-md)',
 				padding: '24px',
 				display: 'grid',
 				gridTemplateColumns: '1fr auto',
 				gap: 24,
 				alignItems: 'start',
 				transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-			}}
-			onMouseEnter={e => {
-				e.currentTarget.style.transform = 'translateY(-2px)';
-				e.currentTarget.style.boxShadow = '0 8px 28px rgba(15,23,42,0.12)';
-			}}
-			onMouseLeave={e => {
-				e.currentTarget.style.transform = 'translateY(0)';
-				e.currentTarget.style.boxShadow = '0 4px 16px rgba(15,23,42,0.06)';
 			}}
 		>
 			<div>
@@ -127,11 +131,11 @@ const SubmissionCard = ({ submission, onEvaluate, onGrade, isEvaluating }) => {
 					style={{
 						display: 'flex',
 						alignItems: 'baseline',
-						gap: '8px',
-						padding: '16px',
-						background: '#f8fafc',
-						borderRadius: '12px',
-						border: '1px solid #e2e8f0',
+						gap: 8,
+						padding: 16,
+						background: 'var(--surface)',
+						borderRadius: 12,
+						border: '1px solid var(--border)',
 					}}
 				>
 					{submission.score !== null && submission.score !== undefined ? (
@@ -185,14 +189,14 @@ const SubmissionCard = ({ submission, onEvaluate, onGrade, isEvaluating }) => {
 
 			<div
 				style={{
-					background: '#f8fafc',
+					background: 'var(--surface)',
 					borderRadius: 12,
-					padding: '20px',
-					border: '1px solid #e2e8f0',
+					padding: 20,
+					border: '1px solid var(--border)',
 					display: 'flex',
 					flexDirection: 'column',
-					gap: '12px',
-					minWidth: '180px',
+					gap: 12,
+					minWidth: 180,
 				}}
 			>
 				<button
@@ -221,17 +225,18 @@ const SubmissionCard = ({ submission, onEvaluate, onGrade, isEvaluating }) => {
 					disabled={isEvaluating}
 					style={{
 						padding: '12px 16px',
-						borderRadius: '8px',
-						border: '1px solid #d1d5db',
-						background: isEvaluating ? '#f3f4f6' : '#ffffff',
-						color: isEvaluating ? '#6b7280' : '#374151',
+						borderRadius: 8,
+						border: '1px solid var(--border)',
+						background: 'var(--surface)',
+						color: 'var(--text)',
 						cursor: isEvaluating ? 'not-allowed' : 'pointer',
 						fontWeight: 600,
-						fontSize: '14px',
+						fontSize: 14,
 						display: 'flex',
 						alignItems: 'center',
 						justifyContent: 'center',
-						gap: '8px',
+						gap: 8,
+						opacity: isEvaluating ? 0.7 : 1,
 					}}
 				>
 					{isEvaluating ? '⏳ Evaluating...' : '🤖 Auto Evaluate'}
@@ -336,10 +341,10 @@ const TeacherResults = () => {
 			<header
 				style={{
 					background:
-						'linear-gradient(135deg, rgba(99,102,241,0.1), rgba(139,92,246,0.05))',
+						'linear-gradient(135deg, color-mix(in srgb, #6366f1 10%, transparent), color-mix(in srgb, #8b5cf6 5%, transparent))',
 					padding: '32px 28px',
 					borderRadius: 20,
-					border: '1px solid rgba(99,102,241,0.2)',
+					border: '1px solid var(--border)',
 					marginBottom: 32,
 				}}
 			>
@@ -416,12 +421,12 @@ const TeacherResults = () => {
 			{/* Search and Filters */}
 			<div
 				style={{
-					background: '#ffffff',
+					background: 'var(--surface)',
 					padding: '24px',
 					borderRadius: 16,
-					border: '1px solid #e5e7eb',
+					border: '1px solid var(--border)',
 					marginBottom: 24,
-					boxShadow: '0 2px 8px rgba(15,23,42,0.04)',
+					boxShadow: 'var(--shadow-md)',
 				}}
 			>
 				<div style={{ display: 'flex', gap: 20, alignItems: 'center', flexWrap: 'wrap' }}>
