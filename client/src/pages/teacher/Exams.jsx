@@ -52,45 +52,27 @@ const FilterButton = ({ active, children, onClick, count }) => (
 		style={{
 			padding: '10px 16px',
 			borderRadius: 25,
-			border: active ? '2px solid #3b82f6' : '1px solid #d1d5db',
-			background: active ? '#eff6ff' : '#ffffff',
-			color: active ? '#1d4ed8' : '#374151',
+			border: active ? '2px solid #3b82f6' : '1px solid var(--border)',
+			background: active ? 'color-mix(in srgb, #3b82f6 20%, transparent)' : 'var(--surface)',
+			color: active ? '#3b82f6' : 'var(--text)',
 			cursor: 'pointer',
 			fontWeight: 600,
 			fontSize: '14px',
 			display: 'flex',
 			alignItems: 'center',
 			gap: 8,
-			transition: 'all 0.2s ease',
-			boxShadow: active
-				? '0 4px 12px rgba(59,130,246,0.15)'
-				: '0 2px 4px rgba(15,23,42,0.04)',
-		}}
-		onMouseEnter={e => {
-			if (!active) {
-				e.currentTarget.style.borderColor = '#9ca3af';
-				e.currentTarget.style.boxShadow = '0 4px 8px rgba(15,23,42,0.08)';
-			}
-		}}
-		onMouseLeave={e => {
-			if (!active) {
-				e.currentTarget.style.borderColor = '#d1d5db';
-				e.currentTarget.style.boxShadow = '0 2px 4px rgba(15,23,42,0.04)';
-			}
 		}}
 	>
 		{children}
 		{count !== undefined && (
 			<span
 				style={{
-					background: active ? '#3b82f6' : '#6b7280',
+					background: active ? '#3b82f6' : 'var(--text-muted)',
 					color: '#ffffff',
 					borderRadius: '12px',
 					padding: '2px 8px',
 					fontSize: '12px',
 					fontWeight: 700,
-					minWidth: '20px',
-					textAlign: 'center',
 				}}
 			>
 				{count}
@@ -320,17 +302,7 @@ const TeacherExams = () => {
 	};
 
 	const handleClone = exam => {
-		const clone = {
-			...exam,
-			id: `${exam.id}-copy-${Date.now()}`,
-			title: `${exam.title} (Copy)`,
-			status: 'draft',
-			submissions: 0,
-			enrolled: 0,
-			startAt: '—',
-		};
-		setExams(prev => [clone, ...prev]);
-		setMessage('📋 Exam duplicated! Edit details before publishing.');
+		setMessage(`📋 Cloning "${exam.title}" (to be implemented)`);
 	};
 
 	const handleEdit = exam => {
@@ -343,111 +315,53 @@ const TeacherExams = () => {
 		{ key: 'scheduled', label: 'Scheduled' },
 		{ key: 'draft', label: 'Drafts' },
 		{ key: 'completed', label: 'Completed' },
-		{ key: 'cancelled', label: 'Cancelled' },
 	];
 
 	return (
 		<div style={{ maxWidth: '1200px' }}>
-			{/* Header */}
 			<header
 				style={{
-					background:
-						'linear-gradient(135deg, color-mix(in srgb, #10b981 10%, transparent), color-mix(in srgb, #3b82f6 5%, transparent))',
-					padding: '32px 28px',
-					borderRadius: 20,
-					border: '1px solid var(--border)',
-					marginBottom: 32,
+					display: 'flex',
+					justifyContent: 'space-between',
+					alignItems: 'center',
+					marginBottom: 24,
 				}}
 			>
-				<div
-					style={{
-						display: 'flex',
-						justifyContent: 'space-between',
-						alignItems: 'flex-start',
-						gap: 20,
-					}}
-				>
-					<div>
-						<h1 style={{ margin: '0 0 8px 0', fontSize: '28px', fontWeight: 800 }}>
-							Exam Management
-						</h1>
-						<p style={{ margin: 0, color: '#64748b', fontSize: '16px' }}>
-							Create, schedule, and monitor all your exams in one place.
-						</p>
-					</div>
-					<div style={{ display: 'flex', gap: 12, flexShrink: 0 }}>
-						<button
-							onClick={loadExams}
-							disabled={loading}
-							style={{
-								padding: '12px 16px',
-								borderRadius: '10px',
-								border: '1px solid #d1d5db',
-								background: '#ffffff',
-								color: '#374151',
-								cursor: loading ? 'not-allowed' : 'pointer',
-								fontWeight: 600,
-								fontSize: '14px',
-								opacity: loading ? 0.7 : 1,
-							}}
-						>
-							{loading ? '⏳' : '🔄'} Refresh
-						</button>
-						<button
-							onClick={() => setMessage('➕ Create exam functionality coming soon!')}
-							style={{
-								padding: '12px 20px',
-								borderRadius: '10px',
-								border: 'none',
-								background: 'linear-gradient(135deg, #10b981, #059669)',
-								color: '#ffffff',
-								fontWeight: 700,
-								cursor: 'pointer',
-								boxShadow: '0 8px 20px rgba(16,185,129,0.3)',
-								fontSize: '14px',
-							}}
-						>
-							➕ Create Exam
-						</button>
-					</div>
-				</div>
-			</header>
-
-			{/* Status Message */}
-			{message && (
-				<div
-					style={{
-						marginBottom: 24,
-						padding: '14px 18px',
-						borderRadius: 12,
-						background: '#f0f9ff',
-						border: '1px solid #bae6fd',
-						color: '#0c4a6e',
-						fontWeight: 600,
-						display: 'flex',
-						justifyContent: 'space-between',
-						alignItems: 'center',
-					}}
-				>
-					<span>{message}</span>
-					<button
-						onClick={() => setMessage('')}
+				<div>
+					<h1
 						style={{
-							border: 'none',
-							background: 'transparent',
-							cursor: 'pointer',
-							color: 'inherit',
+							margin: '0 0 8px 0',
+							fontSize: '28px',
 							fontWeight: 800,
-							fontSize: '16px',
-							padding: '4px',
+							color: 'var(--text)',
 						}}
 					>
-						×
-					</button>
+						Exam Management
+					</h1>
+					<p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '16px' }}>
+						Create, schedule, and monitor all your exams.
+					</p>
 				</div>
-			)}
+				<button
+					onClick={() => setMessage('➕ Create exam functionality coming soon!')}
+					style={{
+						padding: '12px 20px',
+						borderRadius: '10px',
+						border: 'none',
+						background: 'linear-gradient(135deg, #10b981, #059669)',
+						color: '#ffffff',
+						fontWeight: 700,
+						cursor: 'pointer',
+						boxShadow: '0 8px 20px rgba(16,185,129,0.3)',
+						fontSize: '14px',
+					}}
+				>
+					➕ Create Exam
+				</button>
+			</header>
 
-			{/* Search and Filters */}
+			{message && <div style={{ marginBottom: 16, color: 'var(--text)' }}>{message}</div>}
+
 			<div
 				style={{
 					background: 'var(--surface)',
@@ -468,11 +382,11 @@ const TeacherExams = () => {
 								width: '100%',
 								padding: '12px 16px 12px 48px',
 								borderRadius: 12,
-								border: '1px solid #d1d5db',
-								background: '#f9fafb',
+								border: '1px solid var(--border)',
+								background: 'var(--bg)',
+								color: 'var(--text)',
 								outline: 'none',
 								fontSize: '14px',
-								fontWeight: 500,
 							}}
 						/>
 						<span
@@ -481,14 +395,13 @@ const TeacherExams = () => {
 								left: 16,
 								top: '50%',
 								transform: 'translateY(-50%)',
-								color: '#9ca3af',
+								color: 'var(--text-muted)',
 								fontSize: '16px',
 							}}
 						>
 							🔍
 						</span>
 					</div>
-
 					<div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
 						{filterOptions.map(option => (
 							<FilterButton
@@ -504,56 +417,29 @@ const TeacherExams = () => {
 				</div>
 			</div>
 
-			{/* Error State */}
-			{error && (
-				<div
-					style={{
-						padding: '20px',
-						borderRadius: 12,
-						background: '#fef2f2',
-						border: '1px solid #fca5a5',
-						color: '#b91c1c',
-						textAlign: 'center',
-						marginBottom: 24,
-					}}
-				>
-					❌ {error}
-				</div>
-			)}
-
-			{/* Loading State */}
+			{/* Loading/Error/Empty States */}
 			{loading && (
-				<div
-					style={{
-						padding: '60px 20px',
-						textAlign: 'center',
-						color: '#64748b',
-					}}
-				>
-					<div style={{ fontSize: '32px', marginBottom: 16 }}>⏳</div>
-					<p style={{ margin: 0, fontWeight: 600 }}>Loading your exams...</p>
+				<div style={{ color: 'var(--text-muted)', textAlign: 'center' }}>
+					Loading exams...
 				</div>
 			)}
-
-			{/* Empty State */}
+			{error && <div style={{ color: '#ef4444', textAlign: 'center' }}>Error: {error}</div>}
 			{!loading && !error && filteredExams.length === 0 && (
 				<div
 					style={{
 						padding: '60px 20px',
 						textAlign: 'center',
-						background: '#ffffff',
+						background: 'var(--surface)',
 						borderRadius: 16,
-						border: '2px dashed #d1d5db',
+						border: '2px dashed var(--border)',
 					}}
 				>
 					<div style={{ fontSize: '48px', marginBottom: 16 }}>📝</div>
-					<h3 style={{ margin: '0 0 8px 0', color: '#374151' }}>
-						{query || status !== 'all' ? 'No matching exams found' : 'No exams yet'}
+					<h3 style={{ margin: '0 0 8px 0', color: 'var(--text)' }}>
+						No matching exams found
 					</h3>
-					<p style={{ margin: 0, color: '#6b7280' }}>
-						{query || status !== 'all'
-							? 'Try adjusting your search or filters'
-							: 'Create your first exam to get started'}
+					<p style={{ margin: 0, color: 'var(--text-muted)' }}>
+						Try adjusting your search or filters, or create a new exam.
 					</p>
 				</div>
 			)}
