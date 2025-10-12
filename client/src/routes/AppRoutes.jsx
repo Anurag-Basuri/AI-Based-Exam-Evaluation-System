@@ -22,6 +22,7 @@ const StudentExams = lazy(() => import('../pages/student/Exams.jsx'));
 const StudentResults = lazy(() => import('../pages/student/result.jsx'));
 const StudentIssues = lazy(() => import('../pages/student/issue.jsx'));
 const StudentSettings = lazy(() => import('../pages/student/Settings.jsx'));
+const TakeExam = lazy(() => import('../pages/student/TakeExam.jsx'));
 
 // Teacher pages
 const TeacherHome = lazy(() => import('../pages/teacher/Home.jsx'));
@@ -68,6 +69,7 @@ const AppRoutes = () => (
 					<Route path="results" element={withBoundary(<StudentResults />)} />
 					<Route path="issues" element={withBoundary(<StudentIssues />)} />
 					<Route path="settings" element={withBoundary(<StudentSettings />)} />
+					<Route path="take-exam/:submissionId" element={withBoundary(<TakeExam />)} />
 					<Route path="*" element={<Navigate to="/student" replace />} />
 				</Route>
 			</Route>
