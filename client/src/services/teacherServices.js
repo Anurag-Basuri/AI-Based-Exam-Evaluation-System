@@ -1,7 +1,7 @@
 import { apiClient } from './api.js';
 import { ApiError, safeApiCall as studentSafe } from './studentServices.js';
 
-// Re-export the student safeApiCall so UI can import from either service uniformly.
+// Re-export the student safeApiCall so UI can import uniformly
 export const safeApiCall = studentSafe;
 
 // ---------- Error normalization (aligned with studentServices) ----------
@@ -18,7 +18,7 @@ const parseAxiosError = err => {
 	return new ApiError(msg, status, data);
 };
 
-// ---------- Safe raw helpers (axios response -> return it, throw ApiError) ----------
+// ---------- Safe raw helpers ----------
 const safe = async promise => {
 	try {
 		return await promise;
@@ -27,13 +27,13 @@ const safe = async promise => {
 	}
 };
 
-// ---------- Fallback request helpers (like studentServices) ----------
+// ---------- Fallback helpers (match studentServices) ----------
 const tryGet = async (urls, config) => {
 	let lastErr;
-	for (const url of urls) {
+	for (const url of Array.isArray(urls) ? urls : [urls]) {
 		try {
-			const res = await apiClient.get(typeof url === 'function' ? url() : url, config);
-			return res;
+			const u = typeof url === 'function' ? url() : url;
+			return await apiClient.get(u, config);
 		} catch (e) {
 			lastErr = e;
 		}
@@ -43,10 +43,10 @@ const tryGet = async (urls, config) => {
 
 const tryPost = async (urls, body, config) => {
 	let lastErr;
-	for (const url of urls) {
+	for (const url of Array.isArray(urls) ? urls : [urls]) {
 		try {
-			const res = await apiClient.post(typeof url === 'function' ? url() : url, body, config);
-			return res;
+			const u = typeof url === 'function' ? url() : url;
+			return await apiClient.post(u, body, config);
 		} catch (e) {
 			lastErr = e;
 		}
@@ -56,14 +56,10 @@ const tryPost = async (urls, body, config) => {
 
 const tryPatch = async (urls, body, config) => {
 	let lastErr;
-	for (const url of urls) {
+	for (const url of Array.isArray(urls) ? urls : [urls]) {
 		try {
-			const res = await apiClient.patch(
-				typeof url === 'function' ? url() : url,
-				body,
-				config,
-			);
-			return res;
+			const u = typeof url === 'function' ? url() : url;
+			return await apiClient.patch(u, body, config);
 		} catch (e) {
 			lastErr = e;
 		}
@@ -73,10 +69,10 @@ const tryPatch = async (urls, body, config) => {
 
 const tryPut = async (urls, body, config) => {
 	let lastErr;
-	for (const url of urls) {
+	for (const url of Array.isArray(urls) ? urls : [urls]) {
 		try {
-			const res = await apiClient.put(typeof url === 'function' ? url() : url, body, config);
-			return res;
+			const u = typeof url === 'function' ? url() : url;
+			return await apiClient.put(u, body, config);
 		} catch (e) {
 			lastErr = e;
 		}
@@ -84,46 +80,35 @@ const tryPut = async (urls, body, config) => {
 	throw parseAxiosError(lastErr);
 };
 
-// ---------- Endpoints (with fallbacks) ----------
+// ---------- Endpoints (server-aligned) ----------
 const EP = {
-	// Exams (teacher-facing)
-	examsAll: ['/api/exams/all', '/api/exams/teacher', '/api/exams'],
+	// Exams
+	examCreate: ['/api/exams/create'],
+	examsAll: ['/api/exams/all'],
 	examById: id => `/api/exams/${encodeURIComponent(id)}`,
-	examUpdate: id => [
-		`/api/exams/${encodeURIComponent(id)}/update`,
-		`/api/exams/${encodeURIComponent(id)}`,
-		`/api/exams/update/${encodeURIComponent(id)}`,
-	],
+	examUpdate: id => [`/api/exams/${encodeURIComponent(id)}/update`],
+	examDelete: id => [`/api/exams/${encodeURIComponent(id)}`],
+	examAddQuestions: id => [`/api/exams/${encodeURIComponent(id)}/questions`],
+	examRemoveQuestions: id => [`/api/exams/${encodeURIComponent(id)}/questions/remove`],
 
-	// Submissions (teacher-facing)
-	submissionsTeacher: ['/api/submissions/teacher', '/api/submissions/all', '/api/submissions'],
-	submissionById: id => `/api/submissions/${encodeURIComponent(id)}`,
-	submissionEvaluate: id => [
-		`/api/submissions/${encodeURIComponent(id)}/evaluate`,
-		`/api/submissions/${encodeURIComponent(id)}/grade`,
-		`/api/submissions/evaluate/${encodeURIComponent(id)}`,
-	],
+	// Submissions (teacher)
+	submissionsByExam: examId => `/api/submissions/exam/${encodeURIComponent(examId)}`,
+	submissionEvalUpdate: id => `/api/submissions/${encodeURIComponent(id)}/evaluate`, // PATCH
+	submissionAutoEvaluate: id => `/api/submissions/${encodeURIComponent(id)}/auto-evaluate`, // POST
 
-	// Issues (teacher-facing)
-	issuesAll: ['/api/issues/all', '/api/issues/teacher', '/api/issues'],
+	// Issues (teacher)
+	issuesAll: ['/api/issues/all'],
 	issueById: id => `/api/issues/${encodeURIComponent(id)}`,
-	issueResolve: id => [
-		`/api/issues/${encodeURIComponent(id)}/resolve`,
-		`/api/issues/${encodeURIComponent(id)}/reply`,
-		`/api/issues/${encodeURIComponent(id)}`,
-	],
+	issueResolve: id => `/api/issues/${encodeURIComponent(id)}/resolve`,
+	issueStatus: id => `/api/issues/${encodeURIComponent(id)}/status`,
 
-	// Teacher account
-	me: ['/api/teacher/me', '/api/teachers/me'],
-	updateMe: ['/api/teacher/me', '/api/teachers/me'],
-	changePassword: ['/api/teacher/change-password', '/api/teachers/change-password'],
+	// Teacher account (server provides update + change-password)
+	teacherUpdate: ['/api/teachers/update'],
+	teacherChangePassword: ['/api/teachers/change-password'],
 };
 
-// ---------- Normalizers (UI-friendly, match teacher pages usage) ----------
+// ---------- Normalizers ----------
 const normalizeExam = e => {
-	const startMs = e?.startTime ? new Date(e.startTime).getTime() : (e?.start_ms ?? null);
-	const endMs = e?.endTime ? new Date(e.endTime).getTime() : (e?.end_ms ?? null);
-
 	const enrolled =
 		e?.enrolledCount ??
 		e?.enrolled ??
@@ -132,21 +117,22 @@ const normalizeExam = e => {
 
 	const submissions =
 		e?.submissionCount ??
-		(Array.isArray(e?.submissions) ? e.submissions.length : undefined) ??
 		e?.submissionsCount ??
-		0;
+		(Array.isArray(e?.submissions) ? e.submissions.length : 0);
 
 	return {
 		id: String(e?._id ?? e?.id ?? ''),
 		title: e?.title ?? 'Untitled Exam',
 		description: e?.description ?? '',
+		duration: e?.duration ?? 0,
 		status: String(e?.status ?? 'draft').toLowerCase(),
-		startAt: e?.startTime ? new Date(e.startTime).toLocaleString() : (e?.startAt ?? '—'),
-		endAt: e?.endTime ? new Date(e.endTime).toLocaleString() : (e?.endAt ?? '—'),
-		startMs: startMs ?? null,
-		endMs: endMs ?? null,
+		searchId: e?.searchId ?? e?.search_id ?? '',
+		startAt: e?.startTime ? new Date(e.startTime).toLocaleString() : (e?.startAt ?? ''),
+		endAt: e?.endTime ? new Date(e.endTime).toLocaleString() : (e?.endAt ?? ''),
+		createdBy: String(e?.createdBy?._id ?? e?.createdBy ?? ''),
 		enrolled: typeof enrolled === 'number' ? enrolled : 0,
 		submissions: typeof submissions === 'number' ? submissions : 0,
+		questions: Array.isArray(e?.questions) ? e.questions.map(q => String(q?._id ?? q)) : [],
 	};
 };
 
@@ -165,15 +151,16 @@ const normalizeSubmission = s => {
 
 	return {
 		id: String(s?._id ?? s?.id ?? ''),
-		examId: String(s?.exam?._id ?? s?.examId ?? s?.exam ?? ''),
+		examId: String(s?.exam?._id ?? s?.exam ?? ''),
 		examTitle: s?.exam?.title ?? s?.examTitle ?? 'Exam',
-		studentId: String(s?.student?._id ?? s?.studentId ?? s?.student ?? ''),
-		studentName: s?.student?.fullname ?? s?.studentName ?? s?.student?.name ?? 'Student',
+		studentId: String(s?.student?._id ?? s?.student ?? ''),
+		studentName: s?.student?.fullname ?? s?.studentName ?? s?.student?.username ?? 'Student',
 		status: String(s?.status ?? 'pending').toLowerCase(),
 		score,
 		maxScore,
 		startedAt: s?.startedAt ? new Date(s.startedAt).toLocaleString() : '',
 		submittedAt: s?.submittedAt ? new Date(s.submittedAt).toLocaleString() : '',
+		evaluatedAt: s?.evaluatedAt ? new Date(s.evaluatedAt).toLocaleString() : '',
 	};
 };
 
@@ -202,7 +189,27 @@ const normalizeTeacher = t => ({
 });
 
 // ---------- Exams (Teacher) ----------
+export const createTeacherExam = async payload => {
+	// payload: { title, description, duration, startTime, endTime, questionIds? }
+	const res = await tryPost(EP.examCreate, payload);
+	const data = res?.data?.data ?? res?.data ?? {};
+	return normalizeExam(data);
+};
+
+export const addQuestionsToExam = async (examId, questionIds = []) => {
+	const res = await tryPatch(EP.examAddQuestions(examId), { questionIds });
+	const data = res?.data?.data ?? res?.data ?? {};
+	return normalizeExam(data);
+};
+
+export const removeQuestionsFromExam = async (examId, questionIds = []) => {
+	const res = await tryPatch(EP.examRemoveQuestions(examId), { questionIds });
+	const data = res?.data?.data ?? res?.data ?? {};
+	return normalizeExam(data);
+};
+
 export const getTeacherExams = async (params = {}) => {
+	// Server supports teacher filtering via ?teacher=<id>, status, q
 	const res = await tryGet(EP.examsAll, { params });
 	const list = res?.data?.data || res?.data || [];
 	return Array.isArray(list) ? list.map(normalizeExam) : [];
@@ -214,43 +221,66 @@ export const getTeacherExamById = async examId => {
 	return normalizeExam(data);
 };
 
-export const updateExamStatus = async (examId, body = {}) => {
-	// allow both PUT/PATCH fallbacks
-	try {
-		const res = await tryPatch(EP.examUpdate(examId), body);
-		const data = res?.data?.data ?? res?.data ?? {};
-		return normalizeExam(data);
-	} catch (_) {
-		const res = await tryPut(EP.examUpdate(examId), body);
-		const data = res?.data?.data ?? res?.data ?? {};
-		return normalizeExam(data);
-	}
+export const updateExam = async (examId, body = {}) => {
+	const res = await tryPut(EP.examUpdate(examId), body);
+	const data = res?.data?.data ?? res?.data ?? {};
+	return normalizeExam(data);
+};
+
+export const updateExamStatus = async (examId, statusBody = {}) => {
+	// convenience wrapper for status-only update
+	return updateExam(examId, statusBody);
+};
+
+export const deleteExam = async examId => {
+	const res = await safe(apiClient.delete(EP.examDelete(examId)));
+	const ok = (res?.data?.success ?? res?.status === 200) ? true : true;
+	return { success: ok };
 };
 
 // ---------- Submissions (Teacher) ----------
 export const getTeacherSubmissions = async (params = {}) => {
-	const res = await tryGet(EP.submissionsTeacher, { params });
-	const list = res?.data?.data || res?.data || [];
-	return Array.isArray(list) ? list.map(normalizeSubmission) : [];
+	// Preferred: pass { examId }. If not provided, aggregates across all your exams.
+	const { examId, teacher, status } = params || {};
+
+	if (examId) {
+		const res = await tryGet(EP.submissionsByExam(examId));
+		const list = res?.data?.data || res?.data || [];
+		let items = Array.isArray(list) ? list.map(normalizeSubmission) : [];
+		return status ? items.filter(s => s.status === String(status).toLowerCase()) : items;
+	}
+
+	// Fallback: aggregate by fetching exams then submissions per exam
+	const examsRes = await tryGet(EP.examsAll, { params: teacher ? { teacher } : {} });
+	const exams = Array.isArray(examsRes?.data?.data || examsRes?.data)
+		? examsRes.data.data || examsRes.data
+		: [];
+	const examIds = exams.map(e => String(e?._id ?? e?.id)).filter(Boolean);
+
+	const results = await Promise.allSettled(examIds.map(id => tryGet(EP.submissionsByExam(id))));
+
+	const merged = [];
+	for (const r of results) {
+		if (r.status === 'fulfilled') {
+			const list = r.value?.data?.data || r.value?.data || [];
+			if (Array.isArray(list)) merged.push(...list);
+		}
+	}
+	let subs = merged.map(normalizeSubmission);
+	return status ? subs.filter(s => s.status === String(status).toLowerCase()) : subs;
 };
 
-export const getTeacherSubmissionById = async submissionId => {
-	const res = await safe(apiClient.get(EP.submissionById(submissionId)));
+export const updateTeacherEvaluation = async (submissionId, evaluations = []) => {
+	// evaluations: [{ question, marks, remarks }]
+	const res = await tryPatch(EP.submissionEvalUpdate(submissionId), { evaluations });
 	const data = res?.data?.data ?? res?.data ?? {};
 	return normalizeSubmission(data);
 };
 
-export const evaluateTeacherSubmission = async submissionId => {
-	// allow evaluate via PATCH or POST if API differs
-	try {
-		const res = await tryPatch(EP.submissionEvaluate(submissionId), {});
-		const data = res?.data?.data ?? res?.data ?? {};
-		return normalizeSubmission(data);
-	} catch (_) {
-		const res = await tryPost(EP.submissionEvaluate(submissionId), {});
-		const data = res?.data?.data ?? res?.data ?? {};
-		return normalizeSubmission(data);
-	}
+export const autoEvaluateTeacherSubmission = async submissionId => {
+	const res = await tryPost(EP.submissionAutoEvaluate(submissionId), {});
+	const data = res?.data?.data ?? res?.data ?? {};
+	return normalizeSubmission(data);
 };
 
 // ---------- Issues (Teacher) ----------
@@ -261,33 +291,24 @@ export const getTeacherIssues = async (params = {}) => {
 };
 
 export const getTeacherIssueById = async issueId => {
-	const res = await safe(apiClient.get(EP.issueById(issueId)));
+	const res = await tryGet(EP.issueById(issueId));
 	const data = res?.data?.data ?? res?.data ?? {};
 	return normalizeIssue(data);
 };
 
-export const resolveTeacherIssue = async (issueId, body = {}) => {
-	// API may require { message, status: 'resolved' } or similar
-	const payload = { ...body };
-	if (!payload.status) payload.status = 'resolved';
-	try {
-		const res = await tryPatch(EP.issueResolve(issueId), payload);
-		const data = res?.data?.data ?? res?.data ?? {};
-		return normalizeIssue(data);
-	} catch (_) {
-		const res = await tryPost(EP.issueResolve(issueId), payload);
-		const data = res?.data?.data ?? res?.data ?? {};
-		return normalizeIssue(data);
-	}
+export const resolveTeacherIssue = async (issueId, reply) => {
+	const res = await tryPatch(EP.issueResolve(issueId), { reply });
+	const data = res?.data?.data ?? res?.data ?? {};
+	return normalizeIssue(data);
+};
+
+export const updateTeacherIssueStatus = async (issueId, status) => {
+	const res = await tryPatch(EP.issueStatus(issueId), { status });
+	const data = res?.data?.data ?? res?.data ?? {};
+	return normalizeIssue(data);
 };
 
 // ---------- Profile & Settings (Teacher) ----------
-export const getTeacherProfile = async () => {
-	const res = await tryGet(EP.me);
-	const data = res?.data?.data ?? res?.data ?? {};
-	return normalizeTeacher(data);
-};
-
 export const updateTeacherProfile = async profile => {
 	const payload = {
 		username: profile?.username ?? '',
@@ -297,21 +318,13 @@ export const updateTeacherProfile = async profile => {
 		department: profile?.department ?? '',
 		address: profile?.address ?? '',
 	};
-	// Many backends accept PATCH here; fallback to PUT if needed
-	try {
-		const res = await tryPatch(EP.updateMe, payload);
-		const data = res?.data?.data ?? res?.data ?? {};
-		return normalizeTeacher(data);
-	} catch (_) {
-		const res = await tryPut(EP.updateMe, payload);
-		const data = res?.data?.data ?? res?.data ?? {};
-		return normalizeTeacher(data);
-	}
+	const res = await tryPut(EP.teacherUpdate, payload);
+	const data = res?.data?.data ?? res?.data ?? {};
+	return normalizeTeacher(data);
 };
 
 export const changeTeacherPassword = async ({ currentPassword, newPassword }) => {
-	const res = await tryPatch(EP.changePassword, { currentPassword, newPassword });
-	// Prefer returning a success boolean to simplify UI
+	const res = await tryPut(EP.teacherChangePassword, { currentPassword, newPassword });
 	const data = res?.data?.data ?? res?.data ?? { success: true };
 	return { success: !!(data?.success ?? true) };
 };
