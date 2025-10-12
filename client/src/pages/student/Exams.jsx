@@ -9,28 +9,40 @@ import {
 
 const statusStyles = {
 	'in-progress': {
-		bg: '#fff7ed',
-		border: '#fed7aa',
-		color: '#9a3412',
+		bg: 'var(--surface)',
+		border: 'var(--border)',
+		color: '#f59e0b',
 		label: 'In Progress',
 		icon: '🟡',
 	},
-	started: { bg: '#fff7ed', border: '#fed7aa', color: '#9a3412', label: 'Started', icon: '🟡' },
+	started: {
+		bg: 'var(--surface)',
+		border: 'var(--border)',
+		color: '#f59e0b',
+		label: 'Started',
+		icon: '🟡',
+	},
 	submitted: {
-		bg: '#dbeafe',
-		border: '#93c5fd',
-		color: '#1d4ed8',
+		bg: 'var(--surface)',
+		border: 'var(--border)',
+		color: '#3b82f6',
 		label: 'Submitted',
 		icon: '📋',
 	},
 	evaluated: {
-		bg: '#ecfdf5',
-		border: '#6ee7b7',
-		color: '#047857',
+		bg: 'var(--surface)',
+		border: 'var(--border)',
+		color: '#10b981',
 		label: 'Evaluated',
 		icon: '✅',
 	},
-	pending: { bg: '#f3f4f6', border: '#d1d5db', color: '#374151', label: 'Pending', icon: '⏳' },
+	pending: {
+		bg: 'var(--surface)',
+		border: 'var(--border)',
+		color: 'var(--text-muted)',
+		label: 'Pending',
+		icon: '⏳',
+	},
 };
 
 const PreviousExamCard = ({ submission, onContinue, isContinuing }) => {
@@ -41,10 +53,10 @@ const PreviousExamCard = ({ submission, onContinue, isContinuing }) => {
 	return (
 		<article
 			style={{
-				background: '#ffffff',
+				background: 'var(--surface)',
 				borderRadius: 16,
-				border: '1px solid #e5e7eb',
-				boxShadow: '0 4px 16px rgba(15,23,42,0.06)',
+				border: '1px solid var(--border)',
+				boxShadow: 'var(--shadow-md)',
 				padding: '20px',
 				transition: 'all 0.2s ease',
 			}}
@@ -63,7 +75,7 @@ const PreviousExamCard = ({ submission, onContinue, isContinuing }) => {
 							margin: 0,
 							fontSize: '16px',
 							fontWeight: 700,
-							color: '#0f172a',
+							color: 'var(--text)',
 							flex: 1,
 						}}
 					>
@@ -88,15 +100,24 @@ const PreviousExamCard = ({ submission, onContinue, isContinuing }) => {
 					</span>
 				</div>
 
-				<div style={{ display: 'flex', gap: '16px', color: '#64748b', fontSize: '13px' }}>
+				<div
+					style={{
+						display: 'flex',
+						gap: '16px',
+						color: 'var(--text-muted)',
+						fontSize: '13px',
+					}}
+				>
 					{submission.startedAt && (
 						<div>
-							<strong>Started:</strong> {submission.startedAt}
+							<strong style={{ color: 'var(--text)' }}>Started:</strong>{' '}
+							{submission.startedAt}
 						</div>
 					)}
 					{submission.submittedAt && (
 						<div>
-							<strong>Submitted:</strong> {submission.submittedAt}
+							<strong style={{ color: 'var(--text)' }}>Submitted:</strong>{' '}
+							{submission.submittedAt}
 						</div>
 					)}
 				</div>
@@ -105,25 +126,27 @@ const PreviousExamCard = ({ submission, onContinue, isContinuing }) => {
 			{hasScore && (
 				<div
 					style={{
-						background: '#f0f9ff',
+						background: 'var(--surface)',
 						borderRadius: 12,
 						padding: '12px',
-						border: '1px solid #bae6fd',
+						border: '1px solid var(--border)',
 						marginBottom: '16px',
 					}}
 				>
 					<div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-						<span style={{ fontSize: '18px', fontWeight: 800, color: '#0369a1' }}>
+						<span style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text)' }}>
 							{submission.score}
 						</span>
-						<span style={{ color: '#64748b' }}>/ {submission.maxScore || 100}</span>
+						<span style={{ color: 'var(--text-muted)' }}>
+							/ {submission.maxScore || 100}
+						</span>
 						<span
 							style={{
 								marginLeft: 'auto',
 								color:
-									submission.score >= submission.maxScore * 0.7
-										? '#047857'
-										: '#dc2626',
+									submission.score >= (submission.maxScore || 100) * 0.7
+										? '#10b981'
+										: '#ef4444',
 								fontWeight: 600,
 							}}
 						>
@@ -160,9 +183,9 @@ const PreviousExamCard = ({ submission, onContinue, isContinuing }) => {
 						style={{
 							padding: '10px 16px',
 							borderRadius: '8px',
-							border: '1px solid #d1d5db',
-							background: '#ffffff',
-							color: '#374151',
+							border: '1px solid var(--border)',
+							background: 'var(--surface)',
+							color: 'var(--text)',
 							cursor: 'pointer',
 							fontWeight: 600,
 							fontSize: '14px',
@@ -233,7 +256,6 @@ const StudentExams = () => {
 
 		try {
 			const submission = await safeApiCall(startExam, foundExam.id);
-			// Navigate to exam taking page (you'll need to create this)
 			navigate(`/student/take-exam/${submission.id}`);
 		} catch (e) {
 			setError(e?.message || 'Failed to start exam');
@@ -245,7 +267,6 @@ const StudentExams = () => {
 	const handleContinueExam = async submission => {
 		setContinuingId(submission.id);
 		try {
-			// Navigate to exam taking page
 			navigate(`/student/take-exam/${submission.id}`);
 		} catch (e) {
 			setError(e?.message || 'Failed to continue exam');
@@ -256,37 +277,49 @@ const StudentExams = () => {
 
 	return (
 		<div style={{ maxWidth: '1200px' }}>
-			{/* Header */}
 			<header
 				style={{
 					background:
-						'linear-gradient(135deg, rgba(16,185,129,0.1), rgba(59,130,246,0.05))',
+						'linear-gradient(135deg, color-mix(in srgb, #10b981 12%, transparent), color-mix(in srgb, #3b82f6 6%, transparent))',
 					padding: '32px 28px',
 					borderRadius: 20,
-					border: '1px solid rgba(16,185,129,0.2)',
+					border: '1px solid color-mix(in srgb, #10b981 25%, transparent)',
 					marginBottom: 32,
 				}}
 			>
-				<h1 style={{ margin: '0 0 8px 0', fontSize: '28px', fontWeight: 800 }}>
+				<h1
+					style={{
+						margin: '0 0 8px 0',
+						fontSize: '28px',
+						fontWeight: 800,
+						color: 'var(--text)',
+					}}
+				>
 					Find Your Exam
 				</h1>
-				<p style={{ margin: 0, color: '#64748b', fontSize: '16px' }}>
+				<p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '16px' }}>
 					Enter the exam search code provided by your instructor to start the exam.
 				</p>
 			</header>
 
-			{/* Search Form */}
 			<div
 				style={{
-					background: '#ffffff',
+					background: 'var(--surface)',
 					padding: '24px',
 					borderRadius: 16,
-					border: '1px solid #e5e7eb',
+					border: '1px solid var(--border)',
 					marginBottom: 32,
-					boxShadow: '0 2px 8px rgba(15,23,42,0.04)',
+					boxShadow: 'var(--shadow-md)',
 				}}
 			>
-				<h2 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: 700 }}>
+				<h2
+					style={{
+						margin: '0 0 16px 0',
+						fontSize: '18px',
+						fontWeight: 700,
+						color: 'var(--text)',
+					}}
+				>
 					🔍 Search for Exam
 				</h2>
 
@@ -300,7 +333,7 @@ const StudentExams = () => {
 								display: 'block',
 								marginBottom: 6,
 								fontWeight: 600,
-								color: '#374151',
+								color: 'var(--text)',
 							}}
 						>
 							Exam Search Code
@@ -324,8 +357,9 @@ const StudentExams = () => {
 								width: '100%',
 								padding: '12px 16px',
 								borderRadius: 12,
-								border: '1px solid #d1d5db',
-								background: '#f9fafb',
+								border: '1px solid var(--border)',
+								background: 'var(--surface)',
+								color: 'var(--text)',
 								outline: 'none',
 								fontSize: '14px',
 								fontWeight: 500,
@@ -358,13 +392,14 @@ const StudentExams = () => {
 
 				{message && (
 					<div
+						role="status"
 						style={{
 							marginTop: '16px',
 							padding: '12px',
 							borderRadius: 12,
-							background: '#f0f9ff',
-							border: '1px solid #bae6fd',
-							color: '#0c4a6e',
+							background: 'var(--surface)',
+							border: '1px solid var(--border)',
+							color: 'var(--text)',
 							fontWeight: 600,
 						}}
 					>
@@ -373,13 +408,14 @@ const StudentExams = () => {
 				)}
 				{error && (
 					<div
+						role="alert"
 						style={{
 							marginTop: '8px',
 							padding: '12px',
 							borderRadius: 12,
-							background: '#fef2f2',
-							border: '1px solid #fca5a5',
-							color: '#b91c1c',
+							background: 'var(--surface)',
+							border: '1px solid var(--border)',
+							color: '#ef4444',
 							textAlign: 'center',
 						}}
 					>
@@ -393,7 +429,7 @@ const StudentExams = () => {
 								margin: '0 0 12px 0',
 								fontSize: '18px',
 								fontWeight: 700,
-								color: '#0f172a',
+								color: 'var(--text)',
 							}}
 						>
 							Found Exam: {foundExam.title}
@@ -410,10 +446,10 @@ const StudentExams = () => {
 							<div
 								style={{
 									padding: 12,
-									border: '1px solid #e5e7eb',
+									border: '1px solid var(--border)',
 									borderRadius: 12,
-									background: '#fff',
-									color: '#374151',
+									background: 'var(--surface)',
+									color: 'var(--text)',
 									fontSize: 13,
 								}}
 							>
@@ -423,10 +459,10 @@ const StudentExams = () => {
 							<div
 								style={{
 									padding: 12,
-									border: '1px solid #e5e7eb',
+									border: '1px solid var(--border)',
 									borderRadius: 12,
-									background: '#fff',
-									color: '#374151',
+									background: 'var(--surface)',
+									color: 'var(--text)',
 									fontSize: 13,
 								}}
 							>
@@ -435,10 +471,10 @@ const StudentExams = () => {
 							<div
 								style={{
 									padding: 12,
-									border: '1px solid #e5e7eb',
+									border: '1px solid var(--border)',
 									borderRadius: 12,
-									background: '#fff',
-									color: '#374151',
+									background: 'var(--surface)',
+									color: 'var(--text)',
 									fontSize: 13,
 								}}
 							>
@@ -452,9 +488,9 @@ const StudentExams = () => {
 									marginBottom: 12,
 									padding: 12,
 									borderRadius: 12,
-									border: '1px solid #fde68a',
-									background: '#fffbeb',
-									color: '#92400e',
+									border: '1px solid var(--border)',
+									background: 'var(--surface)',
+									color: 'var(--text)',
 									fontWeight: 600,
 								}}
 							>
@@ -493,19 +529,24 @@ const StudentExams = () => {
 				)}
 			</div>
 
-			{/* Previous Exams Section */}
 			<section style={{ marginBottom: 32 }}>
-				<h2 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: 700 }}>
+				<h2
+					style={{
+						margin: '0 0 16px 0',
+						fontSize: '18px',
+						fontWeight: 700,
+						color: 'var(--text)',
+					}}
+				>
 					📚 Your Previous Exams
 				</h2>
 
-				{/* Loading State */}
 				{loading && (
 					<div
 						style={{
 							padding: '60px 20px',
 							textAlign: 'center',
-							color: '#64748b',
+							color: 'var(--text-muted)',
 						}}
 					>
 						<div style={{ fontSize: '32px', marginBottom: 16 }}>⏳</div>
@@ -513,37 +554,36 @@ const StudentExams = () => {
 					</div>
 				)}
 
-				{/* Empty State */}
 				{!loading && !error && previousExams.length === 0 && (
 					<div
 						style={{
 							padding: '60px 20px',
 							textAlign: 'center',
-							background: '#ffffff',
+							background: 'var(--surface)',
 							borderRadius: 16,
-							border: '2px dashed #d1d5db',
+							border: '2px dashed var(--border)',
 						}}
 					>
 						<div style={{ fontSize: '48px', marginBottom: 16 }}>📭</div>
-						<h3 style={{ margin: '0 0 8px 0', color: '#374151' }}>
+						<h3 style={{ margin: '0 0 8px 0', color: 'var(--text)' }}>
 							No previous exams found
 						</h3>
-						<p style={{ margin: 0, color: '#6b7280' }}>
+						<p style={{ margin: 0, color: 'var(--text-muted)' }}>
 							You haven't taken any exams yet. Check back later or contact your
 							instructor.
 						</p>
 					</div>
 				)}
 
-				{/* Error State */}
 				{error && (
 					<div
+						role="alert"
 						style={{
 							padding: '20px',
 							borderRadius: 12,
-							background: '#fef2f2',
-							border: '1px solid #fca5a5',
-							color: '#b91c1c',
+							background: 'var(--surface)',
+							border: '1px solid var(--border)',
+							color: '#ef4444',
 							textAlign: 'center',
 							marginBottom: 24,
 						}}
@@ -552,7 +592,6 @@ const StudentExams = () => {
 					</div>
 				)}
 
-				{/* Exams List */}
 				{!loading && !error && previousExams.length > 0 && (
 					<div
 						style={{
