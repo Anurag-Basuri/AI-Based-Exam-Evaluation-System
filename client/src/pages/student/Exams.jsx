@@ -1,31 +1,42 @@
 import React from 'react';
-import { safeApiCall, getStudentExams, startSubmission } from '../../services/studentServices.js';
+import { useNavigate } from 'react-router-dom';
+import {
+	safeApiCall,
+	getMySubmissions,
+	searchExamByCode,
+	startExam,
+} from '../../services/studentServices.js';
 
 const statusStyles = {
-	active: { bg: '#ecfdf5', border: '#6ee7b7', color: '#047857', label: 'Active', icon: '🟢' },
-	live: { bg: '#ecfdf5', border: '#6ee7b7', color: '#047857', label: 'Live', icon: '🟢' },
-	completed: {
-		bg: '#f3e8ff',
-		border: '#c4b5fd',
-		color: '#7c3aed',
-		label: 'Completed',
-		icon: '✅',
+	'in-progress': {
+		bg: '#fff7ed',
+		border: '#fed7aa',
+		color: '#9a3412',
+		label: 'In Progress',
+		icon: '🟡',
 	},
-	scheduled: {
+	started: { bg: '#fff7ed', border: '#fed7aa', color: '#9a3412', label: 'Started', icon: '🟡' },
+	submitted: {
 		bg: '#dbeafe',
 		border: '#93c5fd',
 		color: '#1d4ed8',
-		label: 'Scheduled',
-		icon: '🗓️',
+		label: 'Submitted',
+		icon: '📋',
 	},
-	upcoming: { bg: '#fff7ed', border: '#fed7aa', color: '#9a3412', label: 'Upcoming', icon: '🕐' },
-	draft: { bg: '#f1f5f9', border: '#cbd5e1', color: '#475569', label: 'Draft', icon: '📄' },
+	evaluated: {
+		bg: '#ecfdf5',
+		border: '#6ee7b7',
+		color: '#047857',
+		label: 'Evaluated',
+		icon: '✅',
+	},
+	pending: { bg: '#f3f4f6', border: '#d1d5db', color: '#374151', label: 'Pending', icon: '⏳' },
 };
 
-const ExamCard = ({ exam, onStart, isStarting }) => {
-	const config = statusStyles[exam.status] || statusStyles.upcoming;
-	const canStart = ['upcoming', 'scheduled', 'active', 'live'].includes(exam.status);
-	const canContinue = ['active', 'live'].includes(exam.status);
+const PreviousExamCard = ({ submission, onContinue, isContinuing }) => {
+	const config = statusStyles[submission.status] || statusStyles.pending;
+	const canContinue = ['in-progress', 'started'].includes(submission.status);
+	const hasScore = submission.score !== null && submission.score !== undefined;
 
 	return (
 		<article
@@ -34,32 +45,10 @@ const ExamCard = ({ exam, onStart, isStarting }) => {
 				borderRadius: 16,
 				border: '1px solid #e5e7eb',
 				boxShadow: '0 4px 16px rgba(15,23,42,0.06)',
-				padding: '24px',
+				padding: '20px',
 				transition: 'all 0.2s ease',
-				position: 'relative',
-				overflow: 'hidden',
-			}}
-			onMouseEnter={e => {
-				e.currentTarget.style.transform = 'translateY(-2px)';
-				e.currentTarget.style.boxShadow = '0 8px 28px rgba(15,23,42,0.12)';
-			}}
-			onMouseLeave={e => {
-				e.currentTarget.style.transform = 'translateY(0)';
-				e.currentTarget.style.boxShadow = '0 4px 16px rgba(15,23,42,0.06)';
 			}}
 		>
-			{/* Status Indicator */}
-			<div
-				style={{
-					position: 'absolute',
-					top: 0,
-					right: 0,
-					width: '4px',
-					height: '100%',
-					background: config.color,
-				}}
-			/>
-
 			<header style={{ marginBottom: '16px' }}>
 				<div
 					style={{
@@ -72,13 +61,13 @@ const ExamCard = ({ exam, onStart, isStarting }) => {
 					<h3
 						style={{
 							margin: 0,
-							fontSize: '18px',
+							fontSize: '16px',
 							fontWeight: 700,
 							color: '#0f172a',
 							flex: 1,
 						}}
 					>
-						{exam.title}
+						{submission.examTitle}
 					</h3>
 					<span
 						style={{
@@ -86,8 +75,8 @@ const ExamCard = ({ exam, onStart, isStarting }) => {
 							alignItems: 'center',
 							gap: '6px',
 							fontSize: '12px',
-							padding: '6px 12px',
-							borderRadius: '20px',
+							padding: '4px 10px',
+							borderRadius: '16px',
 							border: `1px solid ${config.border}`,
 							background: config.bg,
 							color: config.color,
@@ -99,102 +88,77 @@ const ExamCard = ({ exam, onStart, isStarting }) => {
 					</span>
 				</div>
 
-				{exam.description && (
-					<p
-						style={{
-							margin: '0 0 12px 0',
-							color: '#64748b',
-							fontSize: '14px',
-							lineHeight: 1.5,
-						}}
-					>
-						{exam.description}
-					</p>
-				)}
-
-				<div
-					style={{
-						display: 'grid',
-						gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-						gap: '12px',
-						color: '#64748b',
-						fontSize: '14px',
-					}}
-				>
-					{exam.duration > 0 && (
+				<div style={{ display: 'flex', gap: '16px', color: '#64748b', fontSize: '13px' }}>
+					{submission.startedAt && (
 						<div>
-							<strong style={{ color: '#374151' }}>Duration:</strong> {exam.duration}{' '}
-							min
+							<strong>Started:</strong> {submission.startedAt}
 						</div>
 					)}
-					{exam.totalQuestions > 0 && (
+					{submission.submittedAt && (
 						<div>
-							<strong style={{ color: '#374151' }}>Questions:</strong>{' '}
-							{exam.totalQuestions}
-						</div>
-					)}
-					{exam.maxScore > 0 && (
-						<div>
-							<strong style={{ color: '#374151' }}>Max Score:</strong> {exam.maxScore}
-						</div>
-					)}
-					{exam.startAt && exam.startAt !== '—' && (
-						<div>
-							<strong style={{ color: '#374151' }}>Start:</strong> {exam.startAt}
+							<strong>Submitted:</strong> {submission.submittedAt}
 						</div>
 					)}
 				</div>
 			</header>
 
-			<div
-				style={{
-					display: 'flex',
-					gap: '10px',
-					flexWrap: 'wrap',
-					paddingTop: '16px',
-					borderTop: '1px solid #f1f5f9',
-					justifyContent: 'flex-end',
-				}}
-			>
-				{canStart && (
+			{hasScore && (
+				<div
+					style={{
+						background: '#f0f9ff',
+						borderRadius: 12,
+						padding: '12px',
+						border: '1px solid #bae6fd',
+						marginBottom: '16px',
+					}}
+				>
+					<div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+						<span style={{ fontSize: '18px', fontWeight: 800, color: '#0369a1' }}>
+							{submission.score}
+						</span>
+						<span style={{ color: '#64748b' }}>/ {submission.maxScore || 100}</span>
+						<span
+							style={{
+								marginLeft: 'auto',
+								color:
+									submission.score >= submission.maxScore * 0.7
+										? '#047857'
+										: '#dc2626',
+								fontWeight: 600,
+							}}
+						>
+							{Math.round((submission.score / (submission.maxScore || 100)) * 100)}%
+						</span>
+					</div>
+				</div>
+			)}
+
+			<div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+				{canContinue && (
 					<button
-						onClick={() => onStart(exam)}
-						disabled={isStarting}
+						onClick={() => onContinue(submission)}
+						disabled={isContinuing}
 						style={{
-							flex: '1 1 120px',
-							padding: '12px 16px',
+							padding: '10px 16px',
 							borderRadius: '8px',
 							border: 'none',
-							background: isStarting
+							background: isContinuing
 								? '#9ca3af'
-								: 'linear-gradient(135deg, #10b981, #059669)',
+								: 'linear-gradient(135deg, #f59e0b, #d97706)',
 							color: '#ffffff',
-							cursor: isStarting ? 'not-allowed' : 'pointer',
+							cursor: isContinuing ? 'not-allowed' : 'pointer',
 							fontWeight: 600,
 							fontSize: '14px',
-							boxShadow: isStarting ? 'none' : '0 4px 12px rgba(16,185,129,0.25)',
-							display: 'flex',
-							alignItems: 'center',
-							justifyContent: 'center',
-							gap: '6px',
 						}}
 					>
-						{isStarting ? (
-							<>⏳ Starting...</>
-						) : canContinue ? (
-							<>▶️ Continue</>
-						) : (
-							<>🚀 Start Exam</>
-						)}
+						{isContinuing ? '⏳ Loading...' : '▶️ Continue'}
 					</button>
 				)}
-
-				{exam.status === 'completed' && (
+				{submission.status === 'evaluated' && (
 					<button
 						onClick={() => alert('View detailed results (to be implemented)')}
 						style={{
-							flex: '1 1 120px',
-							padding: '12px 16px',
+							padding: '10px 16px',
 							borderRadius: '8px',
 							border: '1px solid #d1d5db',
 							background: '#ffffff',
@@ -202,13 +166,9 @@ const ExamCard = ({ exam, onStart, isStarting }) => {
 							cursor: 'pointer',
 							fontWeight: 600,
 							fontSize: '14px',
-							display: 'flex',
-							alignItems: 'center',
-							justifyContent: 'center',
-							gap: '6px',
 						}}
 					>
-						📊 View Result
+						📊 View Details
 					</button>
 				)}
 			</div>
@@ -217,79 +177,82 @@ const ExamCard = ({ exam, onStart, isStarting }) => {
 };
 
 const StudentExams = () => {
+	const navigate = useNavigate();
 	const [loading, setLoading] = React.useState(false);
 	const [error, setError] = React.useState('');
-	const [exams, setExams] = React.useState([]);
-	const [query, setQuery] = React.useState('');
-	const [status, setStatus] = React.useState('all');
 	const [message, setMessage] = React.useState('');
-	const [startingIds, setStartingIds] = React.useState(new Set());
+	const [searchCode, setSearchCode] = React.useState('');
+	const [searching, setSearching] = React.useState(false);
+	const [foundExam, setFoundExam] = React.useState(null);
+	const [starting, setStarting] = React.useState(false);
+	const [previousExams, setPreviousExams] = React.useState([]);
+	const [continuingId, setContinuingId] = React.useState(null);
 
-	const loadExams = React.useCallback(async () => {
+	const loadPreviousExams = React.useCallback(async () => {
 		setLoading(true);
 		setError('');
 		try {
-			const data = await safeApiCall(getStudentExams);
-			setExams(Array.isArray(data) ? data : []);
+			const submissions = await safeApiCall(getMySubmissions);
+			setPreviousExams(Array.isArray(submissions) ? submissions : []);
 		} catch (e) {
-			setError(e?.message || 'Failed to load exams');
+			setError(e?.message || 'Failed to load previous exams');
 		} finally {
 			setLoading(false);
 		}
 	}, []);
 
 	React.useEffect(() => {
-		loadExams();
-	}, [loadExams]);
+		loadPreviousExams();
+	}, [loadPreviousExams]);
 
-	const filteredExams = React.useMemo(() => {
-		const q = query.toLowerCase();
-		return exams.filter(exam => {
-			const matchesStatus = status === 'all' || exam.status === status;
-			const matchesQuery =
-				!q ||
-				exam.title.toLowerCase().includes(q) ||
-				(exam.description && exam.description.toLowerCase().includes(q));
-			return matchesStatus && matchesQuery;
-		});
-	}, [exams, status, query]);
+	const handleSearch = async e => {
+		e.preventDefault();
+		if (!searchCode.trim()) return;
 
-	const statusCounts = React.useMemo(() => {
-		const counts = { all: exams.length };
-		exams.forEach(exam => {
-			const examStatus = exam.status || 'upcoming';
-			counts[examStatus] = (counts[examStatus] || 0) + 1;
-		});
-		return counts;
-	}, [exams]);
-
-	const handleStartExam = async exam => {
-		const examId = exam.id;
-		setStartingIds(prev => new Set([...prev, examId]));
+		setSearching(true);
+		setError('');
+		setFoundExam(null);
 		setMessage('');
 
 		try {
-			await safeApiCall(startSubmission, examId);
-			setExams(prev => prev.map(e => (e.id === examId ? { ...e, status: 'active' } : e)));
-			setMessage(`✅ Exam "${exam.title}" started successfully! You can now continue.`);
+			const exam = await safeApiCall(searchExamByCode, searchCode.trim());
+			setFoundExam(exam);
+			setMessage('✅ Exam found! Click "Start Exam" to begin.');
 		} catch (e) {
-			setMessage(`❌ ${e?.message || 'Failed to start exam'}`);
+			setError(e?.message || 'Exam not found. Please check the search code.');
 		} finally {
-			setStartingIds(prev => {
-				const next = new Set(prev);
-				next.delete(examId);
-				return next;
-			});
+			setSearching(false);
 		}
 	};
 
-	const filterOptions = [
-		{ key: 'all', label: 'All Exams' },
-		{ key: 'active', label: 'Active' },
-		{ key: 'upcoming', label: 'Upcoming' },
-		{ key: 'completed', label: 'Completed' },
-		{ key: 'scheduled', label: 'Scheduled' },
-	];
+	const handleStartExam = async () => {
+		if (!foundExam) return;
+
+		setStarting(true);
+		setMessage('');
+
+		try {
+			const submission = await safeApiCall(startExam, foundExam.id);
+			// Navigate to exam taking page (you'll need to create this)
+			navigate(`/student/take-exam/${submission.id}`);
+		} catch (e) {
+			setError(e?.message || 'Failed to start exam');
+		} finally {
+			setStarting(false);
+		}
+	};
+
+	const handleContinueExam = async submission => {
+		setContinuingId(submission.id);
+		try {
+			// Navigate to exam taking page
+			navigate(`/student/take-exam/${submission.id}`);
+		} catch (e) {
+			setError(e?.message || 'Failed to continue exam');
+		} finally {
+			setContinuingId(null);
+		}
+	};
 
 	return (
 		<div style={{ maxWidth: '1200px' }}>
@@ -304,96 +267,51 @@ const StudentExams = () => {
 					marginBottom: 32,
 				}}
 			>
-				<div
-					style={{
-						display: 'flex',
-						justifyContent: 'space-between',
-						alignItems: 'flex-start',
-						gap: 20,
-					}}
-				>
-					<div>
-						<h1 style={{ margin: '0 0 8px 0', fontSize: '28px', fontWeight: 800 }}>
-							Available Exams
-						</h1>
-						<p style={{ margin: 0, color: '#64748b', fontSize: '16px' }}>
-							Start new exams or continue active sessions.
-						</p>
-					</div>
-					<button
-						onClick={loadExams}
-						disabled={loading}
-						style={{
-							padding: '12px 16px',
-							borderRadius: '10px',
-							border: '1px solid #d1d5db',
-							background: '#ffffff',
-							color: '#374151',
-							cursor: loading ? 'not-allowed' : 'pointer',
-							fontWeight: 600,
-							fontSize: '14px',
-							opacity: loading ? 0.7 : 1,
-						}}
-					>
-						{loading ? '⏳' : '🔄'} Refresh
-					</button>
-				</div>
+				<h1 style={{ margin: '0 0 8px 0', fontSize: '28px', fontWeight: 800 }}>
+					Find Your Exam
+				</h1>
+				<p style={{ margin: 0, color: '#64748b', fontSize: '16px' }}>
+					Enter the exam search code provided by your instructor to start the exam.
+				</p>
 			</header>
 
-			{/* Status Message */}
-			{message && (
-				<div
-					style={{
-						marginBottom: 24,
-						padding: '14px 18px',
-						borderRadius: 12,
-						background: '#f0f9ff',
-						border: '1px solid #bae6fd',
-						color: '#0c4a6e',
-						fontWeight: 600,
-						display: 'flex',
-						justifyContent: 'space-between',
-						alignItems: 'center',
-					}}
-				>
-					<span>{message}</span>
-					<button
-						onClick={() => setMessage('')}
-						style={{
-							border: 'none',
-							background: 'transparent',
-							cursor: 'pointer',
-							color: 'inherit',
-							fontWeight: 800,
-							fontSize: '16px',
-							padding: '4px',
-						}}
-					>
-						×
-					</button>
-				</div>
-			)}
-
-			{/* Search and Filters */}
+			{/* Search Form */}
 			<div
 				style={{
 					background: '#ffffff',
 					padding: '24px',
 					borderRadius: 16,
 					border: '1px solid #e5e7eb',
-					marginBottom: 24,
+					marginBottom: 32,
 					boxShadow: '0 2px 8px rgba(15,23,42,0.04)',
 				}}
 			>
-				<div style={{ display: 'flex', gap: 20, alignItems: 'center', flexWrap: 'wrap' }}>
-					<div style={{ position: 'relative', flex: '1 1 300px' }}>
+				<h2 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: 700 }}>
+					🔍 Search for Exam
+				</h2>
+
+				<form
+					onSubmit={handleSearch}
+					style={{ display: 'flex', gap: 12, alignItems: 'flex-end' }}
+				>
+					<div style={{ flex: 1 }}>
+						<label
+							style={{
+								display: 'block',
+								marginBottom: 6,
+								fontWeight: 600,
+								color: '#374151',
+							}}
+						>
+							Exam Search Code
+						</label>
 						<input
-							value={query}
-							onChange={e => setQuery(e.target.value)}
-							placeholder="Search exams by title or description..."
+							value={searchCode}
+							onChange={e => setSearchCode(e.target.value)}
+							placeholder="Enter your exam code..."
 							style={{
 								width: '100%',
-								padding: '12px 16px 12px 48px',
+								padding: '12px 16px',
 								borderRadius: 12,
 								border: '1px solid #d1d5db',
 								background: '#f9fafb',
@@ -402,139 +320,181 @@ const StudentExams = () => {
 								fontWeight: 500,
 							}}
 						/>
-						<span
+					</div>
+					<button
+						type="submit"
+						disabled={searching}
+						style={{
+							padding: '12px 16px',
+							borderRadius: '8px',
+							border: 'none',
+							background: searching
+								? '#9ca3af'
+								: 'linear-gradient(135deg, #10b981, #059669)',
+							color: '#ffffff',
+							cursor: searching ? 'not-allowed' : 'pointer',
+							fontWeight: 600,
+							fontSize: '14px',
+							display: 'flex',
+							alignItems: 'center',
+							justifyContent: 'center',
+							gap: '6px',
+						}}
+					>
+						{searching ? '⏳ Searching...' : '🔍 Search Exam'}
+					</button>
+				</form>
+
+				{message && (
+					<div
+						style={{
+							marginTop: '16px',
+							padding: '12px',
+							borderRadius: 12,
+							background: '#f0f9ff',
+							border: '1px solid #bae6fd',
+							color: '#0c4a6e',
+							fontWeight: 600,
+						}}
+					>
+						{message}
+					</div>
+				)}
+				{error && (
+					<div
+						style={{
+							marginTop: '8px',
+							padding: '12px',
+							borderRadius: 12,
+							background: '#fef2f2',
+							border: '1px solid #fca5a5',
+							color: '#b91c1c',
+							textAlign: 'center',
+						}}
+					>
+						❌ {error}
+					</div>
+				)}
+				{foundExam && (
+					<div style={{ marginTop: '24px' }}>
+						<h3
 							style={{
-								position: 'absolute',
-								left: 16,
-								top: '50%',
-								transform: 'translateY(-50%)',
-								color: '#9ca3af',
-								fontSize: '16px',
+								margin: '0 0 12px 0',
+								fontSize: '18px',
+								fontWeight: 700,
+								color: '#0f172a',
 							}}
 						>
-							🔍
-						</span>
-					</div>
-
-					<div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-						{filterOptions.map(option => (
+							Found Exam: {foundExam.title}
+						</h3>
+						<div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
 							<button
-								key={option.key}
-								onClick={() => setStatus(option.key)}
+								onClick={handleStartExam}
+								disabled={starting}
 								style={{
-									padding: '10px 16px',
-									borderRadius: 25,
-									border:
-										status === option.key
-											? '2px solid #10b981'
-											: '1px solid #d1d5db',
-									background: status === option.key ? '#ecfdf5' : '#ffffff',
-									color: status === option.key ? '#047857' : '#374151',
-									cursor: 'pointer',
+									padding: '12px 16px',
+									borderRadius: '8px',
+									border: 'none',
+									background: starting
+										? '#9ca3af'
+										: 'linear-gradient(135deg, #10b981, #059669)',
+									color: '#ffffff',
+									cursor: starting ? 'not-allowed' : 'pointer',
 									fontWeight: 600,
 									fontSize: '14px',
 									display: 'flex',
 									alignItems: 'center',
-									gap: 8,
-									transition: 'all 0.2s ease',
+									justifyContent: 'center',
+									gap: '6px',
+									flex: '1 1 200px',
 								}}
 							>
-								{option.label}
-								<span
-									style={{
-										background: status === option.key ? '#10b981' : '#6b7280',
-										color: '#ffffff',
-										borderRadius: '12px',
-										padding: '2px 8px',
-										fontSize: '12px',
-										fontWeight: 700,
-										minWidth: '20px',
-										textAlign: 'center',
-									}}
-								>
-									{statusCounts[option.key] || 0}
-								</span>
+								{starting ? '⏳ Starting Exam...' : '🚀 Start Exam'}
 							</button>
-						))}
+						</div>
 					</div>
-				</div>
+				)}
 			</div>
 
-			{/* Error State */}
-			{error && (
-				<div
-					style={{
-						padding: '20px',
-						borderRadius: 12,
-						background: '#fef2f2',
-						border: '1px solid #fca5a5',
-						color: '#b91c1c',
-						textAlign: 'center',
-						marginBottom: 24,
-					}}
-				>
-					❌ {error}
-				</div>
-			)}
+			{/* Previous Exams Section */}
+			<section style={{ marginBottom: 32 }}>
+				<h2 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: 700 }}>
+					📚 Your Previous Exams
+				</h2>
 
-			{/* Loading State */}
-			{loading && (
-				<div
-					style={{
-						padding: '60px 20px',
-						textAlign: 'center',
-						color: '#64748b',
-					}}
-				>
-					<div style={{ fontSize: '32px', marginBottom: 16 }}>⏳</div>
-					<p style={{ margin: 0, fontWeight: 600 }}>Loading your exams...</p>
-				</div>
-			)}
+				{/* Loading State */}
+				{loading && (
+					<div
+						style={{
+							padding: '60px 20px',
+							textAlign: 'center',
+							color: '#64748b',
+						}}
+					>
+						<div style={{ fontSize: '32px', marginBottom: 16 }}>⏳</div>
+						<p style={{ margin: 0, fontWeight: 600 }}>Loading your previous exams...</p>
+					</div>
+				)}
 
-			{/* Empty State */}
-			{!loading && !error && filteredExams.length === 0 && (
-				<div
-					style={{
-						padding: '60px 20px',
-						textAlign: 'center',
-						background: '#ffffff',
-						borderRadius: 16,
-						border: '2px dashed #d1d5db',
-					}}
-				>
-					<div style={{ fontSize: '48px', marginBottom: 16 }}>📝</div>
-					<h3 style={{ margin: '0 0 8px 0', color: '#374151' }}>
-						{query || status !== 'all'
-							? 'No matching exams found'
-							: 'No exams available'}
-					</h3>
-					<p style={{ margin: 0, color: '#6b7280' }}>
-						{query || status !== 'all'
-							? 'Try adjusting your search or filters'
-							: 'Check back later or contact your instructor'}
-					</p>
-				</div>
-			)}
+				{/* Empty State */}
+				{!loading && !error && previousExams.length === 0 && (
+					<div
+						style={{
+							padding: '60px 20px',
+							textAlign: 'center',
+							background: '#ffffff',
+							borderRadius: 16,
+							border: '2px dashed #d1d5db',
+						}}
+					>
+						<div style={{ fontSize: '48px', marginBottom: 16 }}>📭</div>
+						<h3 style={{ margin: '0 0 8px 0', color: '#374151' }}>
+							No previous exams found
+						</h3>
+						<p style={{ margin: 0, color: '#6b7280' }}>
+							You haven't taken any exams yet. Check back later or contact your
+							instructor.
+						</p>
+					</div>
+				)}
 
-			{/* Exams Grid */}
-			{!loading && !error && filteredExams.length > 0 && (
-				<div
-					style={{
-						display: 'grid',
-						gap: 20,
-						gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))',
-					}}
-				>
-					{filteredExams.map(exam => (
-						<ExamCard
-							key={exam.id}
-							exam={exam}
-							onStart={handleStartExam}
-							isStarting={startingIds.has(exam.id)}
-						/>
-					))}
-				</div>
-			)}
+				{/* Error State */}
+				{error && (
+					<div
+						style={{
+							padding: '20px',
+							borderRadius: 12,
+							background: '#fef2f2',
+							border: '1px solid #fca5a5',
+							color: '#b91c1c',
+							textAlign: 'center',
+							marginBottom: 24,
+						}}
+					>
+						❌ {error}
+					</div>
+				)}
+
+				{/* Exams List */}
+				{!loading && !error && previousExams.length > 0 && (
+					<div
+						style={{
+							display: 'grid',
+							gap: 20,
+							gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))',
+						}}
+					>
+						{previousExams.map(submission => (
+							<PreviousExamCard
+								key={submission.id}
+								submission={submission}
+								onContinue={handleContinueExam}
+								isContinuing={continuingId === submission.id}
+							/>
+						))}
+					</div>
+				)}
+			</section>
 		</div>
 	);
 };
