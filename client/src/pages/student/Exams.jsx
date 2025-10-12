@@ -307,10 +307,18 @@ const StudentExams = () => {
 						</label>
 						<input
 							value={searchCode}
-							onChange={e => setSearchCode(e.target.value.toUpperCase().replace(/\s+/g, ''))}
-							placeholder="Enter your exam code (e.g., 7GKD2A)…"
-							pattern="[A-Z0-9\-]{4,20}"
-							title="Use 4–20 characters: A–Z, 0–9, dash"
+							onChange={e =>
+								setSearchCode(
+									e.target.value
+										.toUpperCase()
+										.replace(/[^A-Z0-9]/g, '')
+										.slice(0, 8),
+								)
+							}
+							placeholder="Enter your 8‑char exam code (e.g., 7GKD2A8Q)…"
+							pattern="^[A-Z0-9]{8}$"
+							maxLength={8}
+							title="Enter exactly 8 characters: A–Z and 0–9"
 							required
 							style={{
 								width: '100%',
@@ -409,7 +417,8 @@ const StudentExams = () => {
 									fontSize: 13,
 								}}
 							>
-								<strong>Duration:</strong> {foundExam.duration ? `${foundExam.duration} mins` : '—'}
+								<strong>Duration:</strong>{' '}
+								{foundExam.duration ? `${foundExam.duration} mins` : '—'}
 							</div>
 							<div
 								style={{
@@ -437,19 +446,37 @@ const StudentExams = () => {
 							</div>
 						</div>
 
+						{!foundExam.canStart && (
+							<div
+								style={{
+									marginBottom: 12,
+									padding: 12,
+									borderRadius: 12,
+									border: '1px solid #fde68a',
+									background: '#fffbeb',
+									color: '#92400e',
+									fontWeight: 600,
+								}}
+							>
+								This exam is not available to start right now.
+							</div>
+						)}
+
 						<div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
 							<button
 								onClick={handleStartExam}
-								disabled={starting}
+								disabled={starting || !foundExam.canStart}
 								style={{
 									padding: '12px 16px',
 									borderRadius: '8px',
 									border: 'none',
-									background: starting
-										? '#9ca3af'
-										: 'linear-gradient(135deg, #10b981, #059669)',
+									background:
+										starting || !foundExam.canStart
+											? '#9ca3af'
+											: 'linear-gradient(135deg, #10b981, #059669)',
 									color: '#ffffff',
-									cursor: starting ? 'not-allowed' : 'pointer',
+									cursor:
+										starting || !foundExam.canStart ? 'not-allowed' : 'pointer',
 									fontWeight: 600,
 									fontSize: '14px',
 									display: 'flex',
