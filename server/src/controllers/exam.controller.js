@@ -224,11 +224,10 @@ const searchExamByCode = asyncHandler(async (req, res) => {
 	if (!raw) {
 		throw ApiError.BadRequest('Exam search ID is required');
 	}
+	const code = raw.toUpperCase();
 
-	// Be flexible about field name: searchId | code | meta.searchId
-	const exam = await Exam.findOne({
-		$or: [{ searchId: raw }, { code: raw }, { 'meta.searchId': raw }],
-	})
+	// Strict: search by searchId only
+	const exam = await Exam.findOne({ searchId: code })
 		.select('_id title description duration status startTime endTime questions maxScore')
 		.lean();
 
@@ -236,10 +235,18 @@ const searchExamByCode = asyncHandler(async (req, res) => {
 		throw ApiError.NotFound('No exam found for the provided search ID');
 	}
 
-	// Optional: gate by status/time window (uncomment if needed)
-	// if (['cancelled', 'archived', 'draft'].includes(String(exam.status).toLowerCase())) {
-	//   throw ApiError.Forbidden('This exam is not available');
-	// }
+	// Gate by status and time window
+	const now = new Date();
+	const status = String(exam.status || '').toLowerCase();
+	if (status !== 'active') {
+		throw ApiError.Forbidden('This exam is not active');
+	}
+	if (exam.startTime && now < new Date(exam.startTime)) {
+		throw ApiError.Forbidden('This exam has not started yet');
+	}
+	if (exam.endTime && now > new Date(exam.endTime)) {
+		throw ApiError.Forbidden('This exam has ended');
+	}
 
 	return ApiResponse.success(res, exam, 'Exam found');
 });
