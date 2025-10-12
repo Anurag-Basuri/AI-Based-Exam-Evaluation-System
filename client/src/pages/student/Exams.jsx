@@ -307,8 +307,11 @@ const StudentExams = () => {
 						</label>
 						<input
 							value={searchCode}
-							onChange={e => setSearchCode(e.target.value)}
-							placeholder="Enter your exam code..."
+							onChange={e => setSearchCode(e.target.value.toUpperCase().replace(/\s+/g, ''))}
+							placeholder="Enter your exam code (e.g., 7GKD2A)…"
+							pattern="[A-Z0-9\-]{4,20}"
+							title="Use 4–20 characters: A–Z, 0–9, dash"
+							required
 							style={{
 								width: '100%',
 								padding: '12px 16px',
@@ -387,6 +390,53 @@ const StudentExams = () => {
 						>
 							Found Exam: {foundExam.title}
 						</h3>
+
+						<div
+							style={{
+								display: 'grid',
+								gap: 12,
+								gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))',
+								marginBottom: 12,
+							}}
+						>
+							<div
+								style={{
+									padding: 12,
+									border: '1px solid #e5e7eb',
+									borderRadius: 12,
+									background: '#fff',
+									color: '#374151',
+									fontSize: 13,
+								}}
+							>
+								<strong>Duration:</strong> {foundExam.duration ? `${foundExam.duration} mins` : '—'}
+							</div>
+							<div
+								style={{
+									padding: 12,
+									border: '1px solid #e5e7eb',
+									borderRadius: 12,
+									background: '#fff',
+									color: '#374151',
+									fontSize: 13,
+								}}
+							>
+								<strong>Starts:</strong> {foundExam.startAt || '—'}
+							</div>
+							<div
+								style={{
+									padding: 12,
+									border: '1px solid #e5e7eb',
+									borderRadius: 12,
+									background: '#fff',
+									color: '#374151',
+									fontSize: 13,
+								}}
+							>
+								<strong>Ends:</strong> {foundExam.endAt || '—'}
+							</div>
+						</div>
+
 						<div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
 							<button
 								onClick={handleStartExam}

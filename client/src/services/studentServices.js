@@ -287,6 +287,26 @@ export const getIssueById = async issueId => {
 
 export const replyToIssue = (issueId, message) => tryPost(EP.issueReply(issueId), { message });
 
+// ---------- Submissions (Student) MISSING HELPERS: add these ----------
+export const getMySubmissions = async (params = {}) => {
+    const res = await tryGet(EP.submissionsMine, { params });
+    const list = res?.data?.data || res?.data || [];
+    return Array.isArray(list) ? list.map(normalizeSubmission) : [];
+};
+
+export const startSubmission = async examId => {
+    const payload = { examId };
+    const res = await tryPost(EP.submissionStart(examId), payload);
+    const data = res?.data?.data ?? res?.data ?? {};
+    return normalizeSubmission(data);
+};
+
+export const getSubmissionById = async submissionId => {
+    const res = await apiClient.get(EP.submissionById(submissionId));
+    const data = res?.data?.data ?? res?.data ?? {};
+    return normalizeSubmission(data);
+};
+
 // Ensure cookies (if server sets session cookies)
 try {
 	if (apiClient?.defaults) {
