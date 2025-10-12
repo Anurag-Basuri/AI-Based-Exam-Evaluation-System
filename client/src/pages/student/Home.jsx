@@ -6,11 +6,11 @@ import { safeApiCall, getMySubmissions } from '../../services/studentServices.js
 const StatCard = ({ icon, label, value, loading, color = '#6366f1' }) => (
 	<div
 		style={{
-			background: '#ffffff',
+			background: 'var(--surface)',
 			borderRadius: 16,
 			padding: '24px 20px',
-			border: '1px solid #e2e8f0',
-			boxShadow: '0 8px 24px rgba(15,23,42,0.06)',
+			border: '1px solid var(--border)',
+			boxShadow: 'var(--shadow-md)',
 			display: 'flex',
 			alignItems: 'center',
 			gap: 16,
@@ -18,11 +18,11 @@ const StatCard = ({ icon, label, value, loading, color = '#6366f1' }) => (
 		}}
 		onMouseEnter={e => {
 			e.currentTarget.style.transform = 'translateY(-2px)';
-			e.currentTarget.style.boxShadow = '0 12px 32px rgba(15,23,42,0.12)';
+			e.currentTarget.style.boxShadow = 'var(--shadow-md)';
 		}}
 		onMouseLeave={e => {
 			e.currentTarget.style.transform = 'translateY(0)';
-			e.currentTarget.style.boxShadow = '0 8px 24px rgba(15,23,42,0.06)';
+			e.currentTarget.style.boxShadow = 'var(--shadow-md)';
 		}}
 	>
 		<div
@@ -30,7 +30,7 @@ const StatCard = ({ icon, label, value, loading, color = '#6366f1' }) => (
 				width: 48,
 				height: 48,
 				borderRadius: 12,
-				background: `${color}15`,
+				background: `${color}26`,
 				display: 'flex',
 				alignItems: 'center',
 				justifyContent: 'center',
@@ -43,7 +43,7 @@ const StatCard = ({ icon, label, value, loading, color = '#6366f1' }) => (
 			<div
 				style={{
 					fontSize: '14px',
-					color: '#64748b',
+					color: 'var(--text-muted)',
 					fontWeight: 500,
 					marginBottom: 4,
 				}}
@@ -54,7 +54,7 @@ const StatCard = ({ icon, label, value, loading, color = '#6366f1' }) => (
 				style={{
 					fontSize: '28px',
 					fontWeight: 800,
-					color: '#0f172a',
+					color: 'var(--text)',
 					lineHeight: 1,
 				}}
 			>
@@ -70,13 +70,13 @@ const ActionButton = ({ icon, label, onClick, variant = 'primary' }) => {
 			background: 'linear-gradient(135deg, #10b981, #059669)',
 			color: '#ffffff',
 			border: 'none',
-			boxShadow: '0 8px 20px rgba(16,185,129,0.3)',
+			boxShadow: '0 8px 20px rgba(16,185,129,0.25)',
 		},
 		secondary: {
-			background: '#ffffff',
-			color: '#374151',
-			border: '1px solid #d1d5db',
-			boxShadow: '0 4px 12px rgba(15,23,42,0.08)',
+			background: 'var(--surface)',
+			color: 'var(--text)',
+			border: '1px solid var(--border)',
+			boxShadow: 'var(--shadow-md)',
 		},
 	};
 
@@ -99,15 +99,9 @@ const ActionButton = ({ icon, label, onClick, variant = 'primary' }) => {
 			}}
 			onMouseEnter={e => {
 				e.currentTarget.style.transform = 'translateY(-1px)';
-				if (variant === 'primary') {
-					e.currentTarget.style.boxShadow = '0 12px 28px rgba(16,185,129,0.4)';
-				}
 			}}
 			onMouseLeave={e => {
 				e.currentTarget.style.transform = 'translateY(0)';
-				if (variant === 'primary') {
-					e.currentTarget.style.boxShadow = '0 8px 20px rgba(16,185,129,0.3)';
-				}
 			}}
 		>
 			<span style={{ fontSize: '16px' }}>{icon}</span>
@@ -202,14 +196,13 @@ const StudentHome = () => {
 
 	return (
 		<div style={{ maxWidth: '1200px' }}>
-			{/* Welcome Header */}
 			<div
 				style={{
 					background:
-						'linear-gradient(135deg, rgba(16,185,129,0.1), rgba(59,130,246,0.05))',
+						'linear-gradient(135deg, color-mix(in srgb, #10b981 12%, transparent), color-mix(in srgb, #3b82f6 6%, transparent))',
 					padding: '32px 28px',
 					borderRadius: 20,
-					border: '1px solid rgba(16,185,129,0.15)',
+					border: '1px solid color-mix(in srgb, #10b981 20%, transparent)',
 					marginBottom: 32,
 					position: 'relative',
 					overflow: 'hidden',
@@ -224,7 +217,7 @@ const StudentHome = () => {
 						height: 200,
 						borderRadius: '50%',
 						background:
-							'radial-gradient(circle, rgba(16,185,129,0.1), transparent 70%)',
+							'radial-gradient(circle, color-mix(in srgb, #10b981 14%, transparent), transparent 70%)',
 					}}
 				/>
 
@@ -245,7 +238,7 @@ const StudentHome = () => {
 					<p
 						style={{
 							margin: '0 0 24px 0',
-							color: '#475569',
+							color: 'var(--text-muted)',
 							fontSize: '16px',
 							fontWeight: 500,
 						}}
@@ -267,15 +260,14 @@ const StudentHome = () => {
 						))}
 					</div>
 
-					{/* Status Messages */}
 					{error && (
 						<div
 							style={{
 								padding: '14px 18px',
 								borderRadius: 12,
-								border: '1px solid #fca5a5',
-								background: '#fef2f2',
-								color: '#b91c1c',
+								border: '1px solid var(--border)',
+								background: 'var(--surface)',
+								color: '#ef4444',
 								fontWeight: 600,
 								display: 'flex',
 								alignItems: 'center',
@@ -308,9 +300,9 @@ const StudentHome = () => {
 							style={{
 								padding: '14px 18px',
 								borderRadius: 12,
-								border: '1px solid #93c5fd',
-								background: '#eff6ff',
-								color: '#1d4ed8',
+								border: '1px solid var(--border)',
+								background: 'var(--surface)',
+								color: 'var(--text)',
 								fontWeight: 600,
 								display: 'flex',
 								alignItems: 'center',
@@ -346,13 +338,13 @@ const StudentHome = () => {
 							style={{
 								padding: '10px 16px',
 								borderRadius: 8,
-								border: '1px solid #d1d5db',
-								background: '#ffffff',
+								border: '1px solid var(--border)',
+								background: 'var(--surface)',
 								cursor: loading ? 'not-allowed' : 'pointer',
 								fontWeight: 600,
-								color: '#374151',
+								color: 'var(--text)',
 								fontSize: '14px',
-								boxShadow: '0 2px 8px rgba(15,23,42,0.04)',
+								boxShadow: 'var(--shadow-md)',
 								opacity: loading ? 0.7 : 1,
 							}}
 						>
@@ -362,7 +354,6 @@ const StudentHome = () => {
 				</div>
 			</div>
 
-			{/* Stats Grid */}
 			<div
 				style={{
 					display: 'grid',
@@ -377,14 +368,13 @@ const StudentHome = () => {
 				))}
 			</div>
 
-			{/* Quick Access */}
 			<div
 				style={{
-					background: '#ffffff',
+					background: 'var(--surface)',
 					borderRadius: 16,
 					padding: 28,
-					border: '1px solid #e2e8f0',
-					boxShadow: '0 8px 24px rgba(15,23,42,0.06)',
+					border: '1px solid var(--border)',
+					boxShadow: 'var(--shadow-md)',
 				}}
 			>
 				<h2
@@ -392,7 +382,7 @@ const StudentHome = () => {
 						margin: '0 0 16px 0',
 						fontSize: '20px',
 						fontWeight: 700,
-						color: '#0f172a',
+						color: 'var(--text)',
 					}}
 				>
 					How to Take an Exam
@@ -407,15 +397,17 @@ const StudentHome = () => {
 					<div
 						style={{
 							padding: '20px',
-							background: '#f8fafc',
+							background: 'var(--surface)',
 							borderRadius: 12,
-							border: '1px solid #e2e8f0',
+							border: '1px solid var(--border)',
 							textAlign: 'center',
 						}}
 					>
 						<div style={{ fontSize: '24px', marginBottom: 8 }}>🔍</div>
-						<div style={{ fontWeight: 600, color: '#374151' }}>1. Get Search ID</div>
-						<div style={{ fontSize: '12px', color: '#6b7280', marginTop: 4 }}>
+						<div style={{ fontWeight: 600, color: 'var(--text)' }}>
+							1. Get Search ID
+						</div>
+						<div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: 4 }}>
 							Obtain exam search ID from your instructor
 						</div>
 					</div>
@@ -423,15 +415,15 @@ const StudentHome = () => {
 					<div
 						style={{
 							padding: '20px',
-							background: '#f8fafc',
+							background: 'var(--surface)',
 							borderRadius: 12,
-							border: '1px solid #e2e8f0',
+							border: '1px solid var(--border)',
 							textAlign: 'center',
 						}}
 					>
 						<div style={{ fontSize: '24px', marginBottom: 8 }}>📝</div>
-						<div style={{ fontWeight: 600, color: '#374151' }}>2. Find & Start</div>
-						<div style={{ fontSize: '12px', color: '#6b7280', marginTop: 4 }}>
+						<div style={{ fontWeight: 600, color: 'var(--text)' }}>2. Find & Start</div>
+						<div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: 4 }}>
 							Enter search ID in Exams section to begin
 						</div>
 					</div>
@@ -439,15 +431,15 @@ const StudentHome = () => {
 					<div
 						style={{
 							padding: '20px',
-							background: '#f8fafc',
+							background: 'var(--surface)',
 							borderRadius: 12,
-							border: '1px solid #e2e8f0',
+							border: '1px solid var(--border)',
 							textAlign: 'center',
 						}}
 					>
 						<div style={{ fontSize: '24px', marginBottom: 8 }}>📊</div>
-						<div style={{ fontWeight: 600, color: '#374151' }}>3. View Results</div>
-						<div style={{ fontSize: '12px', color: '#6b7280', marginTop: 4 }}>
+						<div style={{ fontWeight: 600, color: 'var(--text)' }}>3. View Results</div>
+						<div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: 4 }}>
 							Check your scores and feedback after evaluation
 						</div>
 					</div>
