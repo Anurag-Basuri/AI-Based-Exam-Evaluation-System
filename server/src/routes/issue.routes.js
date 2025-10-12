@@ -25,6 +25,8 @@ router.post(
 
 // Get all issues for the logged-in student
 router.get('/student', checkAuth, verifyStudent, getStudentIssues);
+// Alias to support client fallback EP.issuesMine
+router.get('/me', checkAuth, verifyStudent, getStudentIssues);
 
 // Get all issues (for teachers, optionally filter by status or exam)
 router.get(

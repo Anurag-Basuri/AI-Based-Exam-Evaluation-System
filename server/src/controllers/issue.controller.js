@@ -49,7 +49,7 @@ const getStudentIssues = asyncHandler(async (req, res) => {
 const getAllIssues = asyncHandler(async (req, res) => {
 	const { status, exam } = req.query;
 	const filter = {};
-	if (status) filter.status = status;
+	if (status) filter.status = String(status).toLowerCase();
 	if (exam) filter.exam = exam;
 
 	const issues = await Issue.find(filter)
@@ -70,13 +70,10 @@ const updateIssueStatus = asyncHandler(async (req, res) => {
 	if (!issue) {
 		throw ApiError.NotFound('Issue not found');
 	}
-
-	// Prevent reverting a resolved issue
 	if (issue.status === 'resolved') {
 		throw ApiError.Conflict('Cannot change status of a resolved issue.');
 	}
-
-	issue.status = status;
+	issue.status = String(status).toLowerCase();
 	await issue.save();
 
 	return ApiResponse.success(res, issue, 'Issue status updated');
