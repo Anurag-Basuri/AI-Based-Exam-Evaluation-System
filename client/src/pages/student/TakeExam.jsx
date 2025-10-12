@@ -1,4 +1,4 @@
-import React from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
 	safeApiCall,
@@ -10,12 +10,12 @@ import {
 const TakeExam = () => {
 	const { submissionId } = useParams();
 	const navigate = useNavigate();
-	const [submission, setSubmission] = React.useState(null);
-	const [loading, setLoading] = React.useState(true);
-	const [saving, setSaving] = React.useState(false);
-	const [error, setError] = React.useState('');
+	const [submission, setSubmission] = useState(null);
+	const [loading, setLoading] = useState(true);
+	const [saving, setSaving] = useState(false);
+	const [error, setError] = useState('');
 
-	React.useEffect(() => {
+	useEffect(() => {
 		(async () => {
 			try {
 				const s = await safeApiCall(getSubmissionById, submissionId);
@@ -28,8 +28,29 @@ const TakeExam = () => {
 		})();
 	}, [submissionId]);
 
+	// If already evaluated, send to results
+	useEffect(() => {
+		if (submission && String(submission.status || '').toLowerCase() === 'evaluated') {
+			navigate('/student/results', { replace: true });
+		}
+	}, [submission, navigate]);
+
+	// UX: quick save with Ctrl/Cmd + S
+	useEffect(() => {
+		const onKeyDown = e => {
+			const isSave = (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's';
+			if (isSave) {
+				e.preventDefault();
+				handleQuickSave();
+			}
+		};
+		window.addEventListener('keydown', onKeyDown);
+		return () => window.removeEventListener('keydown', onKeyDown);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [submission, saving]);
+
 	const handleQuickSave = async () => {
-		if (!submission) return;
+		if (!submission || saving) return;
 		setSaving(true);
 		try {
 			await safeApiCall(saveSubmissionAnswers, submission.id, submission.answers || []);
@@ -42,6 +63,10 @@ const TakeExam = () => {
 
 	const handleSubmit = async () => {
 		if (!submission) return;
+		const ok = window.confirm(
+			'Submit your exam now? You will not be able to edit after submitting.',
+		);
+		if (!ok) return;
 		try {
 			const updated = await safeApiCall(submitSubmission, submission.id);
 			setSubmission(updated);
@@ -51,8 +76,13 @@ const TakeExam = () => {
 		}
 	};
 
-	if (loading) return <div>Loading exam…</div>;
-	if (error) return <div style={{ color: '#b91c1c' }}>❌ {error}</div>;
+	if (loading) return <div aria-busy="true">Loading exam…</div>;
+	if (error)
+		return (
+			<div role="alert" style={{ color: '#b91c1c' }}>
+				❌ {error}
+			</div>
+		);
 	if (!submission) return <div>Submission not found.</div>;
 
 	return (
@@ -79,6 +109,8 @@ const TakeExam = () => {
 				<button
 					onClick={handleQuickSave}
 					disabled={saving}
+					aria-busy={saving}
+					title="Ctrl/Cmd + S to save quickly"
 					style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid #d1d5db' }}
 				>
 					{saving ? 'Saving…' : '💾 Save'}
