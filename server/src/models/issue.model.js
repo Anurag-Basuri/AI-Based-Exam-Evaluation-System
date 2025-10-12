@@ -12,20 +12,17 @@ const issueSchema = new mongoose.Schema(
 			ref: 'Exam',
 			required: [true, 'Exam reference is required'],
 		},
-		question: {
-			type: mongoose.Schema.Types.ObjectId,
-			ref: 'Question',
-		},
-		// If the issue is about a specific answer/evaluation
+		// Link directly to the submission the student is reporting about
 		submission: {
 			type: mongoose.Schema.Types.ObjectId,
 			ref: 'Submission',
+			required: [true, 'Submission reference is required'],
 		},
 		issueType: {
 			type: String,
-			enum: ['question', 'evaluation'],
+			enum: ['evaluation', 'technical', 'question', 'other'],
 			required: [true, 'Issue type is required'],
-			description: 'Whether the issue is about the question itself or the evaluation/answer',
+			description: 'The category of the issue being reported.',
 		},
 		description: {
 			type: String,
@@ -35,8 +32,8 @@ const issueSchema = new mongoose.Schema(
 		},
 		status: {
 			type: String,
-			enum: ['Pending', 'Resolved'],
-			default: 'Pending',
+			enum: ['open', 'in-progress', 'resolved'],
+			default: 'open',
 		},
 		reply: {
 			type: String,
@@ -57,7 +54,7 @@ const issueSchema = new mongoose.Schema(
 
 // Mark issue as resolved
 issueSchema.methods.markResolved = function (teacherId, reply) {
-	this.status = 'Resolved';
+	this.status = 'resolved';
 	this.resolvedBy = teacherId;
 	this.resolvedAt = new Date();
 	if (reply) this.reply = reply;
