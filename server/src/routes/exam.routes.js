@@ -45,6 +45,10 @@ router.patch(
 // Get all exams (optionally filter by teacher)
 router.get('/all', checkAuth, getAllExams);
 
+// Student: search exam by search ID
+// NOTE: Place this BEFORE '/:id' to avoid route shadowing.
+router.get('/search/:code', checkAuth, verifyStudent, searchExamByCode);
+
 // Get single exam by ID
 router.get('/:id', checkAuth, getExamById);
 
@@ -53,8 +57,5 @@ router.put('/:id/update', checkAuth, verifyTeacher, updateExam);
 
 // Delete exam
 router.delete('/:id', checkAuth, verifyTeacher, deleteExam);
-
-// Student: search exam by search ID
-router.get('/search/:code', checkAuth, verifyStudent, searchExamByCode);
 
 export default router;
