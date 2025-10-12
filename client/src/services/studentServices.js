@@ -130,21 +130,37 @@ const EP = {
 };
 
 // ---------- Normalizers ----------
-const normalizeExam = e => ({
-	id: String(e._id ?? e.id ?? ''),
-	title: e.title ?? 'Untitled Exam',
-	description: e.description ?? '',
-	status: e.status ?? 'draft', // draft | scheduled | live/active | completed | cancelled
-	duration: e.duration ?? 0,
-	startAt: e.startTime ? new Date(e.startTime).toLocaleString() : (e.startAt ?? '—'),
-	endAt: e.endTime ? new Date(e.endTime).toLocaleString() : (e.endAt ?? '—'),
-	totalQuestions: Array.isArray(e.questions) ? e.questions.length : (e.totalQuestions ?? 0),
-	maxScore:
-		e.maxScore ??
-		(Array.isArray(e.questions)
-			? e.questions.reduce((acc, q) => acc + (q?.max_marks ?? q?.maxMarks ?? 0), 0)
-			: 0),
-});
+const normalizeExam = e => {
+	const startMs = e.startTime ? new Date(e.startTime).getTime() : (e.start_ms ?? null);
+	const endMs = e.endTime ? new Date(e.endTime).getTime() : (e.end_ms ?? null);
+	const now = Date.now();
+	const isActive = String(e.status || '').toLowerCase() === 'active';
+	const inWindow =
+		typeof startMs === 'number' && typeof endMs === 'number'
+			? now >= startMs && now <= endMs
+			: true;
+
+	return {
+		id: String(e._id ?? e.id ?? ''),
+		title: e.title ?? 'Untitled Exam',
+		description: e.description ?? '',
+		status: e.status ?? 'draft',
+		duration: e.duration ?? 0,
+		startAt: e.startTime ? new Date(e.startTime).toLocaleString() : (e.startAt ?? '—'),
+		endAt: e.endTime ? new Date(e.endTime).toLocaleString() : (e.endAt ?? '—'),
+		startMs: startMs ?? null,
+		endMs: endMs ?? null,
+		totalQuestions: Array.isArray(e.questions) ? e.questions.length : (e.totalQuestions ?? 0),
+		maxScore:
+			e.maxScore ??
+			(Array.isArray(e.questions)
+				? e.questions.reduce((acc, q) => acc + (q?.max_marks ?? q?.maxMarks ?? 0), 0)
+				: 0),
+		isActive,
+		inWindow,
+		canStart: isActive && inWindow,
+	};
+};
 
 const normalizeSubmission = s => ({
 	id: String(s._id ?? s.id ?? ''),
@@ -231,7 +247,10 @@ export const changeStudentPassword = async ({ currentPassword, newPassword }) =>
 
 // ---------- Exams (Student) ----------
 export const searchExamByCode = async code => {
-	const res = await tryGet([() => EP.examSearch(code)]);
+	const cleaned = String(code || '')
+		.trim()
+		.toUpperCase();
+	const res = await tryGet([() => EP.examSearch(cleaned)]);
 	const data = res?.data?.data ?? res?.data ?? {};
 	return normalizeExam(data);
 };
@@ -289,22 +308,22 @@ export const replyToIssue = (issueId, message) => tryPost(EP.issueReply(issueId)
 
 // ---------- Submissions (Student) MISSING HELPERS: add these ----------
 export const getMySubmissions = async (params = {}) => {
-    const res = await tryGet(EP.submissionsMine, { params });
-    const list = res?.data?.data || res?.data || [];
-    return Array.isArray(list) ? list.map(normalizeSubmission) : [];
+	const res = await tryGet(EP.submissionsMine, { params });
+	const list = res?.data?.data || res?.data || [];
+	return Array.isArray(list) ? list.map(normalizeSubmission) : [];
 };
 
 export const startSubmission = async examId => {
-    const payload = { examId };
-    const res = await tryPost(EP.submissionStart(examId), payload);
-    const data = res?.data?.data ?? res?.data ?? {};
-    return normalizeSubmission(data);
+	const payload = { examId };
+	const res = await tryPost(EP.submissionStart(examId), payload);
+	const data = res?.data?.data ?? res?.data ?? {};
+	return normalizeSubmission(data);
 };
 
 export const getSubmissionById = async submissionId => {
-    const res = await apiClient.get(EP.submissionById(submissionId));
-    const data = res?.data?.data ?? res?.data ?? {};
-    return normalizeSubmission(data);
+	const res = await apiClient.get(EP.submissionById(submissionId));
+	const data = res?.data?.data ?? res?.data ?? {};
+	return normalizeSubmission(data);
 };
 
 // Ensure cookies (if server sets session cookies)
@@ -312,4 +331,4 @@ try {
 	if (apiClient?.defaults) {
 		apiClient.defaults.withCredentials = true;
 	}
-} catch {}
+} catch (e) { void e; }
