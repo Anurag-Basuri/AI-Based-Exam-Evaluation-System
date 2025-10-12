@@ -15,34 +15,10 @@ const safeText = (v, fallback = '') => {
 };
 
 const statusConfig = {
-	pending: {
-		bg: 'var(--surface)',
-		border: 'var(--border)',
-		color: 'var(--text-muted)',
-		label: 'Pending',
-		icon: '⏳',
-	},
-	evaluated: {
-		bg: 'var(--surface)',
-		border: 'var(--border)',
-		color: '#10b981',
-		label: 'Evaluated',
-		icon: '✅',
-	},
-	submitted: {
-		bg: 'var(--surface)',
-		border: 'var(--border)',
-		color: '#3b82f6',
-		label: 'Submitted',
-		icon: '📋',
-	},
-	flagged: {
-		bg: 'var(--surface)',
-		border: 'var(--border)',
-		color: '#dc2626',
-		label: 'Flagged',
-		icon: '🚨',
-	},
+    pending: { bg: 'var(--surface)', border: 'var(--border)', color: 'var(--text-muted)', label: 'Pending', icon: '⏳' },
+    evaluated: { bg: 'var(--surface)', border: 'var(--border)', color: '#10b981', label: 'Evaluated', icon: '✅' },
+    submitted: { bg: 'var(--surface)', border: 'var(--border)', color: '#3b82f6', label: 'Submitted', icon: '📋' },
+    flagged: { bg: 'var(--surface)', border: 'var(--border)', color: '#dc2626', label: 'Flagged', icon: '🚨' },
 };
 
 const SubmissionCard = ({ submission, onEvaluate, onGrade, isEvaluating }) => {
@@ -80,7 +56,7 @@ const SubmissionCard = ({ submission, onEvaluate, onGrade, isEvaluating }) => {
 								margin: 0,
 								fontSize: '18px',
 								fontWeight: 700,
-								color: '#0f172a',
+								color: 'var(--text)',
 								flex: 1,
 							}}
 						>
@@ -107,12 +83,12 @@ const SubmissionCard = ({ submission, onEvaluate, onGrade, isEvaluating }) => {
 
 					<div
 						style={{
-							color: '#64748b',
+							color: 'var(--text-muted)',
 							fontSize: '14px',
 							marginBottom: '8px',
 						}}
 					>
-						<strong style={{ color: '#374151' }}>Student:</strong> {studentName}
+						<strong style={{ color: 'var(--text)' }}>Student:</strong> {studentName}
 					</div>
 
 					{submission.submittedAt && (
@@ -144,7 +120,7 @@ const SubmissionCard = ({ submission, onEvaluate, onGrade, isEvaluating }) => {
 								style={{
 									fontSize: '32px',
 									fontWeight: 800,
-									color: '#0f172a',
+									color: 'var(--text)',
 									lineHeight: 1,
 								}}
 							>
@@ -154,7 +130,7 @@ const SubmissionCard = ({ submission, onEvaluate, onGrade, isEvaluating }) => {
 								style={{
 									fontSize: '18px',
 									fontWeight: 600,
-									color: '#64748b',
+									color: 'var(--text-muted)',
 								}}
 							>
 								/ {submission.maxScore || 100}
@@ -162,7 +138,7 @@ const SubmissionCard = ({ submission, onEvaluate, onGrade, isEvaluating }) => {
 							<span
 								style={{
 									fontSize: '14px',
-									color: '#6b7280',
+									color: 'var(--text-muted)',
 									marginLeft: '8px',
 								}}
 							>
@@ -360,7 +336,7 @@ const TeacherResults = () => {
 						<h1 style={{ margin: '0 0 8px 0', fontSize: '28px', fontWeight: 800 }}>
 							Exam Submissions
 						</h1>
-						<p style={{ margin: 0, color: '#64748b', fontSize: '16px' }}>
+						<p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '16px' }}>
 							Review, evaluate, and provide feedback on student submissions.
 						</p>
 					</div>
@@ -370,9 +346,9 @@ const TeacherResults = () => {
 						style={{
 							padding: '12px 16px',
 							borderRadius: '10px',
-							border: '1px solid #d1d5db',
-							background: '#ffffff',
-							color: '#374151',
+							border: '1px solid var(--border)',
+							background: 'var(--surface)',
+						 color: 'var(--text)',
 							cursor: loading ? 'not-allowed' : 'pointer',
 							fontWeight: 600,
 							fontSize: '14px',
@@ -391,9 +367,9 @@ const TeacherResults = () => {
 						marginBottom: 24,
 						padding: '14px 18px',
 						borderRadius: 12,
-						background: '#f0f9ff',
-						border: '1px solid #bae6fd',
-						color: '#0c4a6e',
+						background: 'var(--surface)',
+						border: '1px solid var(--border)',
+						color: 'var(--text)',
 						fontWeight: 600,
 						display: 'flex',
 						justifyContent: 'space-between',
@@ -439,11 +415,12 @@ const TeacherResults = () => {
 								width: '100%',
 								padding: '12px 16px 12px 48px',
 								borderRadius: 12,
-								border: '1px solid #d1d5db',
-								background: '#f9fafb',
+								border: '1px solid var(--border)',
+								background: 'var(--bg)',
 								outline: 'none',
 								fontSize: '14px',
 								fontWeight: 500,
+								color: 'var(--text)',
 							}}
 						/>
 						<span
@@ -541,9 +518,9 @@ const TeacherResults = () => {
 					style={{
 						padding: '60px 20px',
 						textAlign: 'center',
-						background: '#ffffff',
+						background: 'var(--surface)',
 						borderRadius: 16,
-						border: '2px dashed #d1d5db',
+						border: '2px dashed var(--border)',
 					}}
 				>
 					<div style={{ fontSize: '48px', marginBottom: 16 }}>📋</div>
