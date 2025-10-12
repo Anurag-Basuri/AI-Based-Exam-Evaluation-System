@@ -1,10 +1,21 @@
 import React from 'react';
-import { safeApiCall, getMyIssues, createIssue } from '../../services/studentServices.js';
+import {
+	safeApiCall,
+	getMyIssues,
+	createIssue,
+	getMySubmissionsForIssues,
+} from '../../services/studentServices.js';
 
 const statusStyles = {
-	open: { bg: '#fff7ed', border: '#fed7aa', color: '#9a3412', label: 'Open', icon: '🔴' },
-	pending: { bg: '#eef2ff', border: '#c7d2fe', color: '#3730a3', label: 'Pending', icon: '🟡' },
-	resolved: { bg: '#ecfdf5', border: '#a7f3d0', color: '#065f46', label: 'Resolved', icon: '🟢' },
+	open: { bg: '#fffbeb', border: '#fde68a', color: '#b45309', label: 'Open', icon: '🔴' },
+	'in-progress': {
+		bg: '#eef2ff',
+		border: '#c7d2fe',
+		color: '#3730a3',
+		label: 'In Progress',
+		icon: '🟡',
+	},
+	resolved: { bg: '#f0fdf4', border: '#bbf7d0', color: '#15803d', label: 'Resolved', icon: '🟢' },
 };
 
 const IssueCard = ({ issue }) => {
@@ -13,20 +24,12 @@ const IssueCard = ({ issue }) => {
 	return (
 		<article
 			style={{
-				background: '#ffffff',
+				background: 'var(--surface)',
 				borderRadius: 16,
-				border: '1px solid #e5e7eb',
-				boxShadow: '0 4px 16px rgba(15,23,42,0.06)',
+				border: '1px solid var(--border)',
+				boxShadow: 'var(--shadow-md)',
 				padding: '24px',
 				transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-			}}
-			onMouseEnter={e => {
-				e.currentTarget.style.transform = 'translateY(-2px)';
-				e.currentTarget.style.boxShadow = '0 8px 28px rgba(15,23,42,0.12)';
-			}}
-			onMouseLeave={e => {
-				e.currentTarget.style.transform = 'translateY(0)';
-				e.currentTarget.style.boxShadow = '0 4px 16px rgba(15,23,42,0.06)';
 			}}
 		>
 			<header style={{ marginBottom: '16px' }}>
@@ -43,7 +46,7 @@ const IssueCard = ({ issue }) => {
 							margin: 0,
 							fontSize: '18px',
 							fontWeight: 700,
-							color: '#0f172a',
+							color: 'var(--text)',
 							flex: 1,
 						}}
 					>
@@ -72,16 +75,17 @@ const IssueCard = ({ issue }) => {
 					style={{
 						display: 'flex',
 						gap: '16px',
-						color: '#64748b',
+						color: 'var(--text-muted)',
 						fontSize: '13px',
 					}}
 				>
 					<div>
-						<strong style={{ color: '#374151' }}>Type:</strong> {issue.issueType}
+						<strong style={{ color: 'var(--text)' }}>Type:</strong> {issue.issueType}
 					</div>
 					{issue.createdAt && (
 						<div>
-							<strong style={{ color: '#374151' }}>Created:</strong> {issue.createdAt}
+							<strong style={{ color: 'var(--text)' }}>Created:</strong>{' '}
+							{issue.createdAt}
 						</div>
 					)}
 				</div>
@@ -89,17 +93,17 @@ const IssueCard = ({ issue }) => {
 
 			<div
 				style={{
-					background: '#f8fafc',
+					background: 'var(--bg)',
 					borderRadius: 12,
 					padding: '16px',
-					border: '1px solid #e2e8f0',
+					border: '1px solid var(--border)',
 					marginBottom: '16px',
 				}}
 			>
 				<div
 					style={{
 						fontWeight: 600,
-						color: '#374151',
+						color: 'var(--text)',
 						marginBottom: '8px',
 						fontSize: '14px',
 					}}
@@ -109,7 +113,7 @@ const IssueCard = ({ issue }) => {
 				<p
 					style={{
 						margin: 0,
-						color: '#64748b',
+						color: 'var(--text-muted)',
 						lineHeight: 1.5,
 						fontSize: '14px',
 					}}
@@ -121,16 +125,16 @@ const IssueCard = ({ issue }) => {
 			{issue.reply ? (
 				<div
 					style={{
-						background: '#ecfdf5',
+						background: statusStyles.resolved.bg,
 						borderRadius: 12,
 						padding: '16px',
-						border: '1px solid #6ee7b7',
+						border: `1px solid ${statusStyles.resolved.border}`,
 					}}
 				>
 					<div
 						style={{
 							fontWeight: 600,
-							color: '#047857',
+							color: statusStyles.resolved.color,
 							marginBottom: '8px',
 							fontSize: '14px',
 							display: 'flex',
@@ -143,7 +147,7 @@ const IssueCard = ({ issue }) => {
 					<p
 						style={{
 							margin: 0,
-							color: '#065f46',
+							color: statusStyles.resolved.color,
 							lineHeight: 1.5,
 							fontSize: '14px',
 						}}
@@ -155,7 +159,7 @@ const IssueCard = ({ issue }) => {
 							style={{
 								marginTop: '8px',
 								fontSize: '12px',
-								color: '#047857',
+								color: statusStyles.resolved.color,
 								fontWeight: 500,
 							}}
 						>
@@ -166,17 +170,19 @@ const IssueCard = ({ issue }) => {
 			) : (
 				<div
 					style={{
-						color: '#f59e0b',
+						color: config.color,
 						fontSize: '14px',
 						fontWeight: 500,
 						textAlign: 'center',
 						padding: '12px',
-						background: '#fffbeb',
+						background: config.bg,
 						borderRadius: 8,
-						border: '1px solid #fed7aa',
+						border: `1px solid ${config.border}`,
 					}}
 				>
-					⏳ Awaiting teacher response
+					{issue.status === 'in-progress'
+						? '⏳ A teacher is looking into your issue.'
+						: '⏳ Awaiting teacher response.'}
 				</div>
 			)}
 		</article>
@@ -184,57 +190,55 @@ const IssueCard = ({ issue }) => {
 };
 
 const StudentIssues = () => {
-	const [loading, setLoading] = React.useState(false);
+	const [loading, setLoading] = React.useState(true);
 	const [error, setError] = React.useState('');
 	const [issues, setIssues] = React.useState([]);
 	const [showForm, setShowForm] = React.useState(false);
 	const [saving, setSaving] = React.useState(false);
 	const [message, setMessage] = React.useState('');
+	const [submissions, setSubmissions] = React.useState([]);
 	const [form, setForm] = React.useState({
-		examId: '',
-		issueType: '',
+		submissionId: '',
+		issueType: 'evaluation',
 		description: '',
 	});
 
-	const loadIssues = React.useCallback(async () => {
+	const loadData = React.useCallback(async () => {
 		setLoading(true);
 		setError('');
 		try {
-			const data = await safeApiCall(getMyIssues);
-			setIssues(Array.isArray(data) ? data : []);
+			const [issuesData, submissionsData] = await Promise.all([
+				safeApiCall(getMyIssues),
+				safeApiCall(getMySubmissionsForIssues),
+			]);
+			setIssues(Array.isArray(issuesData) ? issuesData : []);
+			setSubmissions(Array.isArray(submissionsData) ? submissionsData : []);
 		} catch (e) {
-			setError(e?.message || 'Failed to load issues');
+			setError(e?.message || 'Failed to load data');
 		} finally {
 			setLoading(false);
 		}
 	}, []);
 
 	React.useEffect(() => {
-		loadIssues();
-	}, [loadIssues]);
+		loadData();
+	}, [loadData]);
 
 	const handleSubmit = async e => {
 		e.preventDefault();
-		if (!form.examId || !form.issueType || !form.description) return;
-
-		const looksLikeId = /^[a-f\d]{24}$/i.test(form.examId);
-		if (!looksLikeId) {
-			alert('Please enter a valid Exam ID (24-character hex).');
-			return;
-		}
+		if (!form.submissionId || !form.issueType || !form.description) return;
 
 		setSaving(true);
+		setError('');
+		setMessage('');
 		try {
-			await safeApiCall(createIssue, {
-				examId: form.examId,
-				issueType: form.issueType,
-				description: form.description,
-			});
-			await loadIssues();
-			setForm({ examId: '', issueType: '', description: '' });
+			await safeApiCall(createIssue, form);
+			await loadData(); // Reload everything
+			setForm({ submissionId: '', issueType: 'evaluation', description: '' });
 			setShowForm(false);
+			setMessage('Your issue has been submitted successfully!');
 		} catch (e) {
-			alert(e.message || 'Could not submit issue');
+			setError(e.message || 'Could not submit issue');
 		} finally {
 			setSaving(false);
 		}
@@ -246,11 +250,11 @@ const StudentIssues = () => {
 				style={{
 					background:
 						'linear-gradient(135deg, color-mix(in srgb, #f97316 18%, transparent), color-mix(in srgb, #f97316 6%, transparent))',
-					padding: 18,
+					padding: '24px',
 					borderRadius: 16,
 					border: '1px solid color-mix(in srgb, #f97316 20%, transparent)',
-					boxShadow: '0 12px 24px rgba(15,23,42,0.08)',
-					marginBottom: 18,
+					boxShadow: 'var(--shadow-md)',
+					marginBottom: '24px',
 					display: 'flex',
 					flexWrap: 'wrap',
 					gap: 12,
@@ -259,7 +263,7 @@ const StudentIssues = () => {
 				}}
 			>
 				<div>
-					<h1 style={{ margin: 0 }}>Support & Issues</h1>
+					<h1 style={{ margin: 0, fontSize: '24px' }}>Support & Issues</h1>
 					<p style={{ margin: '6px 0 0', color: 'var(--text-muted)' }}>
 						Raise concerns about exam sessions or evaluations.
 					</p>
@@ -270,16 +274,47 @@ const StudentIssues = () => {
 						padding: '10px 16px',
 						borderRadius: 12,
 						border: 'none',
-						background: 'var(--primary-strong)',
+						background: 'linear-gradient(135deg, #f97316, #ea580c)',
 						color: '#ffffff',
 						fontWeight: 700,
 						cursor: 'pointer',
-						boxShadow: '0 10px 22px rgba(99,102,241,0.25)',
+						boxShadow: '0 10px 22px rgba(249, 115, 22, 0.25)',
 					}}
 				>
-					{showForm ? 'Close' : 'Create issue'}
+					{showForm ? 'Close Form' : '➕ Create New Issue'}
 				</button>
 			</header>
+
+			{message && (
+				<div
+					style={{
+						padding: '14px',
+						borderRadius: 12,
+						background: statusStyles.resolved.bg,
+						border: `1px solid ${statusStyles.resolved.border}`,
+						color: statusStyles.resolved.color,
+						fontWeight: 600,
+						marginBottom: '16px',
+					}}
+				>
+					{message}
+				</div>
+			)}
+			{error && (
+				<div
+					style={{
+						padding: '14px',
+						borderRadius: 12,
+						background: '#fee2e2',
+						border: '1px solid #fca5a5',
+						color: '#991b1b',
+						fontWeight: 600,
+						marginBottom: '16px',
+					}}
+				>
+					❌ {error}
+				</div>
+			)}
 
 			{showForm && (
 				<form
@@ -288,33 +323,41 @@ const StudentIssues = () => {
 						background: 'var(--surface)',
 						borderRadius: 16,
 						border: '1px solid var(--border)',
-						boxShadow: '0 12px 28px rgba(15,23,42,0.08)',
-						padding: 18,
-						marginBottom: 20,
+						boxShadow: 'var(--shadow-lg)',
+						padding: '24px',
+						marginBottom: '24px',
 						display: 'grid',
-						gap: 14,
+						gap: '16px',
 					}}
 				>
-					<div style={{ display: 'grid', gap: 10 }}>
-						<label style={{ fontWeight: 700, color: 'var(--text)' }}>Exam ID</label>
-						<input
-							value={form.examId}
-							onChange={e => setForm(s => ({ ...s, examId: e.target.value }))}
-							placeholder="24-character exam ObjectId"
+					<div style={{ display: 'grid', gap: 8 }}>
+						<label style={{ fontWeight: 700, color: 'var(--text)' }}>
+							Related Exam
+						</label>
+						<select
+							value={form.submissionId}
+							onChange={e => setForm(s => ({ ...s, submissionId: e.target.value }))}
 							style={{
 								padding: '10px 12px',
 								borderRadius: 10,
 								border: '1px solid var(--border)',
-								background: 'var(--surface)',
+								background: 'var(--bg)',
 								color: 'var(--text)',
 								outline: 'none',
 							}}
 							required
-						/>
+						>
+							<option value="">Select an exam submission</option>
+							{submissions.map(s => (
+								<option key={s.id} value={s.id}>
+									{s.label}
+								</option>
+							))}
+						</select>
 					</div>
 
-					<div style={{ display: 'grid', gap: 10 }}>
-						<label style={{ fontWeight: 700, color: 'var(--text)' }}>Issue type</label>
+					<div style={{ display: 'grid', gap: 8 }}>
+						<label style={{ fontWeight: 700, color: 'var(--text)' }}>Issue Type</label>
 						<select
 							value={form.issueType}
 							onChange={e => setForm(s => ({ ...s, issueType: e.target.value }))}
@@ -322,30 +365,31 @@ const StudentIssues = () => {
 								padding: '10px 12px',
 								borderRadius: 10,
 								border: '1px solid var(--border)',
-								background: 'var(--surface)',
+								background: 'var(--bg)',
 								color: 'var(--text)',
 								outline: 'none',
 							}}
 							required
 						>
-							<option value="">Select</option>
-							<option value="evaluation">Evaluation issue</option>
-							<option value="question">Question issue</option>
+							<option value="evaluation">Evaluation/Grading Issue</option>
+							<option value="question">Problem with a Question</option>
+							<option value="technical">Technical Problem</option>
+							<option value="other">Other</option>
 						</select>
 					</div>
 
-					<div style={{ display: 'grid', gap: 10 }}>
+					<div style={{ display: 'grid', gap: 8 }}>
 						<label style={{ fontWeight: 700, color: 'var(--text)' }}>Description</label>
 						<textarea
 							value={form.description}
 							onChange={e => setForm(s => ({ ...s, description: e.target.value }))}
-							placeholder="Describe the problem"
-							rows={4}
+							placeholder="Please describe the problem in detail."
+							rows={5}
 							style={{
 								padding: '10px 12px',
 								borderRadius: 10,
 								border: '1px solid var(--border)',
-								background: 'var(--surface)',
+								background: 'var(--bg)',
 								color: 'var(--text)',
 								outline: 'none',
 								resize: 'vertical',
@@ -354,7 +398,14 @@ const StudentIssues = () => {
 						/>
 					</div>
 
-					<div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+					<div
+						style={{
+							display: 'flex',
+							justifyContent: 'flex-end',
+							gap: 10,
+							marginTop: '8px',
+						}}
+					>
 						<button
 							type="button"
 							onClick={() => setShowForm(false)}
@@ -377,41 +428,51 @@ const StudentIssues = () => {
 								padding: '10px 14px',
 								borderRadius: 10,
 								border: 'none',
-								background: 'var(--primary-strong)',
+								background: 'linear-gradient(135deg, #f97316, #ea580c)',
 								color: '#ffffff',
 								cursor: 'pointer',
 								fontWeight: 700,
-								boxShadow: '0 10px 20px rgba(99,102,241,0.25)',
+								boxShadow: '0 10px 20px rgba(249, 115, 22, 0.25)',
 								opacity: saving ? 0.7 : 1,
 							}}
 						>
-							{saving ? 'Submitting…' : 'Submit issue'}
+							{saving ? 'Submitting…' : 'Submit Issue'}
 						</button>
 					</div>
 				</form>
 			)}
 
-			{loading && <div style={{ color: 'var(--text-muted)' }}>Loading your issues…</div>}
-			{error && <div style={{ color: '#b91c1c', marginBottom: 12 }}>{error}</div>}
+			{loading && (
+				<div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '40px' }}>
+					Loading your issues…
+				</div>
+			)}
+
 			{!loading && !issues.length && (
 				<div
 					style={{
-						padding: 20,
+						padding: '40px',
 						borderRadius: 16,
-						border: '1px dashed var(--border)',
+						border: '2px dashed var(--border)',
 						textAlign: 'center',
 						color: 'var(--text-muted)',
 					}}
 				>
-					No issues yet.
+					<div style={{ fontSize: '48px', marginBottom: '16px' }}>📭</div>
+					<h3 style={{ margin: '0 0 8px 0', color: 'var(--text)' }}>No Issues Found</h3>
+					<p style={{ margin: 0 }}>
+						You haven't created any issues yet. Use the button above to create one.
+					</p>
 				</div>
 			)}
 
-			<div style={{ display: 'grid', gap: 16 }}>
-				{issues.map(issue => (
-					<IssueCard key={issue._id || issue.id} issue={issue} />
-				))}
-			</div>
+			{!loading && issues.length > 0 && (
+				<div style={{ display: 'grid', gap: '20px' }}>
+					{issues.map(issue => (
+						<IssueCard key={issue.id} issue={issue} />
+					))}
+				</div>
+			)}
 		</section>
 	);
 };
