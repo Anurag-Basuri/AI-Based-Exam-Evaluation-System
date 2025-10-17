@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { body } from 'express-validator';
+import { body, param } from 'express-validator';
 import { checkAuth, verifyTeacher } from '../middlewares/auth.middleware.js';
 import {
 	createQuestion,
@@ -8,7 +8,7 @@ import {
 	updateQuestion,
 	deleteQuestion,
 	createQuestionsBulk,
-} from '../controllers\question.controller.js';
+} from '../controllers/question.controller.js';
 
 const router = Router();
 
