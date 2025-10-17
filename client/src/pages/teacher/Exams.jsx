@@ -1,17 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-	safeApiCall,
-	getTeacherExams,
-	// updateExamStatus, // replaced by publishTeacherExam
-	publishTeacherExam,
-	duplicateTeacherExam,
-	endExamNow,
-	cancelExam,
-	extendExamEnd,
-	regenerateExamShareCode,
-	updateExam,
-} from '../../services/teacherServices.js';
+import * as TeacherSvc from '../../services/teacherServices.js';
+import { apiClient } from '../../services/api.js';
 
 const statusConfig = {
 	live: {
@@ -439,7 +429,7 @@ const TeacherExams = () => {
 		setLoading(true);
 		setError('');
 		try {
-			const data = await safeApiCall(getTeacherExams);
+			const data = await TeacherSvc.safeApiCall(TeacherSvc.getTeacherExams);
 			setExams(Array.isArray(data) ? data : []);
 		} catch (e) {
 			setError(e?.message || 'Failed to load exams');
@@ -503,7 +493,7 @@ const TeacherExams = () => {
 		setPublishingIds(prev => new Set([...prev, exam.id]));
 		setMessage('');
 		try {
-			const updated = await safeApiCall(publishTeacherExam, exam.id);
+			const updated = await TeacherSvc.safeApiCall(TeacherSvc.publishTeacherExam, exam.id);
 			// Merge back into list
 			setExams(prev => prev.map(ex => (ex.id === exam.id ? updated : ex)));
 			setMessage('✅ Exam published successfully!');
@@ -520,7 +510,7 @@ const TeacherExams = () => {
 
 	const handleClone = async exam => {
 		try {
-			const copy = await safeApiCall(duplicateTeacherExam, exam.id);
+			const copy = await TeacherSvc.safeApiCall(TeacherSvc.duplicateTeacherExam, exam.id);
 			setExams(prev => [copy, ...prev]);
 			setMessage(`✅ Cloned "${exam.title}" → "${copy.title}"`);
 		} catch (e) {
@@ -546,8 +536,11 @@ const TeacherExams = () => {
 	const handleEndNow = async exam => {
 		if (!window.confirm('End this exam immediately?')) return;
 		try {
-			const updated = await safeApiCall(endExamNow, exam.id);
-			setExams(prev => prev.map(e => (e.id === exam.id ? updated : e)));
+			const fn =
+				TeacherSvc.endExamNow ??
+				(id => apiClient.post(`/api/exams/${encodeURIComponent(id)}/end-now`, {}));
+			await TeacherSvc.safeApiCall(fn, exam.id);
+			await loadExams();
 			setMessage('✅ Exam ended');
 		} catch (e) {
 			setMessage(`❌ ${e?.message || 'Failed to end exam'}`);
@@ -558,8 +551,12 @@ const TeacherExams = () => {
 		if (!window.confirm('Cancel this scheduled exam? Students will not be able to join.'))
 			return;
 		try {
-			const updated = await safeApiCall(cancelExam, exam.id);
-			setExams(prev => prev.map(e => (e.id === exam.id ? updated : e)));
+			// Fallback to API call if the named export isn’t present (prevents import-time crash)
+			const fn =
+				TeacherSvc.cancelExam ??
+				(id => apiClient.post(`/api/exams/${encodeURIComponent(id)}/cancel`, {}));
+			await TeacherSvc.safeApiCall(fn, exam.id);
+			await loadExams();
 			setMessage('✅ Exam cancelled');
 		} catch (e) {
 			setMessage(`❌ ${e?.message || 'Failed to cancel exam'}`);
@@ -568,8 +565,12 @@ const TeacherExams = () => {
 
 	const handleExtend15 = async exam => {
 		try {
-			const updated = await safeApiCall(extendExamEnd, exam.id, { minutes: 15 });
-			setExams(prev => prev.map(e => (e.id === exam.id ? updated : e)));
+			const fn =
+				TeacherSvc.extendExamEnd ??
+				((id, body) =>
+					apiClient.patch(`/api/exams/${encodeURIComponent(id)}/extend`, body));
+			await TeacherSvc.safeApiCall(fn, exam.id, { minutes: 15 });
+			await loadExams();
 			setMessage('✅ Extended by 15 minutes');
 		} catch (e) {
 			setMessage(`❌ ${e?.message || 'Failed to extend exam'}`);
@@ -580,8 +581,11 @@ const TeacherExams = () => {
 		if (!window.confirm('Regenerate the share code? Existing code will no longer work.'))
 			return;
 		try {
-			const { searchId } = await safeApiCall(regenerateExamShareCode, exam.id);
-			setExams(prev => prev.map(e => (e.id === exam.id ? { ...e, searchId } : e)));
+			const fn =
+				TeacherSvc.regenerateExamShareCode ??
+				(id => apiClient.post(`/api/exams/${encodeURIComponent(id)}/regenerate-code`, {}));
+			await TeacherSvc.safeApiCall(fn, exam.id);
+			await loadExams();
 			setMessage('✅ New share code generated');
 		} catch (e) {
 			setMessage(`❌ ${e?.message || 'Failed to regenerate code'}`);
@@ -592,7 +596,8 @@ const TeacherExams = () => {
 		const title = window.prompt('New exam title:', exam.title);
 		if (!title || !title.trim()) return;
 		try {
-			const updated = await safeApiCall(updateExam, exam.id, { title: title.trim() });
+			const fn = TeacherSvc.updateExam;
+			const updated = await TeacherSvc.safeApiCall(fn, exam.id, { title: title.trim() });
 			setExams(prev => prev.map(e => (e.id === exam.id ? updated : e)));
 			setMessage('✅ Title updated');
 		} catch (e) {
