@@ -127,15 +127,30 @@ const normalizeExam = e => {
 		e?.submissionsCount ??
 		(Array.isArray(e?.submissions) ? e.submissions.length : 0);
 
+	// Derive time and dynamic status (live/scheduled) for better UX
+	const startMs = e?.startTime ? new Date(e.startTime).getTime() : (e?.startMs ?? null);
+	const endMs = e?.endTime ? new Date(e.endTime).getTime() : (e?.endMs ?? null);
+	const rawStatus = String(e?.status ?? 'draft').toLowerCase();
+	let derivedStatus = rawStatus;
+	if (rawStatus === 'active' && startMs && endMs) {
+		const now = Date.now();
+		if (now < startMs) derivedStatus = 'scheduled';
+		else if (now >= startMs && now <= endMs) derivedStatus = 'live';
+		else if (now > endMs) derivedStatus = 'completed';
+	}
+
 	return {
 		id: String(e?._id ?? e?.id ?? ''),
 		title: e?.title ?? 'Untitled Exam',
 		description: e?.description ?? '',
 		duration: e?.duration ?? 0,
-		status: String(e?.status ?? 'draft').toLowerCase(),
+		status: rawStatus, // server status
+		derivedStatus, // UI status: draft/scheduled/live/completed/cancelled
 		searchId: e?.searchId ?? e?.search_id ?? '',
 		startAt: e?.startTime ? new Date(e.startTime).toLocaleString() : (e?.startAt ?? ''),
 		endAt: e?.endTime ? new Date(e.endTime).toLocaleString() : (e?.endAt ?? ''),
+		startMs: startMs ?? null,
+		endMs: endMs ?? null,
 		createdBy: String(e?.createdBy?._id ?? e?.createdBy ?? ''),
 		enrolled: typeof enrolled === 'number' ? enrolled : 0,
 		submissions: typeof submissions === 'number' ? submissions : 0,
