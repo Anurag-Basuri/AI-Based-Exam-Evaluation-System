@@ -1,6 +1,9 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../hooks/useTheme.js';
+import { useAuth } from '../hooks/useAuth.js';
+
+// Local assets (fallbacks)
 import studentImg from '../assets/student.jpg';
 import teacherImg from '../assets/teacher.jpg';
 import image1 from '../assets/image1.jpg';
@@ -12,9 +15,25 @@ import image6 from '../assets/image6.jpg';
 import image7 from '../assets/image7.jpg';
 import image8 from '../assets/image8.jpg';
 
+// Curated external images (Unsplash) for richer visuals
+const heroImages = [
+	'https://images.unsplash.com/photo-1532012197267-da84d127e765?q=80&w=1400&auto=format&fit=crop',
+	'https://images.unsplash.com/photo-1518081461904-9acb9846e1b9?q=80&w=1400&auto=format&fit=crop',
+	'https://images.unsplash.com/photo-1513258496099-48168024aec0?q=80&w=1400&auto=format&fit=crop',
+	'https://images.unsplash.com/photo-1523580846011-d3a5bc25702b?q=80&w=1400&auto=format&fit=crop',
+];
+
+const cardPhotos = [
+	'https://images.unsplash.com/photo-1523580846011-d3a5bc25702b?q=80&w=800&auto=format&fit=crop',
+	'https://images.unsplash.com/photo-1498079022511-d15614cb1c02?q=80&w=800&auto=format&fit=crop',
+	'https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=800&auto=format&fit=crop',
+	'https://images.unsplash.com/photo-1523580846011-d3a5bc25702b?q=80&w=800&auto=format&fit=crop',
+];
+
 const LandingPage = () => {
 	const navigate = useNavigate();
 	const { theme } = useTheme();
+	const { user, isAuthenticated, logout } = useAuth();
 	const isDark = theme === 'dark';
 
 	const initialWidth = typeof window !== 'undefined' ? window.innerWidth : 1024;
@@ -39,86 +58,46 @@ const LandingPage = () => {
 	const isMobile = windowWidth < 640;
 	const isTablet = windowWidth >= 640 && windowWidth < 1024;
 
+	// Personalization
+	const role = user?.role || user?.type || '';
+	const displayName = user?.fullname || user?.username || 'there';
+
 	// Feature cards
 	const features = [
 		{
-			title: 'Consistent, Explainable Scoring',
+			title: 'Consistent, explainable scoring',
 			description:
-				'Free‑form answers are graded by the evaluation service with rule checks and similarity signals for repeatable results.',
+				'Free‑form answers are graded with rule checks and similarity signals for repeatable, fair results.',
 			icon: image1,
 		},
 		{
-			title: 'Exam & Question Management',
+			title: 'Create exams fast',
 			description:
-				'Create exams, maintain a question bank, and organize assessments through dedicated routes and controllers.',
+				'Build exams from your question bank, mix MCQ and subjective, schedule windows, and publish when ready.',
 			icon: image2,
 		},
 		{
-			title: 'Submissions & Results',
+			title: 'Submissions & results',
 			description:
-				'Students submit once and get timely results. Results are easy to review and revisit.',
+				'Students submit once; results are easy to review, export, and revisit anytime.',
 			icon: image3,
 		},
 		{
-			title: 'Issue Reporting',
-			description:
-				'Students and teachers can report issues in‑app and track them to resolution.',
+			title: 'Issue reporting',
+			description: 'Students and teachers report issues in‑app and track them to resolution.',
 			icon: image4,
 		},
 	];
 
-	// Details cards (fix: use an array and render via map instead of rendering an object)
-	const detailsCards = [
-		{
-			num: 1,
-			title: 'Roles & Modules',
-			content: (
-				<ul style={{ paddingLeft: '1.2rem', margin: 0 }}>
-					<li>Student and Teacher roles</li>
-					<li>Exams, Questions, Submissions, Issues modules</li>
-					<li>Client protected routes and server auth middleware</li>
-				</ul>
-			),
-		},
-		{
-			num: 2,
-			title: 'Security & APIs',
-			content: (
-				<ul style={{ paddingLeft: '1.2rem', margin: 0 }}>
-					<li>JWT‑based authentication, role‑aware access</li>
-					<li>CORS middleware and structured error responses</li>
-					<li>REST endpoints for exams, questions, submissions, issues</li>
-				</ul>
-			),
-		},
-		{
-			num: 3,
-			title: 'Evaluation Service',
-			content: (
-				<p style={{ margin: 0 }}>
-					Scores free‑form answers with rules and similarity checks for reliable grading.
-				</p>
-			),
-		},
-		{
-			num: 4,
-			title: 'Tech Stack',
-			content: (
-				<ul style={{ paddingLeft: '1.2rem', margin: 0 }}>
-					<li>Frontend: React + Vite</li>
-					<li>Backend: Node.js + Express</li>
-					<li>Database: MongoDB</li>
-				</ul>
-			),
-		},
-	];
-
-	const backgroundImages = [
-		{ src: image5, top: '10%', left: '5%', size: 80, delay: 0 },
-		{ src: image6, top: '15%', right: '8%', size: 70, delay: 2 },
-		{ src: image7, bottom: '25%', left: '8%', size: 65, delay: 1 },
-		{ src: image8, bottom: '10%', right: '5%', size: 75, delay: 3 },
-	];
+	const backgroundImages = useMemo(
+		() => [
+			{ src: image5, top: '10%', left: '5%', size: 80, delay: 0 },
+			{ src: image6, top: '15%', right: '8%', size: 70, delay: 2 },
+			{ src: image7, bottom: '25%', left: '8%', size: 65, delay: 1 },
+			{ src: image8, bottom: '10%', right: '5%', size: 75, delay: 3 },
+		],
+		[],
+	);
 
 	const goToAuth = (role, mode = 'login') => {
 		try {
@@ -127,6 +106,78 @@ const LandingPage = () => {
 		try {
 			navigate(`/auth?mode=${encodeURIComponent(mode)}&role=${encodeURIComponent(role)}`);
 		} catch {}
+	};
+
+	const QuickAction = ({ title, subtitle, cta, onClick, tone = 'indigo', photo }) => {
+		const tones = {
+			indigo: { b: '#4f46e5', g1: '#6366f1', g2: '#a5b4fc' },
+			emerald: { b: '#059669', g1: '#10b981', g2: '#6ee7b7' },
+			amber: { b: '#d97706', g1: '#f59e0b', g2: '#fcd34d' },
+			rose: { b: '#e11d48', g1: '#f43f5e', g2: '#fb7185' },
+		};
+		const t = tones[tone] || tones.indigo;
+		return (
+			<div
+				style={{
+					display: 'grid',
+					gridTemplateColumns: isMobile ? '1fr' : '1.3fr 1fr',
+					gap: 12,
+					border: '1px solid var(--border)',
+					borderRadius: 16,
+					background: 'var(--surface)',
+					boxShadow: '0 10px 24px rgba(0,0,0,0.06)',
+					overflow: 'hidden',
+				}}
+			>
+				<div style={{ padding: '16px 16px 18px 16px' }}>
+					<span
+						style={{
+							display: 'inline-block',
+							padding: '6px 10px',
+							borderRadius: 999,
+							background: `linear-gradient(135deg, ${t.g1}20, ${t.g2}26)`,
+							border: `1px solid ${t.g1}40`,
+							color: t.b,
+							fontWeight: 800,
+							fontSize: 12,
+							marginBottom: 8,
+						}}
+					>
+						{title}
+					</span>
+					<p style={{ margin: 0, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+						{subtitle}
+					</p>
+					<div style={{ marginTop: 12 }}>
+						<button
+							onClick={onClick}
+							style={{
+								padding: '10px 14px',
+								borderRadius: 10,
+								border: 'none',
+								background: `linear-gradient(135deg, ${t.g1}, ${t.b})`,
+								color: '#fff',
+								fontWeight: 800,
+								cursor: 'pointer',
+								boxShadow: `0 8px 20px ${t.b}30`,
+							}}
+						>
+							{cta}
+						</button>
+					</div>
+				</div>
+				<div style={{ position: 'relative', minHeight: 150 }}>
+					<img
+						src={photo}
+						alt={title}
+						loading="lazy"
+						decoding="async"
+						referrerPolicy="no-referrer"
+						style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+					/>
+				</div>
+			</div>
+		);
 	};
 
 	return (
@@ -138,6 +189,107 @@ const LandingPage = () => {
 				background: 'var(--bg)',
 			}}
 		>
+			{/* Top bar with context-aware action */}
+			<header
+				style={{
+					display: 'flex',
+					justifyContent: 'space-between',
+					alignItems: 'center',
+					gap: 12,
+					padding: '14px 18px',
+					borderBottom: '1px solid var(--border)',
+					background: 'var(--surface)',
+					position: 'sticky',
+					top: 0,
+					zIndex: 10,
+				}}
+			>
+				<div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+					<div
+						aria-hidden
+						style={{
+							width: 32,
+							height: 32,
+							borderRadius: 8,
+							background:
+								'linear-gradient(135deg, rgba(79,70,229,0.9), rgba(56,189,248,0.9))',
+						}}
+					/>
+					<strong style={{ fontWeight: 900 }}>AI Exam System</strong>
+				</div>
+				<div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+					{isAuthenticated ? (
+						<>
+							<span style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+								Signed in as{' '}
+								<strong style={{ color: 'var(--text)' }}>{displayName}</strong>
+							</span>
+							<button
+								onClick={() =>
+									navigate(role === 'teacher' ? '/teacher' : '/student')
+								}
+								style={{
+									padding: '8px 12px',
+									borderRadius: 8,
+									border: '1px solid var(--border)',
+									background: 'var(--surface)',
+									color: 'var(--text)',
+									fontWeight: 800,
+									cursor: 'pointer',
+								}}
+							>
+								Open dashboard
+							</button>
+							<button
+								onClick={() => logout?.()}
+								style={{
+									padding: '8px 12px',
+									borderRadius: 8,
+									border: 'none',
+									background: 'linear-gradient(135deg,#ef4444,#dc2626)',
+									color: '#fff',
+									fontWeight: 800,
+									cursor: 'pointer',
+								}}
+							>
+								Sign out
+							</button>
+						</>
+					) : (
+						<>
+							<button
+								onClick={() => goToAuth('student', 'login')}
+								style={{
+									padding: '8px 12px',
+									borderRadius: 8,
+									border: '1px solid var(--border)',
+									background: 'var(--surface)',
+									color: 'var(--text)',
+									fontWeight: 800,
+									cursor: 'pointer',
+								}}
+							>
+								Sign in
+							</button>
+							<button
+								onClick={() => goToAuth('student', 'register')}
+								style={{
+									padding: '8px 12px',
+									borderRadius: 8,
+									border: 'none',
+									background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+									color: '#fff',
+									fontWeight: 800,
+									cursor: 'pointer',
+								}}
+							>
+								Create account
+							</button>
+						</>
+					)}
+				</div>
+			</header>
+
 			{/* Hero */}
 			<section
 				aria-label="Hero"
@@ -202,102 +354,170 @@ const LandingPage = () => {
 					<div
 						style={{
 							flex: '1',
-							maxWidth: isMobile || isTablet ? '100%' : '48%',
+							maxWidth: isMobile || isTablet ? '100%' : '50%',
 							animation: 'fadeInLeft 0.8s ease-out',
 						}}
 					>
 						<h1
 							style={{
-								fontSize: 'clamp(1.85rem, 4.2vw, 3.05rem)',
-								fontWeight: 800,
-								marginBottom: '1.1rem',
-								lineHeight: 1.15,
+								fontSize: 'clamp(1.9rem, 4.2vw, 3.15rem)',
+								fontWeight: 900,
+								marginBottom: '1rem',
+								lineHeight: 1.12,
 								letterSpacing: 0.2,
 								color: 'var(--text)',
 							}}
 						>
-							<span
-								style={{
-									backgroundImage: isDark
-										? 'linear-gradient(to right, #e5e7eb, #cbd5e1)'
-										: 'linear-gradient(to right, #0f172a, #334155)',
-									WebkitBackgroundClip: 'text',
-									backgroundClip: 'text',
-									WebkitTextFillColor: 'transparent',
-									color: 'transparent',
-									display: 'inline-block',
-								}}
-							>
-								AI‑Based Exam Evaluation System
-							</span>
+							{isAuthenticated ? (
+								<>
+									Welcome back,{' '}
+									<span
+										style={{
+											backgroundImage: isDark
+												? 'linear-gradient(to right, #e5e7eb, #cbd5e1)'
+												: 'linear-gradient(to right, #0f172a, #334155)',
+											WebkitBackgroundClip: 'text',
+											backgroundClip: 'text',
+											WebkitTextFillColor: 'transparent',
+											color: 'transparent',
+										}}
+									>
+										{displayName}
+									</span>
+								</>
+							) : (
+								<span
+									style={{
+										backgroundImage: isDark
+											? 'linear-gradient(to right, #e5e7eb, #cbd5e1)'
+											: 'linear-gradient(to right, #0f172a, #334155)',
+										WebkitBackgroundClip: 'text',
+										backgroundClip: 'text',
+										WebkitTextFillColor: 'transparent',
+										color: 'transparent',
+										display: 'inline-block',
+									}}
+								>
+									AI‑Based Exam Evaluation System
+								</span>
+							)}
 						</h1>
 						<p
 							style={{
 								fontSize: 'clamp(1rem, 1.15vw, 1.1rem)',
 								color: 'var(--text-muted)',
-								marginBottom: '1.6rem',
+								marginBottom: '1.4rem',
 								lineHeight: 1.7,
 								maxWidth: 720,
 							}}
 						>
-							Plan, deliver, and evaluate exams end‑to‑end. Build question banks, run
-							secure exams, and get consistent scoring. Client: React + Vite. API:
-							Node.js/Express. Data: MongoDB.
+							{isAuthenticated
+								? role === 'teacher'
+									? 'Create and schedule exams, manage your question bank, and review submissions with consistent, explainable scoring.'
+									: 'Join exams, submit answers with confidence, and review detailed results all in one place.'
+								: 'Plan, deliver, and evaluate exams end‑to‑end. Build question banks, run secure exams, and get consistent scoring.'}
 						</p>
+
+						{/* Context-aware CTAs */}
 						<div style={{ display: 'flex', gap: '0.8rem', flexWrap: 'wrap' }}>
-							<button
-								onClick={() => scrollToSection(roleSelectionRef)}
-								aria-label="Get Started"
-								style={{
-									padding: '0.75rem 1.5rem',
-									backgroundColor: 'var(--primary-strong)',
-									color: 'white',
-									border: 'none',
-									borderRadius: '0.55rem',
-									cursor: 'pointer',
-									fontSize: '1rem',
-									fontWeight: 700,
-									boxShadow: '0 4px 14px rgba(99,102,241,0.25)',
-									transition: 'transform 0.2s, box-shadow 0.2s',
-								}}
-								onMouseOver={e => {
-									e.currentTarget.style.transform = 'translateY(-2px)';
-									e.currentTarget.style.boxShadow =
-										'0 6px 20px rgba(99,102,241,0.3)';
-								}}
-								onMouseOut={e => {
-									e.currentTarget.style.transform = 'translateY(0)';
-									e.currentTarget.style.boxShadow =
-										'0 4px 14px rgba(99,102,241,0.25)';
-								}}
-							>
-								Get Started
-							</button>
-							<button
-								onClick={() => scrollToSection(detailsRef)}
-								aria-label="Learn More"
-								style={{
-									padding: '0.75rem 1.5rem',
-									backgroundColor: 'transparent',
-									color: 'var(--primary)',
-									border: '1px solid var(--primary)',
-									borderRadius: '0.55rem',
-									cursor: 'pointer',
-									fontSize: '1rem',
-									fontWeight: 700,
-									transition: 'background-color 0.2s',
-								}}
-								onMouseOver={e => {
-									e.currentTarget.style.backgroundColor = isDark
-										? 'rgba(51,65,85,0.35)'
-										: 'rgba(99,102,241,0.08)';
-								}}
-								onMouseOut={e => {
-									e.currentTarget.style.backgroundColor = 'transparent';
-								}}
-							>
-								How it works
-							</button>
+							{isAuthenticated ? (
+								<>
+									<button
+										onClick={() =>
+											navigate(
+												role === 'teacher'
+													? '/teacher/exams'
+													: '/student/exams',
+											)
+										}
+										aria-label="Open Exams"
+										style={{
+											padding: '0.75rem 1.5rem',
+											backgroundColor: 'var(--primary-strong)',
+											color: 'white',
+											border: 'none',
+											borderRadius: '0.55rem',
+											cursor: 'pointer',
+											fontSize: '1rem',
+											fontWeight: 800,
+											boxShadow: '0 4px 14px rgba(99,102,241,0.25)',
+										}}
+									>
+										Open Exams
+									</button>
+									{role === 'teacher' ? (
+										<button
+											onClick={() => navigate('/teacher')}
+											aria-label="Teacher Dashboard"
+											style={{
+												padding: '0.75rem 1.5rem',
+												backgroundColor: 'transparent',
+												color: 'var(--primary)',
+												border: '1px solid var(--primary)',
+												borderRadius: '0.55rem',
+												cursor: 'pointer',
+												fontSize: '1rem',
+												fontWeight: 800,
+											}}
+										>
+											Teacher Dashboard
+										</button>
+									) : (
+										<button
+											onClick={() => navigate('/student')}
+											aria-label="Student Dashboard"
+											style={{
+												padding: '0.75rem 1.5rem',
+												backgroundColor: 'transparent',
+												color: 'var(--primary)',
+												border: '1px solid var(--primary)',
+												borderRadius: '0.55rem',
+												cursor: 'pointer',
+												fontSize: '1rem',
+												fontWeight: 800,
+											}}
+										>
+											Student Dashboard
+										</button>
+									)}
+								</>
+							) : (
+								<>
+									<button
+										onClick={() => scrollToSection(roleSelectionRef)}
+										aria-label="Get Started"
+										style={{
+											padding: '0.75rem 1.5rem',
+											backgroundColor: 'var(--primary-strong)',
+											color: 'white',
+											border: 'none',
+											borderRadius: '0.55rem',
+											cursor: 'pointer',
+											fontSize: '1rem',
+											fontWeight: 800,
+											boxShadow: '0 4px 14px rgba(99,102,241,0.25)',
+										}}
+									>
+										Get Started
+									</button>
+									<button
+										onClick={() => scrollToSection(detailsRef)}
+										aria-label="Learn More"
+										style={{
+											padding: '0.75rem 1.5rem',
+											backgroundColor: 'transparent',
+											color: 'var(--primary)',
+											border: '1px solid var(--primary)',
+											borderRadius: '0.55rem',
+											cursor: 'pointer',
+											fontSize: '1rem',
+											fontWeight: 800,
+										}}
+									>
+										How it works
+									</button>
+								</>
+							)}
 						</div>
 					</div>
 
@@ -322,7 +542,7 @@ const LandingPage = () => {
 								perspective: '1000px',
 							}}
 						>
-							{[image1, image2, image3, image4].map((src, i) => (
+							{heroImages.map((src, i) => (
 								<div
 									key={i}
 									style={{
@@ -345,6 +565,7 @@ const LandingPage = () => {
 										alt={`Platform illustration ${i + 1}`}
 										loading="lazy"
 										decoding="async"
+										referrerPolicy="no-referrer"
 										style={{
 											width: '100%',
 											height: '100%',
@@ -358,393 +579,265 @@ const LandingPage = () => {
 				</div>
 			</section>
 
-			{/* Features */}
+			{/* If logged in: personalized quick actions; else: Features grid */}
 			<section
-				aria-label="Features"
+				aria-label={isAuthenticated ? 'Quick actions' : 'Features'}
 				style={{
 					padding: isMobile ? '3rem 1rem' : isTablet ? '4rem 2rem' : '5rem 3rem',
 					backgroundColor: 'var(--bg)',
 					position: 'relative',
-					overflow: 'hidden',
 				}}
 			>
 				<div style={{ position: 'relative', zIndex: 1, maxWidth: 1200, margin: '0 auto' }}>
-					<h2
-						style={{
-							fontSize: 'clamp(1.6rem, 2.5vw, 2.2rem)',
-							fontWeight: 800,
-							color: 'var(--text)',
-							textAlign: 'center',
-							marginBottom: '1.2rem',
-							letterSpacing: 0.2,
-						}}
-					>
-						How the Platform Works
-					</h2>
-					<p
-						style={{
-							fontSize: 'clamp(0.95rem, 1vw, 1.08rem)',
-							color: 'var(--text-muted)',
-							textAlign: 'center',
-							maxWidth: 820,
-							margin: '0 auto 2.2rem',
-							lineHeight: 1.7,
-						}}
-					>
-						Teachers manage questions and exams. Students submit answers and receive
-						results. The evaluation service keeps scoring consistent and explainable.
-						Issues can be raised and tracked in‑product.
-					</p>
-
-					<div
-						style={{
-							display: 'grid',
-							gridTemplateColumns: isMobile
-								? '1fr'
-								: isTablet
-									? 'repeat(2, 1fr)'
-									: 'repeat(4, 1fr)',
-							gap: isMobile ? '1.2rem' : '1.6rem',
-							maxWidth: 1200,
-							margin: '0 auto',
-						}}
-					>
-						{features.map((feature, index) => (
-							<div
-								key={index}
+					{isAuthenticated ? (
+						<>
+							<h2
 								style={{
-									padding: '1.75rem',
-									backgroundColor: 'var(--surface)',
-									border: '1px solid var(--border)',
-									borderRadius: '1rem',
-									boxShadow: '0 4px 14px rgba(0,0,0,0.05)',
+									fontSize: 'clamp(1.6rem, 2.5vw, 2.2rem)',
+									fontWeight: 900,
+									color: 'var(--text)',
+									marginBottom: '1rem',
+								}}
+							>
+								{role === 'teacher' ? 'Your next steps' : 'Jump back in'}
+							</h2>
+							<p
+								style={{
+									color: 'var(--text-muted)',
+									marginTop: 0,
+									marginBottom: '1.4rem',
+								}}
+							>
+								{role === 'teacher'
+									? 'Create an exam, manage existing ones, or review submissions.'
+									: 'Join a scheduled exam, review your results, or explore upcoming sessions.'}
+							</p>
+
+							<div style={{ display: 'grid', gap: 14 }}>
+								{role === 'teacher' ? (
+									<>
+										<QuickAction
+											title="Create a new exam"
+											subtitle="Build a new exam from your question bank and schedule it."
+											cta="Open exam manager"
+											onClick={() => navigate('/teacher/exams')}
+											tone="emerald"
+											photo={cardPhotos[0]}
+										/>
+										<QuickAction
+											title="Review submissions"
+											subtitle="Track student submissions and evaluate subjective answers."
+											cta="Open dashboard"
+											onClick={() => navigate('/teacher')}
+											tone="indigo"
+											photo={cardPhotos[1]}
+										/>
+									</>
+								) : (
+									<>
+										<QuickAction
+											title="Find your exam"
+											subtitle="Join using a share code provided by your teacher."
+											cta="Open student exams"
+											onClick={() => navigate('/student/exams')}
+											tone="amber"
+											photo={cardPhotos[2]}
+										/>
+										<QuickAction
+											title="View your results"
+											subtitle="Revisit previous submissions and check detailed scoring."
+											cta="Open dashboard"
+											onClick={() => navigate('/student')}
+											tone="rose"
+											photo={cardPhotos[3]}
+										/>
+									</>
+								)}
+							</div>
+						</>
+					) : (
+						<>
+							<h2
+								style={{
+									fontSize: 'clamp(1.6rem, 2.5vw, 2.2rem)',
+									fontWeight: 800,
+									color: 'var(--text)',
 									textAlign: 'center',
-									transition: 'transform 0.25s, box-shadow 0.25s',
-									position: 'relative',
-									overflow: 'hidden',
-								}}
-								onMouseOver={e => {
-									if (!isMobile) {
-										e.currentTarget.style.transform = 'translateY(-5px)';
-										e.currentTarget.style.boxShadow =
-											'0 10px 25px rgba(0,0,0,0.08)';
-									}
-								}}
-								onMouseOut={e => {
-									if (!isMobile) {
-										e.currentTarget.style.transform = 'translateY(0)';
-										e.currentTarget.style.boxShadow =
-											'0 4px 14px rgba(0,0,0,0.05)';
-									}
+									marginBottom: '1.2rem',
+									letterSpacing: 0.2,
 								}}
 							>
-								<div
-									style={{
-										width: 80,
-										height: 80,
-										margin: '0 auto 1.3rem',
-										position: 'relative',
-									}}
-								>
-									<div
-										aria-hidden
-										style={{
-											width: '100%',
-											height: '100%',
-											borderRadius: '1rem',
-											background: 'rgba(99,102,241,0.1)',
-											position: 'absolute',
-											transform: 'rotate(10deg)',
-										}}
-									/>
-									<img
-										src={feature.icon}
-										alt={feature.title}
-										loading="lazy"
-										decoding="async"
-										style={{
-											width: '100%',
-											height: '100%',
-											borderRadius: '1rem',
-											objectFit: 'cover',
-											position: 'relative',
-											border: '2px solid rgba(99,102,241,0.3)',
-										}}
-									/>
-								</div>
-								<h3
-									style={{
-										fontSize: '1.2rem',
-										fontWeight: 700,
-										color: 'var(--text)',
-										marginBottom: '0.6rem',
-									}}
-								>
-									{feature.title}
-								</h3>
-								<p
-									style={{
-										color: 'var(--text-muted)',
-										fontSize: '0.98rem',
-										lineHeight: 1.6,
-									}}
-								>
-									{feature.description}
-								</p>
-							</div>
-						))}
-					</div>
-				</div>
-			</section>
-
-			{/* Details */}
-			<section
-				ref={detailsRef}
-				aria-label="Details"
-				style={{
-					padding: isMobile ? '3rem 1rem' : isTablet ? '4rem 2rem' : '5rem 3rem',
-					backgroundColor: 'var(--elev)',
-					position: 'relative',
-					overflow: 'hidden',
-					scrollMarginTop: 20,
-				}}
-			>
-				<div style={{ position: 'relative', zIndex: 1, maxWidth: 1200, margin: '0 auto' }}>
-					<h2
-						style={{
-							fontSize: 'clamp(1.6rem, 2.5vw, 2.2rem)',
-							fontWeight: 800,
-							color: 'var(--text)',
-							textAlign: 'center',
-							marginBottom: '1.8rem',
-							letterSpacing: 0.2,
-						}}
-					>
-						Built for Real Classrooms
-					</h2>
-
-					<div
-						style={{
-							display: 'grid',
-							gridTemplateColumns: isMobile
-								? '1fr'
-								: isTablet
-									? 'repeat(2, 1fr)'
-									: 'repeat(4, 1fr)',
-							gap: isMobile ? '1rem' : '1.2rem',
-							alignItems: 'stretch',
-						}}
-					>
-						{detailsCards.map(card => (
-							<div
-								key={card.num}
+								How the Platform Works
+							</h2>
+							<p
 								style={{
-									background: 'var(--surface)',
-									border: '1px solid var(--border)',
-									borderRadius: '1rem',
-									padding: isMobile ? '1.1rem' : '1.4rem',
-									boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
-									display: 'flex',
-									flexDirection: 'column',
-									gap: '0.75rem',
-									minHeight: isMobile ? 0 : 260,
-									height: '100%',
-									transition: 'transform 0.25s, box-shadow 0.25s',
-								}}
-								onMouseOver={e => {
-									if (!isMobile) {
-										e.currentTarget.style.transform = 'translateY(-4px)';
-										e.currentTarget.style.boxShadow =
-											'0 10px 24px rgba(0,0,0,0.08)';
-									}
-								}}
-								onMouseOut={e => {
-									if (!isMobile) {
-										e.currentTarget.style.transform = 'translateY(0)';
-										e.currentTarget.style.boxShadow =
-											'0 4px 20px rgba(0,0,0,0.05)';
-									}
+									fontSize: 'clamp(0.95rem, 1vw, 1.08rem)',
+									color: 'var(--text-muted)',
+									textAlign: 'center',
+									maxWidth: 820,
+									margin: '0 auto 2.2rem',
+									lineHeight: 1.7,
 								}}
 							>
-								<div
-									style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}
-								>
-									<span
-										aria-hidden
-										style={{
-											width: 28,
-											height: 28,
-											borderRadius: '50%',
-											backgroundColor: 'var(--primary)',
-											color: 'white',
-											display: 'inline-flex',
-											justifyContent: 'center',
-											alignItems: 'center',
-											fontWeight: 700,
-											fontSize: '0.95rem',
-										}}
-									>
-										{card.num}
-									</span>
-									<h3
-										style={{
-											fontSize: '1.15rem',
-											fontWeight: 700,
-											color: 'var(--text)',
-											margin: 0,
-										}}
-									>
-										{card.title}
-									</h3>
-								</div>
-								<div
-									style={{
-										color: 'var(--text-muted)',
-										fontSize: '0.98rem',
-										lineHeight: 1.65,
-									}}
-								>
-									{card.content}
-								</div>
-							</div>
-						))}
-					</div>
-				</div>
+								Teachers manage questions and exams. Students submit answers and
+								receive results. The evaluation service keeps scoring consistent and
+								explainable.
+							</p>
 
-				<style>
-					{`
-            @keyframes float {
-              0% { transform: translateY(0px); }
-              100% { transform: translateY(-15px); }
-            }
-            @keyframes fadeInLeft {
-              from { opacity: 0; transform: translateX(-18px); }
-              to { opacity: 1; transform: translateX(0); }
-            }
-            @keyframes fadeInRight {
-              from { opacity: 0; transform: translateX(18px); }
-              to { opacity: 1; transform: translateX(0); }
-            }
-            @media (prefers-reduced-motion: reduce) {
-              * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
-            }
-          `}
-				</style>
+							<div
+								style={{
+									display: 'grid',
+									gridTemplateColumns: isMobile
+										? '1fr'
+										: isTablet
+											? 'repeat(2, 1fr)'
+											: 'repeat(4, 1fr)',
+									gap: isMobile ? '1.2rem' : '1.6rem',
+									maxWidth: 1200,
+									margin: '0 auto',
+								}}
+							>
+								{features.map((feature, index) => (
+									<div
+										key={index}
+										style={{
+											padding: '1.75rem',
+											backgroundColor: 'var(--surface)',
+											border: '1px solid var(--border)',
+											borderRadius: '1rem',
+											boxShadow: '0 4px 14px rgba(0,0,0,0.05)',
+											textAlign: 'center',
+										}}
+									>
+										<div
+											style={{
+												width: 80,
+												height: 80,
+												margin: '0 auto 1.3rem',
+											}}
+										>
+											<img
+												src={feature.icon}
+												alt={feature.title}
+												loading="lazy"
+												decoding="async"
+												style={{
+													width: '100%',
+													height: '100%',
+													borderRadius: '1rem',
+													objectFit: 'cover',
+													border: '2px solid rgba(99,102,241,0.3)',
+												}}
+											/>
+										</div>
+										<h3
+											style={{
+												fontSize: '1.2rem',
+												fontWeight: 700,
+												color: 'var(--text)',
+												marginBottom: '0.6rem',
+											}}
+										>
+											{feature.title}
+										</h3>
+										<p
+											style={{
+												color: 'var(--text-muted)',
+												fontSize: '0.98rem',
+												lineHeight: 1.6,
+											}}
+										>
+											{feature.description}
+										</p>
+									</div>
+								))}
+							</div>
+						</>
+					)}
+				</div>
 			</section>
 
-			{/* Role Selection */}
-			<section
-				ref={roleSelectionRef}
-				aria-label="Choose Your Role"
-				style={{
-					padding: isMobile ? '3rem 1rem' : isTablet ? '4rem 2rem' : '5rem 3rem',
-					background: isDark
-						? 'linear-gradient(135deg, color-mix(in srgb, #1e293b 50%, transparent), color-mix(in srgb, #020617 40%, transparent))'
-						: 'linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%)',
-					textAlign: 'center',
-					position: 'relative',
-					overflow: 'hidden',
-					scrollMarginTop: 20,
-				}}
-			>
-				<div
-					aria-hidden
+			{/* Role Selection – show only when not authenticated */}
+			{!isAuthenticated && (
+				<section
+					ref={roleSelectionRef}
+					aria-label="Choose Your Role"
 					style={{
-						position: 'absolute',
-						width: '100%',
-						height: '100%',
-						top: 0,
-						left: 0,
-						background: `url(${image8})`,
-						backgroundSize: 'cover',
-						opacity: 0.03,
-						zIndex: 0,
+						padding: isMobile ? '3rem 1rem' : isTablet ? '4rem 2rem' : '5rem 3rem',
+						background: isDark
+							? 'linear-gradient(135deg, color-mix(in srgb, #1e293b 50%, transparent), color-mix(in srgb, #020617 40%, transparent))'
+							: 'linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%)',
+						textAlign: 'center',
+						position: 'relative',
+						overflow: 'hidden',
+						scrollMarginTop: 20,
 					}}
-				/>
-				<div style={{ position: 'relative', zIndex: 1 }}>
-					<h2
-						style={{
-							fontSize: 'clamp(1.6rem, 2.5vw, 2.2rem)',
-							fontWeight: 800,
-							color: 'var(--text)',
-							marginBottom: '0.9rem',
-							letterSpacing: 0.2,
-						}}
-					>
-						Choose Your Role
-					</h2>
-					<p
-						style={{
-							fontSize: 'clamp(0.95rem, 1vw, 1.05rem)',
-							color: 'var(--text-muted)',
-							margin: '0 auto 2.2rem',
-							maxWidth: 720,
-							lineHeight: 1.6,
-						}}
-					>
-						Sign in with your role. Account creation may be handled by your institution
-						or an administrator.
-					</p>
-
+				>
 					<div
+						aria-hidden
 						style={{
-							display: 'flex',
-							gap: isMobile ? '1.4rem' : '2rem',
-							justifyContent: 'center',
-							flexWrap: 'wrap',
+							position: 'absolute',
+							width: '100%',
+							height: '100%',
+							top: 0,
+							left: 0,
+							background: `url(${image8})`,
+							backgroundSize: 'cover',
+							opacity: 0.03,
+							zIndex: 0,
 						}}
-					>
-						{/* Student */}
-						<div
+					/>
+					<div style={{ position: 'relative', zIndex: 1 }}>
+						<h2
 							style={{
-								background: 'var(--surface)',
-								borderRadius: '1.25rem',
-								border: '1px solid var(--border)',
-								boxShadow: '0 10px 28px rgba(2,6,23,0.06)',
-								padding: isMobile ? '1.2rem' : 'clamp(1.4rem, 2.2vw, 2rem)',
-								textAlign: 'center',
-								flex: isMobile ? '1 1 100%' : isTablet ? '1 1 46%' : '1 1 360px',
-								maxWidth: isMobile ? '100%' : isTablet ? '520px' : '380px',
-								minWidth: isMobile ? 'auto' : 280,
-								position: 'relative',
-								overflow: 'hidden',
-								transition: 'transform 0.25s, box-shadow 0.25s',
-							}}
-							onMouseOver={e => {
-								if (!isMobile) {
-									e.currentTarget.style.transform = 'translateY(-4px)';
-									e.currentTarget.style.boxShadow =
-										'0 18px 36px rgba(2,6,23,0.10)';
-								}
-							}}
-							onMouseOut={e => {
-								if (!isMobile) {
-									e.currentTarget.style.transform = 'translateY(0)';
-									e.currentTarget.style.boxShadow =
-										'0 10px 28px rgba(2,6,23,0.06)';
-								}
+								fontSize: 'clamp(1.6rem, 2.5vw, 2.2rem)',
+								fontWeight: 800,
+								color: 'var(--text)',
+								marginBottom: '0.9rem',
+								letterSpacing: 0.2,
 							}}
 						>
+							Choose Your Role
+						</h2>
+						<p
+							style={{
+								fontSize: 'clamp(0.95rem, 1vw, 1.05rem)',
+								color: 'var(--text-muted)',
+								margin: '0 auto 2.2rem',
+								maxWidth: 720,
+								lineHeight: 1.6,
+							}}
+						>
+							Sign in with your role. Account creation may be handled by your
+							institution or an administrator.
+						</p>
+
+						<div
+							style={{
+								display: 'flex',
+								gap: isMobile ? '1.4rem' : '2rem',
+								justifyContent: 'center',
+								flexWrap: 'wrap',
+							}}
+						>
+							{/* Student */}
 							<div
-								aria-hidden
 								style={{
-									position: 'absolute',
-									top: 0,
-									left: 0,
-									width: '100%',
-									height: '28%',
-									background:
-										'linear-gradient(135deg, rgba(99,102,241,0.08) 0%, rgba(199,210,254,0.12) 100%)',
-									zIndex: 0,
-								}}
-							/>
-							<div
-								style={{
+									background: 'var(--surface)',
+									borderRadius: '1.25rem',
+									border: '1px solid var(--border)',
+									boxShadow: '0 10px 28px rgba(2,6,23,0.06)',
+									padding: isMobile ? '1.2rem' : 'clamp(1.4rem, 2.2vw, 2rem)',
+									textAlign: 'center',
+									flex: isMobile
+										? '1 1 100%'
+										: isTablet
+											? '1 1 46%'
+											: '1 1 360px',
+									maxWidth: isMobile ? '100%' : isTablet ? '520px' : '380px',
+									minWidth: isMobile ? 'auto' : 280,
 									position: 'relative',
-									zIndex: 1,
-									display: 'flex',
-									flexDirection: 'column',
-									alignItems: 'center',
+									overflow: 'hidden',
 								}}
 							>
 								<img
@@ -790,8 +883,6 @@ const LandingPage = () => {
 										display: 'flex',
 										gap: '0.75rem',
 										justifyContent: 'center',
-										flexWrap: 'wrap',
-										width: '100%',
 									}}
 								>
 									<button
@@ -806,19 +897,6 @@ const LandingPage = () => {
 											borderRadius: '0.6rem',
 											cursor: 'pointer',
 											fontWeight: 800,
-											letterSpacing: 0.2,
-											boxShadow: '0 8px 22px rgba(79,70,229,0.28)',
-											transition: 'transform 0.2s, box-shadow 0.2s',
-										}}
-										onMouseOver={e => {
-											e.currentTarget.style.transform = 'translateY(-2px)';
-											e.currentTarget.style.boxShadow =
-												'0 12px 28px rgba(79,70,229,0.36)';
-										}}
-										onMouseOut={e => {
-											e.currentTarget.style.transform = 'translateY(0)';
-											e.currentTarget.style.boxShadow =
-												'0 8px 22px rgba(79,70,229,0.28)';
 										}}
 									>
 										Sign in
@@ -834,73 +912,31 @@ const LandingPage = () => {
 											borderRadius: '0.6rem',
 											cursor: 'pointer',
 											fontWeight: 700,
-											transition: 'background-color 0.2s',
-										}}
-										onMouseOver={e => {
-											e.currentTarget.style.backgroundColor =
-												'rgba(199,210,254,0.25)';
-										}}
-										onMouseOut={e => {
-											e.currentTarget.style.backgroundColor = 'transparent';
 										}}
 									>
 										How it works
 									</button>
 								</div>
 							</div>
-						</div>
 
-						{/* Teacher */}
-						<div
-							style={{
-								background: 'var(--surface)',
-								borderRadius: '1.25rem',
-								border: '1px solid var(--border)',
-								boxShadow: '0 10px 28px rgba(2,6,23,0.06)',
-								padding: isMobile ? '1.2rem' : 'clamp(1.4rem, 2.2vw, 2rem)',
-								textAlign: 'center',
-								flex: isMobile ? '1 1 100%' : isTablet ? '1 1 46%' : '1 1 360px',
-								maxWidth: isMobile ? '100%' : isTablet ? '520px' : '380px',
-								minWidth: isMobile ? 'auto' : 280,
-								position: 'relative',
-								overflow: 'hidden',
-								transition: 'transform 0.25s, box-shadow 0.25s',
-							}}
-							onMouseOver={e => {
-								if (!isMobile) {
-									e.currentTarget.style.transform = 'translateY(-4px)';
-									e.currentTarget.style.boxShadow =
-										'0 18px 36px rgba(2,6,23,0.10)';
-								}
-							}}
-							onMouseOut={e => {
-								if (!isMobile) {
-									e.currentTarget.style.transform = 'translateY(0)';
-									e.currentTarget.style.boxShadow =
-										'0 10px 28px rgba(2,6,23,0.06)';
-								}
-							}}
-						>
-							<div
-								aria-hidden
-								style={{
-									position: 'absolute',
-									top: 0,
-									left: 0,
-									width: '100%',
-									height: '28%',
-									background:
-										'linear-gradient(135deg, rgba(249,115,22,0.08) 0%, rgba(254,215,170,0.12) 100%)',
-									zIndex: 0,
-								}}
-							/>
+							{/* Teacher */}
 							<div
 								style={{
+									background: 'var(--surface)',
+									borderRadius: '1.25rem',
+									border: '1px solid var(--border)',
+									boxShadow: '0 10px 28px rgba(2,6,23,0.06)',
+									padding: isMobile ? '1.2rem' : 'clamp(1.4rem, 2.2vw, 2rem)',
+									textAlign: 'center',
+									flex: isMobile
+										? '1 1 100%'
+										: isTablet
+											? '1 1 46%'
+											: '1 1 360px',
+									maxWidth: isMobile ? '100%' : isTablet ? '520px' : '380px',
+									minWidth: isMobile ? 'auto' : 280,
 									position: 'relative',
-									zIndex: 1,
-									display: 'flex',
-									flexDirection: 'column',
-									alignItems: 'center',
+									overflow: 'hidden',
 								}}
 							>
 								<img
@@ -947,8 +983,6 @@ const LandingPage = () => {
 										display: 'flex',
 										gap: '0.75rem',
 										justifyContent: 'center',
-										flexWrap: 'wrap',
-										width: '100%',
 									}}
 								>
 									<button
@@ -963,19 +997,6 @@ const LandingPage = () => {
 											borderRadius: '0.6rem',
 											cursor: 'pointer',
 											fontWeight: 800,
-											letterSpacing: 0.2,
-											boxShadow: '0 8px 22px rgba(249,115,22,0.28)',
-											transition: 'transform 0.2s, box-shadow 0.2s',
-										}}
-										onMouseOver={e => {
-											e.currentTarget.style.transform = 'translateY(-2px)';
-											e.currentTarget.style.boxShadow =
-												'0 12px 28px rgba(249,115,22,0.36)';
-										}}
-										onMouseOut={e => {
-											e.currentTarget.style.transform = 'translateY(0)';
-											e.currentTarget.style.boxShadow =
-												'0 8px 22px rgba(249,115,22,0.28)';
 										}}
 									>
 										Sign in
@@ -991,14 +1012,6 @@ const LandingPage = () => {
 											borderRadius: '0.6rem',
 											cursor: 'pointer',
 											fontWeight: 700,
-											transition: 'background-color 0.2s',
-										}}
-										onMouseOver={e => {
-											e.currentTarget.style.backgroundColor =
-												'rgba(254,215,170,0.28)';
-										}}
-										onMouseOut={e => {
-											e.currentTarget.style.backgroundColor = 'transparent';
 										}}
 									>
 										How it works
@@ -1007,6 +1020,49 @@ const LandingPage = () => {
 							</div>
 						</div>
 					</div>
+				</section>
+			)}
+
+			{/* Gallery / credibility strip */}
+			<section
+				aria-label="Gallery"
+				style={{
+					padding: isMobile ? '2.6rem 1rem' : '3.2rem',
+					background: 'var(--elev)',
+					borderTop: '1px solid var(--border)',
+					borderBottom: '1px solid var(--border)',
+				}}
+			>
+				<div
+					style={{
+						maxWidth: 1200,
+						margin: '0 auto',
+						display: 'grid',
+						gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)',
+						gap: 12,
+					}}
+				>
+					{cardPhotos.map((src, i) => (
+						<div
+							key={i}
+							style={{
+								borderRadius: 12,
+								overflow: 'hidden',
+								border: '1px solid var(--border)',
+								background: 'var(--surface)',
+								minHeight: 160,
+							}}
+						>
+							<img
+								src={src}
+								alt={`Gallery ${i + 1}`}
+								loading="lazy"
+								decoding="async"
+								referrerPolicy="no-referrer"
+								style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+							/>
+						</div>
+					))}
 				</div>
 			</section>
 
@@ -1101,11 +1157,7 @@ const LandingPage = () => {
             to { opacity: 1; transform: translateX(0); }
           }
           @media (prefers-reduced-motion: reduce) {
-            * {
-              animation: none !important;
-              transition: none !important;
-              scroll-behavior: auto !important;
-            }
+            * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
           }
         `}
 			</style>
