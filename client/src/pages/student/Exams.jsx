@@ -228,9 +228,14 @@ const StudentExams = () => {
 		loadPreviousExams();
 	}, [loadPreviousExams]);
 
+	// Small UX: allow Enter to search and auto-trim/uppercase is already applied
 	const handleSearch = async e => {
 		e.preventDefault();
-		if (!searchCode.trim()) return;
+		const cleaned = (searchCode || '').trim().toUpperCase();
+		if (!cleaned || cleaned.length !== 8) {
+			setError('Please enter a valid 8-character exam code.');
+			return;
+		}
 
 		setSearching(true);
 		setError('');
@@ -238,7 +243,7 @@ const StudentExams = () => {
 		setMessage('');
 
 		try {
-			const exam = await safeApiCall(searchExamByCode, searchCode.trim());
+			const exam = await safeApiCall(searchExamByCode, cleaned);
 			setFoundExam(exam);
 			setMessage('✅ Exam found! Click "Start Exam" to begin.');
 		} catch (e) {
