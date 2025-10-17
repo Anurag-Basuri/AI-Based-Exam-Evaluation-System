@@ -413,7 +413,8 @@ const TeacherExams = () => {
 	};
 
 	const handleEdit = exam => {
-		setMessage(`✏️ Editor for "${exam.title}" (coming soon)`);
+		// Navigate to editor page instead of placeholder message
+		navigate(`/teacher/exams/${encodeURIComponent(exam.id)}/edit`);
 	};
 
 	const handleCopyCode = async code => {
