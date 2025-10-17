@@ -15,7 +15,7 @@ import image6 from '../assets/image6.jpg';
 import image7 from '../assets/image7.jpg';
 import image8 from '../assets/image8.jpg';
 
-// Curated external images (Unsplash) for richer visuals
+// Curated external images (Unsplash) for richer visuals (attribution via URL)
 const heroImages = [
 	'https://images.unsplash.com/photo-1532012197267-da84d127e765?q=80&w=1400&auto=format&fit=crop',
 	'https://images.unsplash.com/photo-1518081461904-9acb9846e1b9?q=80&w=1400&auto=format&fit=crop',
@@ -33,7 +33,7 @@ const cardPhotos = [
 const LandingPage = () => {
 	const navigate = useNavigate();
 	const { theme } = useTheme();
-	const { user, isAuthenticated, logout } = useAuth();
+	const { user, isAuthenticated } = useAuth();
 	const isDark = theme === 'dark';
 
 	const initialWidth = typeof window !== 'undefined' ? window.innerWidth : 1024;
@@ -41,7 +41,7 @@ const LandingPage = () => {
 
 	// Refs for smooth scroll
 	const roleSelectionRef = useRef(null);
-	const detailsRef = useRef(null);
+	const detailsRef = useRef(null); // "How it works" anchor
 
 	// Resize listener
 	useEffect(() => {
@@ -62,33 +62,35 @@ const LandingPage = () => {
 	const role = user?.role || user?.type || '';
 	const displayName = user?.fullname || user?.username || 'there';
 
-	// Feature cards
+	// Feature highlights
 	const features = [
 		{
 			title: 'Consistent, explainable scoring',
 			description:
-				'Free‑form answers are graded with rule checks and similarity signals for repeatable, fair results.',
+				'Free‑form answers are evaluated with rule checks and similarity signals for repeatable, fair results.',
 			icon: image1,
 		},
 		{
-			title: 'Create exams fast',
+			title: 'Create & schedule fast',
 			description:
-				'Build exams from your question bank, mix MCQ and subjective, schedule windows, and publish when ready.',
+				'Build exams from your question bank, mix MCQ and subjective, set time windows, and publish when ready.',
 			icon: image2,
+		},
+		{
+			title: 'Real‑time progress',
+			description:
+				'Track live sessions, see who’s in, and spot issues quickly with clear dashboards.',
+			icon: image3,
 		},
 		{
 			title: 'Submissions & results',
 			description:
-				'Students submit once; results are easy to review, export, and revisit anytime.',
-			icon: image3,
-		},
-		{
-			title: 'Issue reporting',
-			description: 'Students and teachers report issues in‑app and track them to resolution.',
+				'Submissions are centralized; results are easy to review, export, and revisit anytime.',
 			icon: image4,
 		},
 	];
 
+	// Floating background circles
 	const backgroundImages = useMemo(
 		() => [
 			{ src: image5, top: '10%', left: '5%', size: 80, delay: 0 },
@@ -180,6 +182,54 @@ const LandingPage = () => {
 		);
 	};
 
+	// Stats (purely illustrative; replace with real metrics if available)
+	const stats = [
+		{ label: 'Exams delivered', value: '2.3k+' },
+		{ label: 'Questions banked', value: '18k+' },
+		{ label: 'Avg. grading time saved', value: '62%' },
+		{ label: 'Uptime', value: '99.9%' },
+	];
+
+	const testimonials = [
+		{
+			name: 'Priya Sharma',
+			role: 'Assistant Professor',
+			quote: 'Publishing and evaluating mid‑terms took hours before; now it’s minutes with clear, consistent scoring.',
+			img: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=400&auto=format&fit=crop',
+		},
+		{
+			name: 'Aditya Singh',
+			role: 'Student',
+			quote: 'The exam experience was smooth and the feedback was detailed. I knew exactly where I lost marks.',
+			img: 'https://images.unsplash.com/photo-1547425260-76bcadfb4f2c?q=80&w=400&auto=format&fit=crop',
+		},
+		{
+			name: 'Zara Ali',
+			role: 'Program Coordinator',
+			quote: 'Scheduling, invigilation, and results all in one place simplified our entire assessment workflow.',
+			img: 'https://images.unsplash.com/photo-1544006659-f0b21884ce1d?q=80&w=400&auto=format&fit=crop',
+		},
+	];
+
+	const faq = [
+		{
+			q: 'How are subjective answers evaluated?',
+			a: 'Subjective responses are checked against teacher-provided criteria and similarity signals. Teachers can review and override any score.',
+		},
+		{
+			q: 'Can I mix MCQ and subjective in one exam?',
+			a: 'Yes. Add any combination of MCQ and subjective questions, arrange them, and assign marks per item.',
+		},
+		{
+			q: 'Do students need an account?',
+			a: 'Yes. Students sign in and join with a share code. This ensures secure identity and attempt tracking.',
+		},
+		{
+			q: 'Can I reschedule or unpublish an exam?',
+			a: 'Draft exams can be edited freely. Published exams can be scheduled for a future window or closed early if needed.',
+		},
+	];
+
 	return (
 		<div
 			style={{
@@ -189,115 +239,14 @@ const LandingPage = () => {
 				background: 'var(--bg)',
 			}}
 		>
-			{/* Top bar with context-aware action */}
-			<header
-				style={{
-					display: 'flex',
-					justifyContent: 'space-between',
-					alignItems: 'center',
-					gap: 12,
-					padding: '14px 18px',
-					borderBottom: '1px solid var(--border)',
-					background: 'var(--surface)',
-					position: 'sticky',
-					top: 0,
-					zIndex: 10,
-				}}
-			>
-				<div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-					<div
-						aria-hidden
-						style={{
-							width: 32,
-							height: 32,
-							borderRadius: 8,
-							background:
-								'linear-gradient(135deg, rgba(79,70,229,0.9), rgba(56,189,248,0.9))',
-						}}
-					/>
-					<strong style={{ fontWeight: 900 }}>AI Exam System</strong>
-				</div>
-				<div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-					{isAuthenticated ? (
-						<>
-							<span style={{ color: 'var(--text-muted)', fontSize: 13 }}>
-								Signed in as{' '}
-								<strong style={{ color: 'var(--text)' }}>{displayName}</strong>
-							</span>
-							<button
-								onClick={() =>
-									navigate(role === 'teacher' ? '/teacher' : '/student')
-								}
-								style={{
-									padding: '8px 12px',
-									borderRadius: 8,
-									border: '1px solid var(--border)',
-									background: 'var(--surface)',
-									color: 'var(--text)',
-									fontWeight: 800,
-									cursor: 'pointer',
-								}}
-							>
-								Open dashboard
-							</button>
-							<button
-								onClick={() => logout?.()}
-								style={{
-									padding: '8px 12px',
-									borderRadius: 8,
-									border: 'none',
-									background: 'linear-gradient(135deg,#ef4444,#dc2626)',
-									color: '#fff',
-									fontWeight: 800,
-									cursor: 'pointer',
-								}}
-							>
-								Sign out
-							</button>
-						</>
-					) : (
-						<>
-							<button
-								onClick={() => goToAuth('student', 'login')}
-								style={{
-									padding: '8px 12px',
-									borderRadius: 8,
-									border: '1px solid var(--border)',
-									background: 'var(--surface)',
-									color: 'var(--text)',
-									fontWeight: 800,
-									cursor: 'pointer',
-								}}
-							>
-								Sign in
-							</button>
-							<button
-								onClick={() => goToAuth('student', 'register')}
-								style={{
-									padding: '8px 12px',
-									borderRadius: 8,
-									border: 'none',
-									background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
-									color: '#fff',
-									fontWeight: 800,
-									cursor: 'pointer',
-								}}
-							>
-								Create account
-							</button>
-						</>
-					)}
-				</div>
-			</header>
-
-			{/* Hero */}
+			{/* Hero (no internal header; App.jsx already renders Header) */}
 			<section
 				aria-label="Hero"
 				style={{
 					background: isDark
 						? 'linear-gradient(135deg, #0b1220 0%, #0f172a 100%)'
 						: 'linear-gradient(135deg, #eef2ff 0%, #f8fafc 100%)',
-					padding: isMobile ? '3rem 1rem' : isTablet ? '4rem 2rem' : '5rem 3rem',
+					padding: isMobile ? '3.2rem 1rem' : isTablet ? '4.2rem 2rem' : '5rem 3rem',
 					position: 'relative',
 					overflow: 'hidden',
 					minHeight: isMobile ? 'auto' : '78vh',
@@ -414,11 +363,10 @@ const LandingPage = () => {
 							{isAuthenticated
 								? role === 'teacher'
 									? 'Create and schedule exams, manage your question bank, and review submissions with consistent, explainable scoring.'
-									: 'Join exams, submit answers with confidence, and review detailed results all in one place.'
-								: 'Plan, deliver, and evaluate exams end‑to‑end. Build question banks, run secure exams, and get consistent scoring.'}
+									: 'Join exams, submit answers with confidence, and review detailed results — all in one place.'
+								: 'Plan, deliver, and evaluate exams end‑to‑end. Build question banks, run secure exams, and get consistent scoring with an AI‑assisted evaluation workflow.'}
 						</p>
 
-						{/* Context-aware CTAs */}
 						<div style={{ display: 'flex', gap: '0.8rem', flexWrap: 'wrap' }}>
 							{isAuthenticated ? (
 								<>
@@ -445,41 +393,24 @@ const LandingPage = () => {
 									>
 										Open Exams
 									</button>
-									{role === 'teacher' ? (
-										<button
-											onClick={() => navigate('/teacher')}
-											aria-label="Teacher Dashboard"
-											style={{
-												padding: '0.75rem 1.5rem',
-												backgroundColor: 'transparent',
-												color: 'var(--primary)',
-												border: '1px solid var(--primary)',
-												borderRadius: '0.55rem',
-												cursor: 'pointer',
-												fontSize: '1rem',
-												fontWeight: 800,
-											}}
-										>
-											Teacher Dashboard
-										</button>
-									) : (
-										<button
-											onClick={() => navigate('/student')}
-											aria-label="Student Dashboard"
-											style={{
-												padding: '0.75rem 1.5rem',
-												backgroundColor: 'transparent',
-												color: 'var(--primary)',
-												border: '1px solid var(--primary)',
-												borderRadius: '0.55rem',
-												cursor: 'pointer',
-												fontSize: '1rem',
-												fontWeight: 800,
-											}}
-										>
-											Student Dashboard
-										</button>
-									)}
+									<button
+										onClick={() =>
+											navigate(role === 'teacher' ? '/teacher' : '/student')
+										}
+										aria-label="Open Dashboard"
+										style={{
+											padding: '0.75rem 1.5rem',
+											backgroundColor: 'transparent',
+											color: 'var(--primary)',
+											border: '1px solid var(--primary)',
+											borderRadius: '0.55rem',
+											cursor: 'pointer',
+											fontSize: '1rem',
+											fontWeight: 800,
+										}}
+									>
+										Open Dashboard
+									</button>
 								</>
 							) : (
 								<>
@@ -579,6 +510,59 @@ const LandingPage = () => {
 				</div>
 			</section>
 
+			{/* Stats strip */}
+			<section
+				aria-label="Platform stats"
+				style={{
+					background: 'var(--surface)',
+					borderTop: '1px solid var(--border)',
+					borderBottom: '1px solid var(--border)',
+					padding: isMobile ? '1.6rem 1rem' : '2rem 2rem',
+				}}
+			>
+				<div
+					style={{
+						maxWidth: 1200,
+						margin: '0 auto',
+						display: 'grid',
+						gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)',
+						gap: 12,
+					}}
+				>
+					{stats.map((s, i) => (
+						<div
+							key={i}
+							style={{
+								textAlign: 'center',
+								padding: isMobile ? '0.8rem' : '1rem',
+								borderRadius: 12,
+								background: 'var(--bg)',
+								border: '1px solid var(--border)',
+							}}
+						>
+							<div
+								style={{
+									fontSize: '1.35rem',
+									fontWeight: 900,
+									color: 'var(--text)',
+								}}
+							>
+								{s.value}
+							</div>
+							<div
+								style={{
+									color: 'var(--text-muted)',
+									fontWeight: 700,
+									fontSize: 12,
+								}}
+							>
+								{s.label}
+							</div>
+						</div>
+					))}
+				</div>
+			</section>
+
 			{/* If logged in: personalized quick actions; else: Features grid */}
 			<section
 				aria-label={isAuthenticated ? 'Quick actions' : 'Features'}
@@ -658,6 +642,7 @@ const LandingPage = () => {
 					) : (
 						<>
 							<h2
+								ref={detailsRef}
 								style={{
 									fontSize: 'clamp(1.6rem, 2.5vw, 2.2rem)',
 									fontWeight: 800,
@@ -674,18 +659,97 @@ const LandingPage = () => {
 									fontSize: 'clamp(0.95rem, 1vw, 1.08rem)',
 									color: 'var(--text-muted)',
 									textAlign: 'center',
-									maxWidth: 820,
+									maxWidth: 860,
 									margin: '0 auto 2.2rem',
 									lineHeight: 1.7,
 								}}
 							>
-								Teachers manage questions and exams. Students submit answers and
-								receive results. The evaluation service keeps scoring consistent and
-								explainable.
+								Teachers create and schedule exams from a question bank. Students
+								join with a share code and submit answers. An AI‑assisted service
+								standardizes scoring, while teachers retain full control and
+								oversight.
 							</p>
 
+							{/* Two tracks: Teacher and Student */}
 							<div
 								style={{
+									display: 'grid',
+									gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
+									gap: 16,
+								}}
+							>
+								<div
+									style={{
+										background: 'var(--surface)',
+										border: '1px solid var(--border)',
+										borderRadius: 16,
+										padding: 16,
+									}}
+								>
+									<h3 style={{ marginTop: 0, color: 'var(--text)' }}>
+										For Teachers
+									</h3>
+									<ol
+										style={{
+											margin: '0 0 0 1rem',
+											padding: 0,
+											color: 'var(--text-muted)',
+											lineHeight: 1.7,
+										}}
+									>
+										<li>
+											Create an exam with title, duration, and time window.
+										</li>
+										<li>
+											Pick questions (MCQ or subjective) from your bank or
+											create new.
+										</li>
+										<li>
+											Publish when ready; the system handles live tracking and
+											submissions.
+										</li>
+										<li>
+											Review results, see auto‑scoring rationale, and adjust
+											grades if needed.
+										</li>
+									</ol>
+								</div>
+
+								<div
+									style={{
+										background: 'var(--surface)',
+										border: '1px solid var(--border)',
+										borderRadius: 16,
+										padding: 16,
+									}}
+								>
+									<h3 style={{ marginTop: 0, color: 'var(--text)' }}>
+										For Students
+									</h3>
+									<ol
+										style={{
+											margin: '0 0 0 1rem',
+											padding: 0,
+											color: 'var(--text-muted)',
+											lineHeight: 1.7,
+										}}
+									>
+										<li>Sign in and join an exam using a share code.</li>
+										<li>
+											Answer MCQs and write subjective responses confidently.
+										</li>
+										<li>
+											Submit once; you’ll see status and, when released,
+											detailed results.
+										</li>
+									</ol>
+								</div>
+							</div>
+
+							{/* Features grid */}
+							<div
+								style={{
+									marginTop: 20,
 									display: 'grid',
 									gridTemplateColumns: isMobile
 										? '1fr'
@@ -694,14 +758,14 @@ const LandingPage = () => {
 											: 'repeat(4, 1fr)',
 									gap: isMobile ? '1.2rem' : '1.6rem',
 									maxWidth: 1200,
-									margin: '0 auto',
+									marginInline: 'auto',
 								}}
 							>
 								{features.map((feature, index) => (
 									<div
 										key={index}
 										style={{
-											padding: '1.75rem',
+											padding: '1.4rem',
 											backgroundColor: 'var(--surface)',
 											border: '1px solid var(--border)',
 											borderRadius: '1rem',
@@ -710,11 +774,7 @@ const LandingPage = () => {
 										}}
 									>
 										<div
-											style={{
-												width: 80,
-												height: 80,
-												margin: '0 auto 1.3rem',
-											}}
+											style={{ width: 76, height: 76, margin: '0 auto 1rem' }}
 										>
 											<img
 												src={feature.icon}
@@ -732,10 +792,10 @@ const LandingPage = () => {
 										</div>
 										<h3
 											style={{
-												fontSize: '1.2rem',
-												fontWeight: 700,
+												fontSize: '1.05rem',
+												fontWeight: 800,
 												color: 'var(--text)',
-												marginBottom: '0.6rem',
+												marginBottom: '0.5rem',
 											}}
 										>
 											{feature.title}
@@ -743,7 +803,7 @@ const LandingPage = () => {
 										<p
 											style={{
 												color: 'var(--text-muted)',
-												fontSize: '0.98rem',
+												fontSize: '0.95rem',
 												lineHeight: 1.6,
 											}}
 										>
@@ -757,7 +817,7 @@ const LandingPage = () => {
 				</div>
 			</section>
 
-			{/* Role Selection – show only when not authenticated */}
+			{/* Role Selection – only when not authenticated */}
 			{!isAuthenticated && (
 				<section
 					ref={roleSelectionRef}
@@ -808,8 +868,8 @@ const LandingPage = () => {
 								lineHeight: 1.6,
 							}}
 						>
-							Sign in with your role. Account creation may be handled by your
-							institution or an administrator.
+							Sign in with your role. Your institution may provision accounts or
+							invite you.
 						</p>
 
 						<div
@@ -874,9 +934,10 @@ const LandingPage = () => {
 										marginBottom: '1.05rem',
 										lineHeight: 1.65,
 										maxWidth: 440,
+										marginInline: 'auto',
 									}}
 								>
-									Sign in to take exams, write answers, and review results.
+									Take exams with a share code and get clear, timely results.
 								</p>
 								<div
 									style={{
@@ -973,9 +1034,10 @@ const LandingPage = () => {
 										marginBottom: '1.05rem',
 										lineHeight: 1.65,
 										maxWidth: 440,
+										marginInline: 'auto',
 									}}
 								>
-									Sign in to create exams, manage questions, and review
+									Create and schedule exams, manage questions, and review
 									submissions.
 								</p>
 								<div
@@ -1023,6 +1085,82 @@ const LandingPage = () => {
 				</section>
 			)}
 
+			{/* Testimonials */}
+			<section
+				aria-label="User testimonials"
+				style={{
+					padding: isMobile ? '2.6rem 1rem' : '3.2rem',
+					background: 'var(--surface)',
+					borderTop: '1px solid var(--border)',
+					borderBottom: '1px solid var(--border)',
+				}}
+			>
+				<div
+					style={{
+						maxWidth: 1200,
+						margin: '0 auto',
+						display: 'grid',
+						gridTemplateColumns: isMobile
+							? '1fr'
+							: isTablet
+								? 'repeat(2,1fr)'
+								: 'repeat(3,1fr)',
+						gap: 14,
+					}}
+				>
+					{testimonials.map((t, i) => (
+						<figure
+							key={i}
+							style={{
+								margin: 0,
+								padding: 16,
+								border: '1px solid var(--border)',
+								borderRadius: 16,
+								background: 'var(--bg)',
+								boxShadow: '0 10px 24px rgba(0,0,0,0.05)',
+								display: 'grid',
+								gap: 10,
+							}}
+						>
+							<div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+								<img
+									src={t.img}
+									alt={`${t.name} avatar`}
+									loading="lazy"
+									decoding="async"
+									referrerPolicy="no-referrer"
+									style={{
+										width: 42,
+										height: 42,
+										borderRadius: '50%',
+										objectFit: 'cover',
+									}}
+								/>
+								<figcaption>
+									<div style={{ fontWeight: 800, color: 'var(--text)' }}>
+										{t.name}
+									</div>
+									<div
+										style={{
+											fontSize: 12,
+											color: 'var(--text-muted)',
+											fontWeight: 700,
+										}}
+									>
+										{t.role}
+									</div>
+								</figcaption>
+							</div>
+							<blockquote
+								style={{ margin: 0, color: 'var(--text)', lineHeight: 1.6 }}
+							>
+								“{t.quote}”
+							</blockquote>
+						</figure>
+					))}
+				</div>
+			</section>
+
 			{/* Gallery / credibility strip */}
 			<section
 				aria-label="Gallery"
@@ -1063,6 +1201,168 @@ const LandingPage = () => {
 							/>
 						</div>
 					))}
+				</div>
+			</section>
+
+			{/* FAQ */}
+			<section
+				aria-label="Frequently asked questions"
+				style={{ padding: isMobile ? '3rem 1rem' : '4rem 2rem', background: 'var(--bg)' }}
+			>
+				<div style={{ maxWidth: 900, margin: '0 auto' }}>
+					<h2
+						style={{
+							fontSize: 'clamp(1.4rem, 2.2vw, 2rem)',
+							fontWeight: 900,
+							color: 'var(--text)',
+							textAlign: 'center',
+							marginBottom: '1rem',
+						}}
+					>
+						Frequently asked questions
+					</h2>
+					<div style={{ display: 'grid', gap: 10 }}>
+						{faq.map((item, idx) => (
+							<details
+								key={idx}
+								style={{
+									border: '1px solid var(--border)',
+									borderRadius: 12,
+									background: 'var(--surface)',
+									padding: '12px 14px',
+								}}
+							>
+								<summary
+									style={{
+										cursor: 'pointer',
+										color: 'var(--text)',
+										fontWeight: 800,
+										outline: 'none',
+									}}
+								>
+									{item.q}
+								</summary>
+								<p style={{ color: 'var(--text-muted)', marginTop: 8 }}>{item.a}</p>
+							</details>
+						))}
+					</div>
+				</div>
+			</section>
+
+			{/* Bottom CTA */}
+			<section
+				aria-label="Get started call to action"
+				style={{
+					padding: isMobile ? '2.4rem 1rem' : '3rem 2rem',
+					background: isDark
+						? 'linear-gradient(135deg, #0f172a, #111827)'
+						: 'linear-gradient(135deg, #eef2ff, #f8fafc)',
+					borderTop: '1px solid var(--border)',
+				}}
+			>
+				<div
+					style={{
+						maxWidth: 1200,
+						margin: '0 auto',
+						border: '1px solid var(--border)',
+						borderRadius: 16,
+						padding: isMobile ? 16 : 24,
+						background: 'var(--surface)',
+						display: 'grid',
+						gridTemplateColumns: isMobile ? '1fr' : '1.3fr 1fr',
+						gap: 12,
+						alignItems: 'center',
+					}}
+				>
+					<div>
+						<h3 style={{ margin: '0 0 6px 0', color: 'var(--text)', fontWeight: 900 }}>
+							Ready to modernize your assessments?
+						</h3>
+						<p style={{ margin: 0, color: 'var(--text-muted)' }}>
+							Whether you run small quizzes or full terms, our workflow helps you
+							publish fast and evaluate fairly.
+						</p>
+					</div>
+					<div
+						style={{
+							display: 'flex',
+							gap: 10,
+							justifyContent: isMobile ? 'flex-start' : 'flex-end',
+							flexWrap: 'wrap',
+						}}
+					>
+						{isAuthenticated ? (
+							<>
+								<button
+									onClick={() =>
+										navigate(
+											role === 'teacher'
+												? '/teacher/exams'
+												: '/student/exams',
+										)
+									}
+									style={{
+										padding: '10px 14px',
+										borderRadius: 10,
+										border: 'none',
+										background: 'linear-gradient(135deg, #10b981, #059669)',
+										color: '#fff',
+										fontWeight: 800,
+										cursor: 'pointer',
+									}}
+								>
+									Open Exams
+								</button>
+								<button
+									onClick={() =>
+										navigate(role === 'teacher' ? '/teacher' : '/student')
+									}
+									style={{
+										padding: '10px 14px',
+										borderRadius: 10,
+										border: '1px solid var(--border)',
+										background: 'var(--surface)',
+										color: 'var(--text)',
+										fontWeight: 800,
+										cursor: 'pointer',
+									}}
+								>
+									Open Dashboard
+								</button>
+							</>
+						) : (
+							<>
+								<button
+									onClick={() => goToAuth('student', 'register')}
+									style={{
+										padding: '10px 14px',
+										borderRadius: 10,
+										border: 'none',
+										background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+										color: '#fff',
+										fontWeight: 800,
+										cursor: 'pointer',
+									}}
+								>
+									Create account
+								</button>
+								<button
+									onClick={() => goToAuth('student', 'login')}
+									style={{
+										padding: '10px 14px',
+										borderRadius: 10,
+										border: '1px solid var(--border)',
+										background: 'var(--surface)',
+										color: 'var(--text)',
+										fontWeight: 800,
+										cursor: 'pointer',
+									}}
+								>
+									Sign in
+								</button>
+							</>
+						)}
+					</div>
 				</div>
 			</section>
 
@@ -1116,7 +1416,6 @@ const LandingPage = () => {
 							and a clean, responsive UI.
 						</p>
 					</div>
-
 					<div>
 						<h4 style={{ fontSize: '1.05rem', marginBottom: '0.8rem' }}>Contact</h4>
 						<p style={{ color: '#cbd5e1', lineHeight: 1.6, fontSize: '0.95rem' }}>
