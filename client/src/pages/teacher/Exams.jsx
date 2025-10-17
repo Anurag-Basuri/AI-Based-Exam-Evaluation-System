@@ -82,8 +82,28 @@ const FilterButton = ({ active, children, onClick, count }) => (
 	</button>
 );
 
-const ExamCard = ({ exam, onPublish, onClone, onEdit, publishing }) => {
-	const config = statusConfig[exam.status] || statusConfig.draft;
+const Badge = ({ children }) => (
+	<span
+		style={{
+			display: 'inline-flex',
+			alignItems: 'center',
+			gap: 6,
+			fontSize: 12,
+			padding: '6px 10px',
+			borderRadius: 20,
+			border: '1px solid var(--border)',
+			background: 'var(--bg)',
+			color: 'var(--text)',
+			fontWeight: 700,
+		}}
+	>
+		{children}
+	</span>
+);
+
+const ExamCard = ({ exam, onPublish, onClone, onEdit, publishing, onCopyCode }) => {
+	const visualStatus = exam.derivedStatus || exam.status || 'draft';
+	const config = statusConfig[visualStatus] || statusConfig.draft;
 
 	return (
 		<article
@@ -92,18 +112,16 @@ const ExamCard = ({ exam, onPublish, onClone, onEdit, publishing }) => {
 				borderRadius: 16,
 				border: '1px solid var(--border)',
 				boxShadow: 'var(--shadow-md)',
-				padding: '24px',
-				transition: 'all 0.2s ease',
+				padding: '20px',
+				transition: 'transform .2s ease',
 				position: 'relative',
 				overflow: 'hidden',
 			}}
 			onMouseEnter={e => {
 				e.currentTarget.style.transform = 'translateY(-2px)';
-				e.currentTarget.style.boxShadow = 'var(--shadow-md)';
 			}}
 			onMouseLeave={e => {
 				e.currentTarget.style.transform = 'translateY(0)';
-				e.currentTarget.style.boxShadow = 'var(--shadow-md)';
 			}}
 		>
 			<div
@@ -116,19 +134,21 @@ const ExamCard = ({ exam, onPublish, onClone, onEdit, publishing }) => {
 					background: config.color,
 				}}
 			/>
-			<header style={{ marginBottom: '16px' }}>
+			<header style={{ marginBottom: '14px' }}>
 				<div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
 					<h3
 						style={{
 							margin: 0,
 							fontSize: 18,
-							fontWeight: 700,
+							fontWeight: 800,
 							color: 'var(--text)',
 							flex: 1,
 						}}
+						title={exam.title}
 					>
 						{exam.title}
 					</h3>
+
 					<span
 						style={{
 							display: 'flex',
@@ -140,7 +160,7 @@ const ExamCard = ({ exam, onPublish, onClone, onEdit, publishing }) => {
 							border: `1px solid ${config.border}`,
 							background: config.bg,
 							color: config.color,
-							fontWeight: 700,
+							fontWeight: 800,
 						}}
 					>
 						<span>{config.icon}</span>
@@ -151,14 +171,18 @@ const ExamCard = ({ exam, onPublish, onClone, onEdit, publishing }) => {
 				<div
 					style={{
 						display: 'grid',
-						gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-						gap: 12,
+						gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+						gap: 10,
 						color: 'var(--text-muted)',
-						fontSize: 14,
+						fontSize: 13,
 					}}
 				>
 					<div>
-						<strong style={{ color: 'var(--text)' }}>Start:</strong> {exam.startAt}
+						<strong style={{ color: 'var(--text)' }}>Start:</strong>{' '}
+						{exam.startAt || '—'}
+					</div>
+					<div>
+						<strong style={{ color: 'var(--text)' }}>End:</strong> {exam.endAt || '—'}
 					</div>
 					<div>
 						<strong style={{ color: 'var(--text)' }}>Enrolled:</strong> {exam.enrolled}
@@ -168,6 +192,42 @@ const ExamCard = ({ exam, onPublish, onClone, onEdit, publishing }) => {
 						{exam.submissions}
 					</div>
 				</div>
+
+				{/* Share code */}
+				<div
+					style={{
+						display: 'flex',
+						gap: 8,
+						alignItems: 'center',
+						marginTop: 10,
+						justifyContent: 'space-between',
+						flexWrap: 'wrap',
+					}}
+				>
+					<Badge>
+						Share code:{' '}
+						<span style={{ color: 'var(--text)' }}>{exam.searchId || '—'}</span>
+					</Badge>
+					<div style={{ display: 'flex', gap: 8 }}>
+						<button
+							onClick={() => onCopyCode(exam.searchId)}
+							disabled={!exam.searchId}
+							title="Copy share code"
+							style={{
+								padding: '8px 10px',
+								borderRadius: 8,
+								border: '1px solid var(--border)',
+								background: 'var(--surface)',
+								color: 'var(--text)',
+								cursor: exam.searchId ? 'pointer' : 'not-allowed',
+								fontWeight: 700,
+								fontSize: 12,
+							}}
+						>
+							📋 Copy
+						</button>
+					</div>
+				</div>
 			</header>
 
 			<div
@@ -175,7 +235,7 @@ const ExamCard = ({ exam, onPublish, onClone, onEdit, publishing }) => {
 					display: 'flex',
 					gap: 10,
 					flexWrap: 'wrap',
-					paddingTop: 16,
+					paddingTop: 12,
 					borderTop: '1px solid var(--border)',
 				}}
 			>
@@ -189,7 +249,7 @@ const ExamCard = ({ exam, onPublish, onClone, onEdit, publishing }) => {
 						background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
 						color: '#ffffff',
 						cursor: 'pointer',
-						fontWeight: 600,
+						fontWeight: 700,
 						fontSize: 14,
 						boxShadow: '0 4px 12px rgba(99,102,241,0.25)',
 					}}
@@ -207,16 +267,17 @@ const ExamCard = ({ exam, onPublish, onClone, onEdit, publishing }) => {
 						background: 'var(--surface)',
 						color: 'var(--text)',
 						cursor: 'pointer',
-						fontWeight: 600,
+						fontWeight: 700,
 						fontSize: 14,
 					}}
 				>
 					📋 Clone
 				</button>
 
-				{exam.status !== 'active' && exam.status !== 'live' && (
+				{/* Only allow publish from draft (server requires draft -> active) */}
+				{exam.status === 'draft' && (
 					<button
-						onClick={() => onPublish(exam.id)}
+						onClick={() => onPublish(exam)}
 						disabled={publishing}
 						style={{
 							flex: '1 1 120px',
@@ -228,7 +289,7 @@ const ExamCard = ({ exam, onPublish, onClone, onEdit, publishing }) => {
 								: 'linear-gradient(135deg, #10b981, #059669)',
 							color: '#ffffff',
 							cursor: publishing ? 'not-allowed' : 'pointer',
-							fontWeight: 600,
+							fontWeight: 700,
 							fontSize: 14,
 							boxShadow: publishing ? 'none' : '0 4px 12px rgba(16,185,129,0.25)',
 						}}
@@ -246,7 +307,8 @@ const TeacherExams = () => {
 	const [error, setError] = React.useState('');
 	const [exams, setExams] = React.useState([]);
 	const [query, setQuery] = React.useState('');
-	const [status, setStatus] = React.useState('all');
+	const [status, setStatus] = React.useState('all'); // all | live | scheduled | draft | completed | cancelled
+	const [sortBy, setSortBy] = React.useState('start'); // start | title
 	const [message, setMessage] = React.useState('');
 	const [publishingIds, setPublishingIds] = React.useState(new Set());
 	const navigate = useNavigate();
@@ -269,54 +331,104 @@ const TeacherExams = () => {
 	}, [loadExams]);
 
 	const filteredExams = React.useMemo(() => {
-		return exams.filter(exam => {
-			const matchesStatus = status === 'all' || exam.status === status;
-			const matchesQuery =
-				!query.trim() || exam.title.toLowerCase().includes(query.toLowerCase());
+		const qLower = query.trim().toLowerCase();
+		let list = exams.filter(exam => {
+			const visual = exam.derivedStatus || exam.status;
+			const matchesStatus = status === 'all' || visual === status;
+			const matchesQuery = !qLower || exam.title.toLowerCase().includes(qLower);
 			return matchesStatus && matchesQuery;
 		});
-	}, [exams, status, query]);
+		// Sort
+		if (sortBy === 'start') {
+			list = list.sort((a, b) => (a.startMs || 0) - (b.startMs || 0));
+		} else if (sortBy === 'title') {
+			list = list.sort((a, b) => a.title.localeCompare(b.title));
+		}
+		return list;
+	}, [exams, status, query, sortBy]);
 
 	const statusCounts = React.useMemo(() => {
-		const counts = { all: exams.length };
+		const counts = {
+			all: exams.length,
+			live: 0,
+			scheduled: 0,
+			draft: 0,
+			completed: 0,
+			cancelled: 0,
+		};
 		exams.forEach(exam => {
-			counts[exam.status] = (counts[exam.status] || 0) + 1;
+			const visual = exam.derivedStatus || exam.status;
+			if (counts[visual] !== undefined) counts[visual] += 1;
 		});
 		return counts;
 	}, [exams]);
 
-	const handlePublish = async examId => {
-		setPublishingIds(prev => new Set([...prev, examId]));
+	const handlePublish = async exam => {
+		// Guard: must have at least one question before activation (server enforces too)
+		if (!exam?.questions?.length) {
+			setMessage('❌ Add at least one question before publishing this exam.');
+			return;
+		}
+		// Confirm and warn timing
+		const now = Date.now();
+		const startsInFuture = exam.startMs && now < exam.startMs;
+		const endsInPast = exam.endMs && now > exam.endMs;
+		const warn = endsInPast
+			? 'End time appears to be in the past. Continue publishing?'
+			: startsInFuture
+				? 'Exam will be scheduled (not live yet). Publish now?'
+				: 'Publish this exam now?';
+		if (!window.confirm(warn)) return;
+
+		setPublishingIds(prev => new Set([...prev, exam.id]));
 		setMessage('');
 		try {
-			await safeApiCall(updateExamStatus, examId, { status: 'active' });
-			setExams(prev => prev.map(ex => (ex.id === examId ? { ...ex, status: 'active' } : ex)));
+			await safeApiCall(updateExamStatus, exam.id, { status: 'active' });
+			// server status becomes 'active'; derivedStatus will be recomputed on reload
+			setExams(prev =>
+				prev.map(ex =>
+					ex.id === exam.id
+						? { ...ex, status: 'active', derivedStatus: ex.derivedStatus }
+						: ex,
+				),
+			);
 			setMessage('✅ Exam published successfully!');
 		} catch (e) {
 			setMessage(`❌ ${e.message || 'Failed to publish exam'}`);
 		} finally {
 			setPublishingIds(prev => {
 				const next = new Set(prev);
-				next.delete(examId);
+				next.delete(exam.id);
 				return next;
 			});
 		}
 	};
 
 	const handleClone = exam => {
-		setMessage(`📋 Cloning "${exam.title}" (to be implemented)`);
+		setMessage(`📋 Cloning "${exam.title}" (coming soon)`);
 	};
 
 	const handleEdit = exam => {
-		setMessage(`✏️ Opening editor for "${exam.title}" (to be implemented)`);
+		setMessage(`✏️ Editor for "${exam.title}" (coming soon)`);
+	};
+
+	const handleCopyCode = async code => {
+		if (!code) return;
+		try {
+			await navigator.clipboard.writeText(code);
+			setMessage('✅ Share code copied to clipboard');
+		} catch {
+			setMessage('❌ Failed to copy code');
+		}
 	};
 
 	const filterOptions = [
-		{ key: 'all', label: 'All Exams' },
+		{ key: 'all', label: 'All' },
 		{ key: 'live', label: 'Live' },
 		{ key: 'scheduled', label: 'Scheduled' },
-		{ key: 'draft', label: 'Drafts' },
+		{ key: 'draft', label: 'Draft' },
 		{ key: 'completed', label: 'Completed' },
+		{ key: 'cancelled', label: 'Cancelled' },
 	];
 
 	return (
@@ -326,13 +438,15 @@ const TeacherExams = () => {
 					display: 'flex',
 					justifyContent: 'space-between',
 					alignItems: 'center',
-					marginBottom: 24,
+					marginBottom: 18,
+					gap: 12,
+					flexWrap: 'wrap',
 				}}
 			>
 				<div>
 					<h1
 						style={{
-							margin: '0 0 8px 0',
+							margin: '0 0 6px 0',
 							fontSize: '28px',
 							fontWeight: 800,
 							color: 'var(--text)',
@@ -340,42 +454,74 @@ const TeacherExams = () => {
 					>
 						Exam Management
 					</h1>
-					<p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '16px' }}>
-						Create, schedule, and monitor all your exams.
+					<p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '14px' }}>
+						Create, schedule, publish, and track your exams.
 					</p>
 				</div>
-				<button
-					onClick={() => navigate('/teacher/exams/new')}
-					style={{
-						padding: '12px 20px',
-						borderRadius: '10px',
-						border: 'none',
-						background: 'linear-gradient(135deg, #10b981, #059669)',
-						color: '#ffffff',
-						fontWeight: 700,
-						cursor: 'pointer',
-						boxShadow: '0 8px 20px rgba(16,185,129,0.3)',
-						fontSize: '14px',
-					}}
-				>
-					➕ Create Exam
-				</button>
+				<div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+					<button
+						onClick={loadExams}
+						title="Refresh"
+						style={{
+							padding: '10px 14px',
+							borderRadius: 10,
+							border: '1px solid var(--border)',
+							background: 'var(--surface)',
+							color: 'var(--text)',
+							fontWeight: 700,
+							cursor: 'pointer',
+						}}
+					>
+						↻ Refresh
+					</button>
+					<button
+						onClick={() => navigate('/teacher/exams/new')}
+						style={{
+							padding: '12px 20px',
+							borderRadius: '10px',
+							border: 'none',
+							background: 'linear-gradient(135deg, #10b981, #059669)',
+							color: '#ffffff',
+							fontWeight: 800,
+							cursor: 'pointer',
+							boxShadow: '0 8px 20px rgba(16,185,129,0.3)',
+							fontSize: '14px',
+						}}
+					>
+						➕ Create Exam
+					</button>
+				</div>
 			</header>
 
-			{message && <div style={{ marginBottom: 16, color: 'var(--text)' }}>{message}</div>}
+			{message && (
+				<div
+					role="status"
+					style={{
+						marginBottom: 12,
+						padding: '10px 12px',
+						borderRadius: 12,
+						border: '1px solid var(--border)',
+						background: 'var(--surface)',
+						color: 'var(--text)',
+						fontWeight: 700,
+					}}
+				>
+					{message}
+				</div>
+			)}
 
 			<div
 				style={{
 					background: 'var(--surface)',
-					padding: 24,
+					padding: 16,
 					borderRadius: 16,
 					border: '1px solid var(--border)',
-					marginBottom: 24,
+					marginBottom: 18,
 					boxShadow: 'var(--shadow-md)',
 				}}
 			>
-				<div style={{ display: 'flex', gap: 20, alignItems: 'center', flexWrap: 'wrap' }}>
-					<div style={{ position: 'relative', flex: '1 1 300px' }}>
+				<div style={{ display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
+					<div style={{ position: 'relative', flex: '1 1 320px' }}>
 						<input
 							value={query}
 							onChange={e => setQuery(e.target.value)}
@@ -404,6 +550,7 @@ const TeacherExams = () => {
 							🔍
 						</span>
 					</div>
+
 					<div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
 						{filterOptions.map(option => (
 							<FilterButton
@@ -416,6 +563,25 @@ const TeacherExams = () => {
 							</FilterButton>
 						))}
 					</div>
+
+					<div style={{ marginLeft: 'auto' }}>
+						<select
+							value={sortBy}
+							onChange={e => setSortBy(e.target.value)}
+							title="Sort"
+							style={{
+								background: 'var(--bg)',
+								color: 'var(--text)',
+								border: '1px solid var(--border)',
+								borderRadius: 10,
+								padding: '10px 12px',
+								fontWeight: 700,
+							}}
+						>
+							<option value="start">Sort by start time</option>
+							<option value="title">Sort by title</option>
+						</select>
+					</div>
 				</div>
 			</div>
 
@@ -425,7 +591,11 @@ const TeacherExams = () => {
 					Loading exams...
 				</div>
 			)}
-			{error && <div style={{ color: '#ef4444', textAlign: 'center' }}>Error: {error}</div>}
+			{error && (
+				<div style={{ color: '#ef4444', textAlign: 'center', fontWeight: 700 }}>
+					Error: {error}
+				</div>
+			)}
 			{!loading && !error && filteredExams.length === 0 && (
 				<div
 					style={{
@@ -437,9 +607,7 @@ const TeacherExams = () => {
 					}}
 				>
 					<div style={{ fontSize: '48px', marginBottom: 16 }}>📝</div>
-					<h3 style={{ margin: '0 0 8px 0', color: 'var(--text)' }}>
-						No matching exams found
-					</h3>
+					<h3 style={{ margin: '0 0 8px 0', color: 'var(--text)' }}>No matching exams</h3>
 					<p style={{ margin: 0, color: 'var(--text-muted)' }}>
 						Try adjusting your search or filters, or create a new exam.
 					</p>
@@ -451,8 +619,8 @@ const TeacherExams = () => {
 				<div
 					style={{
 						display: 'grid',
-						gap: 20,
-						gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))',
+						gap: 16,
+						gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))',
 					}}
 				>
 					{filteredExams.map(exam => (
@@ -462,6 +630,7 @@ const TeacherExams = () => {
 							onPublish={handlePublish}
 							onClone={handleClone}
 							onEdit={handleEdit}
+							onCopyCode={handleCopyCode}
 							publishing={publishingIds.has(exam.id)}
 						/>
 					))}
