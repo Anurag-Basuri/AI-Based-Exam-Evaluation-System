@@ -10,7 +10,6 @@ import {
 	updateExam,
 	deleteExam,
 	searchExamByCode,
-	// new handlers
 	publishExam,
 	reorderExamQuestions,
 	setExamQuestions,
