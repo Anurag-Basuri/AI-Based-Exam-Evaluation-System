@@ -33,7 +33,8 @@ const questionSchema = new mongoose.Schema(
 					type: String,
 					trim: true,
 					required: function () {
-						return this.type === 'multiple-choice';
+						// Option text is only required on MCQ items
+						return this?.parent()?.type === 'multiple-choice';
 					},
 				},
 				isCorrect: {
@@ -45,9 +46,9 @@ const questionSchema = new mongoose.Schema(
 		answer: {
 			type: String,
 			trim: true,
-			required: function () {
-				return this.type === 'subjective';
-			},
+			// Make subjective model answer OPTIONAL to prevent validation failures
+			required: false,
+			default: null,
 		},
 		createdBy: {
 			type: mongoose.Schema.Types.ObjectId,
@@ -71,6 +72,7 @@ const questionSchema = new mongoose.Schema(
 
 // Validation
 questionSchema.pre('validate', function (next) {
+	// MCQ validations
 	if (this.type === 'multiple-choice') {
 		if (!this.options || this.options.length < 2) {
 			this.invalidate('options', 'Multiple-choice questions must have at least 2 options.');
@@ -79,11 +81,15 @@ questionSchema.pre('validate', function (next) {
 		if (correctCount === 0) {
 			this.invalidate('options', 'At least one option must be marked as correct.');
 		}
+		// Ensure subjective-only field is cleared
+		this.answer = null;
 	}
 
-	// Subjective answers should be optional, not forced
-	if (this.type === 'subjective' && !this.answer) {
-		this.answer = null; // optional
+	// Subjective: ensure options array is empty (not validated)
+	if (this.type === 'subjective') {
+		this.options = [];
+		// answer is optional; keep null if not provided
+		if (this.answer === undefined) this.answer = null;
 	}
 
 	next();
