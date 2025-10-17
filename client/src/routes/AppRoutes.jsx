@@ -30,6 +30,7 @@ const TeacherExams = lazy(() => import('../pages/teacher/Exams.jsx'));
 const TeacherResults = lazy(() => import('../pages/teacher/result.jsx'));
 const TeacherIssues = lazy(() => import('../pages/teacher/issue.jsx'));
 const TeacherSettings = lazy(() => import('../pages/teacher/Settings.jsx'));
+const ExamCreate = lazy(() => import('../pages/teacher/ExamCreate.jsx'));
 
 const withBoundary = node => <ErrorBoundary>{node}</ErrorBoundary>;
 
@@ -79,6 +80,7 @@ const AppRoutes = () => (
 				<Route path="/teacher" element={withBoundary(<TeacherDash />)}>
 					<Route index element={withBoundary(<TeacherHome />)} />
 					<Route path="exams" element={withBoundary(<TeacherExams />)} />
+					<Route path="exams/new" element={withBoundary(<ExamCreate />)} />
 					<Route path="results" element={withBoundary(<TeacherResults />)} />
 					<Route path="issues" element={withBoundary(<TeacherIssues />)} />
 					<Route path="settings" element={withBoundary(<TeacherSettings />)} />
