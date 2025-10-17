@@ -70,8 +70,10 @@ const addQuestionsToExam = asyncHandler(async (req, res) => {
 
 	const exam = await Exam.findById(examId);
 	if (!exam) throw ApiError.NotFound('Exam not found');
-	if (exam.status !== 'draft') {
-		throw ApiError.Forbidden('Can only add questions to a draft exam.');
+	if (exam.status !== 'draft' && !isScheduled(exam)) {
+		throw ApiError.Forbidden(
+			'Can only add questions to a draft or scheduled exam (not started).',
+		);
 	}
 
 	// Check ownership
@@ -102,8 +104,10 @@ const removeQuestionsFromExam = asyncHandler(async (req, res) => {
 
 	const exam = await Exam.findById(examId);
 	if (!exam) throw ApiError.NotFound('Exam not found');
-	if (exam.status !== 'draft') {
-		throw ApiError.Forbidden('Can only remove questions from a draft exam.');
+	if (exam.status !== 'draft' && !isScheduled(exam)) {
+		throw ApiError.Forbidden(
+			'Can only remove questions from a draft or scheduled exam (not started).',
+		);
 	}
 
 	exam.questions = exam.questions.filter(qId => !questionIds.includes(qId.toString()));
@@ -152,83 +156,112 @@ const getExamById = asyncHandler(async (req, res) => {
 
 // Helper: ensure ownership
 const assertOwner = (doc, teacherId) => {
-    if (!doc?.createdBy || String(doc.createdBy) !== String(teacherId)) {
-        throw ApiError.Forbidden('Not authorized for this exam');
-    }
+	if (!doc?.createdBy || String(doc.createdBy) !== String(teacherId)) {
+		throw ApiError.Forbidden('Not authorized for this exam');
+	}
 };
 
 // Update an exam (safe status transitions)
 const updateExam = asyncHandler(async (req, res) => {
-    const examId = req.params.id;
-    const { title, description, duration, questions, startTime, endTime, status } = req.body;
-    const teacherId = req.teacher?._id || req.user?.id;
+	const examId = req.params.id;
+	const { title, description, duration, questions, startTime, endTime, status } = req.body;
+	const teacherId = req.teacher?._id || req.user?.id;
 
-    if (!examId || !examId.match(/^[a-f\d]{24}$/i)) {
-        throw ApiError.BadRequest('Invalid exam ID');
-    }
+	if (!examId || !examId.match(/^[a-f\d]{24}$/i)) {
+		throw ApiError.BadRequest('Invalid exam ID');
+	}
 
-    const exam = await Exam.findById(examId);
-    if (!exam) throw ApiError.NotFound('Exam not found');
+	const exam = await Exam.findById(examId);
+	if (!exam) throw ApiError.NotFound('Exam not found');
 
-    // Ownership
-    assertOwner(exam, teacherId);
+	// Ownership
+	assertOwner(exam, teacherId);
 
-    // Restrict status transitions
-    if (status && status !== exam.status) {
-        if (['completed', 'cancelled'].includes(exam.status)) {
-            throw ApiError.Forbidden('Cannot change status of a completed or cancelled exam.');
-        }
-        if (exam.status === 'draft' && status === 'active') {
-            const qArr = Array.isArray(questions) ? questions : exam.questions;
-            if (!qArr || qArr.length === 0) {
-                throw ApiError.BadRequest('Exam must have at least one question before activation.');
-            }
-        }
-        if (exam.status === 'active' && status === 'draft') {
-            throw ApiError.Forbidden('Cannot revert an active exam to draft.');
-        }
-        if (status === 'completed' && exam.status !== 'active') {
-            throw ApiError.Forbidden('Can only complete an active exam.');
-        }
-    }
+	// Restrict status transitions
+	if (status && status !== exam.status) {
+		if (['completed', 'cancelled'].includes(exam.status)) {
+			throw ApiError.Forbidden('Cannot change status of a completed or cancelled exam.');
+		}
+		if (exam.status === 'draft' && status === 'active') {
+			const qArr = Array.isArray(questions) ? questions : exam.questions;
+			if (!qArr || qArr.length === 0) {
+				throw ApiError.BadRequest(
+					'Exam must have at least one question before activation.',
+				);
+			}
+		}
+		if (exam.status === 'active' && status === 'draft') {
+			throw ApiError.Forbidden('Cannot revert an active exam to draft.');
+		}
+		if (status === 'completed' && exam.status !== 'active') {
+			throw ApiError.Forbidden('Can only complete an active exam.');
+		}
+	}
 
-    // Validate times
-    if (startTime && new Date(startTime) <= new Date()) {
-        throw ApiError.BadRequest('Start time must be in the future');
-    }
-    if (endTime && (startTime ? new Date(endTime) <= new Date(startTime) : false)) {
-        throw ApiError.BadRequest('End time must be after start time');
-    }
+	// Validate times and allow edits:
+	// - Draft: full edits
+	// - Scheduled (active but not started): allow title/description/duration/start/end changes
+	// - Live/completed/cancelled: disallow time/title changes
+	const scheduled = isScheduled(exam);
+	const live = isLive(exam);
 
-    // If questions provided on a draft exam, validate ownership
-    if (Array.isArray(questions)) {
-        if (exam.status !== 'draft') {
-            throw ApiError.Forbidden('Can only change questions on a draft exam');
-        }
-        const owned = await Question.find({ _id: { $in: questions }, createdBy: teacherId }).select(
-            '_id',
-        );
-        if (owned.length !== questions.length) {
-            throw ApiError.BadRequest('Some questions do not belong to you or do not exist');
-        }
-    }
+	if (live || ['completed', 'cancelled'].includes(exam.status)) {
+		if (
+			title !== undefined ||
+			description !== undefined ||
+			startTime !== undefined ||
+			endTime !== undefined ||
+			Array.isArray(questions)
+		) {
+			throw ApiError.Forbidden(
+				'Cannot modify details/questions of a live/completed/cancelled exam',
+			);
+		}
+	}
 
-    // Only update fields provided
-    const updateFields = {};
-    if (title !== undefined) updateFields.title = title;
-    if (description !== undefined) updateFields.description = description;
-    if (duration !== undefined) updateFields.duration = duration;
-    if (startTime !== undefined) updateFields.startTime = startTime;
-    if (endTime !== undefined) updateFields.endTime = endTime;
-    if (status !== undefined) updateFields.status = status;
-    if (Array.isArray(questions)) updateFields.questions = questions;
+	if (startTime && new Date(startTime) <= new Date()) {
+		throw ApiError.BadRequest('Start time must be in the future');
+	}
+	if (endTime && (startTime ? new Date(endTime) <= new Date(startTime) : false)) {
+		throw ApiError.BadRequest('End time must be after start time');
+	}
+	if (
+		!scheduled &&
+		exam.status !== 'draft' &&
+		(startTime !== undefined || endTime !== undefined)
+	) {
+		throw ApiError.Forbidden('Only draft or scheduled (not started) exams can change schedule');
+	}
 
-    const updatedExam = await Exam.findByIdAndUpdate(examId, updateFields, {
-        new: true,
-        runValidators: true,
-    });
+	// If questions provided on a draft exam, validate ownership
+	if (Array.isArray(questions)) {
+		if (exam.status !== 'draft') {
+			throw ApiError.Forbidden('Can only change questions on a draft exam');
+		}
+		const owned = await Question.find({ _id: { $in: questions }, createdBy: teacherId }).select(
+			'_id',
+		);
+		if (owned.length !== questions.length) {
+			throw ApiError.BadRequest('Some questions do not belong to you or do not exist');
+		}
+	}
 
-    return ApiResponse.success(res, updatedExam, 'Exam updated successfully');
+	// Only update fields provided
+	const updateFields = {};
+	if (title !== undefined) updateFields.title = title;
+	if (description !== undefined) updateFields.description = description;
+	if (duration !== undefined) updateFields.duration = duration;
+	if (startTime !== undefined) updateFields.startTime = startTime;
+	if (endTime !== undefined) updateFields.endTime = endTime;
+	if (status !== undefined) updateFields.status = status;
+	if (Array.isArray(questions)) updateFields.questions = questions;
+
+	const updatedExam = await Exam.findByIdAndUpdate(examId, updateFields, {
+		new: true,
+		runValidators: true,
+	});
+
+	return ApiResponse.success(res, updatedExam, 'Exam updated successfully');
 });
 
 // Delete an exam
@@ -316,8 +349,10 @@ const reorderExamQuestions = asyncHandler(async (req, res) => {
 	const exam = await Exam.findById(examId);
 	if (!exam) throw ApiError.NotFound('Exam not found');
 	assertOwner(exam, teacherId);
-	if (exam.status !== 'draft') {
-		throw ApiError.Forbidden('Can only reorder questions on a draft exam');
+	if (exam.status !== 'draft' && !isScheduled(exam)) {
+		throw ApiError.Forbidden(
+			'Can only reorder questions on a draft or scheduled exam (not started)',
+		);
 	}
 
 	const current = exam.questions.map(id => String(id));
@@ -349,8 +384,10 @@ const setExamQuestions = asyncHandler(async (req, res) => {
 	const exam = await Exam.findById(examId);
 	if (!exam) throw ApiError.NotFound('Exam not found');
 	assertOwner(exam, teacherId);
-	if (exam.status !== 'draft') {
-		throw ApiError.Forbidden('Can only change questions on a draft exam');
+	if (exam.status !== 'draft' && !isScheduled(exam)) {
+		throw ApiError.Forbidden(
+			'Can only change questions on a draft or scheduled exam (not started)',
+		);
 	}
 
 	// Verify ownership of all questions
@@ -491,6 +528,128 @@ const syncStatusesNow = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, result, 'Exam statuses synchronized');
 });
 
+// Helpers for time-based gates
+const isScheduled = exam =>
+	exam?.status === 'active' && exam?.startTime && new Date() < new Date(exam.startTime);
+const isLive = exam =>
+	exam?.status === 'active' &&
+	exam?.startTime &&
+	exam?.endTime &&
+	new Date() >= new Date(exam.startTime) &&
+	new Date() <= new Date(exam.endTime);
+
+// NEW: End exam now (only if live)
+const endExamNow = asyncHandler(async (req, res) => {
+	const examId = req.params.id;
+	const teacherId = req.teacher?._id || req.user?.id;
+
+	if (!examId || !examId.match(/^[a-f\d]{24}$/i)) throw ApiError.BadRequest('Invalid exam ID');
+	const exam = await Exam.findById(examId);
+	if (!exam) throw ApiError.NotFound('Exam not found');
+	assertOwner(exam, teacherId);
+
+	if (!isLive(exam)) {
+		throw ApiError.Forbidden('Only live exams can be ended now');
+	}
+
+	exam.status = 'completed';
+	exam.endTime = new Date();
+	await exam.save();
+
+	return ApiResponse.success(res, exam, 'Exam ended');
+});
+
+// NEW: Cancel exam (only if scheduled; keeps as record but unusable)
+const cancelExam = asyncHandler(async (req, res) => {
+	const examId = req.params.id;
+	const teacherId = req.teacher?._id || req.user?.id;
+
+	if (!examId || !examId.match(/^[a-f\d]{24}$/i)) throw ApiError.BadRequest('Invalid exam ID');
+	const exam = await Exam.findById(examId);
+	if (!exam) throw ApiError.NotFound('Exam not found');
+	assertOwner(exam, teacherId);
+
+	if (!isScheduled(exam)) {
+		throw ApiError.Forbidden('Only scheduled (not started) exams can be cancelled');
+	}
+
+	exam.status = 'cancelled';
+	await exam.save();
+
+	return ApiResponse.success(res, exam, 'Exam cancelled');
+});
+
+// NEW: Extend end time (allow on scheduled or live)
+const extendExam = asyncHandler(async (req, res) => {
+	const examId = req.params.id;
+	const { minutes, endTime } = req.body;
+	const teacherId = req.teacher?._id || req.user?.id;
+
+	if (!examId || !examId.match(/^[a-f\d]{24}$/i)) throw ApiError.BadRequest('Invalid exam ID');
+	const exam = await Exam.findById(examId);
+	if (!exam) throw ApiError.NotFound('Exam not found');
+	assertOwner(exam, teacherId);
+
+	if (!(isScheduled(exam) || isLive(exam))) {
+		throw ApiError.Forbidden('Only scheduled or live exams can be extended');
+	}
+
+	let newEnd;
+	if (typeof minutes === 'number' && minutes > 0) {
+		const base = exam.endTime ? new Date(exam.endTime).getTime() : Date.now();
+		newEnd = new Date(base + minutes * 60 * 1000);
+	} else if (endTime) {
+		newEnd = new Date(endTime);
+	} else {
+		throw ApiError.BadRequest('Provide minutes or endTime');
+	}
+
+	if (!exam.startTime || newEnd <= new Date(exam.startTime)) {
+		throw ApiError.BadRequest('New end time must be after start time');
+	}
+	if (newEnd <= new Date()) {
+		throw ApiError.BadRequest('New end time must be in the future');
+	}
+
+	exam.endTime = newEnd;
+	await exam.save();
+
+	return ApiResponse.success(res, exam, 'Exam end time extended');
+});
+
+// NEW: Regenerate share/search code (pre-start only)
+const regenerateExamCode = asyncHandler(async (req, res) => {
+	const examId = req.params.id;
+	const teacherId = req.teacher?._id || req.user?.id;
+
+	if (!examId || !examId.match(/^[a-f\d]{24}$/i)) throw ApiError.BadRequest('Invalid exam ID');
+	const exam = await Exam.findById(examId);
+	if (!exam) throw ApiError.NotFound('Exam not found');
+	assertOwner(exam, teacherId);
+
+	if (!isScheduled(exam) && exam.status !== 'draft') {
+		throw ApiError.Forbidden('Can only regenerate code for draft or scheduled exams');
+	}
+
+	// Generate unique 6-char uppercase code
+	const gen = () =>
+		Array.from(
+			{ length: 6 },
+			() => 'ABCDEFGHJKLMNPQRSTUVWXY23456789'[Math.floor(Math.random() * 32)],
+		).join('');
+	let code = gen();
+	// ensure unique
+	for (let i = 0; i < 5; i++) {
+		const exists = await Exam.findOne({ searchId: code }).select('_id').lean();
+		if (!exists) break;
+		code = gen();
+	}
+	exam.searchId = code;
+	await exam.save();
+
+	return ApiResponse.success(res, { searchId: code }, 'Share code regenerated');
+});
+
 export {
 	createExam,
 	addQuestionsToExam,
@@ -507,4 +666,8 @@ export {
 	duplicateExam,
 	getMyExams,
 	syncStatusesNow,
+	endExamNow,
+	cancelExam,
+	extendExam,
+	regenerateExamCode,
 };
