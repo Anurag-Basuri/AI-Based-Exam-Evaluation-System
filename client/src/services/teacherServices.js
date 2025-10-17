@@ -95,6 +95,10 @@ const EP = {
 	examDuplicate: id => [`/api/exams/${encodeURIComponent(id)}/duplicate`],
 	examReorder: id => [`/api/exams/${encodeURIComponent(id)}/reorder`],
 	examSetQuestions: id => [`/api/exams/${encodeURIComponent(id)}/questions/set`],
+	examEndNow: id => [`/api/exams/${encodeURIComponent(id)}/end-now`],
+	examCancel: id => [`/api/exams/${encodeURIComponent(id)}/cancel`],
+	examExtend: id => [`/api/exams/${encodeURIComponent(id)}/extend`],
+	examRegenerateCode: id => [`/api/exams/${encodeURIComponent(id)}/regenerate-code`],
 
 	// Submissions (teacher)
 	submissionsByExam: examId => `/api/submissions/exam/${encodeURIComponent(examId)}`,
