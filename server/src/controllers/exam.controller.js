@@ -3,6 +3,7 @@ import Question from '../models/question.model.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
+import { syncExamStatuses } from '../services/examStatus.service.js';
 
 // Create an exam (can be created with zero questions, status is 'draft')
 const createExam = asyncHandler(async (req, res) => {
@@ -469,6 +470,12 @@ const getMyExams = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, { items: exams, page: Number(page), limit: lim }, 'Your exams');
 });
 
+// Manually trigger a status sync
+const syncStatusesNow = asyncHandler(async (req, res) => {
+	const result = await syncExamStatuses();
+	return ApiResponse.success(res, result, 'Exam statuses synchronized');
+});
+
 export {
 	createExam,
 	addQuestionsToExam,
@@ -484,4 +491,5 @@ export {
 	createAndAttachQuestion,
 	duplicateExam,
 	getMyExams,
+	syncStatusesNow,
 };

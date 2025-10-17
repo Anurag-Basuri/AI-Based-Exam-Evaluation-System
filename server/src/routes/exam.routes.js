@@ -16,6 +16,7 @@ import {
 	createAndAttachQuestion,
 	duplicateExam,
 	getMyExams,
+	syncStatusesNow,
 } from '../controllers/exam.controller.js';
 
 const router = Router();
@@ -54,6 +55,9 @@ router.get('/all', checkAuth, getAllExams);
 // Student: search exam by search ID
 // NOTE: Place this BEFORE '/:id' to avoid route shadowing.
 router.get('/search/:code', checkAuth, verifyStudent, searchExamByCode);
+
+// Optional: ops/testing — trigger a sync now
+router.post('/sync-status', checkAuth, verifyTeacher, syncStatusesNow);
 
 // Get single exam by ID
 router.get('/:id', checkAuth, getExamById);

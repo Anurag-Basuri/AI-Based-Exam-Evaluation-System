@@ -2,6 +2,7 @@ import app from './app.js';
 import connectDB from './db.js';
 import colors from 'colors';
 import dotenv from 'dotenv';
+import { startExamStatusScheduler } from './services/examStatus.service.js';
 
 dotenv.config();
 
@@ -54,6 +55,9 @@ process.on('unhandledRejection', error => handleFatalError(error, 'Unhandled Rej
 
         process.on('SIGINT', () => shutdown('SIGINT'));
         process.on('SIGTERM', () => shutdown('SIGTERM'));
+
+        // Start background exam status scheduler
+        startExamStatusScheduler();
     } catch (error) {
         handleFatalError(error, 'Failed to start server');
     }
