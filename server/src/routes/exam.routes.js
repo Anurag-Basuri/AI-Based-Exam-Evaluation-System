@@ -52,9 +52,11 @@ router.patch(
 // Get all exams (optionally filter by teacher)
 router.get('/all', checkAuth, getAllExams);
 
-// Student: search exam by search ID
-// NOTE: Place this BEFORE '/:id' to avoid route shadowing.
+// Student: search exam by search ID (keep before '/:id')
 router.get('/search/:code', checkAuth, verifyStudent, searchExamByCode);
+
+// Fast list for the logged-in teacher  <-- move this BEFORE '/:id'
+router.get('/mine', checkAuth, verifyTeacher, getMyExams);
 
 // Optional: ops/testing — trigger a sync now
 router.post('/sync-status', checkAuth, verifyTeacher, syncStatusesNow);
@@ -67,9 +69,6 @@ router.put('/:id/update', checkAuth, verifyTeacher, updateExam);
 
 // Delete exam
 router.delete('/:id', checkAuth, verifyTeacher, deleteExam);
-
-// Fast list for the logged-in teacher
-router.get('/mine', checkAuth, verifyTeacher, getMyExams);
 
 // Publish (draft -> active)
 router.post('/:id/publish', checkAuth, verifyTeacher, publishExam);

@@ -150,63 +150,85 @@ const getExamById = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, exam, 'Exam details fetched');
 });
 
+// Helper: ensure ownership
+const assertOwner = (doc, teacherId) => {
+    if (!doc?.createdBy || String(doc.createdBy) !== String(teacherId)) {
+        throw ApiError.Forbidden('Not authorized for this exam');
+    }
+};
+
 // Update an exam (safe status transitions)
 const updateExam = asyncHandler(async (req, res) => {
-	const examId = req.params.id;
-	const { title, description, duration, questions, startTime, endTime, status } = req.body;
+    const examId = req.params.id;
+    const { title, description, duration, questions, startTime, endTime, status } = req.body;
+    const teacherId = req.teacher?._id || req.user?.id;
 
-	if (!examId || !examId.match(/^[a-f\d]{24}$/i)) {
-		throw ApiError.BadRequest('Invalid exam ID');
-	}
+    if (!examId || !examId.match(/^[a-f\d]{24}$/i)) {
+        throw ApiError.BadRequest('Invalid exam ID');
+    }
 
-	const exam = await Exam.findById(examId);
-	if (!exam) throw ApiError.NotFound('Exam not found');
+    const exam = await Exam.findById(examId);
+    if (!exam) throw ApiError.NotFound('Exam not found');
 
-	// Restrict status transitions
-	if (status && status !== exam.status) {
-		if (['completed', 'cancelled'].includes(exam.status)) {
-			throw ApiError.Forbidden('Cannot change status of a completed or cancelled exam.');
-		}
-		if (exam.status === 'draft' && status === 'active') {
-			const qArr = Array.isArray(questions) ? questions : exam.questions;
-			if (!qArr || qArr.length === 0) {
-				throw ApiError.BadRequest(
-					'Exam must have at least one question before activation.',
-				);
-			}
-		}
-		if (exam.status === 'active' && status === 'draft') {
-			throw ApiError.Forbidden('Cannot revert an active exam to draft.');
-		}
-		if (status === 'completed' && exam.status !== 'active') {
-			throw ApiError.Forbidden('Can only complete an active exam.');
-		}
-	}
+    // Ownership
+    assertOwner(exam, teacherId);
 
-	// Validate times
-	if (startTime && new Date(startTime) <= new Date()) {
-		throw ApiError.BadRequest('Start time must be in the future');
-	}
-	if (endTime && startTime && new Date(endTime) <= new Date(startTime)) {
-		throw ApiError.BadRequest('End time must be after start time');
-	}
+    // Restrict status transitions
+    if (status && status !== exam.status) {
+        if (['completed', 'cancelled'].includes(exam.status)) {
+            throw ApiError.Forbidden('Cannot change status of a completed or cancelled exam.');
+        }
+        if (exam.status === 'draft' && status === 'active') {
+            const qArr = Array.isArray(questions) ? questions : exam.questions;
+            if (!qArr || qArr.length === 0) {
+                throw ApiError.BadRequest('Exam must have at least one question before activation.');
+            }
+        }
+        if (exam.status === 'active' && status === 'draft') {
+            throw ApiError.Forbidden('Cannot revert an active exam to draft.');
+        }
+        if (status === 'completed' && exam.status !== 'active') {
+            throw ApiError.Forbidden('Can only complete an active exam.');
+        }
+    }
 
-	// Only update fields provided
-	const updateFields = {};
-	if (title) updateFields.title = title;
-	if (description) updateFields.description = description;
-	if (duration) updateFields.duration = duration;
-	if (startTime) updateFields.startTime = startTime;
-	if (endTime) updateFields.endTime = endTime;
-	if (status) updateFields.status = status;
-	if (Array.isArray(questions)) updateFields.questions = questions;
+    // Validate times
+    if (startTime && new Date(startTime) <= new Date()) {
+        throw ApiError.BadRequest('Start time must be in the future');
+    }
+    if (endTime && (startTime ? new Date(endTime) <= new Date(startTime) : false)) {
+        throw ApiError.BadRequest('End time must be after start time');
+    }
 
-	const updatedExam = await Exam.findByIdAndUpdate(examId, updateFields, {
-		new: true,
-		runValidators: true,
-	});
+    // If questions provided on a draft exam, validate ownership
+    if (Array.isArray(questions)) {
+        if (exam.status !== 'draft') {
+            throw ApiError.Forbidden('Can only change questions on a draft exam');
+        }
+        const owned = await Question.find({ _id: { $in: questions }, createdBy: teacherId }).select(
+            '_id',
+        );
+        if (owned.length !== questions.length) {
+            throw ApiError.BadRequest('Some questions do not belong to you or do not exist');
+        }
+    }
 
-	return ApiResponse.success(res, updatedExam, 'Exam updated successfully');
+    // Only update fields provided
+    const updateFields = {};
+    if (title !== undefined) updateFields.title = title;
+    if (description !== undefined) updateFields.description = description;
+    if (duration !== undefined) updateFields.duration = duration;
+    if (startTime !== undefined) updateFields.startTime = startTime;
+    if (endTime !== undefined) updateFields.endTime = endTime;
+    if (status !== undefined) updateFields.status = status;
+    if (Array.isArray(questions)) updateFields.questions = questions;
+
+    const updatedExam = await Exam.findByIdAndUpdate(examId, updateFields, {
+        new: true,
+        runValidators: true,
+    });
+
+    return ApiResponse.success(res, updatedExam, 'Exam updated successfully');
 });
 
 // Delete an exam
@@ -247,13 +269,6 @@ const searchExamByCode = asyncHandler(async (req, res) => {
 
 	return ApiResponse.success(res, exam, 'Exam found');
 });
-
-// Helper: ensure ownership
-const assertOwner = (doc, teacherId) => {
-	if (!doc?.createdBy || String(doc.createdBy) !== String(teacherId)) {
-		throw ApiError.Forbidden('Not authorized for this exam');
-	}
-};
 
 // Publish exam (draft -> active)
 const publishExam = asyncHandler(async (req, res) => {
