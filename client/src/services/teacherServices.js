@@ -102,7 +102,7 @@ const EP = {
 	issueResolve: id => `/api/issues/${encodeURIComponent(id)}/resolve`,
 	issueStatus: id => `/api/issues/${encodeURIComponent(id)}/status`,
 
-	// Teacher account (server provides update + change-password)
+	// Teacher account
 	teacherUpdate: ['/api/teachers/update'],
 	teacherChangePassword: ['/api/teachers/change-password'],
 
@@ -207,7 +207,7 @@ const normalizeQuestion = q => ({
 				id: String(i),
 				text: o?.text ?? '',
 				isCorrect: !!o?.isCorrect,
-		  }))
+			}))
 		: [],
 	answer: q?.answer ?? null,
 	createdBy: String(q?.createdBy?._id ?? q?.createdBy ?? ''),
@@ -264,6 +264,32 @@ export const deleteExam = async examId => {
 	const res = await safe(apiClient.delete(EP.examDelete(examId)));
 	const ok = (res?.data?.success ?? res?.status === 200) ? true : true;
 	return { success: ok };
+};
+
+// ---------- Questions (Teacher) ----------
+export const getTeacherQuestions = async (params = {}) => {
+	const res = await tryGet(EP.questionsMine, { params });
+	const list = res?.data?.data || res?.data || [];
+	return Array.isArray(list) ? list.map(normalizeQuestion) : [];
+};
+
+export const createTeacherQuestion = async payload => {
+	// payload: { type, text, remarks, max_marks, options?, answer? }
+	const res = await tryPost(EP.questionCreate, payload);
+	const data = res?.data?.data ?? res?.data ?? {};
+	return normalizeQuestion(data);
+};
+
+// Optionals if needed later
+export const updateTeacherQuestion = async (id, payload) => {
+	const res = await tryPut(EP.questionUpdate(id), payload);
+	const data = res?.data?.data ?? res?.data ?? {};
+	return normalizeQuestion(data);
+};
+
+export const deleteTeacherQuestion = async id => {
+	const res = await safe(apiClient.delete(EP.questionDelete(id)));
+	return { success: !!(res?.data?.success ?? true) };
 };
 
 // ---------- Submissions (Teacher) ----------
