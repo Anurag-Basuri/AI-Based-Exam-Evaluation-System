@@ -39,7 +39,7 @@ const ExamForm = ({ value, onChange, errors = {}, disabled = false }) => {
 			</div>
 
 			<div style={{ gridColumn: '1 / -1' }}>
-				<Field label="Description">
+				<Field label="Description" error={errors.description}>
 					<textarea
 						disabled={disabled}
 						style={{ ...inputStyle, minHeight: 90, resize: 'vertical' }}
