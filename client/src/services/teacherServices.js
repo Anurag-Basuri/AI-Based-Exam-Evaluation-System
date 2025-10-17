@@ -105,6 +105,13 @@ const EP = {
 	// Teacher account (server provides update + change-password)
 	teacherUpdate: ['/api/teachers/update'],
 	teacherChangePassword: ['/api/teachers/change-password'],
+
+	// Questions (teacher)
+	questionCreate: ['/api/questions/create'],
+	questionsMine: ['/api/questions/all/teacher'],
+	questionById: id => `/api/questions/${encodeURIComponent(id)}`,
+	questionUpdate: id => [`/api/questions/${encodeURIComponent(id)}/update`],
+	questionDelete: id => [`/api/questions/${encodeURIComponent(id)}`],
 };
 
 // ---------- Normalizers ----------
@@ -186,6 +193,27 @@ const normalizeTeacher = t => ({
 	phonenumber: t?.phonenumber ?? t?.phone ?? '',
 	department: t?.department ?? '',
 	address: typeof t?.address === 'string' ? t.address : '',
+});
+
+// Normalizer for Question
+const normalizeQuestion = q => ({
+	id: String(q?._id ?? q?.id ?? ''),
+	type: q?.type === 'multiple-choice' || q?.type === 'subjective' ? q.type : 'subjective',
+	text: q?.text ?? '',
+	remarks: q?.remarks ?? '',
+	max_marks: Number.isFinite(q?.max_marks) ? q.max_marks : 1,
+	options: Array.isArray(q?.options)
+		? q.options.map((o, i) => ({
+				id: String(i),
+				text: o?.text ?? '',
+				isCorrect: !!o?.isCorrect,
+		  }))
+		: [],
+	answer: q?.answer ?? null,
+	createdBy: String(q?.createdBy?._id ?? q?.createdBy ?? ''),
+	sourceExam: String(q?.sourceExam ?? ''),
+	createdAt: q?.createdAt || '',
+	updatedAt: q?.updatedAt || '',
 });
 
 // ---------- Exams (Teacher) ----------

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { safeApiCall, getTeacherExams, updateExamStatus } from '../../services/teacherServices.js';
 
 const statusConfig = {
@@ -248,6 +249,7 @@ const TeacherExams = () => {
 	const [status, setStatus] = React.useState('all');
 	const [message, setMessage] = React.useState('');
 	const [publishingIds, setPublishingIds] = React.useState(new Set());
+	const navigate = useNavigate();
 
 	const loadExams = React.useCallback(async () => {
 		setLoading(true);
@@ -343,7 +345,7 @@ const TeacherExams = () => {
 					</p>
 				</div>
 				<button
-					onClick={() => setMessage('➕ Create exam functionality coming soon!')}
+					onClick={() => navigate('/teacher/exams/new')}
 					style={{
 						padding: '12px 20px',
 						borderRadius: '10px',
