@@ -85,16 +85,19 @@ const EP = {
 	// Exams
 	examCreate: ['/api/exams/create'],
 	examsAll: ['/api/exams/all'],
+	examsMine: ['/api/exams/mine'],
 	examById: id => `/api/exams/${encodeURIComponent(id)}`,
 	examUpdate: id => [`/api/exams/${encodeURIComponent(id)}/update`],
 	examDelete: id => [`/api/exams/${encodeURIComponent(id)}`],
 	examAddQuestions: id => [`/api/exams/${encodeURIComponent(id)}/questions`],
 	examRemoveQuestions: id => [`/api/exams/${encodeURIComponent(id)}/questions/remove`],
+	examPublish: id => [`/api/exams/${encodeURIComponent(id)}/publish`],
+	examDuplicate: id => [`/api/exams/${encodeURIComponent(id)}/duplicate`],
 
 	// Submissions (teacher)
 	submissionsByExam: examId => `/api/submissions/exam/${encodeURIComponent(examId)}`,
-	submissionEvalUpdate: id => `/api/submissions/${encodeURIComponent(id)}/evaluate`, // PATCH
-	submissionAutoEvaluate: id => `/api/submissions/${encodeURIComponent(id)}/auto-evaluate`, // POST
+	submissionEvalUpdate: id => `/api/submissions/${encodeURIComponent(id)}/evaluate`,
+	submissionAutoEvaluate: id => `/api/submissions/${encodeURIComponent(id)}/auto-evaluate`,
 
 	// Issues (teacher)
 	issuesAll: ['/api/issues/all'],
@@ -108,7 +111,7 @@ const EP = {
 
 	// Questions (teacher)
 	questionCreate: ['/api/questions/create'],
-	questionsMine: ['/api/questions/all/teacher'],
+	questionsMine: ['/api/questions/mine'],
 	questionById: id => `/api/questions/${encodeURIComponent(id)}`,
 	questionUpdate: id => [`/api/questions/${encodeURIComponent(id)}/update`],
 	questionDelete: id => [`/api/questions/${encodeURIComponent(id)}`],
@@ -233,7 +236,6 @@ const normalizeQuestion = q => ({
 
 // ---------- Exams (Teacher) ----------
 export const createTeacherExam = async payload => {
-	// payload: { title, description, duration, startTime, endTime, questionIds? }
 	const res = await tryPost(EP.examCreate, payload);
 	const data = res?.data?.data ?? res?.data ?? {};
 	return normalizeExam(data);
@@ -252,10 +254,21 @@ export const removeQuestionsFromExam = async (examId, questionIds = []) => {
 };
 
 export const getTeacherExams = async (params = {}) => {
-	// Server supports teacher filtering via ?teacher=<id>, status, q
-	const res = await tryGet(EP.examsAll, { params });
-	const list = res?.data?.data || res?.data || [];
-	return Array.isArray(list) ? list.map(normalizeExam) : [];
+	// Prefer fast "mine" list; fallback to /all if not available
+	try {
+		const resMine = await tryGet(EP.examsMine, { params });
+		const payload = resMine?.data?.data ?? resMine?.data ?? [];
+		const list = Array.isArray(payload)
+			? payload
+			: Array.isArray(payload?.items)
+				? payload.items
+				: [];
+		return list.map(normalizeExam);
+	} catch (_) {
+		const resAll = await tryGet(EP.examsAll, { params });
+		const list = resAll?.data?.data || resAll?.data || [];
+		return Array.isArray(list) ? list.map(normalizeExam) : [];
+	}
 };
 
 export const getTeacherExamById = async examId => {
@@ -270,9 +283,21 @@ export const updateExam = async (examId, body = {}) => {
 	return normalizeExam(data);
 };
 
+// Keep for generic updates; for publishing prefer publishTeacherExam below
 export const updateExamStatus = async (examId, statusBody = {}) => {
-	// convenience wrapper for status-only update
 	return updateExam(examId, statusBody);
+};
+
+export const publishTeacherExam = async examId => {
+	const res = await tryPost(EP.examPublish(examId), {});
+	const data = res?.data?.data ?? res?.data ?? {};
+	return normalizeExam(data);
+};
+
+export const duplicateTeacherExam = async examId => {
+	const res = await tryPost(EP.examDuplicate(examId), {});
+	const data = res?.data?.data ?? res?.data ?? {};
+	return normalizeExam(data);
 };
 
 export const deleteExam = async examId => {
@@ -284,12 +309,16 @@ export const deleteExam = async examId => {
 // ---------- Questions (Teacher) ----------
 export const getTeacherQuestions = async (params = {}) => {
 	const res = await tryGet(EP.questionsMine, { params });
-	const list = res?.data?.data || res?.data || [];
-	return Array.isArray(list) ? list.map(normalizeQuestion) : [];
+	const payload = res?.data?.data ?? res?.data ?? [];
+	const list = Array.isArray(payload)
+		? payload
+		: Array.isArray(payload?.items)
+			? payload.items
+			: [];
+	return list.map(normalizeQuestion);
 };
 
 export const createTeacherQuestion = async payload => {
-	// payload: { type, text, remarks, max_marks, options?, answer? }
 	const res = await tryPost(EP.questionCreate, payload);
 	const data = res?.data?.data ?? res?.data ?? {};
 	return normalizeQuestion(data);
