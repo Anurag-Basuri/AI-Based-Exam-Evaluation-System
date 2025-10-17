@@ -6,6 +6,11 @@ import {
 	// updateExamStatus, // replaced by publishTeacherExam
 	publishTeacherExam,
 	duplicateTeacherExam,
+	endExamNow,
+	cancelExam,
+	extendExamEnd,
+	regenerateExamShareCode,
+	updateExam,
 } from '../../services/teacherServices.js';
 
 const statusConfig = {
@@ -107,9 +112,32 @@ const Badge = ({ children }) => (
 	</span>
 );
 
-const ExamCard = ({ exam, onPublish, onClone, onEdit, publishing, onCopyCode }) => {
+const ExamCard = ({
+	exam,
+	onPublish,
+	onClone,
+	onEdit,
+	publishing,
+	onCopyCode,
+	onEndNow,
+	onCancel,
+	onExtend15,
+	onRegenerate,
+	onRename,
+}) => {
 	const visualStatus = exam.derivedStatus || exam.status || 'draft';
 	const config = statusConfig[visualStatus] || statusConfig.draft;
+
+	// Derive view state
+	const now = Date.now();
+	const isScheduled = exam.status === 'active' && exam.startMs && now < exam.startMs;
+	const isLive =
+		exam.status === 'active' &&
+		exam.startMs &&
+		exam.endMs &&
+		now >= exam.startMs &&
+		now <= exam.endMs;
+	const isDraft = exam.status === 'draft';
 
 	return (
 		<article
@@ -303,6 +331,94 @@ const ExamCard = ({ exam, onPublish, onClone, onEdit, publishing, onCopyCode }) 
 						{publishing ? '⏳ Publishing...' : '🚀 Publish'}
 					</button>
 				)}
+
+				{isScheduled && (
+					<>
+						<button
+							onClick={() => onCancel(exam)}
+							style={{
+								/* neutral */ padding: '10px 14px',
+								borderRadius: 8,
+								border: '1px solid var(--border)',
+								background: 'var(--surface)',
+								color: '#dc2626',
+								fontWeight: 700,
+							}}
+						>
+							⛔ Cancel
+						</button>
+						<button
+							onClick={() => onExtend15(exam)}
+							style={{
+								padding: '10px 14px',
+								borderRadius: 8,
+								border: 'none',
+								background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+								color: '#fff',
+								fontWeight: 700,
+							}}
+						>
+							➕ Extend +15m
+						</button>
+						<button
+							onClick={() => onRegenerate(exam)}
+							style={{
+								padding: '10px 14px',
+								borderRadius: 8,
+								border: '1px solid var(--border)',
+								background: 'var(--surface)',
+								color: 'var(--text)',
+								fontWeight: 700,
+							}}
+						>
+							🔁 New code
+						</button>
+						<button
+							onClick={() => onRename(exam)}
+							style={{
+								padding: '10px 14px',
+								borderRadius: 8,
+								border: '1px solid var(--border)',
+								background: 'var(--surface)',
+								color: 'var(--text)',
+								fontWeight: 700,
+							}}
+						>
+							🖊️ Rename
+						</button>
+					</>
+				)}
+
+				{isLive && (
+					<>
+						<button
+							onClick={() => onEndNow(exam)}
+							style={{
+								padding: '10px 14px',
+								borderRadius: 8,
+								border: 'none',
+								background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+								color: '#fff',
+								fontWeight: 800,
+							}}
+						>
+							🛑 End now
+						</button>
+						<button
+							onClick={() => onExtend15(exam)}
+							style={{
+								padding: '10px 14px',
+								borderRadius: 8,
+								border: 'none',
+								background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+								color: '#fff',
+								fontWeight: 700,
+							}}
+						>
+							➕ Extend +15m
+						</button>
+					</>
+				)}
 			</div>
 		</article>
 	);
@@ -424,6 +540,63 @@ const TeacherExams = () => {
 			setMessage('✅ Share code copied to clipboard');
 		} catch {
 			setMessage('❌ Failed to copy code');
+		}
+	};
+
+	const handleEndNow = async exam => {
+		if (!window.confirm('End this exam immediately?')) return;
+		try {
+			const updated = await safeApiCall(endExamNow, exam.id);
+			setExams(prev => prev.map(e => (e.id === exam.id ? updated : e)));
+			setMessage('✅ Exam ended');
+		} catch (e) {
+			setMessage(`❌ ${e?.message || 'Failed to end exam'}`);
+		}
+	};
+
+	const handleCancel = async exam => {
+		if (!window.confirm('Cancel this scheduled exam? Students will not be able to join.'))
+			return;
+		try {
+			const updated = await safeApiCall(cancelExam, exam.id);
+			setExams(prev => prev.map(e => (e.id === exam.id ? updated : e)));
+			setMessage('✅ Exam cancelled');
+		} catch (e) {
+			setMessage(`❌ ${e?.message || 'Failed to cancel exam'}`);
+		}
+	};
+
+	const handleExtend15 = async exam => {
+		try {
+			const updated = await safeApiCall(extendExamEnd, exam.id, { minutes: 15 });
+			setExams(prev => prev.map(e => (e.id === exam.id ? updated : e)));
+			setMessage('✅ Extended by 15 minutes');
+		} catch (e) {
+			setMessage(`❌ ${e?.message || 'Failed to extend exam'}`);
+		}
+	};
+
+	const handleRegenerate = async exam => {
+		if (!window.confirm('Regenerate the share code? Existing code will no longer work.'))
+			return;
+		try {
+			const { searchId } = await safeApiCall(regenerateExamShareCode, exam.id);
+			setExams(prev => prev.map(e => (e.id === exam.id ? { ...e, searchId } : e)));
+			setMessage('✅ New share code generated');
+		} catch (e) {
+			setMessage(`❌ ${e?.message || 'Failed to regenerate code'}`);
+		}
+	};
+
+	const handleRename = async exam => {
+		const title = window.prompt('New exam title:', exam.title);
+		if (!title || !title.trim()) return;
+		try {
+			const updated = await safeApiCall(updateExam, exam.id, { title: title.trim() });
+			setExams(prev => prev.map(e => (e.id === exam.id ? updated : e)));
+			setMessage('✅ Title updated');
+		} catch (e) {
+			setMessage(`❌ ${e?.message || 'Failed to rename exam'}`);
 		}
 	};
 
@@ -636,6 +809,11 @@ const TeacherExams = () => {
 							onClone={handleClone}
 							onEdit={handleEdit}
 							onCopyCode={handleCopyCode}
+							onEndNow={handleEndNow}
+							onCancel={handleCancel}
+							onExtend15={handleExtend15}
+							onRegenerate={handleRegenerate}
+							onRename={handleRename}
 							publishing={publishingIds.has(exam.id)}
 						/>
 					))}
