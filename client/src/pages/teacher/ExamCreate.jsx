@@ -1,14 +1,14 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import ExamForm from '../../components/forms/ExamForm.jsx';
+import QuestionForm from '../../components/questions/QuestionForm.jsx';
 import {
 	safeApiCall,
 	createTeacherExam,
 	getTeacherQuestions,
 	createTeacherQuestion,
-	addQuestionsToExam, // available if you want to attach after create
+	// addQuestionsToExam, // not needed since we send questionIds during create
 } from '../../services/teacherServices.js';
-import ExamForm from '../../components/forms/ExamForm.jsx';
-import QuestionForm from '../../components/questions/QuestionForm.jsx';
 
 const Step = ({ title, subtitle, children }) => (
 	<section
@@ -143,7 +143,7 @@ const ExamCreate = () => {
 		if (details.startTime && details.endTime) {
 			const s = new Date(details.startTime);
 			const e = new Date(details.endTime);
-			if (e <= s) errs.endTime = 'End must be after start';
+			if (e <= s) errs.endTime = 'End time must be after start time';
 			if (s <= new Date()) errs.startTime = 'Start time must be in the future';
 		}
 		setDetailErrors(errs);
@@ -157,7 +157,11 @@ const ExamCreate = () => {
 		try {
 			const created = await safeApiCall(createTeacherQuestion, values);
 			setQuestions(prev => [created, ...prev]);
-			setSelectedIds(prev => new Set(prev).add(created.id));
+			setSelectedIds(prev => {
+				const next = new Set(prev);
+				if (created?.id) next.add(created.id);
+				return next;
+			});
 			setShowCreateQuestion(false);
 			setMessage('✅ Question created');
 		} catch (e) {
@@ -175,16 +179,16 @@ const ExamCreate = () => {
 		try {
 			const payload = {
 				title: details.title.trim(),
-				description: details.description.trim(),
+				description: details.description?.trim() || '',
 				duration: Number(details.duration),
 				startTime: toISO(details.startTime),
 				endTime: toISO(details.endTime),
 				questionIds: Array.from(selectedIds),
 			};
 			const exam = await safeApiCall(createTeacherExam, payload);
-			setMessage(`✅ Exam created. Share code: ${exam.searchId || '(code pending)'}`);
-			// Navigate back to list after a short delay
-			setTimeout(() => navigate('/teacher/exams'), 800);
+			setMessage('✅ Exam created successfully');
+			// redirect back to exam list
+			setTimeout(() => navigate('/teacher/exams'), 500);
 		} catch (e) {
 			setMessage(`❌ ${e?.message || 'Failed to create exam'}`);
 		} finally {
