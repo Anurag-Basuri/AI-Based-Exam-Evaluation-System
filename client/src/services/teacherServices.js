@@ -93,6 +93,8 @@ const EP = {
 	examRemoveQuestions: id => [`/api/exams/${encodeURIComponent(id)}/questions/remove`],
 	examPublish: id => [`/api/exams/${encodeURIComponent(id)}/publish`],
 	examDuplicate: id => [`/api/exams/${encodeURIComponent(id)}/duplicate`],
+	examReorder: id => [`/api/exams/${encodeURIComponent(id)}/reorder`],
+	examSetQuestions: id => [`/api/exams/${encodeURIComponent(id)}/questions/set`],
 
 	// Submissions (teacher)
 	submissionsByExam: examId => `/api/submissions/exam/${encodeURIComponent(examId)}`,
@@ -249,6 +251,19 @@ export const addQuestionsToExam = async (examId, questionIds = []) => {
 
 export const removeQuestionsFromExam = async (examId, questionIds = []) => {
 	const res = await tryPatch(EP.examRemoveQuestions(examId), { questionIds });
+	const data = res?.data?.data ?? res?.data ?? {};
+	return normalizeExam(data);
+};
+
+// Set full question set (server validates ownership on draft)
+export const setExamQuestions = async (examId, questionIds = []) => {
+	const res = await tryPatch(EP.examSetQuestions(examId), { questionIds });
+	const data = res?.data?.data ?? res?.data ?? {};
+	return normalizeExam(data);
+};
+
+export const reorderExamQuestions = async (examId, order = []) => {
+	const res = await tryPatch(EP.examReorder(examId), { order });
 	const data = res?.data?.data ?? res?.data ?? {};
 	return normalizeExam(data);
 };
