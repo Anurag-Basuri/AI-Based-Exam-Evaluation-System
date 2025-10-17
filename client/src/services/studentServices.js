@@ -23,7 +23,7 @@ const parseAxiosError = err => {
 	return new ApiError(msg, status, data);
 };
 
-// Safe API call wrapper: returns payload (not raw axios response)
+// Safe API call wrapper
 export const safeApiCall = async (fn, ...args) => {
 	try {
 		const res = await fn(...args);
@@ -90,31 +90,28 @@ const tryPut = async (urls, body, config) => {
 	throw lastErr || new Error('All PUT endpoints failed');
 };
 
-// ---------- Endpoints (with fallbacks) ----------
+// ---------- Endpoints (prioritize server-available first) ----------
 const EP = {
 	// Exams
-	examsAvailable: ['/api/exams/available', '/api/exams/student', '/api/exams/my'],
 	examById: id => `/api/exams/${encodeURIComponent(id)}`,
 	examSearch: code => `/api/exams/search/${encodeURIComponent(code)}`,
 
 	// Submissions (student-facing)
 	submissionStart: examId => [
-		`/api/submissions/start/${encodeURIComponent(examId)}`,
 		'/api/submissions/start', // body: { examId }
-		'/api/submissions', // body: { examId }
+		`/api/submissions/start/${encodeURIComponent(examId)}`,
+		'/api/submissions',
 	],
-	submissionsMine: ['/api/submissions/me', '/api/submissions/student', '/api/submissions/my'],
+	submissionsMine: [
+		'/api/submissions/my', // server route
+		'/api/submissions/me',
+		'/api/submissions/student',
+	],
 	submissionById: id => `/api/submissions/${encodeURIComponent(id)}`,
-	submissionSaveAnswers: id => [
-		`/api/submissions/${encodeURIComponent(id)}/answers`,
-		`/api/submissions/${encodeURIComponent(id)}/answer`,
-	],
-	submissionSubmit: id => [
-		`/api/submissions/${encodeURIComponent(id)}/submit`,
-		`/api/submissions/${encodeURIComponent(id)}/finalize`,
-	],
+	submissionSync: ['/api/submissions/sync'], // body: { examId, answers }
+	submissionSubmitBody: ['/api/submissions/submit'], // body: { examId }
 
-	// Issues
+	// Issues (student-facing)
 	issuesMine: ['/api/issues/me', '/api/issues/student', '/api/issues/my'],
 	issueCreate: ['/api/issues/create', '/api/issues'],
 	issueById: id => `/api/issues/${encodeURIComponent(id)}`,
@@ -177,75 +174,12 @@ const normalizeSubmission = s => ({
 		(Array.isArray(s.answers)
 			? s.answers.reduce((acc, ans) => acc + (ans?.question?.max_marks || 0), 0)
 			: (s.totalMax ?? 0)),
-	status: s.status ?? 'pending', // pending | submitted | evaluated | flagged
+	status: s.status ?? 'pending',
 	startedAt: s.startedAt ? new Date(s.startedAt).toLocaleString() : '',
 	submittedAt: s.submittedAt ? new Date(s.submittedAt).toLocaleString() : '',
 });
 
-const normalizeIssue = i => ({
-	id: String(i._id ?? i.id ?? ''),
-	examId: String(i.exam?._id ?? i.exam ?? ''),
-	examTitle: i.exam?.title ?? i.examTitle ?? 'Exam',
-	issueType: i.issueType ?? i.type ?? 'General',
-	description: i.description ?? '',
-	status: String(i.status || 'open').toLowerCase(),
-	reply: i.reply ?? '',
-	createdAt: i.createdAt ? new Date(i.createdAt).toLocaleString() : (i.created_at ?? ''),
-	resolvedAt: i.resolvedAt ? new Date(i.resolvedAt).toLocaleString() : (i.resolved_at ?? ''),
-});
-
-// ---------- Normalizers: Student ----------
-const normalizeStudent = s => {
-	// address can come as object or string; always return a single string to the UI
-	const addr = s?.address;
-	let address = '';
-	if (typeof addr === 'string') address = addr;
-	else if (addr && typeof addr === 'object') {
-		const parts = [addr.street, addr.city, addr.state, addr.postalCode, addr.country]
-			.filter(Boolean)
-			.join(', ');
-		address = parts || '';
-	}
-	return {
-		id: String(s?._id ?? s?.id ?? s?.userId ?? ''),
-		username: s?.username ?? '',
-		fullname: s?.fullname ?? s?.name ?? '',
-		email: s?.email ?? '',
-		phonenumber: s?.phonenumber ?? s?.phone ?? '',
-		gender: s?.gender ?? '',
-		address,
-	};
-};
-
-// ---------------- Student: Account (non-auth) ----------------
-export const getStudentProfile = async () => {
-	const res = await tryGet(EP.me);
-	const data = res?.data?.data ?? res?.data ?? {};
-	return normalizeStudent(data);
-};
-
-export const updateStudentProfile = async profile => {
-	// Only allowed fields; address is a plain string in your model
-	const payload = {
-		username: profile?.username ?? '',
-		fullname: profile?.fullname ?? '',
-		email: profile?.email ?? '',
-		phonenumber: profile?.phonenumber ?? '',
-		gender: profile?.gender ?? '',
-		address: profile?.address ?? '',
-	};
-	const res = await tryPut(EP.updateMe, payload);
-	const data = res?.data?.data ?? res?.data ?? {};
-	return normalizeStudent(data);
-};
-
-export const changeStudentPassword = async ({ currentPassword, newPassword }) => {
-	const res = await tryPut(EP.changePassword, { currentPassword, newPassword });
-	const data = res?.data?.data ?? res?.data ?? { success: true };
-	return data;
-};
-
-// ---------- Exams (Student) ----------
+// ---------- Student: Exams ----------
 export const searchExamByCode = async code => {
 	const cleaned = String(code || '')
 		.trim()
@@ -255,58 +189,13 @@ export const searchExamByCode = async code => {
 	return normalizeExam(data);
 };
 
-export const startExam = async examId => {
-	// create a submission and return normalized submission
-	return startSubmission(examId);
-};
-
-// Keep existing helpers:
 export const getExamById = async examId => {
 	const res = await apiClient.get(EP.examById(examId));
 	const data = res?.data?.data ?? res?.data ?? {};
 	return normalizeExam(data);
 };
 
-// ---------- Submissions (Student) ----------
-export const saveSubmissionAnswers = (submissionId, answers = []) => {
-	return tryPatch(EP.submissionSaveAnswers(submissionId), { answers });
-};
-
-export const submitSubmission = async (submissionId, payload = {}) => {
-	try {
-		const res = await tryPatch(EP.submissionSubmit(submissionId), { ...payload });
-		const data = res?.data?.data ?? res?.data ?? {};
-		return normalizeSubmission(data);
-	} catch (_) {
-		const res = await tryPost(EP.submissionSubmit(submissionId), { ...payload });
-		const data = res?.data?.data ?? res?.data ?? {};
-		return normalizeSubmission(data);
-	}
-};
-
-// ---------- Issues (Student) ----------
-export const getMyIssues = async (params = {}) => {
-	const res = await tryGet(EP.issuesMine, { params });
-	const list = res?.data?.data || res?.data || [];
-	return Array.isArray(list) ? list.map(normalizeIssue) : [];
-};
-
-export const createIssue = async payload => {
-	// payload: { submissionId, issueType, description }
-	const res = await tryPost(EP.issueCreate, payload);
-	const data = res?.data?.data ?? res?.data ?? {};
-	return normalizeIssue(data);
-};
-
-export const getIssueById = async issueId => {
-	const res = await apiClient.get(EP.issueById(issueId));
-	const data = res?.data?.data ?? res?.data ?? {};
-	return normalizeIssue(data);
-};
-
-export const replyToIssue = (issueId, message) => tryPost(EP.issueReply(issueId), { message });
-
-// ---------- Submissions (Student) MISSING HELPERS: add these ----------
+// ---------- Student: Submissions ----------
 export const getMySubmissions = async (params = {}) => {
 	const res = await tryGet(EP.submissionsMine, { params });
 	const list = res?.data?.data || res?.data || [];
@@ -320,27 +209,113 @@ export const startSubmission = async examId => {
 	return normalizeSubmission(data);
 };
 
+// Preferred server-aligned sync: by examId
+export const syncSubmissionAnswers = async (examId, answers = []) => {
+	const res = await tryPatch(EP.submissionSync, { examId, answers });
+	const data = res?.data?.data ?? res?.data ?? {};
+	return normalizeSubmission(data);
+};
+
+// Backward-compatible wrapper: if old calls pass submissionId, try old endpoints then fallback to new body
+export const saveSubmissionAnswers = async (idOrPayload, maybeAnswers = []) => {
+	// If payload style provided
+	if (idOrPayload && typeof idOrPayload === 'object' && idOrPayload.examId) {
+		return syncSubmissionAnswers(idOrPayload.examId, idOrPayload.answers || []);
+	}
+	// Prefer server route
+	try {
+		// This will fail on our server (no such route), then we fallback
+		const res = await tryPatch(
+			[id => `/api/submissions/${encodeURIComponent(id)}/answers`].map(fn => fn(idOrPayload)),
+			{ answers: maybeAnswers },
+		);
+		const data = res?.data?.data ?? res?.data ?? {};
+		return normalizeSubmission(data);
+	} catch {
+		return syncSubmissionAnswers(idOrPayload, maybeAnswers);
+	}
+};
+
+// Preferred server-aligned submit: by examId (body)
+export const submitExam = async examId => {
+	const res = await tryPost(EP.submissionSubmitBody, { examId });
+	const data = res?.data?.data ?? res?.data ?? {};
+	return normalizeSubmission(data);
+};
+
+// Backward-compatible wrapper (old signature submitSubmission(submissionId))
+export const submitSubmission = async (idOrPayload = {}, payload = {}) => {
+	// New usage: submitSubmission({ examId })
+	if (idOrPayload && typeof idOrPayload === 'object' && idOrPayload.examId) {
+		return submitExam(idOrPayload.examId);
+	}
+	// Old usage: submitSubmission(submissionId)
+	try {
+		const res = await tryPatch(
+			[id => `/api/submissions/${encodeURIComponent(id)}/submit`].map(fn => fn(idOrPayload)),
+			{ ...payload },
+		);
+		const data = res?.data?.data ?? res?.data ?? {};
+		return normalizeSubmission(data);
+	} catch {
+		// Fallback: treat provided id as examId
+		return submitExam(idOrPayload);
+	}
+};
+
 export const getSubmissionById = async submissionId => {
 	const res = await apiClient.get(EP.submissionById(submissionId));
 	const data = res?.data?.data ?? res?.data ?? {};
 	return normalizeSubmission(data);
 };
 
-// New helper to get submissions for the issue form dropdown
+// ---------- Issues (Student) ----------
+const normalizeIssue = i => ({
+	id: String(i._id ?? i.id ?? ''),
+	examId: String(i.exam?._id ?? i.exam ?? ''),
+	examTitle: i.exam?.title ?? i.examTitle ?? 'Exam',
+	issueType: i.issueType ?? i.type ?? 'General',
+	description: i.description ?? '',
+	status: String(i.status || 'open').toLowerCase(),
+	reply: i.reply ?? '',
+	createdAt: i.createdAt ? new Date(i.createdAt).toLocaleString() : (i.created_at ?? ''),
+	resolvedAt: i.resolvedAt ? new Date(i.resolvedAt).toLocaleString() : (i.resolved_at ?? ''),
+});
+
+export const getMyIssues = async (params = {}) => {
+	const res = await tryGet(EP.issuesMine, { params });
+	const list = res?.data?.data || res?.data || [];
+	return Array.isArray(list) ? list.map(normalizeIssue) : [];
+};
+
+export const createIssue = async payload => {
+	const res = await tryPost(EP.issueCreate, payload);
+	const data = res?.data?.data ?? res?.data ?? {};
+	return normalizeIssue(data);
+};
+
+export const getIssueById = async issueId => {
+	const res = await apiClient.get(EP.issueById(issueId));
+	const data = res?.data?.data ?? res?.data ?? {};
+	return normalizeIssue(data);
+};
+
+export const replyToIssue = (issueId, message) => tryPost(EP.issueReply(issueId), { message });
+
+// Convenience for issue form dropdown
 export const getMySubmissionsForIssues = async () => {
 	const submissions = await getMySubmissions();
-	// Return a simplified list for the dropdown
 	return submissions.map(s => ({
 		id: s.id,
 		label: `${s.examTitle} (Submitted: ${s.submittedAt || s.startedAt})`,
 	}));
 };
 
-// Ensure cookies (if server sets session cookies)
+// Ensure cookies
 try {
 	if (apiClient?.defaults) {
 		apiClient.defaults.withCredentials = true;
 	}
-} catch (e) {
-	void e;
+} catch {
+	// noop
 }
