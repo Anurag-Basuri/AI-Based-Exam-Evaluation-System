@@ -1,13 +1,14 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import ExamForm from '../../components/forms/ExamForm.jsx';
+import QuestionForm from '../../components/questions/QuestionForm.jsx';
 import {
 	safeApiCall,
 	getTeacherExamById,
 	getTeacherQuestions,
 	setExamQuestions,
 	updateExam,
-	createTeacherQuestion,
+	updateTeacherQuestion,
 } from '../../services/teacherServices.js';
 
 const Pill = ({ children }) => (
@@ -51,6 +52,9 @@ const ExamEdit = () => {
 	const [selectedIds, setSelectedIds] = React.useState(new Set());
 	const [query, setQuery] = React.useState('');
 	const [typeFilter, setTypeFilter] = React.useState('all');
+
+	const [showQModal, setShowQModal] = React.useState(false);
+	const [editQuestion, setEditQuestion] = React.useState(null);
 
 	const toISO = v => (v ? new Date(v).toISOString() : null);
 
@@ -153,6 +157,33 @@ const ExamEdit = () => {
 			setMessage(`❌ ${e?.message || 'Failed to update exam'}`);
 		} finally {
 			setSaving(false);
+		}
+	};
+
+	const isScheduled = React.useMemo(() => {
+		if (!details.startTime) return false;
+		return status === 'active' && new Date(details.startTime) > new Date();
+	}, [status, details.startTime]);
+
+	const canEditQuestions = status === 'draft' || isScheduled;
+
+	// Open editor for a question
+	const openEditQuestion = q => {
+		if (!canEditQuestions) return;
+		setEditQuestion(q);
+		setShowQModal(true);
+	};
+
+	const handleSaveQuestion = async values => {
+		try {
+			const saved = await safeApiCall(updateTeacherQuestion, editQuestion.id, values);
+			// Update bank with edited question
+			setQuestions(prev => prev.map(q => (q.id === saved.id ? saved : q)));
+			setMessage('✅ Question updated');
+			setShowQModal(false);
+			setEditQuestion(null);
+		} catch (e) {
+			setMessage(`❌ ${e?.message || 'Failed to update question'}`);
 		}
 	};
 
@@ -348,7 +379,9 @@ const ExamEdit = () => {
 						return (
 							<div
 								key={q.id}
-								onClick={() => !isLocked && toggleSelected(q.id)}
+								onClick={() =>
+									!canEditQuestions ? undefined : toggleSelected(q.id)
+								}
 								style={{
 									userSelect: 'none',
 									cursor: isLocked ? 'not-allowed' : 'pointer',
@@ -386,6 +419,35 @@ const ExamEdit = () => {
 								>
 									{q.text}
 								</p>
+								<div
+									style={{
+										display: 'flex',
+										justifyContent: 'flex-end',
+										gap: 8,
+										marginTop: 8,
+									}}
+								>
+									<button
+										type="button"
+										onClick={e => {
+											e.stopPropagation();
+											openEditQuestion(q);
+										}}
+										disabled={!canEditQuestions}
+										style={{
+											padding: '6px 10px',
+											borderRadius: 8,
+											border: '1px solid var(--border)',
+											background: 'var(--surface)',
+											color: 'var(--text)',
+											fontWeight: 700,
+											fontSize: 12,
+											cursor: canEditQuestions ? 'pointer' : 'not-allowed',
+										}}
+									>
+										Edit question
+									</button>
+								</div>
 							</div>
 						);
 					})}
@@ -428,6 +490,52 @@ const ExamEdit = () => {
 					</button>
 				</div>
 			</section>
+
+			{/* Modal for editing question */}
+			{showQModal && editQuestion && (
+				<div
+					role="dialog"
+					aria-modal="true"
+					style={{
+						position: 'fixed',
+						inset: 0,
+						background: 'color-mix(in srgb, var(--bg) 50%, transparent)',
+						display: 'grid',
+						placeItems: 'center',
+						padding: 16,
+						zIndex: 50,
+					}}
+					onClick={e => {
+						if (e.target === e.currentTarget) {
+							setShowQModal(false);
+							setEditQuestion(null);
+						}
+					}}
+				>
+					<div
+						style={{
+							width: 'min(720px, 96vw)',
+							maxHeight: '90vh',
+							overflow: 'auto',
+							background: 'var(--surface)',
+							border: '1px solid var(--border)',
+							borderRadius: 16,
+							boxShadow: 'var(--shadow-md)',
+							padding: 16,
+						}}
+					>
+						<QuestionForm
+							defaultType={editQuestion.type}
+							defaultValue={editQuestion}
+							onCancel={() => {
+								setShowQModal(false);
+								setEditQuestion(null);
+							}}
+							onSave={handleSaveQuestion}
+						/>
+					</div>
+				</div>
+			)}
 		</div>
 	);
 };
