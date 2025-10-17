@@ -148,5 +148,8 @@ examSchema.statics.cleanupOrphanExams = async function () {
 	}
 };
 
+// Helpful index for status/time-based maintenance jobs
+examSchema.index({ status: 1, endTime: 1 });
+
 const Exam = mongoose.model('Exam', examSchema);
 export default Exam;
