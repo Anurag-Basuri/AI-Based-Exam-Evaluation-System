@@ -17,6 +17,10 @@ import {
 	duplicateExam,
 	getMyExams,
 	syncStatusesNow,
+	endExamNow,
+	cancelExam,
+	extendExam,
+	regenerateExamCode,
 } from '../controllers/exam.controller.js';
 
 const router = Router();
@@ -72,6 +76,18 @@ router.delete('/:id', checkAuth, verifyTeacher, deleteExam);
 
 // Publish (draft -> active)
 router.post('/:id/publish', checkAuth, verifyTeacher, publishExam);
+
+// End live exam immediately
+router.post('/:id/end-now', checkAuth, verifyTeacher, endExamNow);
+
+// Cancel a scheduled (not started) exam
+router.post('/:id/cancel', checkAuth, verifyTeacher, cancelExam);
+
+// Extend end time (body: { minutes?: number, endTime?: ISOString })
+router.patch('/:id/extend', checkAuth, verifyTeacher, extendExam);
+
+// Regenerate share/search code
+router.post('/:id/regenerate-code', checkAuth, verifyTeacher, regenerateExamCode);
 
 // Reorder questions (order only)
 router.patch(
