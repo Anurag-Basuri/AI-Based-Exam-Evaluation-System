@@ -130,25 +130,39 @@ const getQuestionById = asyncHandler(async (req, res) => {
 
 // Update a question
 const updateQuestion = asyncHandler(async (req, res) => {
-	const questionId = req.params.id;
-	const { type, text, remarks, max_marks, options, answer } = req.body;
+    const questionId = req.params.id;
+    const teacherId = req.teacher?._id || req.user?.id;
 
-	if (!questionId || !questionId.match(/^[a-f\d]{24}$/i)) {
-		throw ApiError.BadRequest('Invalid question ID');
-	}
+    if (!questionId || !questionId.match(/^[a-f\d]{24}$/i)) {
+        throw ApiError.BadRequest('Invalid question ID');
+    }
 
-	const questionDoc = await Question.findById(questionId);
-	if (!questionDoc) {
-		throw ApiError.NotFound('Question not found');
-	}
+    const questionDoc = await Question.findById(questionId);
+    if (!questionDoc) throw ApiError.NotFound('Question not found');
 
-	// If question is part of an exam that is active/completed/cancelled, prevent update
-	if (questionDoc.sourceExam) {
-		const exam = await Exam.findById(questionDoc.sourceExam);
-		if (exam && ['active', 'completed', 'cancelled'].includes(exam.status)) {
-			throw ApiError.Forbidden('Cannot update a question that is part of a locked exam.');
-		}
-	}
+    // Ownership
+    if (String(questionDoc.createdBy) !== String(teacherId)) {
+        throw ApiError.Forbidden('Not authorized to update this question');
+    }
+
+    // If question is part of a linked exam, check lock
+    if (questionDoc.sourceExam) {
+        const exam = await Exam.findById(questionDoc.sourceExam).select('status startTime endTime');
+        if (exam) {
+            const now = new Date();
+            const scheduled = exam.status === 'active' && exam.startTime && now < new Date(exam.startTime);
+            const live =
+                exam.status === 'active' &&
+                exam.startTime &&
+                exam.endTime &&
+                now >= new Date(exam.startTime) &&
+                now <= new Date(exam.endTime);
+            if (live || ['completed', 'cancelled'].includes(exam.status)) {
+                throw ApiError.Forbidden('Cannot update a question tied to a live/completed/cancelled exam');
+            }
+            // Allowed when draft or scheduled (not started)
+        }
+    }
 
 	if (type === 'multiple-choice') {
 		if (!Array.isArray(options) || options.length < 2) {
@@ -177,26 +191,31 @@ const updateQuestion = asyncHandler(async (req, res) => {
 
 // Delete a question (prevent delete if part of a locked exam)
 const deleteQuestion = asyncHandler(async (req, res) => {
-	const questionId = req.params.id;
-	if (!questionId || !questionId.match(/^[a-f\d]{24}$/i)) {
-		throw ApiError.BadRequest('Invalid question ID');
-	}
-	const questionDoc = await Question.findById(questionId);
-	if (!questionDoc) {
-		throw ApiError.NotFound('Question not found');
-	}
+    const questionId = req.params.id;
+    const teacherId = req.teacher?._id || req.user?.id;
 
-	// If question is part of an exam that is active/completed/cancelled, prevent delete
-	if (questionDoc.sourceExam) {
-		const exam = await Exam.findById(questionDoc.sourceExam);
-		if (exam && ['active', 'completed', 'cancelled'].includes(exam.status)) {
-			throw ApiError.Forbidden('Cannot delete a question that is part of a locked exam.');
-		}
-	}
+    if (!questionId || !questionId.match(/^[a-f\d]{24}$/i)) {
+        throw ApiError.BadRequest('Invalid question ID');
+    }
+    const questionDoc = await Question.findById(questionId);
+    if (!questionDoc) throw ApiError.NotFound('Question not found');
 
-	await Question.findByIdAndDelete(questionId);
-	await Exam.updateMany({ questions: questionId }, { $pull: { questions: questionId } });
-	return ApiResponse.success(res, { message: 'Question deleted successfully' });
+    // Ownership
+    if (String(questionDoc.createdBy) !== String(teacherId)) {
+        throw ApiError.Forbidden('Not authorized to delete this question');
+    }
+
+    // If question is part of an exam that is active/completed/cancelled, prevent delete
+    if (questionDoc.sourceExam) {
+        const exam = await Exam.findById(questionDoc.sourceExam);
+        if (exam && ['active', 'completed', 'cancelled'].includes(exam.status)) {
+            throw ApiError.Forbidden('Cannot delete a question that is part of a locked exam.');
+        }
+    }
+
+    await Question.findByIdAndDelete(questionId);
+    await Exam.updateMany({ questions: questionId }, { $pull: { questions: questionId } });
+    return ApiResponse.success(res, { message: 'Question deleted successfully' });
 });
 
 export {
