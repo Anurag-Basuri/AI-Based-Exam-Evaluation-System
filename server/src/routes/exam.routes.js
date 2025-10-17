@@ -1,4 +1,6 @@
 import { Router } from 'express';
+import { body } from 'express-validator';
+import { checkAuth, verifyStudent, verifyTeacher } from '../middlewares/auth.middleware.js';
 import {
 	createExam,
 	addQuestionsToExam,
@@ -8,9 +10,14 @@ import {
 	updateExam,
 	deleteExam,
 	searchExamByCode,
+	// new handlers
+	publishExam,
+	reorderExamQuestions,
+	setExamQuestions,
+	createAndAttachQuestion,
+	duplicateExam,
+	getMyExams,
 } from '../controllers/exam.controller.js';
-import { checkAuth, verifyStudent, verifyTeacher } from '../middlewares/auth.middleware.js';
-import { body } from 'express-validator';
 
 const router = Router();
 
@@ -57,5 +64,43 @@ router.put('/:id/update', checkAuth, verifyTeacher, updateExam);
 
 // Delete exam
 router.delete('/:id', checkAuth, verifyTeacher, deleteExam);
+
+// Fast list for the logged-in teacher
+router.get('/mine', checkAuth, verifyTeacher, getMyExams);
+
+// Publish (draft -> active)
+router.post('/:id/publish', checkAuth, verifyTeacher, publishExam);
+
+// Reorder questions (order only)
+router.patch(
+	'/:id/reorder',
+	checkAuth,
+	verifyTeacher,
+	body('order').isArray({ min: 1 }).withMessage('order array required'),
+	reorderExamQuestions,
+);
+
+// Replace full question set
+router.patch(
+	'/:id/questions/set',
+	checkAuth,
+	verifyTeacher,
+	body('questionIds').isArray().withMessage('questionIds array required'),
+	setExamQuestions,
+);
+
+// Quick create-and-attach a question
+router.post(
+	'/:id/questions/create',
+	checkAuth,
+	verifyTeacher,
+	body('type').notEmpty().withMessage('Type is required'),
+	body('text').notEmpty().withMessage('Text is required'),
+	body('max_marks').notEmpty().withMessage('Max marks is required'),
+	createAndAttachQuestion,
+);
+
+// Duplicate exam
+router.post('/:id/duplicate', checkAuth, verifyTeacher, duplicateExam);
 
 export default router;
