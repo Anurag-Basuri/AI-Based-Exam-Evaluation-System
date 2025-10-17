@@ -1,6 +1,12 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { safeApiCall, getTeacherExams, updateExamStatus } from '../../services/teacherServices.js';
+import {
+	safeApiCall,
+	getTeacherExams,
+	// updateExamStatus, // replaced by publishTeacherExam
+	publishTeacherExam,
+	duplicateTeacherExam,
+} from '../../services/teacherServices.js';
 
 const statusConfig = {
 	live: {
@@ -364,12 +370,10 @@ const TeacherExams = () => {
 	}, [exams]);
 
 	const handlePublish = async exam => {
-		// Guard: must have at least one question before activation (server enforces too)
 		if (!exam?.questions?.length) {
 			setMessage('❌ Add at least one question before publishing this exam.');
 			return;
 		}
-		// Confirm and warn timing
 		const now = Date.now();
 		const startsInFuture = exam.startMs && now < exam.startMs;
 		const endsInPast = exam.endMs && now > exam.endMs;
@@ -383,15 +387,9 @@ const TeacherExams = () => {
 		setPublishingIds(prev => new Set([...prev, exam.id]));
 		setMessage('');
 		try {
-			await safeApiCall(updateExamStatus, exam.id, { status: 'active' });
-			// server status becomes 'active'; derivedStatus will be recomputed on reload
-			setExams(prev =>
-				prev.map(ex =>
-					ex.id === exam.id
-						? { ...ex, status: 'active', derivedStatus: ex.derivedStatus }
-						: ex,
-				),
-			);
+			const updated = await safeApiCall(publishTeacherExam, exam.id);
+			// Merge back into list
+			setExams(prev => prev.map(ex => (ex.id === exam.id ? updated : ex)));
 			setMessage('✅ Exam published successfully!');
 		} catch (e) {
 			setMessage(`❌ ${e.message || 'Failed to publish exam'}`);
@@ -404,8 +402,14 @@ const TeacherExams = () => {
 		}
 	};
 
-	const handleClone = exam => {
-		setMessage(`📋 Cloning "${exam.title}" (coming soon)`);
+	const handleClone = async exam => {
+		try {
+			const copy = await safeApiCall(duplicateTeacherExam, exam.id);
+			setExams(prev => [copy, ...prev]);
+			setMessage(`✅ Cloned "${exam.title}" → "${copy.title}"`);
+		} catch (e) {
+			setMessage(`❌ ${e?.message || 'Failed to clone exam'}`);
+		}
 	};
 
 	const handleEdit = exam => {
