@@ -164,29 +164,37 @@ const updateQuestion = asyncHandler(async (req, res) => {
         }
     }
 
-	if (type === 'multiple-choice') {
-		if (!Array.isArray(options) || options.length < 2) {
-			throw ApiError.BadRequest('Multiple-choice questions must have at least 2 options');
-		}
-		if (!options.some(opt => opt.isCorrect)) {
-			throw ApiError.BadRequest('At least one option must be marked as correct');
-		}
-	}
+    // Destructure after auth/locks
+    const { type, text, remarks, max_marks, options, answer } = req.body || {};
 
-	const updateFields = {};
-	if (type) updateFields.type = type;
-	if (text) updateFields.text = text;
-	if (remarks) updateFields.remarks = remarks;
-	if (max_marks) updateFields.max_marks = max_marks;
-	if (options) updateFields.options = options;
-	if (type === 'subjective') updateFields.answer = answer || null;
+    // Validate MCQ only if MCQ is intended or options are provided
+    if ((type === 'multiple-choice') || (Array.isArray(options) && options.length > 0)) {
+        if (!Array.isArray(options) || options.length < 2) {
+            throw ApiError.BadRequest('Multiple-choice questions must have at least 2 options');
+        }
+        if (!options.some(opt => opt.isCorrect)) {
+            throw ApiError.BadRequest('At least one option must be marked as correct');
+        }
+    }
 
-	const question = await Question.findByIdAndUpdate(questionId, updateFields, {
-		new: true,
-		runValidators: true,
-	});
+    const updateFields = {};
+    if (type) updateFields.type = type;
+    if (typeof text === 'string') updateFields.text = text;
+    if (typeof remarks === 'string') updateFields.remarks = remarks;
+    if (max_marks !== undefined) updateFields.max_marks = max_marks;
+    if (Array.isArray(options)) updateFields.options = options;
+    if (type === 'subjective') updateFields.answer = answer || null;
+    if (!type && answer !== undefined && (questionDoc.type === 'subjective')) {
+        // allow updating answer for existing subjective without changing type
+        updateFields.answer = answer || null;
+    }
 
-	return ApiResponse.success(res, question, 'Question updated successfully');
+    const updated = await Question.findByIdAndUpdate(questionId, updateFields, {
+        new: true,
+        runValidators: true,
+    });
+
+    return ApiResponse.success(res, updated, 'Question updated successfully');
 });
 
 // Delete a question (prevent delete if part of a locked exam)
