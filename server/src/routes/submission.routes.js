@@ -5,9 +5,13 @@ import {
 	submitSubmission,
 	updateEvaluation,
 	evaluateSubmission,
-	getSubmission,
+	getSubmission, // query-based
 	getExamSubmissions,
-	getMySubmissions, // added
+	getMySubmissions,
+	getSubmissionByIdParam,
+	syncAnswersBySubmissionId,
+	submitSubmissionById,
+	startSubmissionByParam,
 } from '../controllers/submission.controller.js';
 import { checkAuth, verifyStudent, verifyTeacher } from '../middlewares/auth.middleware.js';
 import { body, param, query } from 'express-validator';
@@ -23,6 +27,15 @@ router.post(
 	startSubmission,
 );
 
+// Alternate start using URL param (compat)
+router.post(
+	'/start/:id',
+	checkAuth,
+	verifyStudent,
+	param('id').notEmpty().withMessage('Exam ID is required'),
+	startSubmissionByParam,
+);
+
 // Student syncs answers during exam
 router.patch(
 	'/sync',
@@ -33,6 +46,16 @@ router.patch(
 	syncAnswers,
 );
 
+// Compat: sync by submissionId
+router.patch(
+	'/:id/answers',
+	checkAuth,
+	verifyStudent,
+	param('id').notEmpty().withMessage('Submission ID is required'),
+	body('answers').isArray().withMessage('Answers must be an array'),
+	syncAnswersBySubmissionId,
+);
+
 // Student submits the exam (manual submit)
 router.post(
 	'/submit',
@@ -40,6 +63,15 @@ router.post(
 	verifyStudent,
 	body('examId').notEmpty().withMessage('Exam ID is required'),
 	submitSubmission,
+);
+
+// Compat: submit by submissionId
+router.patch(
+	'/:id/submit',
+	checkAuth,
+	verifyStudent,
+	param('id').notEmpty().withMessage('Submission ID is required'),
+	submitSubmissionById,
 );
 
 // Teacher updates evaluation/marks for a submission
@@ -61,7 +93,7 @@ router.post(
 	evaluateSubmission,
 );
 
-// Get a student's submission for an exam
+// Get a student's submission for an exam (query)
 router.get(
 	'/student',
 	checkAuth,
@@ -69,6 +101,15 @@ router.get(
 	query('examId').notEmpty().withMessage('Exam ID is required'),
 	query('studentId').notEmpty().withMessage('Student ID is required'),
 	getSubmission,
+);
+
+// Get submission by ID (for resume)
+router.get(
+	'/:id',
+	checkAuth,
+	verifyStudent,
+	param('id').notEmpty().withMessage('Submission ID is required'),
+	getSubmissionByIdParam,
 );
 
 // Get all submissions for an exam (teacher)
