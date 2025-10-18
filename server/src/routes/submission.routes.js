@@ -103,14 +103,7 @@ router.get(
 	getSubmission,
 );
 
-// Get submission by ID (for resume)
-router.get(
-	'/:id',
-	checkAuth,
-	verifyStudent,
-	param('id').notEmpty().withMessage('Submission ID is required'),
-	getSubmissionByIdParam,
-);
+// Order matters: specific routes BEFORE the catch-all '/:id'
 
 // Get all submissions for an exam (teacher)
 router.get(
@@ -123,5 +116,14 @@ router.get(
 
 // List submissions for the logged-in student
 router.get('/my', checkAuth, verifyStudent, getMySubmissions);
+
+// Get submission by ID (for resume) — keep this last
+router.get(
+	'/:id',
+	checkAuth,
+	verifyStudent,
+	param('id').notEmpty().withMessage('Submission ID is required'),
+	getSubmissionByIdParam,
+);
 
 export default router;
