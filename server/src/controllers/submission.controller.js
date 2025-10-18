@@ -50,6 +50,29 @@ async function evaluateSubmissionAnswers(submission) {
 	return evaluations;
 }
 
+function isExpired(submission, exam) {
+	if (!submission?.startedAt || !submission?.duration) return false;
+	const started = new Date(submission.startedAt).getTime();
+	const byDuration = started + Number(submission.duration) * 60 * 1000;
+	const examEnd = exam?.endTime ? new Date(exam.endTime).getTime() : Number.POSITIVE_INFINITY;
+	const deadline = Math.min(byDuration, examEnd);
+	return Date.now() >= deadline;
+}
+
+async function finalizeAsSubmitted(submission, exam) {
+	// Avoid double-finalization
+	if (submission.status !== 'in-progress') return submission;
+	submission.status = 'submitted';
+	submission.submittedAt = new Date();
+
+	// Automated Evaluation -> evaluated
+	submission.evaluations = await evaluateSubmissionAnswers(submission);
+	submission.evaluatedAt = new Date();
+	submission.status = 'evaluated';
+	await submission.save();
+	return submission;
+}
+
 // Start a new submission for an exam
 const startSubmission = asyncHandler(async (req, res) => {
 	const studentId = req.student?._id || req.user?.id;
@@ -61,9 +84,21 @@ const startSubmission = asyncHandler(async (req, res) => {
 	if (!exam) throw ApiError.NotFound('Exam not found');
 	if (exam.status !== 'active') throw ApiError.Forbidden('Exam is not active');
 
+	const now = new Date();
+	if (exam.startTime && now < new Date(exam.startTime))
+		throw ApiError.Forbidden('Exam has not started yet');
+	if (exam.endTime && now > new Date(exam.endTime)) throw ApiError.Forbidden('Exam has ended');
+
 	// Prevent duplicate
 	const existing = await Submission.findOne({ exam: examId, student: studentId });
-	if (existing) return ApiResponse.success(res, existing, 'Submission already started');
+	if (existing) {
+		// If expired while away, auto-submit and return final
+		if (isExpired(existing, exam) && existing.status === 'in-progress') {
+			const finalized = await finalizeAsSubmitted(existing, exam);
+			return ApiResponse.success(res, finalized, 'Time over. Submission finalized');
+		}
+		return ApiResponse.success(res, existing, 'Submission already started');
+	}
 
 	const submission = new Submission({
 		exam: examId,
@@ -86,10 +121,23 @@ const syncAnswers = asyncHandler(async (req, res) => {
 		throw ApiError.BadRequest('Exam ID and answers are required');
 	}
 
-	const submission = await Submission.findOne({ exam: examId, student: studentId });
+	const [submission, exam] = await Promise.all([
+		Submission.findOne({ exam: examId, student: studentId }),
+		Exam.findById(examId),
+	]);
+
 	if (!submission) throw ApiError.NotFound('Submission not found');
-	if (submission.status !== 'in-progress')
-		throw ApiError.Forbidden('Cannot sync after submission');
+	if (!exam) throw ApiError.NotFound('Exam not found');
+
+	// Auto-submit if time is up
+	if (isExpired(submission, exam) && submission.status === 'in-progress') {
+		const finalized = await finalizeAsSubmitted(submission, exam);
+		return ApiResponse.success(res, finalized, 'Time over. Auto-submitted');
+	}
+
+	if (submission.status !== 'in-progress') {
+		return ApiResponse.success(res, submission, 'Submission no longer editable');
+	}
 
 	submission.answers = answers;
 	await submission.save();
