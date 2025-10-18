@@ -49,7 +49,10 @@ const PreviousExamCard = ({ submission, onContinue, isContinuing }) => {
 	const config = statusStyles[submission.status] || statusStyles.pending;
 	const canContinue = ['in-progress', 'started'].includes(submission.status);
 	const hasScore = submission.score !== null && submission.score !== undefined;
-
+	const pct =
+		hasScore && submission.maxScore > 0
+			? Math.round((submission.score / submission.maxScore) * 100)
+			: null;
 	return (
 		<article
 			style={{
@@ -138,485 +141,437 @@ const PreviousExamCard = ({ submission, onContinue, isContinuing }) => {
 							{submission.score}
 						</span>
 						<span style={{ color: 'var(--text-muted)' }}>
-							/ {submission.maxScore || 100}
+							/ {submission.maxScore ?? 0}
 						</span>
-						<span
-							style={{
-								marginLeft: 'auto',
-								color:
-									submission.score >= (submission.maxScore || 100) * 0.7
-										? '#10b981'
-										: '#ef4444',
-								fontWeight: 600,
-							}}
-						>
-							{Math.round((submission.score / (submission.maxScore || 100)) * 100)}%
-						</span>
+						{pct !== null && (
+							<span
+								style={{
+									marginLeft: 'auto',
+									color: pct >= 70 ? '#10b981' : '#ef4444',
+									fontWeight: 600,
+								}}
+							>
+								{pct}%
+							</span>
+						)}
 					</div>
 				</div>
 			)}
 
-			<div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-				{canContinue && (
-					<button
-						onClick={() => onContinue(submission)}
-						disabled={isContinuing}
-						style={{
-							padding: '10px 16px',
-							borderRadius: '8px',
-							border: 'none',
-							background: isContinuing
-								? '#9ca3af'
-								: 'linear-gradient(135deg, #f59e0b, #d97706)',
-							color: '#ffffff',
-							cursor: isContinuing ? 'not-allowed' : 'pointer',
-							fontWeight: 600,
-							fontSize: '14px',
-						}}
-					>
-						{isContinuing ? '⏳ Loading...' : '▶️ Continue'}
-					</button>
-				)}
-				{submission.status === 'evaluated' && (
-					<button
-						onClick={() => alert('View detailed results (to be implemented)')}
-						style={{
-							padding: '10px 16px',
-							borderRadius: '8px',
-							border: '1px solid var(--border)',
-							background: 'var(--surface)',
-							color: 'var(--text)',
-							cursor: 'pointer',
-							fontWeight: 600,
-							fontSize: '14px',
-						}}
-					>
-						📊 View Details
-					</button>
-				)}
-			</div>
+			<footer>
+				<div
+					style={{
+						display: 'flex',
+						gap: '12px',
+						flexWrap: 'wrap',
+						justifyContent: 'flex-end',
+					}}
+				>
+					{canContinue && !isContinuing && (
+						<button
+							onClick={onContinue}
+							style={{
+								padding: '10px 16px',
+								borderRadius: '8px',
+								border: 'none',
+								background: 'linear-gradient(135deg, #10b981, #059669)',
+								color: '#ffffff',
+								cursor: 'pointer',
+								fontWeight: 600,
+								fontSize: '14px',
+								flex: '1 1 120px',
+								display: 'flex',
+								alignItems: 'center',
+								justifyContent: 'center',
+								gap: '6px',
+							}}
+						>
+							▶️ Continue Exam
+						</button>
+					)}
+					{!canContinue && (
+						<button
+							disabled
+							style={{
+								padding: '10px 16px',
+								borderRadius: '8px',
+								border: '1px solid var(--border)',
+								background: 'var(--surface)',
+								color: 'var(--text-muted)',
+								cursor: 'not-allowed',
+								fontWeight: 600,
+								fontSize: '14px',
+								flex: '1 1 120px',
+								display: 'flex',
+								alignItems: 'center',
+								justifyContent: 'center',
+								gap: '6px',
+							}}
+						>
+							⏳ Waiting to Continue
+						</button>
+					)}
+					{hasScore && (
+						<button
+							onClick={onContinue}
+							style={{
+								padding: '10px 16px',
+								borderRadius: '8px',
+								border: 'none',
+								background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+								color: '#ffffff',
+								cursor: 'pointer',
+								fontWeight: 600,
+								fontSize: '14px',
+								flex: '1 1 120px',
+								display: 'flex',
+								alignItems: 'center',
+								justifyContent: 'center',
+								gap: '6px',
+							}}
+						>
+							📊 View Results
+						</button>
+					)}
+				</div>
+			</footer>
 		</article>
 	);
 };
 
 const StudentExams = () => {
 	const navigate = useNavigate();
-	const [loading, setLoading] = React.useState(false);
+	const [submissions, setSubmissions] = React.useState([]);
+	const [searchCode, setSearchCode] = React.useState('');
+	const [foundExam, setFoundExam] = React.useState(null);
 	const [error, setError] = React.useState('');
 	const [message, setMessage] = React.useState('');
-	const [searchCode, setSearchCode] = React.useState('');
 	const [searching, setSearching] = React.useState(false);
-	const [foundExam, setFoundExam] = React.useState(null);
-	const [starting, setStarting] = React.useState(false);
-	const [previousExams, setPreviousExams] = React.useState([]);
-	const [continuingId, setContinuingId] = React.useState(null);
 
-	const loadPreviousExams = React.useCallback(async () => {
-		setLoading(true);
-		setError('');
-		try {
-			const submissions = await safeApiCall(getMySubmissions);
-			setPreviousExams(Array.isArray(submissions) ? submissions : []);
-		} catch (e) {
-			setError(e?.message || 'Failed to load previous exams');
-		} finally {
-			setLoading(false);
-		}
-	}, []);
+	const CODE_LENGTH = 8;
 
 	React.useEffect(() => {
-		loadPreviousExams();
-	}, [loadPreviousExams]);
+		const fetchData = async () => {
+			const result = await getMySubmissions();
+			setSubmissions(result);
+		};
 
-	// Small UX: allow Enter to search and auto-trim/uppercase is already applied
+		fetchData();
+	}, []);
+
 	const handleSearch = async e => {
 		e.preventDefault();
 		const cleaned = (searchCode || '').trim().toUpperCase();
-		if (!cleaned || cleaned.length !== 6) {
-			setError('Please enter a valid 6-character exam code.');
+		if (!cleaned || cleaned.length !== CODE_LENGTH) {
+			setError(`Please enter a valid ${CODE_LENGTH}-character exam code.`);
 			return;
 		}
 
-		setSearching(true);
 		setError('');
-		setFoundExam(null);
-		setMessage('');
+		setSearching(true);
 
-		try {
-			const exam = await safeApiCall(searchExamByCode, cleaned);
-			setFoundExam(exam);
-			setMessage('✅ Exam found! Click "Start Exam" to begin.');
-		} catch (e) {
-			setError(e?.message || 'Exam not found. Please check the search code.');
-		} finally {
-			setSearching(false);
+		const result = await searchExamByCode(cleaned);
+
+		setSearching(false);
+
+		if (result?.length === 1) {
+			setFoundExam(result[0]);
+			setMessage('');
+		} else if (result?.length > 1) {
+			setFoundExam(null);
+			setMessage('Multiple exams found. Please contact support.');
+		} else {
+			setFoundExam(null);
+			setMessage('No exam found with this code.');
 		}
 	};
 
-	const handleStartExam = async () => {
-		if (!foundExam) return;
-
-		setStarting(true);
-		setMessage('');
-
-		try {
-			const submission = await safeApiCall(startExam, foundExam.id);
-			navigate(`/student/take-exam/${submission.id}`);
-		} catch (e) {
-			setError(e?.message || 'Failed to start exam');
-		} finally {
-			setStarting(false);
-		}
-	};
-
-	const handleContinueExam = async submission => {
-		setContinuingId(submission.id);
-		try {
-			navigate(`/student/take-exam/${submission.id}`);
-		} catch (e) {
-			setError(e?.message || 'Failed to continue exam');
-		} finally {
-			setContinuingId(null);
+	const handleContinue = async submission => {
+		if (submission.status === 'in-progress' || submission.status === 'started') {
+			navigate(`/student/exam/${submission.examId}`);
 		}
 	};
 
 	return (
-		<div style={{ maxWidth: '1200px' }}>
-			<header
+		<section style={{ maxWidth: 800, margin: '0 auto', padding: '24px' }}>
+			<h1
 				style={{
-					background:
-						'linear-gradient(135deg, color-mix(in srgb, #10b981 12%, transparent), color-mix(in srgb, #3b82f6 6%, transparent))',
-					padding: '32px 28px',
-					borderRadius: 20,
-					border: '1px solid color-mix(in srgb, #10b981 25%, transparent)',
-					marginBottom: 32,
+					fontSize: '28px',
+					fontWeight: 800,
+					color: 'var(--text)',
+					marginBottom: '24px',
 				}}
 			>
-				<h1
-					style={{
-						margin: '0 0 8px 0',
-						fontSize: '28px',
-						fontWeight: 800,
-						color: 'var(--text)',
-					}}
-				>
-					Find Your Exam
-				</h1>
-				<p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '16px' }}>
-					Enter the exam search code provided by your instructor to start the exam.
-				</p>
-			</header>
+				My Exams
+			</h1>
 
-			<div
-				style={{
-					background: 'var(--surface)',
-					padding: '24px',
-					borderRadius: 16,
-					border: '1px solid var(--border)',
-					marginBottom: 32,
-					boxShadow: 'var(--shadow-md)',
-				}}
+			<form
+				onSubmit={handleSearch}
+				style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}
 			>
-				<h2
+				<div style={{ flex: 1, minWidth: 260 }}>
+					<label
+						style={{
+							display: 'block',
+							marginBottom: 6,
+							fontWeight: 600,
+							color: 'var(--text)',
+						}}
+					>
+						Exam Search Code
+					</label>
+					<input
+						value={searchCode}
+						onChange={e =>
+							setSearchCode(
+								e.target.value
+									.toUpperCase()
+									.replace(/[^A-Z0-9]/g, '')
+									.slice(0, CODE_LENGTH),
+							)
+						}
+						placeholder={`Enter your ${CODE_LENGTH}-char exam code…`}
+						pattern={`^[A-Z0-9]{${CODE_LENGTH}}$`}
+						maxLength={CODE_LENGTH}
+						title={`Enter exactly ${CODE_LENGTH} characters: A–Z and 0–9`}
+						required
+						style={{
+							width: '100%',
+							padding: '12px 16px',
+							borderRadius: 12,
+							border: '1px solid var(--border)',
+							background: 'var(--surface)',
+							color: 'var(--text)',
+							outline: 'none',
+							fontSize: '14px',
+							fontWeight: 500,
+						}}
+					/>
+				</div>
+				<button
+					type="submit"
+					disabled={searching}
 					style={{
-						margin: '0 0 16px 0',
-						fontSize: '18px',
-						fontWeight: 700,
-						color: 'var(--text)',
+						padding: '12px 16px',
+						borderRadius: '8px',
+						border: 'none',
+						background: searching
+							? '#9ca3af'
+							: 'linear-gradient(135deg, #10b981, #059669)',
+						color: '#ffffff',
+						cursor: searching ? 'not-allowed' : 'pointer',
+						fontWeight: 600,
+						fontSize: '14px',
+						display: 'flex',
+						alignItems: 'center',
+						justifyContent: 'center',
+						gap: '6px',
 					}}
 				>
-					🔍 Search for Exam
-				</h2>
-
-				<form
-					onSubmit={handleSearch}
-					style={{ display: 'flex', gap: 12, alignItems: 'flex-end' }}
+					{searching ? '⏳ Searching...' : '🔍 Search Exam'}
+				</button>
+				<button
+					type="button"
+					onClick={() => {
+						setSearchCode('');
+						setFoundExam(null);
+						setMessage('');
+						setError('');
+					}}
+					disabled={searching}
+					style={{
+						padding: '12px 16px',
+						borderRadius: '8px',
+						border: '1px solid var(--border)',
+						background: 'var(--surface)',
+						color: 'var(--text)',
+						cursor: searching ? 'not-allowed' : 'pointer',
+						fontWeight: 600,
+						fontSize: '14px',
+					}}
 				>
-					<div style={{ flex: 1 }}>
-						<label
+					✨ Clear
+				</button>
+			</form>
+
+			{error && (
+				<div
+					style={{
+						background: '#fee2e2',
+						color: '#b91c1c',
+						padding: '12px',
+						borderRadius: 8,
+						border: '1px solid #fca5a5',
+						marginTop: '16px',
+					}}
+				>
+					{error}
+				</div>
+			)}
+			{message && (
+				<div
+					style={{
+						background: '#d1fae5',
+						color: '#15803d',
+						padding: '12px',
+						borderRadius: 8,
+						border: '1px solid #6ee7b7',
+						marginTop: '16px',
+					}}
+				>
+					{message}
+				</div>
+			)}
+
+			{foundExam && (
+				<div
+					style={{
+						background: 'var(--surface)',
+						borderRadius: 12,
+						padding: '16px',
+						border: '1px solid var(--border)',
+						marginTop: '24px',
+					}}
+				>
+					<h3
+						style={{
+							margin: 0,
+							fontSize: '18px',
+							fontWeight: 700,
+							color: 'var(--text)',
+							marginBottom: '12px',
+						}}
+					>
+						Exam Details
+					</h3>
+					<div style={{ marginBottom: '12px', color: 'var(--text-muted)' }}>
+						<strong style={{ color: 'var(--text)' }}>Code:</strong> {foundExam.code}
+					</div>
+					<div style={{ marginBottom: '12px', color: 'var(--text-muted)' }}>
+						<strong style={{ color: 'var(--text)' }}>Title:</strong> {foundExam.title}
+					</div>
+					<div style={{ marginBottom: '12px', color: 'var(--text-muted)' }}>
+						<strong style={{ color: 'var(--text)' }}>Instructor:</strong>{' '}
+						{foundExam.instructor}
+					</div>
+					<div style={{ marginBottom: '12px', color: 'var(--text-muted)' }}>
+						<strong style={{ color: 'var(--text)' }}>Schedule:</strong>{' '}
+						{foundExam.schedule}
+					</div>
+					<div style={{ marginBottom: '16px', color: 'var(--text-muted)' }}>
+						<strong style={{ color: 'var(--text)' }}>Status:</strong>{' '}
+						<span
 							style={{
-								display: 'block',
-								marginBottom: 6,
-								fontWeight: 600,
-								color: 'var(--text)',
+								color:
+									foundExam.status === 'completed'
+										? '#10b981'
+										: foundExam.status === 'in-progress'
+										? '#f59e0b'
+										: '#ef4444',
 							}}
 						>
-							Exam Search Code
-						</label>
-						<input
-							value={searchCode}
-							onChange={e =>
-								setSearchCode(
-									e.target.value
-										.toUpperCase()
-										.replace(/[^A-Z0-9]/g, '')
-										.slice(0, 6),
-								)
-							}
-							placeholder="Enter your 6‑char exam code (e.g., 7GKD2Q)…"
-							pattern="^[A-Z0-9]{6}$"
-							maxLength={6}
-							title="Enter exactly 6 characters: A–Z and 0–9"
-							required
-							style={{
-								width: '100%',
-								padding: '12px 16px',
-								borderRadius: 12,
-								border: '1px solid var(--border)',
-								background: 'var(--surface)',
-								color: 'var(--text)',
-								outline: 'none',
-								fontSize: '14px',
-								fontWeight: 500,
-							}}
-						/>
+							{foundExam.status.replace('-', ' ')}
+						</span>
 					</div>
+
+					{foundExam.status === 'in-progress' && (
+						<button
+							onClick={() => handleContinue(foundExam)}
+							style={{
+								padding: '12px 16px',
+								borderRadius: '8px',
+								border: 'none',
+								background: 'linear-gradient(135deg, #10b981, #059669)',
+								color: '#ffffff',
+								cursor: 'pointer',
+								fontWeight: 600,
+								fontSize: '14px',
+								width: '100%',
+								display: 'flex',
+								alignItems: 'center',
+								justifyContent: 'center',
+								gap: '6px',
+							}}
+						>
+							▶️ Continue Exam
+						</button>
+					)}
+				</div>
+			)}
+
+			{submissions.length === 0 && !searching && (
+				<div
+					style={{
+						background: 'var(--surface)',
+						borderRadius: 12,
+						padding: '16px',
+						border: '1px solid var(--border)',
+						marginTop: '24px',
+						textAlign: 'center',
+					}}
+				>
+					<p style={{ color: 'var(--text-muted)', marginBottom: '12px' }}>
+						No exams found. Take one of the following actions:
+					</p>
 					<button
-						type="submit"
-						disabled={searching}
+						onClick={() => navigate('/student/exams/create')}
 						style={{
 							padding: '12px 16px',
 							borderRadius: '8px',
 							border: 'none',
-							background: searching
-								? '#9ca3af'
-								: 'linear-gradient(135deg, #10b981, #059669)',
+							background: 'linear-gradient(135deg, #2563eb, #3b82f6)',
 							color: '#ffffff',
-							cursor: searching ? 'not-allowed' : 'pointer',
+							cursor: 'pointer',
 							fontWeight: 600,
 							fontSize: '14px',
-							display: 'flex',
-							alignItems: 'center',
-							justifyContent: 'center',
-							gap: '6px',
+							marginRight: '8px',
 						}}
 					>
-						{searching ? '⏳ Searching...' : '🔍 Search Exam'}
+						➕ Create New Exam
 					</button>
-				</form>
-
-				{message && (
-					<div
-						role="status"
+					<button
+						onClick={() => navigate('/student/exams/join')}
 						style={{
-							marginTop: '16px',
-							padding: '12px',
-							borderRadius: 12,
-							background: 'var(--surface)',
-							border: '1px solid var(--border)',
-							color: 'var(--text)',
+							padding: '12px 16px',
+							borderRadius: '8px',
+							border: 'none',
+							background: 'linear-gradient(135deg, #10b981, #059669)',
+							color: '#ffffff',
+							cursor: 'pointer',
 							fontWeight: 600,
+							fontSize: '14px',
 						}}
 					>
-						{message}
-					</div>
-				)}
-				{error && (
-					<div
-						role="alert"
+						📚 Join Existing Exam
+					</button>
+				</div>
+			)}
+
+			{submissions.length > 0 && (
+				<div style={{ marginTop: '24px' }}>
+					<h2
 						style={{
-							marginTop: '8px',
-							padding: '12px',
-							borderRadius: 12,
-							background: 'var(--surface)',
-							border: '1px solid var(--border)',
-							color: '#ef4444',
-							textAlign: 'center',
+							fontSize: '22px',
+							fontWeight: 700,
+							color: 'var(--text)',
+							marginBottom: '16px',
 						}}
 					>
-						❌ {error}
-					</div>
-				)}
-				{foundExam && (
-					<div style={{ marginTop: '24px' }}>
-						<h3
-							style={{
-								margin: '0 0 12px 0',
-								fontSize: '18px',
-								fontWeight: 700,
-								color: 'var(--text)',
-							}}
-						>
-							Found Exam: {foundExam.title}
-						</h3>
-
-						<div
-							style={{
-								display: 'grid',
-								gap: 12,
-								gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))',
-								marginBottom: 12,
-							}}
-						>
-							<div
-								style={{
-									padding: 12,
-									border: '1px solid var(--border)',
-									borderRadius: 12,
-									background: 'var(--surface)',
-									color: 'var(--text)',
-									fontSize: 13,
-								}}
-							>
-								<strong>Duration:</strong>{' '}
-								{foundExam.duration ? `${foundExam.duration} mins` : '—'}
-							</div>
-							<div
-								style={{
-									padding: 12,
-									border: '1px solid var(--border)',
-									borderRadius: 12,
-									background: 'var(--surface)',
-									color: 'var(--text)',
-									fontSize: 13,
-								}}
-							>
-								<strong>Starts:</strong> {foundExam.startAt || '—'}
-							</div>
-							<div
-								style={{
-									padding: 12,
-									border: '1px solid var(--border)',
-									borderRadius: 12,
-									background: 'var(--surface)',
-									color: 'var(--text)',
-									fontSize: 13,
-								}}
-							>
-								<strong>Ends:</strong> {foundExam.endAt || '—'}
-							</div>
-						</div>
-
-						{!foundExam.canStart && (
-							<div
-								style={{
-									marginBottom: 12,
-									padding: 12,
-									borderRadius: 12,
-									border: '1px solid var(--border)',
-									background: 'var(--surface)',
-									color: 'var(--text)',
-									fontWeight: 600,
-								}}
-							>
-								This exam is not available to start right now.
-							</div>
-						)}
-
-						<div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-							<button
-								onClick={handleStartExam}
-								disabled={starting || !foundExam.canStart}
-								style={{
-									padding: '12px 16px',
-									borderRadius: '8px',
-									border: 'none',
-									background:
-										starting || !foundExam.canStart
-											? '#9ca3af'
-											: 'linear-gradient(135deg, #10b981, #059669)',
-									color: '#ffffff',
-									cursor:
-										starting || !foundExam.canStart ? 'not-allowed' : 'pointer',
-									fontWeight: 600,
-									fontSize: '14px',
-									display: 'flex',
-									alignItems: 'center',
-									justifyContent: 'center',
-									gap: '6px',
-									flex: '1 1 200px',
-								}}
-							>
-								{starting ? '⏳ Starting Exam...' : '🚀 Start Exam'}
-							</button>
-						</div>
-					</div>
-				)}
-			</div>
-
-			<section style={{ marginBottom: 32 }}>
-				<h2
-					style={{
-						margin: '0 0 16px 0',
-						fontSize: '18px',
-						fontWeight: 700,
-						color: 'var(--text)',
-					}}
-				>
-					📚 Your Previous Exams
-				</h2>
-
-				{loading && (
-					<div
-						style={{
-							padding: '60px 20px',
-							textAlign: 'center',
-							color: 'var(--text-muted)',
-						}}
-					>
-						<div style={{ fontSize: '32px', marginBottom: 16 }}>⏳</div>
-						<p style={{ margin: 0, fontWeight: 600 }}>Loading your previous exams...</p>
-					</div>
-				)}
-
-				{!loading && !error && previousExams.length === 0 && (
-					<div
-						style={{
-							padding: '60px 20px',
-							textAlign: 'center',
-							background: 'var(--surface)',
-							borderRadius: 16,
-							border: '2px dashed var(--border)',
-						}}
-					>
-						<div style={{ fontSize: '48px', marginBottom: 16 }}>📭</div>
-						<h3 style={{ margin: '0 0 8px 0', color: 'var(--text)' }}>
-							No previous exams found
-						</h3>
-						<p style={{ margin: 0, color: 'var(--text-muted)' }}>
-							You haven't taken any exams yet. Check back later or contact your
-							instructor.
-						</p>
-					</div>
-				)}
-
-				{error && (
-					<div
-						role="alert"
-						style={{
-							padding: '20px',
-							borderRadius: 12,
-							background: 'var(--surface)',
-							border: '1px solid var(--border)',
-							color: '#ef4444',
-							textAlign: 'center',
-							marginBottom: 24,
-						}}
-					>
-						❌ {error}
-					</div>
-				)}
-
-				{!loading && !error && previousExams.length > 0 && (
-					<div
-						style={{
-							display: 'grid',
-							gap: 20,
-							gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))',
-						}}
-					>
-						{previousExams.map(submission => (
+						Previous Exams
+					</h2>
+					<div style={{ display: 'grid', gap: '16px' }}>
+						{submissions.map(submission => (
 							<PreviousExamCard
 								key={submission.id}
 								submission={submission}
-								onContinue={handleContinueExam}
-								isContinuing={continuingId === submission.id}
+								onContinue={() => handleContinue(submission)}
+								isContinuing={false}
 							/>
 						))}
 					</div>
-				)}
-			</section>
-		</div>
+				</div>
+			)}
+		</section>
 	);
 };
 
