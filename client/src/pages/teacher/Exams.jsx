@@ -4,6 +4,7 @@ import * as TeacherSvc from '../../services/teacherServices.js';
 import { apiClient } from '../../services/api.js';
 import Alert from '../../components/ui/Alert.jsx';
 import { useToast } from '../../components/ui/Toaster.jsx';
+import PageHeader from '../../components/ui/PageHeader.jsx';
 
 const statusConfig = {
 	live: {
@@ -619,34 +620,15 @@ const TeacherExams = () => {
 
 	return (
 		<div style={{ maxWidth: '1200px' }}>
-			<header
-				style={{
-					display: 'flex',
-					justifyContent: 'space-between',
-					alignItems: 'center',
-					marginBottom: 18,
-					gap: 12,
-					flexWrap: 'wrap',
-				}}
-			>
-				<div>
-					<h1
-						style={{
-							margin: '0 0 6px 0',
-							fontSize: '28px',
-							fontWeight: 800,
-							color: 'var(--text)',
-						}}
-					>
-						Exam Management
-					</h1>
-					<p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '14px' }}>
-						Create, schedule, publish, and track your exams.
-					</p>
-				</div>
-				<div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+			<PageHeader
+				title="Exam Management"
+				subtitle="Create, schedule, publish, and track your exams."
+				breadcrumbs={[{ label: 'Home', to: '/teacher' }, { label: 'Exams' }]}
+				actions={[
 					<button
+						key="refresh"
 						onClick={loadExams}
+						className="tap"
 						title="Refresh"
 						style={{
 							padding: '10px 14px',
@@ -654,31 +636,29 @@ const TeacherExams = () => {
 							border: '1px solid var(--border)',
 							background: 'var(--surface)',
 							color: 'var(--text)',
-							fontWeight: 700,
-							cursor: 'pointer',
+							fontWeight: 800,
 						}}
 					>
 						↻ Refresh
-					</button>
+					</button>,
 					<button
+						key="create"
 						onClick={() => navigate('/teacher/exams/new')}
+						className="tap"
 						style={{
 							padding: '12px 20px',
-							borderRadius: '10px',
+							borderRadius: 10,
 							border: 'none',
 							background: 'linear-gradient(135deg, #10b981, #059669)',
-							color: '#ffffff',
-							fontWeight: 800,
-							cursor: 'pointer',
+							color: '#fff',
+							fontWeight: 900,
 							boxShadow: '0 8px 20px rgba(16,185,129,0.3)',
-							fontSize: '14px',
 						}}
 					>
 						➕ Create Exam
-					</button>
-				</div>
-			</header>
-
+					</button>,
+				]}
+			/>
 			{errorBanner && (
 				<div style={{ marginBottom: 12 }}>
 					<Alert type="error" onClose={() => setErrorBanner('')}>
