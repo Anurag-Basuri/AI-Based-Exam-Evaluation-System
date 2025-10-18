@@ -298,6 +298,69 @@ const getMySubmissions = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, normalized, 'My submissions fetched');
 });
 
+// Start via URL param
+const startSubmissionByParam = asyncHandler(async (req, res) => {
+	req.body.examId = req.params.id;
+	return startSubmission(req, res);
+});
+
+// Get submission by ID (student's own)
+const getSubmissionByIdParam = asyncHandler(async (req, res) => {
+	const studentId = req.student?._id || req.user?.id;
+	const id = req.params.id;
+	if (!id) throw ApiError.BadRequest('Submission ID is required');
+	const submission = await Submission.findOne({ _id: id, student: studentId })
+		.populate('exam', 'title duration startTime endTime')
+		.populate({ path: 'answers.question', model: 'Question' });
+	if (!submission) throw ApiError.NotFound('Submission not found');
+	// Backfill duration if missing
+	if (!submission.duration && submission.exam?.duration) {
+		submission.duration = submission.exam.duration;
+	}
+	return ApiResponse.success(res, submission, 'Submission fetched');
+});
+
+// Sync answers by submission ID
+const syncAnswersBySubmissionId = asyncHandler(async (req, res) => {
+	const studentId = req.student?._id || req.user?.id;
+	const id = req.params.id;
+	const { answers } = req.body;
+	if (!id || !Array.isArray(answers)) {
+		throw ApiError.BadRequest('Submission ID and answers are required');
+	}
+	const submission = await Submission.findOne({ _id: id, student: studentId });
+	if (!submission) throw ApiError.NotFound('Submission not found');
+	const exam = await Exam.findById(submission.exam);
+	if (!exam) throw ApiError.NotFound('Exam not found');
+	if (isExpired(submission, exam) && submission.status === 'in-progress') {
+		const finalized = await finalizeAsSubmitted(submission, exam);
+		return ApiResponse.success(res, finalized, 'Time over. Auto-submitted');
+	}
+	if (submission.status !== 'in-progress') {
+		return ApiResponse.success(res, submission, 'Submission no longer editable');
+	}
+	submission.answers = answers;
+	await submission.save();
+	return ApiResponse.success(res, submission, 'Answers synced');
+});
+
+// Submit by submission ID
+const submitSubmissionById = asyncHandler(async (req, res) => {
+	const studentId = req.student?._id || req.user?.id;
+	const id = req.params.id;
+	if (!id) throw ApiError.BadRequest('Submission ID is required');
+	const submission = await Submission.findOne({ _id: id, student: studentId });
+	if (!submission) throw ApiError.NotFound('Submission not found');
+	if (submission.status !== 'in-progress') throw ApiError.Forbidden('Already submitted');
+	submission.status = 'submitted';
+	submission.submittedAt = new Date();
+	submission.evaluations = await evaluateSubmissionAnswers(submission);
+	submission.evaluatedAt = new Date();
+	submission.status = 'evaluated';
+	await submission.save();
+	return ApiResponse.success(res, submission, 'Submission submitted and evaluated');
+});
+
 export {
 	startSubmission,
 	syncAnswers,
@@ -307,4 +370,8 @@ export {
 	getSubmission,
 	getExamSubmissions,
 	getMySubmissions,
+	startSubmissionByParam,
+	getSubmissionByIdParam,
+	syncAnswersBySubmissionId,
+	submitSubmissionById,
 };
