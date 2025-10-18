@@ -10,6 +10,8 @@ import {
 	updateExam,
 	updateTeacherQuestion,
 } from '../../services/teacherServices.js';
+import Alert from '../../components/ui/Alert.jsx';
+import { useToast } from '../../components/ui/Toaster.jsx';
 
 const Pill = ({ children }) => (
 	<span
@@ -37,6 +39,7 @@ const ExamEdit = () => {
 	const [loading, setLoading] = React.useState(true);
 	const [saving, setSaving] = React.useState(false);
 	const [message, setMessage] = React.useState('');
+	const [errorBanner, setErrorBanner] = React.useState('');
 
 	const [details, setDetails] = React.useState({
 		title: '',
@@ -55,12 +58,14 @@ const ExamEdit = () => {
 
 	const [showQModal, setShowQModal] = React.useState(false);
 	const [editQuestion, setEditQuestion] = React.useState(null);
+	const { success } = useToast();
 
 	const toISO = v => (v ? new Date(v).toISOString() : null);
 
 	const loadAll = React.useCallback(async () => {
 		setLoading(true);
 		setMessage('');
+		setErrorBanner('');
 		try {
 			const exam = await safeApiCall(getTeacherExamById, id);
 			setDetails({
@@ -75,7 +80,7 @@ const ExamEdit = () => {
 			const bank = await safeApiCall(getTeacherQuestions);
 			setQuestions(Array.isArray(bank) ? bank : []);
 		} catch (e) {
-			setMessage(`❌ ${e?.message || 'Failed to load exam'}`);
+			setErrorBanner(e?.message || 'Failed to load exam');
 		} finally {
 			setLoading(false);
 		}
@@ -134,11 +139,11 @@ const ExamEdit = () => {
 
 	const onSave = async () => {
 		if (!validateDetails()) {
-			setMessage('❌ Fix highlighted fields');
+			setErrorBanner('Fix highlighted fields');
 			return;
 		}
 		setSaving(true);
-		setMessage('');
+		setErrorBanner('');
 		try {
 			// 1) Update details (not questions)
 			await safeApiCall(updateExam, id, {
@@ -151,10 +156,10 @@ const ExamEdit = () => {
 			});
 			// 2) Update question set (server validates ownership)
 			await safeApiCall(setExamQuestions, id, Array.from(selectedIds));
-			setMessage('✅ Exam updated');
+			success('Exam updated');
 			setTimeout(() => navigate('/teacher/exams'), 400);
 		} catch (e) {
-			setMessage(`❌ ${e?.message || 'Failed to update exam'}`);
+			setErrorBanner(e?.message || 'Failed to update exam');
 		} finally {
 			setSaving(false);
 		}
@@ -179,11 +184,11 @@ const ExamEdit = () => {
 			const saved = await safeApiCall(updateTeacherQuestion, editQuestion.id, values);
 			// Update bank with edited question
 			setQuestions(prev => prev.map(q => (q.id === saved.id ? saved : q)));
-			setMessage('✅ Question updated');
+			success('Question updated');
 			setShowQModal(false);
 			setEditQuestion(null);
 		} catch (e) {
-			setMessage(`❌ ${e?.message || 'Failed to update question'}`);
+			setErrorBanner(e?.message || 'Failed to update question');
 		}
 	};
 
@@ -250,19 +255,11 @@ const ExamEdit = () => {
 				</div>
 			</header>
 
-			{message && (
-				<div
-					style={{
-						marginBottom: 16,
-						padding: '12px 14px',
-						borderRadius: 12,
-						border: '1px solid var(--border)',
-						background: 'var(--surface)',
-						color: 'var(--text)',
-						fontWeight: 600,
-					}}
-				>
-					{message}
+			{errorBanner && (
+				<div style={{ marginBottom: 12 }}>
+					<Alert type="error" onClose={() => setErrorBanner('')}>
+						{errorBanner}
+					</Alert>
 				</div>
 			)}
 
