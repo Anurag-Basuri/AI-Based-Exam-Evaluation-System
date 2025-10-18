@@ -72,6 +72,9 @@ const AppRoutes = () => (
 					<Route path="issues" element={withBoundary(<StudentIssues />)} />
 					<Route path="settings" element={withBoundary(<StudentSettings />)} />
 					<Route path="take-exam/:submissionId" element={withBoundary(<TakeExam />)} />
+					<Route path="take/:submissionId" element={withBoundary(<TakeExam />)} />
+					<Route path="take/:id" element={withBoundary(<TakeExam />)} />
+					<Route path="submission/:id" element={withBoundary(<TakeExam />)} />
 					<Route path="*" element={<Navigate to="/student" replace />} />
 				</Route>
 			</Route>

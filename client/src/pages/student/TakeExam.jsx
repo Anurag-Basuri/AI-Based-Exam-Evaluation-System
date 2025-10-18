@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
 	safeApiCall,
@@ -16,6 +16,13 @@ const TakeExam = () => {
 	const [saving, setSaving] = useState(false);
 	const [error, setError] = useState('');
 	const [autoSubmitting, setAutoSubmitting] = useState(false);
+
+	// Early guard: if param missing, send back to Exams
+	useEffect(() => {
+		if (!submissionId) {
+			navigate('/student/exams', { replace: true });
+		}
+	}, [submissionId, navigate]);
 
 	// Load submission details
 	useEffect(() => {
