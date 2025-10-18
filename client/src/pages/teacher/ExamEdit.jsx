@@ -12,6 +12,7 @@ import {
 } from '../../services/teacherServices.js';
 import Alert from '../../components/ui/Alert.jsx';
 import { useToast } from '../../components/ui/Toaster.jsx';
+import PageHeader from '../../components/ui/PageHeader.jsx';
 
 const Pill = ({ children }) => (
 	<span
@@ -200,27 +201,19 @@ const ExamEdit = () => {
 
 	return (
 		<div style={{ maxWidth: 1200, margin: '0 auto' }}>
-			<header
-				style={{
-					marginBottom: 16,
-					display: 'flex',
-					justifyContent: 'space-between',
-					alignItems: 'center',
-					gap: 12,
-					flexWrap: 'wrap',
-				}}
-			>
-				<div>
-					<h1 style={{ margin: 0, color: 'var(--text)', fontWeight: 800, fontSize: 26 }}>
-						Edit Exam
-					</h1>
-					<p style={{ margin: '6px 0 0 0', color: 'var(--text-muted)' }}>
-						Modify details and question selection. Status: <Pill>{status}</Pill>
-					</p>
-				</div>
-				<div style={{ display: 'flex', gap: 8 }}>
+			<PageHeader
+				title="Edit Exam"
+				subtitle={`Modify details and question selection. Status: ${status}`}
+				breadcrumbs={[
+					{ label: 'Home', to: '/teacher' },
+					{ label: 'Exams', to: '/teacher/exams' },
+					{ label: 'Edit' },
+				]}
+				actions={[
 					<button
+						key="back"
 						onClick={() => navigate('/teacher/exams')}
+						className="tap"
 						style={{
 							padding: '10px 16px',
 							borderRadius: 10,
@@ -228,32 +221,35 @@ const ExamEdit = () => {
 							background: 'var(--surface)',
 							color: 'var(--text)',
 							fontWeight: 800,
-							cursor: 'pointer',
 						}}
 					>
 						← Back
-					</button>
+					</button>,
 					<button
+						key="save"
 						onClick={onSave}
-						disabled={saving || isLocked}
+						disabled={saving || status !== 'draft'}
+						className="tap"
+						title={
+							status !== 'draft' ? 'Only draft exams can be edited' : 'Save changes'
+						}
 						style={{
 							padding: '10px 16px',
 							borderRadius: 10,
 							border: 'none',
 							background:
-								saving || isLocked
+								saving || status !== 'draft'
 									? '#9ca3af'
 									: 'linear-gradient(135deg, #10b981, #059669)',
 							color: '#fff',
-							fontWeight: 800,
-							cursor: saving || isLocked ? 'not-allowed' : 'pointer',
+							fontWeight: 900,
+							cursor: saving || status !== 'draft' ? 'not-allowed' : 'pointer',
 						}}
-						title={isLocked ? 'Only draft exams can be edited' : 'Save changes'}
 					>
 						{saving ? 'Saving…' : 'Save changes'}
-					</button>
-				</div>
-			</header>
+					</button>,
+				]}
+			/>
 
 			{errorBanner && (
 				<div style={{ marginBottom: 12 }}>
