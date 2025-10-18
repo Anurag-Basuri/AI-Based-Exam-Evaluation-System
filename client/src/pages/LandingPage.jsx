@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../hooks/useTheme.js';
 import { useAuth } from '../hooks/useAuth.js';
 
-// Local assets (fallbacks)
+// Local assets
 import studentImg from '../assets/student.jpg';
 import teacherImg from '../assets/teacher.jpg';
 import image1 from '../assets/image1.jpg';
@@ -15,7 +15,7 @@ import image6 from '../assets/image6.jpg';
 import image7 from '../assets/image7.jpg';
 import image8 from '../assets/image8.jpg';
 
-// Curated external images (Unsplash) for richer visuals (attribution via URL)
+// Curated visuals
 const heroImages = [
 	'https://images.unsplash.com/photo-1532012197267-da84d127e765?q=80&w=1400&auto=format&fit=crop',
 	'https://images.unsplash.com/photo-1518081461904-9acb9846e1b9?q=80&w=1400&auto=format&fit=crop',
@@ -39,20 +39,16 @@ const LandingPage = () => {
 	const initialWidth = typeof window !== 'undefined' ? window.innerWidth : 1024;
 	const [windowWidth, setWindowWidth] = useState(initialWidth);
 
-	// Refs for smooth scroll
+	// Refs for smooth scroll and parallax
 	const roleSelectionRef = useRef(null);
-	const detailsRef = useRef(null); // "How it works" anchor
+	const detailsRef = useRef(null);
+	const heroParallaxRef = useRef(null);
 
-	// Resize listener
-	useEffect(() => {
-		if (typeof window === 'undefined') return;
-		const handleResize = () => setWindowWidth(window.innerWidth || 1024);
-		window.addEventListener('resize', handleResize, { passive: true });
-		return () => window.removeEventListener('resize', handleResize);
-	}, []);
-
-	const scrollToSection = ref =>
-		ref?.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+	// Reduced motion
+	const prefersReduced =
+		typeof window !== 'undefined' &&
+		window.matchMedia &&
+		window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 	// Breakpoints
 	const isMobile = windowWidth < 640;
@@ -62,35 +58,15 @@ const LandingPage = () => {
 	const role = user?.role || user?.type || '';
 	const displayName = user?.fullname || user?.username || 'there';
 
-	// Feature highlights
-	const features = [
-		{
-			title: 'Consistent, explainable scoring',
-			description:
-				'Free‑form answers are evaluated with rule checks and similarity signals for repeatable, fair results.',
-			icon: image1,
-		},
-		{
-			title: 'Create & schedule fast',
-			description:
-				'Build exams from your question bank, mix MCQ and subjective, set time windows, and publish when ready.',
-			icon: image2,
-		},
-		{
-			title: 'Real‑time progress',
-			description:
-				'Track live sessions, see who’s in, and spot issues quickly with clear dashboards.',
-			icon: image3,
-		},
-		{
-			title: 'Submissions & results',
-			description:
-				'Submissions are centralized; results are easy to review, export, and revisit anytime.',
-			icon: image4,
-		},
-	];
+	// Resize listener
+	useEffect(() => {
+		if (typeof window === 'undefined') return;
+		const handleResize = () => setWindowWidth(window.innerWidth || 1024);
+		window.addEventListener('resize', handleResize, { passive: true });
+		return () => window.removeEventListener('resize', handleResize);
+	}, []);
 
-	// Floating background circles
+	// Floating background images
 	const backgroundImages = useMemo(
 		() => [
 			{ src: image5, top: '10%', left: '5%', size: 80, delay: 0 },
@@ -101,14 +77,72 @@ const LandingPage = () => {
 		[],
 	);
 
+	const scrollToSection = ref =>
+		ref?.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
 	const goToAuth = (role, mode = 'login') => {
 		try {
 			localStorage.setItem('preferredRole', role);
 		} catch {}
-		try {
-			navigate(`/auth?mode=${encodeURIComponent(mode)}&role=${encodeURIComponent(role)}`);
-		} catch {}
+		navigate(`/auth?mode=${encodeURIComponent(mode)}&role=${encodeURIComponent(role)}`);
 	};
+
+	// Subtle 3D parallax for hero images
+	const [tilt, setTilt] = useState({ rx: 0, ry: 0 });
+	useEffect(() => {
+		if (prefersReduced) return;
+		const el = heroParallaxRef.current;
+		if (!el) return;
+
+		const onMove = e => {
+			const rect = el.getBoundingClientRect();
+			const cx = rect.left + rect.width / 2;
+			const cy = rect.top + rect.height / 2;
+			const dx = (e.clientX - cx) / (rect.width / 2);
+			const dy = (e.clientY - cy) / (rect.height / 2);
+			const clamp = v => Math.max(-1, Math.min(1, v));
+			const ry = clamp(dx) * 6; // rotateY
+			const rx = clamp(-dy) * 6; // rotateX
+			setTilt({ rx, ry });
+		};
+
+		const onLeave = () => setTilt({ rx: 0, ry: 0 });
+
+		el.addEventListener('mousemove', onMove);
+		el.addEventListener('mouseleave', onLeave);
+		return () => {
+			el.removeEventListener('mousemove', onMove);
+			el.removeEventListener('mouseleave', onLeave);
+		};
+	}, [prefersReduced]);
+
+	// Real features (no fake numbers)
+	const features = [
+		{
+			title: 'Create, schedule, publish',
+			description:
+				'Authors compose exams from a question bank, set duration, start and end times, and publish when ready.',
+			icon: image2,
+		},
+		{
+			title: 'Students join with a code',
+			description:
+				'Learners sign in and search by the 8‑character share code to join the correct live exam.',
+			icon: image3,
+		},
+		{
+			title: 'Sync while writing',
+			description:
+				'Answers are synced during the attempt; students can submit once to finalize their submission.',
+			icon: image1,
+		},
+		{
+			title: 'Evaluate and review',
+			description:
+				'Submissions are auto‑evaluated where possible, with teachers able to review and adjust marks.',
+			icon: image4,
+		},
+	];
 
 	const QuickAction = ({ title, subtitle, cta, onClick, tone = 'indigo', photo }) => {
 		const tones = {
@@ -182,54 +216,6 @@ const LandingPage = () => {
 		);
 	};
 
-	// Stats (purely illustrative; replace with real metrics if available)
-	const stats = [
-		{ label: 'Exams delivered', value: '2.3k+' },
-		{ label: 'Questions banked', value: '18k+' },
-		{ label: 'Avg. grading time saved', value: '62%' },
-		{ label: 'Uptime', value: '99.9%' },
-	];
-
-	const testimonials = [
-		{
-			name: 'Priya Sharma',
-			role: 'Assistant Professor',
-			quote: 'Publishing and evaluating mid‑terms took hours before; now it’s minutes with clear, consistent scoring.',
-			img: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=400&auto=format&fit=crop',
-		},
-		{
-			name: 'Aditya Singh',
-			role: 'Student',
-			quote: 'The exam experience was smooth and the feedback was detailed. I knew exactly where I lost marks.',
-			img: 'https://images.unsplash.com/photo-1547425260-76bcadfb4f2c?q=80&w=400&auto=format&fit=crop',
-		},
-		{
-			name: 'Zara Ali',
-			role: 'Program Coordinator',
-			quote: 'Scheduling, invigilation, and results all in one place simplified our entire assessment workflow.',
-			img: 'https://images.unsplash.com/photo-1544006659-f0b21884ce1d?q=80&w=400&auto=format&fit=crop',
-		},
-	];
-
-	const faq = [
-		{
-			q: 'How are subjective answers evaluated?',
-			a: 'Subjective responses are checked against teacher-provided criteria and similarity signals. Teachers can review and override any score.',
-		},
-		{
-			q: 'Can I mix MCQ and subjective in one exam?',
-			a: 'Yes. Add any combination of MCQ and subjective questions, arrange them, and assign marks per item.',
-		},
-		{
-			q: 'Do students need an account?',
-			a: 'Yes. Students sign in and join with a share code. This ensures secure identity and attempt tracking.',
-		},
-		{
-			q: 'Can I reschedule or unpublish an exam?',
-			a: 'Draft exams can be edited freely. Published exams can be scheduled for a future window or closed early if needed.',
-		},
-	];
-
 	return (
 		<div
 			style={{
@@ -239,7 +225,7 @@ const LandingPage = () => {
 				background: 'var(--bg)',
 			}}
 		>
-			{/* Hero (no internal header; App.jsx already renders Header) */}
+			{/* Hero */}
 			<section
 				aria-label="Hero"
 				style={{
@@ -252,6 +238,7 @@ const LandingPage = () => {
 					minHeight: isMobile ? 'auto' : '78vh',
 				}}
 			>
+				{/* Floating decor */}
 				{backgroundImages.map((img, index) => (
 					<div
 						key={index}
@@ -362,9 +349,9 @@ const LandingPage = () => {
 						>
 							{isAuthenticated
 								? role === 'teacher'
-									? 'Create and schedule exams, manage your question bank, and review submissions with consistent, explainable scoring.'
-									: 'Join exams, submit answers with confidence, and review detailed results — all in one place.'
-								: 'Plan, deliver, and evaluate exams end‑to‑end. Build question banks, run secure exams, and get consistent scoring with an AI‑assisted evaluation workflow.'}
+									? 'Create and schedule exams, manage questions, and review submissions with explainable scoring.'
+									: 'Join exams with a share code, sync responses while writing, and review detailed results.'
+								: 'Plan, deliver, and evaluate exams end‑to‑end. Teachers publish live windows; students join with a code; submissions sync and are evaluated with a clear workflow.'}
 						</p>
 
 						<div style={{ display: 'flex', gap: '0.8rem', flexWrap: 'wrap' }}>
@@ -452,14 +439,16 @@ const LandingPage = () => {
 						</div>
 					</div>
 
-					{/* Images grid */}
+					{/* Parallax images */}
 					<div
+						ref={heroParallaxRef}
 						style={{
 							flex: isMobile || isTablet ? '1' : '0.9',
 							display: 'flex',
 							justifyContent: 'center',
 							marginTop: isMobile ? '1.6rem' : 0,
 							animation: 'fadeInRight 0.8s ease-out',
+							perspective: '1000px',
 						}}
 					>
 						<div
@@ -470,7 +459,11 @@ const LandingPage = () => {
 								gap: isMobile ? '0.75rem' : '1.1rem',
 								maxWidth: isMobile ? '300px' : isTablet ? '420px' : '520px',
 								width: '100%',
-								perspective: '1000px',
+								transform: prefersReduced
+									? 'none'
+									: `rotateX(${tilt.rx}deg) rotateY(${tilt.ry}deg)`,
+								transformStyle: 'preserve-3d',
+								transition: 'transform 200ms ease-out',
 							}}
 						>
 							{heroImages.map((src, i) => (
@@ -479,21 +472,23 @@ const LandingPage = () => {
 									style={{
 										transform:
 											i === 0
-												? 'rotateY(-5deg) rotateX(5deg)'
+												? 'translateZ(20px)'
 												: i === 1
-													? 'rotateY(5deg) rotateX(-5deg)'
+													? 'translateZ(10px)'
 													: i === 2
-														? 'rotateY(5deg) rotateX(5deg)'
-														: 'rotateY(-5deg) rotateX(-5deg)',
-										transition: 'transform 0.5s',
+														? 'translateZ(8px)'
+														: 'translateZ(16px)',
+										transition: 'transform 0.2s',
 										boxShadow: '0 20px 30px rgba(0,0,0,0.07)',
 										borderRadius: '1rem',
 										overflow: 'hidden',
+										border: '1px solid var(--border)',
+										background: 'var(--surface)',
 									}}
 								>
 									<img
 										src={src}
-										alt={`Platform illustration ${i + 1}`}
+										alt={`Platform visual ${i + 1}`}
 										loading="lazy"
 										decoding="async"
 										referrerPolicy="no-referrer"
@@ -510,60 +505,121 @@ const LandingPage = () => {
 				</div>
 			</section>
 
-			{/* Stats strip */}
+			{/* How it works */}
 			<section
-				aria-label="Platform stats"
+				ref={detailsRef}
+				aria-label="How it works"
 				style={{
+					padding: isMobile ? '2.4rem 1rem' : isTablet ? '3rem 2rem' : '3.6rem 3rem',
 					background: 'var(--surface)',
 					borderTop: '1px solid var(--border)',
 					borderBottom: '1px solid var(--border)',
-					padding: isMobile ? '1.6rem 1rem' : '2rem 2rem',
 				}}
 			>
-				<div
-					style={{
-						maxWidth: 1200,
-						margin: '0 auto',
-						display: 'grid',
-						gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)',
-						gap: 12,
-					}}
-				>
-					{stats.map((s, i) => (
+				<div style={{ maxWidth: 1100, margin: '0 auto' }}>
+					<h2
+						style={{
+							fontSize: 'clamp(1.5rem, 2.2vw, 2rem)',
+							fontWeight: 900,
+							color: 'var(--text)',
+							marginBottom: '0.8rem',
+							textAlign: 'center',
+						}}
+					>
+						How the platform works
+					</h2>
+					<div
+						style={{
+							display: 'grid',
+							gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
+							gap: 14,
+							marginTop: 10,
+						}}
+					>
 						<div
-							key={i}
 							style={{
-								textAlign: 'center',
-								padding: isMobile ? '0.8rem' : '1rem',
-								borderRadius: 12,
 								background: 'var(--bg)',
 								border: '1px solid var(--border)',
+								borderRadius: 14,
+								padding: 16,
 							}}
 						>
-							<div
+							<h3 style={{ margin: 0, color: 'var(--text)' }}>Teachers</h3>
+							<ol
 								style={{
-									fontSize: '1.35rem',
-									fontWeight: 900,
-									color: 'var(--text)',
-								}}
-							>
-								{s.value}
-							</div>
-							<div
-								style={{
+									margin: '0.5rem 0 0 1rem',
+									padding: 0,
 									color: 'var(--text-muted)',
-									fontWeight: 700,
-									fontSize: 12,
+									lineHeight: 1.7,
 								}}
 							>
-								{s.label}
+								<li>Create exams and add MCQ/subjective questions.</li>
+								<li>Set duration and a start/end window, then publish.</li>
+								<li>Share the 8‑character exam code with students.</li>
+								<li>Review submissions and adjust marks when needed.</li>
+							</ol>
+							<div style={{ marginTop: 12 }}>
+								<button
+									onClick={() => navigate('/teacher/exams')}
+									style={{
+										padding: '10px 14px',
+										borderRadius: 10,
+										border: '1px solid var(--border)',
+										background: 'var(--surface)',
+										color: 'var(--text)',
+										fontWeight: 800,
+										cursor: 'pointer',
+									}}
+								>
+									Open exam manager
+								</button>
 							</div>
 						</div>
-					))}
+
+						<div
+							style={{
+								background: 'var(--bg)',
+								border: '1px solid var(--border)',
+								borderRadius: 14,
+								padding: 16,
+							}}
+						>
+							<h3 style={{ margin: 0, color: 'var(--text)' }}>Students</h3>
+							<ol
+								style={{
+									margin: '0.5rem 0 0 1rem',
+									padding: 0,
+									color: 'var(--text-muted)',
+									lineHeight: 1.7,
+								}}
+							>
+								<li>Sign in to your account.</li>
+								<li>Go to Exams and search using the 8‑character code.</li>
+								<li>Start the exam; answers sync while you write.</li>
+								<li>Submit once and view results when released.</li>
+							</ol>
+							<div style={{ marginTop: 12 }}>
+								<button
+									onClick={() => navigate('/student/exams')}
+									style={{
+										padding: '10px 14px',
+										borderRadius: 10,
+										border: '1px solid var(--border)',
+										background: 'var(--surface)',
+										color: 'var(--text)',
+										fontWeight: 800,
+										cursor: 'pointer',
+									}}
+								>
+									Open student exams
+								</button>
+							</div>
+						</div>
+					</div>
 				</div>
 			</section>
 
-			{/* If logged in: personalized quick actions; else: Features grid */}
+			{/* Authenticated quick actions or public features */}
 			<section
 				aria-label={isAuthenticated ? 'Quick actions' : 'Features'}
 				style={{
@@ -593,8 +649,8 @@ const LandingPage = () => {
 								}}
 							>
 								{role === 'teacher'
-									? 'Create an exam, manage existing ones, or review submissions.'
-									: 'Join a scheduled exam, review your results, or explore upcoming sessions.'}
+									? 'Create a new exam, manage existing ones, or review submissions.'
+									: 'Join a scheduled exam or review your previous submissions.'}
 							</p>
 
 							<div style={{ display: 'grid', gap: 14 }}>
@@ -602,7 +658,7 @@ const LandingPage = () => {
 									<>
 										<QuickAction
 											title="Create a new exam"
-											subtitle="Build a new exam from your question bank and schedule it."
+											subtitle="Build from your question bank and schedule a live window."
 											cta="Open exam manager"
 											onClick={() => navigate('/teacher/exams')}
 											tone="emerald"
@@ -610,7 +666,7 @@ const LandingPage = () => {
 										/>
 										<QuickAction
 											title="Review submissions"
-											subtitle="Track student submissions and evaluate subjective answers."
+											subtitle="Track student work and evaluate subjective answers."
 											cta="Open dashboard"
 											onClick={() => navigate('/teacher')}
 											tone="indigo"
@@ -621,7 +677,7 @@ const LandingPage = () => {
 									<>
 										<QuickAction
 											title="Find your exam"
-											subtitle="Join using a share code provided by your teacher."
+											subtitle="Join using the share code provided by your teacher."
 											cta="Open student exams"
 											onClick={() => navigate('/student/exams')}
 											tone="amber"
@@ -629,7 +685,7 @@ const LandingPage = () => {
 										/>
 										<QuickAction
 											title="View your results"
-											subtitle="Revisit previous submissions and check detailed scoring."
+											subtitle="Revisit submissions and review detailed scoring."
 											cta="Open dashboard"
 											onClick={() => navigate('/student')}
 											tone="rose"
@@ -642,7 +698,6 @@ const LandingPage = () => {
 					) : (
 						<>
 							<h2
-								ref={detailsRef}
 								style={{
 									fontSize: 'clamp(1.6rem, 2.5vw, 2.2rem)',
 									fontWeight: 800,
@@ -652,7 +707,7 @@ const LandingPage = () => {
 									letterSpacing: 0.2,
 								}}
 							>
-								How the Platform Works
+								Product overview
 							</h2>
 							<p
 								style={{
@@ -664,92 +719,13 @@ const LandingPage = () => {
 									lineHeight: 1.7,
 								}}
 							>
-								Teachers create and schedule exams from a question bank. Students
-								join with a share code and submit answers. An AI‑assisted service
-								standardizes scoring, while teachers retain full control and
-								oversight.
+								End‑to‑end assessments: compose and publish exams, students join
+								with a share code, answers sync during writing, and submissions are
+								evaluated with a teacher‑reviewable workflow.
 							</p>
 
-							{/* Two tracks: Teacher and Student */}
 							<div
 								style={{
-									display: 'grid',
-									gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
-									gap: 16,
-								}}
-							>
-								<div
-									style={{
-										background: 'var(--surface)',
-										border: '1px solid var(--border)',
-										borderRadius: 16,
-										padding: 16,
-									}}
-								>
-									<h3 style={{ marginTop: 0, color: 'var(--text)' }}>
-										For Teachers
-									</h3>
-									<ol
-										style={{
-											margin: '0 0 0 1rem',
-											padding: 0,
-											color: 'var(--text-muted)',
-											lineHeight: 1.7,
-										}}
-									>
-										<li>
-											Create an exam with title, duration, and time window.
-										</li>
-										<li>
-											Pick questions (MCQ or subjective) from your bank or
-											create new.
-										</li>
-										<li>
-											Publish when ready; the system handles live tracking and
-											submissions.
-										</li>
-										<li>
-											Review results, see auto‑scoring rationale, and adjust
-											grades if needed.
-										</li>
-									</ol>
-								</div>
-
-								<div
-									style={{
-										background: 'var(--surface)',
-										border: '1px solid var(--border)',
-										borderRadius: 16,
-										padding: 16,
-									}}
-								>
-									<h3 style={{ marginTop: 0, color: 'var(--text)' }}>
-										For Students
-									</h3>
-									<ol
-										style={{
-											margin: '0 0 0 1rem',
-											padding: 0,
-											color: 'var(--text-muted)',
-											lineHeight: 1.7,
-										}}
-									>
-										<li>Sign in and join an exam using a share code.</li>
-										<li>
-											Answer MCQs and write subjective responses confidently.
-										</li>
-										<li>
-											Submit once; you’ll see status and, when released,
-											detailed results.
-										</li>
-									</ol>
-								</div>
-							</div>
-
-							{/* Features grid */}
-							<div
-								style={{
-									marginTop: 20,
 									display: 'grid',
 									gridTemplateColumns: isMobile
 										? '1fr'
@@ -817,7 +793,7 @@ const LandingPage = () => {
 				</div>
 			</section>
 
-			{/* Role Selection – only when not authenticated */}
+			{/* Role Selection (no fake data) */}
 			{!isAuthenticated && (
 				<section
 					ref={roleSelectionRef}
@@ -857,7 +833,7 @@ const LandingPage = () => {
 								letterSpacing: 0.2,
 							}}
 						>
-							Choose Your Role
+							Choose your role
 						</h2>
 						<p
 							style={{
@@ -868,8 +844,8 @@ const LandingPage = () => {
 								lineHeight: 1.6,
 							}}
 						>
-							Sign in with your role. Your institution may provision accounts or
-							invite you.
+							Sign in to continue. Your institution may provision or invite your
+							account.
 						</p>
 
 						<div
@@ -896,8 +872,6 @@ const LandingPage = () => {
 											: '1 1 360px',
 									maxWidth: isMobile ? '100%' : isTablet ? '520px' : '380px',
 									minWidth: isMobile ? 'auto' : 280,
-									position: 'relative',
-									overflow: 'hidden',
 								}}
 							>
 								<img
@@ -937,7 +911,7 @@ const LandingPage = () => {
 										marginInline: 'auto',
 									}}
 								>
-									Take exams with a share code and get clear, timely results.
+									Join exams with a share code and view your results.
 								</p>
 								<div
 									style={{
@@ -996,8 +970,6 @@ const LandingPage = () => {
 											: '1 1 360px',
 									maxWidth: isMobile ? '100%' : isTablet ? '520px' : '380px',
 									minWidth: isMobile ? 'auto' : 280,
-									position: 'relative',
-									overflow: 'hidden',
 								}}
 							>
 								<img
@@ -1037,8 +1009,7 @@ const LandingPage = () => {
 										marginInline: 'auto',
 									}}
 								>
-									Create and schedule exams, manage questions, and review
-									submissions.
+									Create, schedule, publish, and evaluate—end to end.
 								</p>
 								<div
 									style={{
@@ -1085,83 +1056,7 @@ const LandingPage = () => {
 				</section>
 			)}
 
-			{/* Testimonials */}
-			<section
-				aria-label="User testimonials"
-				style={{
-					padding: isMobile ? '2.6rem 1rem' : '3.2rem',
-					background: 'var(--surface)',
-					borderTop: '1px solid var(--border)',
-					borderBottom: '1px solid var(--border)',
-				}}
-			>
-				<div
-					style={{
-						maxWidth: 1200,
-						margin: '0 auto',
-						display: 'grid',
-						gridTemplateColumns: isMobile
-							? '1fr'
-							: isTablet
-								? 'repeat(2,1fr)'
-								: 'repeat(3,1fr)',
-						gap: 14,
-					}}
-				>
-					{testimonials.map((t, i) => (
-						<figure
-							key={i}
-							style={{
-								margin: 0,
-								padding: 16,
-								border: '1px solid var(--border)',
-								borderRadius: 16,
-								background: 'var(--bg)',
-								boxShadow: '0 10px 24px rgba(0,0,0,0.05)',
-								display: 'grid',
-								gap: 10,
-							}}
-						>
-							<div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-								<img
-									src={t.img}
-									alt={`${t.name} avatar`}
-									loading="lazy"
-									decoding="async"
-									referrerPolicy="no-referrer"
-									style={{
-										width: 42,
-										height: 42,
-										borderRadius: '50%',
-										objectFit: 'cover',
-									}}
-								/>
-								<figcaption>
-									<div style={{ fontWeight: 800, color: 'var(--text)' }}>
-										{t.name}
-									</div>
-									<div
-										style={{
-											fontSize: 12,
-											color: 'var(--text-muted)',
-											fontWeight: 700,
-										}}
-									>
-										{t.role}
-									</div>
-								</figcaption>
-							</div>
-							<blockquote
-								style={{ margin: 0, color: 'var(--text)', lineHeight: 1.6 }}
-							>
-								“{t.quote}”
-							</blockquote>
-						</figure>
-					))}
-				</div>
-			</section>
-
-			{/* Gallery / credibility strip */}
+			{/* Visual gallery (decorative only) */}
 			<section
 				aria-label="Gallery"
 				style={{
@@ -1204,51 +1099,6 @@ const LandingPage = () => {
 				</div>
 			</section>
 
-			{/* FAQ */}
-			<section
-				aria-label="Frequently asked questions"
-				style={{ padding: isMobile ? '3rem 1rem' : '4rem 2rem', background: 'var(--bg)' }}
-			>
-				<div style={{ maxWidth: 900, margin: '0 auto' }}>
-					<h2
-						style={{
-							fontSize: 'clamp(1.4rem, 2.2vw, 2rem)',
-							fontWeight: 900,
-							color: 'var(--text)',
-							textAlign: 'center',
-							marginBottom: '1rem',
-						}}
-					>
-						Frequently asked questions
-					</h2>
-					<div style={{ display: 'grid', gap: 10 }}>
-						{faq.map((item, idx) => (
-							<details
-								key={idx}
-								style={{
-									border: '1px solid var(--border)',
-									borderRadius: 12,
-									background: 'var(--surface)',
-									padding: '12px 14px',
-								}}
-							>
-								<summary
-									style={{
-										cursor: 'pointer',
-										color: 'var(--text)',
-										fontWeight: 800,
-										outline: 'none',
-									}}
-								>
-									{item.q}
-								</summary>
-								<p style={{ color: 'var(--text-muted)', marginTop: 8 }}>{item.a}</p>
-							</details>
-						))}
-					</div>
-				</div>
-			</section>
-
 			{/* Bottom CTA */}
 			<section
 				aria-label="Get started call to action"
@@ -1276,11 +1126,10 @@ const LandingPage = () => {
 				>
 					<div>
 						<h3 style={{ margin: '0 0 6px 0', color: 'var(--text)', fontWeight: 900 }}>
-							Ready to modernize your assessments?
+							Ready to get started?
 						</h3>
 						<p style={{ margin: 0, color: 'var(--text-muted)' }}>
-							Whether you run small quizzes or full terms, our workflow helps you
-							publish fast and evaluate fairly.
+							Sign in with your role and head to the exams area.
 						</p>
 					</div>
 					<div
@@ -1366,81 +1215,22 @@ const LandingPage = () => {
 				</div>
 			</section>
 
-			{/* Footer */}
+			{/* Footer (no fake contact) */}
 			<footer
 				style={{
 					backgroundColor: 'var(--surface)',
 					color: 'var(--text)',
-					padding: isMobile ? '2rem 1rem' : '3rem',
+					padding: isMobile ? '1.6rem 1rem' : '2rem',
 					textAlign: 'center',
-					position: 'relative',
-					overflow: 'hidden',
 					borderTop: '1px solid var(--border)',
 				}}
 			>
-				<div
-					aria-hidden
-					style={{
-						position: 'absolute',
-						inset: 0,
-						background: `url(${image7})`,
-						backgroundSize: 'cover',
-						opacity: 0.02,
-						zIndex: 0,
-					}}
-				/>
-				<div
-					style={{
-						position: 'relative',
-						zIndex: 1,
-						display: 'flex',
-						flexDirection: isMobile ? 'column' : 'row',
-						justifyContent: 'space-between',
-						alignItems: isMobile ? 'center' : 'flex-start',
-						maxWidth: 1200,
-						margin: '0 auto',
-						gap: isMobile ? '1.6rem' : '1rem',
-					}}
-				>
-					<div
-						style={{
-							textAlign: isMobile ? 'center' : 'left',
-							maxWidth: isMobile ? '100%' : 360,
-						}}
-					>
-						<h3 style={{ fontSize: '1.25rem', marginBottom: '0.8rem' }}>
-							AI Exam System
-						</h3>
-						<p style={{ color: '#cbd5e1', lineHeight: 1.6, fontSize: '0.95rem' }}>
-							Assessments made simple—powered by an evaluation service, robust APIs,
-							and a clean, responsive UI.
-						</p>
-					</div>
-					<div>
-						<h4 style={{ fontSize: '1.05rem', marginBottom: '0.8rem' }}>Contact</h4>
-						<p style={{ color: '#cbd5e1', lineHeight: 1.6, fontSize: '0.95rem' }}>
-							Email: support@aiexamsystem.com
-							<br />
-							Phone: (123) 456-7890
-						</p>
-					</div>
-				</div>
-				<div
-					style={{
-						borderTop: '1px solid #475569',
-						marginTop: '1.6rem',
-						paddingTop: '1.6rem',
-						fontSize: '0.9rem',
-						color: '#94a3b8',
-						position: 'relative',
-						zIndex: 1,
-					}}
-				>
-					© {new Date().getFullYear()} AI Exam System. All rights reserved.
+				<div style={{ fontSize: '0.95rem', color: 'var(--text-muted)' }}>
+					© {new Date().getFullYear()} AI Exam System
 				</div>
 			</footer>
 
-			{/* Animations and reduced motion support */}
+			{/* Animations */}
 			<style>
 				{`
           @keyframes float {
