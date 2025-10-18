@@ -212,7 +212,7 @@ const getMySubmissions = asyncHandler(async (req, res) => {
 	const studentId = req.student?._id || req.user?.id;
 
 	const submissions = await Submission.find({ student: studentId })
-		.populate('exam', 'title duration startTime')
+		.populate('exam', 'title duration startTime endTime')
 		.populate({ path: 'answers.question', select: 'max_marks' })
 		.lean();
 
@@ -223,14 +223,20 @@ const getMySubmissions = asyncHandler(async (req, res) => {
 		const maxScore = Array.isArray(sub.answers)
 			? sub.answers.reduce((acc, ans) => acc + (ans?.question?.max_marks || 0), 0)
 			: 0;
-		// Map server status to UI status
-		const status = sub.status === 'evaluated' ? 'evaluated' : 'pending';
+
+		// Preserve real status so UI can show Continue button for in-progress
+		const status = sub.status || 'pending';
+
 		return {
 			id: String(sub._id),
 			examTitle: sub.exam?.title || 'Exam',
+			examId: String(sub.exam?._id || ''),
+			duration: sub.exam?.duration ?? null,
 			score,
 			maxScore,
 			status,
+			startedAt: sub.startedAt ? new Date(sub.startedAt).toLocaleString() : null,
+			submittedAt: sub.submittedAt ? new Date(sub.submittedAt).toLocaleString() : null,
 			evaluatedAt: sub.evaluatedAt ? new Date(sub.evaluatedAt).toLocaleString() : null,
 			remarks:
 				Array.isArray(sub.evaluations) && sub.evaluations[0]?.evaluation?.remarks
