@@ -1,577 +1,389 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-	safeApiCall,
-	getMySubmissions,
-	searchExamByCode,
-	startExam,
-} from '../../services/studentServices.js';
+import { useToast } from '../../components/ui/Toaster.jsx';
+import Alert from '../../components/ui/Alert.jsx';
+import PageHeader from '../../components/ui/PageHeader.jsx';
+import * as StudentSvc from '../../services/studentServices.js';
 
 const statusStyles = {
-	'in-progress': {
-		bg: 'var(--surface)',
-		border: 'var(--border)',
-		color: '#f59e0b',
-		label: 'In Progress',
-		icon: '🟡',
-	},
-	started: {
-		bg: 'var(--surface)',
-		border: 'var(--border)',
-		color: '#f59e0b',
-		label: 'Started',
-		icon: '🟡',
-	},
-	submitted: {
-		bg: 'var(--surface)',
-		border: 'var(--border)',
-		color: '#3b82f6',
-		label: 'Submitted',
-		icon: '📋',
-	},
-	evaluated: {
-		bg: 'var(--surface)',
-		border: 'var(--border)',
-		color: '#10b981',
-		label: 'Evaluated',
-		icon: '✅',
-	},
-	pending: {
-		bg: 'var(--surface)',
-		border: 'var(--border)',
-		color: 'var(--text-muted)',
-		label: 'Pending',
-		icon: '⏳',
-	},
+	'in-progress': { color: '#f59e0b', label: 'In Progress', icon: '🟡' },
+	started: { color: '#f59e0b', label: 'Started', icon: '🟡' },
+	submitted: { color: '#3b82f6', label: 'Submitted', icon: '📋' },
+	evaluated: { color: '#10b981', label: 'Evaluated', icon: '✅' },
+	pending: { color: 'var(--text-muted)', label: 'Pending', icon: '⏳' },
 };
 
 const PreviousExamCard = ({ submission, onContinue, isContinuing }) => {
-	const config = statusStyles[submission.status] || statusStyles.pending;
-	const canContinue = ['in-progress', 'started'].includes(submission.status);
-	const hasScore = submission.score !== null && submission.score !== undefined;
+	const cfg = statusStyles[submission.status] || statusStyles.pending;
+	const hasScore = submission.score != null;
 	const pct =
 		hasScore && submission.maxScore > 0
 			? Math.round((submission.score / submission.maxScore) * 100)
 			: null;
+
 	return (
 		<article
 			style={{
 				background: 'var(--surface)',
-				borderRadius: 16,
 				border: '1px solid var(--border)',
+				borderRadius: 14,
+				padding: 14,
 				boxShadow: 'var(--shadow-md)',
-				padding: '20px',
-				transition: 'all 0.2s ease',
 			}}
 		>
-			<header style={{ marginBottom: '16px' }}>
-				<div
+			<div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+				<strong style={{ color: 'var(--text)', fontSize: 16, flex: 1 }}>
+					{submission.examTitle}
+				</strong>
+				<span
 					style={{
-						display: 'flex',
+						display: 'inline-flex',
 						alignItems: 'center',
-						gap: '12px',
-						marginBottom: '8px',
+						gap: 6,
+						fontSize: 12,
+						padding: '6px 10px',
+						borderRadius: 20,
+						border: '1px solid var(--border)',
+						background: 'var(--bg)',
+						color: cfg.color,
+						fontWeight: 800,
 					}}
 				>
-					<h3
-						style={{
-							margin: 0,
-							fontSize: '16px',
-							fontWeight: 700,
-							color: 'var(--text)',
-							flex: 1,
-						}}
-					>
-						{submission.examTitle}
-					</h3>
-					<span
-						style={{
-							display: 'flex',
-							alignItems: 'center',
-							gap: '6px',
-							fontSize: '12px',
-							padding: '4px 10px',
-							borderRadius: '16px',
-							border: `1px solid ${config.border}`,
-							background: config.bg,
-							color: config.color,
-							fontWeight: 700,
-						}}
-					>
-						<span>{config.icon}</span>
-						{config.label}
-					</span>
-				</div>
-
-				<div
-					style={{
-						display: 'flex',
-						gap: '16px',
-						color: 'var(--text-muted)',
-						fontSize: '13px',
-					}}
-				>
-					{submission.startedAt && (
-						<div>
-							<strong style={{ color: 'var(--text)' }}>Started:</strong>{' '}
-							{submission.startedAt}
-						</div>
-					)}
-					{submission.submittedAt && (
-						<div>
-							<strong style={{ color: 'var(--text)' }}>Submitted:</strong>{' '}
-							{submission.submittedAt}
-						</div>
-					)}
-				</div>
-			</header>
-
+					<span>{cfg.icon}</span>
+					{cfg.label}
+				</span>
+			</div>
 			{hasScore && (
 				<div
 					style={{
-						background: 'var(--surface)',
-						borderRadius: 12,
-						padding: '12px',
+						background: 'var(--bg)',
 						border: '1px solid var(--border)',
-						marginBottom: '16px',
+						borderRadius: 12,
+						padding: 8,
+						marginBottom: 8,
+						display: 'flex',
+						alignItems: 'center',
+						gap: 8,
 					}}
 				>
-					<div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-						<span style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text)' }}>
-							{submission.score}
+					<span style={{ fontWeight: 800, color: 'var(--text)' }}>
+						{submission.score}
+					</span>
+					<span style={{ color: 'var(--text-muted)' }}>/ {submission.maxScore ?? 0}</span>
+					{pct != null && (
+						<span
+							style={{
+								marginLeft: 'auto',
+								color: pct >= 70 ? '#10b981' : '#ef4444',
+								fontWeight: 800,
+								fontSize: 12,
+							}}
+						>
+							{pct}%
 						</span>
-						<span style={{ color: 'var(--text-muted)' }}>
-							/ {submission.maxScore ?? 0}
-						</span>
-						{pct !== null && (
-							<span
-								style={{
-									marginLeft: 'auto',
-									color: pct >= 70 ? '#10b981' : '#ef4444',
-									fontWeight: 600,
-								}}
-							>
-								{pct}%
-							</span>
-						)}
-					</div>
+					)}
 				</div>
 			)}
-
-			<footer>
-				<div
-					style={{
-						display: 'flex',
-						gap: '12px',
-						flexWrap: 'wrap',
-						justifyContent: 'flex-end',
-					}}
-				>
-					{canContinue && !isContinuing && (
-						<button
-							onClick={onContinue}
-							style={{
-								padding: '10px 16px',
-								borderRadius: '8px',
-								border: 'none',
-								background: 'linear-gradient(135deg, #10b981, #059669)',
-								color: '#ffffff',
-								cursor: 'pointer',
-								fontWeight: 600,
-								fontSize: '14px',
-								flex: '1 1 120px',
-								display: 'flex',
-								alignItems: 'center',
-								justifyContent: 'center',
-								gap: '6px',
-							}}
-						>
-							▶️ Continue Exam
-						</button>
-					)}
-					{!canContinue && (
-						<button
-							disabled
-							style={{
-								padding: '10px 16px',
-								borderRadius: '8px',
-								border: '1px solid var(--border)',
-								background: 'var(--surface)',
-								color: 'var(--text-muted)',
-								cursor: 'not-allowed',
-								fontWeight: 600,
-								fontSize: '14px',
-								flex: '1 1 120px',
-								display: 'flex',
-								alignItems: 'center',
-								justifyContent: 'center',
-								gap: '6px',
-							}}
-						>
-							⏳ Waiting to Continue
-						</button>
-					)}
-					{hasScore && (
-						<button
-							onClick={onContinue}
-							style={{
-								padding: '10px 16px',
-								borderRadius: '8px',
-								border: 'none',
-								background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
-								color: '#ffffff',
-								cursor: 'pointer',
-								fontWeight: 600,
-								fontSize: '14px',
-								flex: '1 1 120px',
-								display: 'flex',
-								alignItems: 'center',
-								justifyContent: 'center',
-								gap: '6px',
-							}}
-						>
-							📊 View Results
-						</button>
-					)}
+			{['in-progress', 'started'].includes(submission.status) && (
+				<div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+					<button
+						onClick={() => onContinue(submission)}
+						disabled={isContinuing}
+						className="tap"
+						style={{
+							padding: '8px 12px',
+							borderRadius: 8,
+							border: 'none',
+							background: isContinuing
+								? '#9ca3af'
+								: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+							color: '#fff',
+							fontWeight: 800,
+							cursor: isContinuing ? 'not-allowed' : 'pointer',
+						}}
+					>
+						{isContinuing ? 'Opening…' : 'Continue'}
+					</button>
 				</div>
-			</footer>
+			)}
 		</article>
 	);
 };
 
 const StudentExams = () => {
 	const navigate = useNavigate();
-	const [submissions, setSubmissions] = React.useState([]);
-	const [searchCode, setSearchCode] = React.useState('');
-	const [foundExam, setFoundExam] = React.useState(null);
-	const [error, setError] = React.useState('');
-	const [message, setMessage] = React.useState('');
+	const { success, error: toastError } = useToast();
+
+	const CODE_LEN = 8;
+	const [code, setCode] = React.useState('');
 	const [searching, setSearching] = React.useState(false);
+	const [found, setFound] = React.useState(null);
+	const [submissions, setSubmissions] = React.useState([]);
+	const [errorBanner, setErrorBanner] = React.useState('');
+	const [continuingId, setContinuingId] = React.useState('');
 
-	const CODE_LENGTH = 8;
-
-	React.useEffect(() => {
-		const fetchData = async () => {
-			const result = await getMySubmissions();
-			setSubmissions(result);
-		};
-
-		fetchData();
+	const loadMine = React.useCallback(async () => {
+		try {
+			const list = await StudentSvc.safeApiCall(StudentSvc.getMySubmissions);
+			setSubmissions(Array.isArray(list) ? list : []);
+		} catch (e) {
+			setErrorBanner(e?.message || 'Failed to load your submissions');
+		}
 	}, []);
 
+	React.useEffect(() => {
+		loadMine();
+	}, [loadMine]);
+
 	const handleSearch = async e => {
-		e.preventDefault();
-		const cleaned = (searchCode || '').trim().toUpperCase();
-		if (!cleaned || cleaned.length !== CODE_LENGTH) {
-			setError(`Please enter a valid ${CODE_LENGTH}-character exam code.`);
+		e?.preventDefault?.();
+		setErrorBanner('');
+		const cleaned = (code || '').trim().toUpperCase();
+		if (!cleaned || cleaned.length !== CODE_LEN) {
+			setErrorBanner(`Enter a valid ${CODE_LEN}-character code`);
 			return;
 		}
-
-		setError('');
 		setSearching(true);
-
-		const result = await searchExamByCode(cleaned);
-
-		setSearching(false);
-
-		if (result?.length === 1) {
-			setFoundExam(result[0]);
-			setMessage('');
-		} else if (result?.length > 1) {
-			setFoundExam(null);
-			setMessage('Multiple exams found. Please contact support.');
-		} else {
-			setFoundExam(null);
-			setMessage('No exam found with this code.');
+		setFound(null);
+		try {
+			const exam = await StudentSvc.safeApiCall(StudentSvc.searchExamByCode, cleaned);
+			setFound(exam || null);
+			if (!exam) setErrorBanner('No exam found for this code');
+		} catch (e) {
+			setErrorBanner(e?.message || 'Search failed');
+		} finally {
+			setSearching(false);
 		}
 	};
 
-	const handleContinue = async submission => {
-		if (submission.status === 'in-progress' || submission.status === 'started') {
-			navigate(`/student/exam/${submission.examId}`);
+	const handleStart = async () => {
+		if (!found?.id) return;
+		try {
+			await StudentSvc.safeApiCall(StudentSvc.startExam, found.id);
+			success('Exam started');
+			navigate(`/student/take/${encodeURIComponent(found.id)}`);
+		} catch (e) {
+			setErrorBanner(e?.message || 'Unable to start exam');
+		}
+	};
+
+	const handleContinue = async sub => {
+		try {
+			setContinuingId(sub.id);
+			navigate(`/student/take/${encodeURIComponent(sub.examId)}`);
+		} finally {
+			setContinuingId('');
 		}
 	};
 
 	return (
-		<section style={{ maxWidth: 800, margin: '0 auto', padding: '24px' }}>
-			<h1
-				style={{
-					fontSize: '28px',
-					fontWeight: 800,
-					color: 'var(--text)',
-					marginBottom: '24px',
-				}}
-			>
-				My Exams
-			</h1>
-
-			<form
-				onSubmit={handleSearch}
-				style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}
-			>
-				<div style={{ flex: 1, minWidth: 260 }}>
-					<label
+		<div style={{ maxWidth: 1100, margin: '0 auto' }}>
+			<PageHeader
+				title="Student Exams"
+				subtitle="Search by code to join a live/scheduled exam. Continue where you left off."
+				breadcrumbs={[{ label: 'Home', to: '/student' }, { label: 'Exams' }]}
+				actions={[
+					<button
+						key="results"
+						onClick={() => navigate('/student/results')}
+						className="tap"
 						style={{
-							display: 'block',
-							marginBottom: 6,
-							fontWeight: 600,
-							color: 'var(--text)',
-						}}
-					>
-						Exam Search Code
-					</label>
-					<input
-						value={searchCode}
-						onChange={e =>
-							setSearchCode(
-								e.target.value
-									.toUpperCase()
-									.replace(/[^A-Z0-9]/g, '')
-									.slice(0, CODE_LENGTH),
-							)
-						}
-						placeholder={`Enter your ${CODE_LENGTH}-char exam code…`}
-						pattern={`^[A-Z0-9]{${CODE_LENGTH}}$`}
-						maxLength={CODE_LENGTH}
-						title={`Enter exactly ${CODE_LENGTH} characters: A–Z and 0–9`}
-						required
-						style={{
-							width: '100%',
-							padding: '12px 16px',
-							borderRadius: 12,
+							padding: '10px 14px',
+							borderRadius: 10,
 							border: '1px solid var(--border)',
 							background: 'var(--surface)',
 							color: 'var(--text)',
-							outline: 'none',
-							fontSize: '14px',
-							fontWeight: 500,
-						}}
-					/>
-				</div>
-				<button
-					type="submit"
-					disabled={searching}
-					style={{
-						padding: '12px 16px',
-						borderRadius: '8px',
-						border: 'none',
-						background: searching
-							? '#9ca3af'
-							: 'linear-gradient(135deg, #10b981, #059669)',
-						color: '#ffffff',
-						cursor: searching ? 'not-allowed' : 'pointer',
-						fontWeight: 600,
-						fontSize: '14px',
-						display: 'flex',
-						alignItems: 'center',
-						justifyContent: 'center',
-						gap: '6px',
-					}}
-				>
-					{searching ? '⏳ Searching...' : '🔍 Search Exam'}
-				</button>
-				<button
-					type="button"
-					onClick={() => {
-						setSearchCode('');
-						setFoundExam(null);
-						setMessage('');
-						setError('');
-					}}
-					disabled={searching}
-					style={{
-						padding: '12px 16px',
-						borderRadius: '8px',
-						border: '1px solid var(--border)',
-						background: 'var(--surface)',
-						color: 'var(--text)',
-						cursor: searching ? 'not-allowed' : 'pointer',
-						fontWeight: 600,
-						fontSize: '14px',
-					}}
-				>
-					✨ Clear
-				</button>
-			</form>
-
-			{error && (
-				<div
-					style={{
-						background: '#fee2e2',
-						color: '#b91c1c',
-						padding: '12px',
-						borderRadius: 8,
-						border: '1px solid #fca5a5',
-						marginTop: '16px',
-					}}
-				>
-					{error}
-				</div>
-			)}
-			{message && (
-				<div
-					style={{
-						background: '#d1fae5',
-						color: '#15803d',
-						padding: '12px',
-						borderRadius: 8,
-						border: '1px solid #6ee7b7',
-						marginTop: '16px',
-					}}
-				>
-					{message}
-				</div>
-			)}
-
-			{foundExam && (
-				<div
-					style={{
-						background: 'var(--surface)',
-						borderRadius: 12,
-						padding: '16px',
-						border: '1px solid var(--border)',
-						marginTop: '24px',
-					}}
-				>
-					<h3
-						style={{
-							margin: 0,
-							fontSize: '18px',
-							fontWeight: 700,
-							color: 'var(--text)',
-							marginBottom: '12px',
+							fontWeight: 800,
 						}}
 					>
-						Exam Details
-					</h3>
-					<div style={{ marginBottom: '12px', color: 'var(--text-muted)' }}>
-						<strong style={{ color: 'var(--text)' }}>Code:</strong> {foundExam.code}
-					</div>
-					<div style={{ marginBottom: '12px', color: 'var(--text-muted)' }}>
-						<strong style={{ color: 'var(--text)' }}>Title:</strong> {foundExam.title}
-					</div>
-					<div style={{ marginBottom: '12px', color: 'var(--text-muted)' }}>
-						<strong style={{ color: 'var(--text)' }}>Instructor:</strong>{' '}
-						{foundExam.instructor}
-					</div>
-					<div style={{ marginBottom: '12px', color: 'var(--text-muted)' }}>
-						<strong style={{ color: 'var(--text)' }}>Schedule:</strong>{' '}
-						{foundExam.schedule}
-					</div>
-					<div style={{ marginBottom: '16px', color: 'var(--text-muted)' }}>
-						<strong style={{ color: 'var(--text)' }}>Status:</strong>{' '}
-						<span
+						📊 My Results
+					</button>,
+				]}
+			/>
+
+			{errorBanner && (
+				<div style={{ marginBottom: 12 }}>
+					<Alert type="error" onClose={() => setErrorBanner('')}>
+						{errorBanner}
+					</Alert>
+				</div>
+			)}
+
+			<section
+				style={{
+					background: 'var(--surface)',
+					border: '1px solid var(--border)',
+					borderRadius: 16,
+					padding: 16,
+					marginBottom: 16,
+				}}
+			>
+				<form
+					onSubmit={handleSearch}
+					style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}
+				>
+					<div style={{ position: 'relative', flex: '1 1 320px' }}>
+						<label
+							htmlFor="exam-code"
 							style={{
-								color:
-									foundExam.status === 'completed'
-										? '#10b981'
-										: foundExam.status === 'in-progress'
-										? '#f59e0b'
-										: '#ef4444',
+								display: 'block',
+								marginBottom: 6,
+								fontWeight: 800,
+								color: 'var(--text)',
 							}}
 						>
-							{foundExam.status.replace('-', ' ')}
-						</span>
-					</div>
-
-					{foundExam.status === 'in-progress' && (
-						<button
-							onClick={() => handleContinue(foundExam)}
+							Exam share code
+						</label>
+						<input
+							id="exam-code"
+							value={code}
+							onChange={e =>
+								setCode(
+									e.target.value
+										.toUpperCase()
+										.replace(/[^A-Z0-9]/g, '')
+										.slice(0, CODE_LEN),
+								)
+							}
+							placeholder={`Enter ${CODE_LEN}-character code`}
+							pattern={`^[A-Z0-9]{${CODE_LEN}}$`}
+							maxLength={CODE_LEN}
+							required
 							style={{
-								padding: '12px 16px',
-								borderRadius: '8px',
-								border: 'none',
-								background: 'linear-gradient(135deg, #10b981, #059669)',
-								color: '#ffffff',
-								cursor: 'pointer',
-								fontWeight: 600,
-								fontSize: '14px',
 								width: '100%',
-								display: 'flex',
-								alignItems: 'center',
-								justifyContent: 'center',
-								gap: '6px',
+								padding: '12px 16px',
+								borderRadius: 12,
+								border: '1px solid var(--border)',
+								background: 'var(--bg)',
+								color: 'var(--text)',
+								fontWeight: 600,
 							}}
-						>
-							▶️ Continue Exam
-						</button>
-					)}
-				</div>
-			)}
-
-			{submissions.length === 0 && !searching && (
-				<div
-					style={{
-						background: 'var(--surface)',
-						borderRadius: 12,
-						padding: '16px',
-						border: '1px solid var(--border)',
-						marginTop: '24px',
-						textAlign: 'center',
-					}}
-				>
-					<p style={{ color: 'var(--text-muted)', marginBottom: '12px' }}>
-						No exams found. Take one of the following actions:
-					</p>
+						/>
+					</div>
 					<button
-						onClick={() => navigate('/student/exams/create')}
+						type="submit"
+						disabled={searching}
+						className="tap"
 						style={{
 							padding: '12px 16px',
-							borderRadius: '8px',
+							borderRadius: 10,
 							border: 'none',
-							background: 'linear-gradient(135deg, #2563eb, #3b82f6)',
-							color: '#ffffff',
-							cursor: 'pointer',
-							fontWeight: 600,
-							fontSize: '14px',
-							marginRight: '8px',
+							background: searching
+								? '#9ca3af'
+								: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+							color: '#fff',
+							fontWeight: 900,
+							cursor: searching ? 'not-allowed' : 'pointer',
 						}}
 					>
-						➕ Create New Exam
+						{searching ? 'Searching…' : '🔍 Search'}
 					</button>
 					<button
-						onClick={() => navigate('/student/exams/join')}
+						type="button"
+						onClick={() => {
+							setCode('');
+							setFound(null);
+							setErrorBanner('');
+						}}
+						className="tap"
 						style={{
 							padding: '12px 16px',
-							borderRadius: '8px',
-							border: 'none',
-							background: 'linear-gradient(135deg, #10b981, #059669)',
-							color: '#ffffff',
-							cursor: 'pointer',
-							fontWeight: 600,
-							fontSize: '14px',
-						}}
-					>
-						📚 Join Existing Exam
-					</button>
-				</div>
-			)}
-
-			{submissions.length > 0 && (
-				<div style={{ marginTop: '24px' }}>
-					<h2
-						style={{
-							fontSize: '22px',
-							fontWeight: 700,
+							borderRadius: 10,
+							border: '1px solid var(--border)',
+							background: 'var(--surface)',
 							color: 'var(--text)',
-							marginBottom: '16px',
+							fontWeight: 800,
 						}}
 					>
-						Previous Exams
-					</h2>
-					<div style={{ display: 'grid', gap: '16px' }}>
-						{submissions.map(submission => (
+						✨ Clear
+					</button>
+				</form>
+
+				{found && (
+					<div
+						style={{
+							marginTop: 12,
+							display: 'grid',
+							gap: 10,
+							borderTop: '1px solid var(--border)',
+							paddingTop: 12,
+						}}
+					>
+						<div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+							<strong style={{ fontSize: 18, color: 'var(--text)' }}>
+								{found.title}
+							</strong>
+							<span
+								style={{
+									marginLeft: 'auto',
+									color: 'var(--text-muted)',
+									fontWeight: 700,
+								}}
+							>
+								Duration: {found.duration} min
+							</span>
+						</div>
+						<p style={{ margin: 0, color: 'var(--text-muted)' }}>{found.description}</p>
+						<div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+							<button
+								onClick={handleStart}
+								className="tap"
+								style={{
+									padding: '10px 14px',
+									borderRadius: 10,
+									border: 'none',
+									background: 'linear-gradient(135deg, #10b981, #059669)',
+									color: '#fff',
+									fontWeight: 900,
+									cursor: 'pointer',
+								}}
+							>
+								🚀 Start exam
+							</button>
+						</div>
+					</div>
+				)}
+			</section>
+
+			<section>
+				<h2 style={{ margin: '0 0 8px 0', color: 'var(--text)', fontSize: 18 }}>
+					Previous
+				</h2>
+				{submissions.length === 0 ? (
+					<div
+						style={{
+							padding: '40px 16px',
+							textAlign: 'center',
+							background: 'var(--surface)',
+							borderRadius: 16,
+							border: '2px dashed var(--border)',
+						}}
+					>
+						<div style={{ fontSize: 36, marginBottom: 10 }}>📝</div>
+						<div style={{ color: 'var(--text-muted)' }}>
+							No submissions yet. Join an exam using a share code.
+						</div>
+					</div>
+				) : (
+					<div
+						style={{
+							display: 'grid',
+							gap: 12,
+							gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+						}}
+					>
+						{submissions.map(s => (
 							<PreviousExamCard
-								key={submission.id}
-								submission={submission}
-								onContinue={() => handleContinue(submission)}
-								isContinuing={false}
+								key={s.id}
+								submission={s}
+								onContinue={handleContinue}
+								isContinuing={s.id === continuingId}
 							/>
 						))}
 					</div>
-				</div>
-			)}
-		</section>
+				)}
+			</section>
+		</div>
 	);
 };
 
