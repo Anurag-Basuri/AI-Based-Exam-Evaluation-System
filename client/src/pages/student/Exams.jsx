@@ -159,9 +159,20 @@ const StudentExams = () => {
 	const handleStart = async () => {
 		if (!found?.id) return;
 		try {
-			await StudentSvc.safeApiCall(StudentSvc.startExam, found.id);
+			const s = await StudentSvc.safeApiCall(StudentSvc.startExam, found.id);
+			const sid = s?.id || s?._id;
+			if (!sid) {
+				setErrorBanner('Could not start exam. Try again.');
+				return;
+			}
+			// If already submitted/evaluated on server, send to results
+			if (String(s.status || '').toLowerCase() !== 'in-progress') {
+				success('You have already finished this exam');
+				navigate('/student/results');
+				return;
+			}
 			success('Exam started');
-			navigate(`/student/take/${encodeURIComponent(found.id)}`);
+			navigate(`/student/take/${encodeURIComponent(sid)}`);
 		} catch (e) {
 			setErrorBanner(e?.message || 'Unable to start exam');
 		}
@@ -170,7 +181,8 @@ const StudentExams = () => {
 	const handleContinue = async sub => {
 		try {
 			setContinuingId(sub.id);
-			navigate(`/student/take/${encodeURIComponent(sub.examId)}`);
+			// Use submissionId, not examId
+			navigate(`/student/take/${encodeURIComponent(sub.id)}`);
 		} finally {
 			setContinuingId('');
 		}
