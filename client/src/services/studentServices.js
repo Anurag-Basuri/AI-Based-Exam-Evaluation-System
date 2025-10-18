@@ -175,8 +175,8 @@ const normalizeSubmission = s => ({
 			? s.answers.reduce((acc, ans) => acc + (ans?.question?.max_marks || 0), 0)
 			: (s.totalMax ?? 0)),
 	status: s.status ?? 'pending',
-	startedAt: s.startedAt ? new Date(s.startedAt).toLocaleString() : '',
-	submittedAt: s.submittedAt ? new Date(s.submittedAt).toLocaleString() : '',
+	startedAt: s.startedAt ? new Date(s.startedAt).toISOString() : '',
+	submittedAt: s.submittedAt ? new Date(s.submittedAt).toISOString() : '',
 });
 
 // ---------- Student: Exams ----------
@@ -206,7 +206,7 @@ export const startSubmission = async (examId) => {
 	const payload = { examId };
 	const res = await tryPost(EP.submissionStart(examId), payload);
 	const data = res?.data?.data ?? res?.data ?? {};
-	return data;
+	return normalizeSubmission(data);
 };
 
 // Alias for UI import
