@@ -199,18 +199,21 @@ export const getExamById = async examId => {
 export const getMySubmissions = async (params = {}) => {
 	const res = await tryGet(EP.submissionsMine, { params });
 	const list = res?.data?.data || res?.data || [];
-	return Array.isArray(list) ? list.map(normalizeSubmission) : [];
+	return Array.isArray(list) ? list : [];
 };
 
-export const startSubmission = async examId => {
+export const startSubmission = async (examId) => {
 	const payload = { examId };
 	const res = await tryPost(EP.submissionStart(examId), payload);
 	const data = res?.data?.data ?? res?.data ?? {};
-	return normalizeSubmission(data);
+	return data;
 };
 
-// Add this alias to match UI imports
+// Alias for UI import
 export const startExam = async (examId) => startSubmission(examId);
+
+// Search by code (8-char) - removed duplicate declaration to avoid redeclaration error
+// Using the earlier normalized implementation defined above.
 
 // Preferred server-aligned sync: by examId
 export const syncSubmissionAnswers = async (examId, answers = []) => {
