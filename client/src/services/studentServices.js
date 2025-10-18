@@ -185,9 +185,16 @@ export const searchExamByCode = async code => {
 	const cleaned = String(code || '')
 		.trim()
 		.toUpperCase();
-	const res = await tryGet([() => EP.examSearch(cleaned)]);
-	const data = res?.data?.data ?? res?.data ?? {};
-	return normalizeExam(data);
+	try {
+		const res = await tryGet([() => EP.examSearch(cleaned)]);
+		const data = res?.data?.data ?? res?.data ?? null;
+		return data ? normalizeExam(data) : null;
+	} catch (e) {
+		// Return null for 404, rethrow others
+		const status = e?.response?.status ?? e?.status ?? 0;
+		if (status === 404) return null;
+		throw e;
+	}
 };
 
 export const getExamById = async examId => {
@@ -317,9 +324,9 @@ export const getMySubmissionsForIssues = async () => {
 
 // Ensure cookies
 try {
-	if (apiClient?.defaults) {
-		apiClient.defaults.withCredentials = true;
-	}
+    if (apiClient?.defaults) {
+        apiClient.defaults.withCredentials = true;
+    }
 } catch {
-	// noop
+    // noop
 }
