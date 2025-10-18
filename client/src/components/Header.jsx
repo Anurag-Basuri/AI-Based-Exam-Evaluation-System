@@ -42,6 +42,7 @@ const Header = ({ transparent = false }) => {
 		};
 	}, []);
 
+	// Close dropdown on outside click or Escape
 	useEffect(() => {
 		if (typeof document === 'undefined') return;
 		const onDown = e => {
@@ -61,34 +62,49 @@ const Header = ({ transparent = false }) => {
 		setShowUserDropdown(false);
 		try {
 			navigate('/');
-		} catch {}
+		} catch (e) {
+			console.error('Failed to navigate home', e);
+		}
 	};
 
 	const goToLogin = () => {
 		try {
 			localStorage.setItem('preferredRole', 'student');
-		} catch {}
+		} catch (e) {
+			console.error('Failed to persist preferred role', e);
+		}
 		try {
 			navigate('/auth?mode=login&role=student');
-		} catch {}
+		} catch (e) {
+			console.error('Failed to navigate to login', e);
+		}
 	};
+
 	const goToRegister = () => {
 		try {
 			localStorage.setItem('preferredRole', 'student');
-		} catch {}
+		} catch (e) {
+			console.error('Failed to persist preferred role', e);
+		}
 		try {
 			navigate('/auth?mode=register&role=student');
-		} catch {}
+		} catch (e) {
+			console.error('Failed to navigate to register', e);
+		}
 	};
 
-	const handleLogout = async () => { 
+	const handleLogout = async () => {
 		setShowUserDropdown(false);
 		try {
 			role === 'teacher' ? await logoutTeacher() : await logoutStudent();
-		} catch {}
+		} catch (e) {
+			console.error('Logout failed', e);
+		}
 		try {
 			navigate('/', { replace: true });
-		} catch {}
+		} catch (e) {
+			console.error('Post-logout navigation failed', e);
+		}
 	};
 
 	const displayName = user?.username || 'User';
