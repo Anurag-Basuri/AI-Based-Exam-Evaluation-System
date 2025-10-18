@@ -264,16 +264,43 @@ const updateExam = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, updatedExam, 'Exam updated successfully');
 });
 
-// Delete an exam
+// Delete an exam (owner-only, not when live or scheduled)
 const deleteExam = asyncHandler(async (req, res) => {
 	const examId = req.params.id;
+	const teacherId = req.teacher?._id || req.user?.id;
+
 	if (!examId || !examId.match(/^[a-f\d]{24}$/i)) {
 		throw ApiError.BadRequest('Invalid exam ID');
 	}
-	const exam = await Exam.findByIdAndDelete(examId);
+
+	const exam = await Exam.findById(examId);
 	if (!exam) throw ApiError.NotFound('Exam not found');
+
+	// Ownership
+	assertOwner(exam, teacherId);
+
+	// Disallow deletion for live or scheduled exams
+	const now = new Date();
+	const scheduled =
+		String(exam.status).toLowerCase() === 'active' &&
+		exam.startTime &&
+		now < new Date(exam.startTime);
+	const live =
+		String(exam.status).toLowerCase() === 'active' &&
+		exam.startTime &&
+		exam.endTime &&
+		now >= new Date(exam.startTime) &&
+		now <= new Date(exam.endTime);
+
+	if (scheduled || live) {
+		throw ApiError.Forbidden('Cannot delete a live or scheduled exam. End/cancel it first.');
+	}
+
+	// Safe to delete (draft, completed, or cancelled)
+	await Exam.findByIdAndDelete(examId);
 	await Question.updateMany({ sourceExam: examId }, { $unset: { sourceExam: '' } });
-	return ApiResponse.success(res, { message: 'Exam deleted successfully' });
+
+	return ApiResponse.success(res, { success: true }, 'Exam deleted successfully');
 });
 
 // Search exam by searchId/code (student flow)
@@ -538,7 +565,7 @@ const isLive = exam =>
 	new Date() >= new Date(exam.startTime) &&
 	new Date() <= new Date(exam.endTime);
 
-// NEW: End exam now (only if live)
+// End exam now (only if live)
 const endExamNow = asyncHandler(async (req, res) => {
 	const examId = req.params.id;
 	const teacherId = req.teacher?._id || req.user?.id;
@@ -559,7 +586,7 @@ const endExamNow = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, exam, 'Exam ended');
 });
 
-// NEW: Cancel exam (only if scheduled; keeps as record but unusable)
+// Cancel exam (only if scheduled; keeps as record but unusable)
 const cancelExam = asyncHandler(async (req, res) => {
 	const examId = req.params.id;
 	const teacherId = req.teacher?._id || req.user?.id;
@@ -579,7 +606,7 @@ const cancelExam = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, exam, 'Exam cancelled');
 });
 
-// NEW: Extend end time (allow on scheduled or live)
+// Extend end time (allow on scheduled or live)
 const extendExam = asyncHandler(async (req, res) => {
 	const examId = req.params.id;
 	const { minutes, endTime } = req.body;
@@ -617,7 +644,7 @@ const extendExam = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, exam, 'Exam end time extended');
 });
 
-// NEW: Regenerate share/search code (pre-start only)
+// Regenerate share/search code (pre-start only)
 const regenerateExamCode = asyncHandler(async (req, res) => {
 	const examId = req.params.id;
 	const teacherId = req.teacher?._id || req.user?.id;
