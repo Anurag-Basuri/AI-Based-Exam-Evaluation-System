@@ -232,8 +232,8 @@ const StudentExams = () => {
 	const handleSearch = async e => {
 		e.preventDefault();
 		const cleaned = (searchCode || '').trim().toUpperCase();
-		if (!cleaned || cleaned.length !== 8) {
-			setError('Please enter a valid 8-character exam code.');
+		if (!cleaned || cleaned.length !== 6) {
+			setError('Please enter a valid 6-character exam code.');
 			return;
 		}
 
@@ -350,13 +350,13 @@ const StudentExams = () => {
 									e.target.value
 										.toUpperCase()
 										.replace(/[^A-Z0-9]/g, '')
-										.slice(0, 8),
+										.slice(0, 6),
 								)
 							}
-							placeholder="Enter your 8‑char exam code (e.g., 7GKD2A8Q)…"
-							pattern="^[A-Z0-9]{8}$"
-							maxLength={8}
-							title="Enter exactly 8 characters: A–Z and 0–9"
+							placeholder="Enter your 6‑char exam code (e.g., 7GKD2Q)…"
+							pattern="^[A-Z0-9]{6}$"
+							maxLength={6}
+							title="Enter exactly 6 characters: A–Z and 0–9"
 							required
 							style={{
 								width: '100%',

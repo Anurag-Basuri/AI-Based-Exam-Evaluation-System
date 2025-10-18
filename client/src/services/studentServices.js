@@ -209,6 +209,9 @@ export const startSubmission = async examId => {
 	return normalizeSubmission(data);
 };
 
+// Add this alias to match UI imports
+export const startExam = async (examId) => startSubmission(examId);
+
 // Preferred server-aligned sync: by examId
 export const syncSubmissionAnswers = async (examId, answers = []) => {
 	const res = await tryPatch(EP.submissionSync, { examId, answers });
