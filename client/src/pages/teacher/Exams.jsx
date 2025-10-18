@@ -2,6 +2,8 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as TeacherSvc from '../../services/teacherServices.js';
 import { apiClient } from '../../services/api.js';
+import Alert from '../../components/ui/Alert.jsx';
+import { useToast } from '../../components/ui/Toaster.jsx';
 
 const statusConfig = {
 	live: {
@@ -423,16 +425,18 @@ const TeacherExams = () => {
 	const [sortBy, setSortBy] = React.useState('start'); // start | title
 	const [message, setMessage] = React.useState('');
 	const [publishingIds, setPublishingIds] = React.useState(new Set());
+	const [errorBanner, setErrorBanner] = React.useState('');
+	const { success, error: toastError } = useToast();
 	const navigate = useNavigate();
 
 	const loadExams = React.useCallback(async () => {
 		setLoading(true);
-		setError('');
+		setErrorBanner('');
 		try {
 			const data = await TeacherSvc.safeApiCall(TeacherSvc.getTeacherExams);
 			setExams(Array.isArray(data) ? data : []);
 		} catch (e) {
-			setError(e?.message || 'Failed to load exams');
+			setErrorBanner(e?.message || 'Failed to load exams');
 		} finally {
 			setLoading(false);
 		}
@@ -477,7 +481,7 @@ const TeacherExams = () => {
 
 	const handlePublish = async exam => {
 		if (!exam?.questions?.length) {
-			setMessage('❌ Add at least one question before publishing this exam.');
+			setErrorBanner('Add at least one question before publishing this exam.');
 			return;
 		}
 		const now = Date.now();
@@ -496,9 +500,9 @@ const TeacherExams = () => {
 			const updated = await TeacherSvc.safeApiCall(TeacherSvc.publishTeacherExam, exam.id);
 			// Merge back into list
 			setExams(prev => prev.map(ex => (ex.id === exam.id ? updated : ex)));
-			setMessage('✅ Exam published successfully!');
+			success('Exam published successfully');
 		} catch (e) {
-			setMessage(`❌ ${e.message || 'Failed to publish exam'}`);
+			setErrorBanner(e?.message || 'Failed to publish exam');
 		} finally {
 			setPublishingIds(prev => {
 				const next = new Set(prev);
@@ -512,9 +516,9 @@ const TeacherExams = () => {
 		try {
 			const copy = await TeacherSvc.safeApiCall(TeacherSvc.duplicateTeacherExam, exam.id);
 			setExams(prev => [copy, ...prev]);
-			setMessage(`✅ Cloned "${exam.title}" → "${copy.title}"`);
+			success(`Cloned "${exam.title}"`);
 		} catch (e) {
-			setMessage(`❌ ${e?.message || 'Failed to clone exam'}`);
+			setErrorBanner(e?.message || 'Failed to clone exam');
 		}
 	};
 
@@ -527,9 +531,9 @@ const TeacherExams = () => {
 		if (!code) return;
 		try {
 			await navigator.clipboard.writeText(code);
-			setMessage('✅ Share code copied to clipboard');
+			success('Share code copied');
 		} catch {
-			setMessage('❌ Failed to copy code');
+			setErrorBanner('Failed to copy code');
 		}
 	};
 
@@ -541,25 +545,23 @@ const TeacherExams = () => {
 				(id => apiClient.post(`/api/exams/${encodeURIComponent(id)}/end-now`, {}));
 			await TeacherSvc.safeApiCall(fn, exam.id);
 			await loadExams();
-			setMessage('✅ Exam ended');
+			success('Exam ended');
 		} catch (e) {
-			setMessage(`❌ ${e?.message || 'Failed to end exam'}`);
+			setErrorBanner(e?.message || 'Failed to end exam');
 		}
 	};
 
 	const handleCancel = async exam => {
-		if (!window.confirm('Cancel this scheduled exam? Students will not be able to join.'))
-			return;
+		if (!window.confirm('Cancel this scheduled exam? Students will not be able to join.')) return;
 		try {
-			// Fallback to API call if the named export isn’t present (prevents import-time crash)
 			const fn =
 				TeacherSvc.cancelExam ??
 				(id => apiClient.post(`/api/exams/${encodeURIComponent(id)}/cancel`, {}));
 			await TeacherSvc.safeApiCall(fn, exam.id);
 			await loadExams();
-			setMessage('✅ Exam cancelled');
+			success('Exam cancelled');
 		} catch (e) {
-			setMessage(`❌ ${e?.message || 'Failed to cancel exam'}`);
+			setErrorBanner(e?.message || 'Failed to cancel exam');
 		}
 	};
 
@@ -571,24 +573,23 @@ const TeacherExams = () => {
 					apiClient.patch(`/api/exams/${encodeURIComponent(id)}/extend`, body));
 			await TeacherSvc.safeApiCall(fn, exam.id, { minutes: 15 });
 			await loadExams();
-			setMessage('✅ Extended by 15 minutes');
+			success('Extended by 15 minutes');
 		} catch (e) {
-			setMessage(`❌ ${e?.message || 'Failed to extend exam'}`);
+			setErrorBanner(e?.message || 'Failed to extend exam');
 		}
 	};
 
 	const handleRegenerate = async exam => {
-		if (!window.confirm('Regenerate the share code? Existing code will no longer work.'))
-			return;
+		if (!window.confirm('Regenerate the share code? Existing code will no longer work.')) return;
 		try {
 			const fn =
 				TeacherSvc.regenerateExamShareCode ??
 				(id => apiClient.post(`/api/exams/${encodeURIComponent(id)}/regenerate-code`, {}));
 			await TeacherSvc.safeApiCall(fn, exam.id);
 			await loadExams();
-			setMessage('✅ New share code generated');
+			success('New share code generated');
 		} catch (e) {
-			setMessage(`❌ ${e?.message || 'Failed to regenerate code'}`);
+			setErrorBanner(e?.message || 'Failed to regenerate code');
 		}
 	};
 
@@ -676,20 +677,11 @@ const TeacherExams = () => {
 				</div>
 			</header>
 
-			{message && (
-				<div
-					role="status"
-					style={{
-						marginBottom: 12,
-						padding: '10px 12px',
-						borderRadius: 12,
-						border: '1px solid var(--border)',
-						background: 'var(--surface)',
-						color: 'var(--text)',
-						fontWeight: 700,
-					}}
-				>
-					{message}
+			{errorBanner && (
+				<div style={{ marginBottom: 12 }}>
+					<Alert type="error" onClose={() => setErrorBanner('')}>
+						{errorBanner}
+					</Alert>
 				</div>
 			)}
 
@@ -770,16 +762,34 @@ const TeacherExams = () => {
 
 			{/* Loading/Error/Empty States */}
 			{loading && (
-				<div style={{ color: 'var(--text-muted)', textAlign: 'center' }}>
-					Loading exams...
-				</div>
+				<div
+          aria-busy="true"
+          style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))' }}
+                >
+                    {Array.from({ length: 4 }).map((_, i) => (
+                        <div
+                            key={i}
+                            style={{
+                                height: 180,
+                                borderRadius: 16,
+                                border: '1px solid var(--border)',
+                                background:
+                                    'linear-gradient(90deg, var(--bg) 25%, color-mix(in srgb, var(--bg) 80%, #fff) 37%, var(--bg) 63%)',
+                                backgroundSize: '400% 100%',
+                                animation: 'shimmer 1.1s ease-in-out infinite',
+                            }}
+                        />
+                    ))}
+
+          <style>{`@keyframes shimmer{0%{background-position:100% 0}100%{background-position:-100% 0}}`}</style>
+                </div>
 			)}
 			{error && (
 				<div style={{ color: '#ef4444', textAlign: 'center', fontWeight: 700 }}>
 					Error: {error}
 				</div>
 			)}
-			{!loading && !error && filteredExams.length === 0 && (
+			{!loading && !errorBanner && filteredExams.length === 0 && (
 				<div
 					style={{
 						padding: '60px 20px',
@@ -792,13 +802,13 @@ const TeacherExams = () => {
 					<div style={{ fontSize: '48px', marginBottom: 16 }}>📝</div>
 					<h3 style={{ margin: '0 0 8px 0', color: 'var(--text)' }}>No matching exams</h3>
 					<p style={{ margin: 0, color: 'var(--text-muted)' }}>
-						Try adjusting your search or filters, or create a new exam.
+						Adjust your search or filters, or create a new exam.
 					</p>
 				</div>
 			)}
 
 			{/* Exams Grid */}
-			{!loading && !error && filteredExams.length > 0 && (
+			{!loading && !errorBanner && filteredExams.length > 0 && (
 				<div
 					style={{
 						display: 'grid',

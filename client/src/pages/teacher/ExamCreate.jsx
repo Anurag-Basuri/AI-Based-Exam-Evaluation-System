@@ -8,6 +8,8 @@ import {
 	getTeacherQuestions,
 	createTeacherQuestion,
 } from '../../services/teacherServices.js';
+import Alert from '../../components/ui/Alert.jsx';
+import { useToast } from '../../components/ui/Toaster.jsx';
 
 const Stepper = ({ step }) => {
 	const dot = (n, label) => {
@@ -140,6 +142,8 @@ const ExamCreate = () => {
 	const [step, setStep] = React.useState(1);
 	const [saving, setSaving] = React.useState(false);
 	const [message, setMessage] = React.useState('');
+	const [errorBanner, setErrorBanner] = React.useState('');
+	const { success, error: toastError } = useToast();
 
 	// Step 1: exam details
 	const [details, setDetails] = React.useState({
@@ -170,6 +174,7 @@ const ExamCreate = () => {
 			setQuestions(Array.isArray(list) ? list : []);
 		} catch (e) {
 			setQError(e?.message || 'Failed to load your questions');
+			setErrorBanner(e?.message || 'Failed to load your questions');
 		} finally {
 			setLoadingQ(false);
 		}
@@ -250,20 +255,21 @@ const ExamCreate = () => {
 				if (created?.id) next.add(created.id);
 				return next;
 			});
-			setShowCreateQuestion(false);
-			setMessage('✅ Question created and selected');
+			success('Question created and selected');
 		} catch (e) {
-			setMessage(`❌ ${e?.message || 'Failed to create question'}`);
+			setErrorBanner(e?.message || 'Failed to create question');
+		} finally {
+			setShowCreateQuestion(false);
 		}
 	};
 
 	const onSubmitExam = async (redirectToList = true) => {
 		if (!validateDetails()) {
-			setMessage('❌ Please fix highlighted fields');
+			setErrorBanner('Please fix highlighted fields');
 			return;
 		}
 		setSaving(true);
-		setMessage('');
+		setErrorBanner('');
 		try {
 			const payload = {
 				title: details.title.trim(),
@@ -274,7 +280,7 @@ const ExamCreate = () => {
 				questionIds: Array.from(selectedIds),
 			};
 			await safeApiCall(createTeacherExam, payload);
-			setMessage('✅ Exam created successfully');
+			success('Exam created successfully');
 			if (redirectToList) {
 				setTimeout(() => navigate('/teacher/exams'), 400);
 			} else {
@@ -289,7 +295,7 @@ const ExamCreate = () => {
 				setSelectedIds(new Set());
 			}
 		} catch (e) {
-			setMessage(`❌ ${e?.message || 'Failed to create exam'}`);
+			setErrorBanner(e?.message || 'Failed to create exam');
 		} finally {
 			setSaving(false);
 		}
@@ -308,19 +314,11 @@ const ExamCreate = () => {
 
 			<Stepper step={step} />
 
-			{message && (
-				<div
-					style={{
-						marginBottom: 16,
-						padding: '12px 14px',
-						borderRadius: 12,
-						border: '1px solid var(--border)',
-						background: 'var(--surface)',
-						color: 'var(--text)',
-						fontWeight: 600,
-					}}
-				>
-					{message}
+			{errorBanner && (
+				<div style={{ marginBottom: 12 }}>
+					<Alert type="error" onClose={() => setErrorBanner('')}>
+						{errorBanner}
+					</Alert>
 				</div>
 			)}
 
