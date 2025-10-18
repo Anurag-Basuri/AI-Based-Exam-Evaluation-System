@@ -80,6 +80,20 @@ const tryPut = async (urls, body, config) => {
 	throw parseAxiosError(lastErr);
 };
 
+// ADD: tryDelete helper (same retry semantics)
+const tryDelete = async (urls, config) => {
+	let lastErr;
+	for (const url of Array.isArray(urls) ? urls : [urls]) {
+		try {
+			const u = typeof url === 'function' ? url() : url;
+			return await apiClient.delete(u, config);
+		} catch (e) {
+			lastErr = e;
+		}
+	}
+	throw parseAxiosError(lastErr);
+};
+
 // ---------- Endpoints (server-aligned) ----------
 const EP = {
 	// Exams
@@ -88,7 +102,8 @@ const EP = {
 	examsMine: ['/api/exams/mine'],
 	examById: id => `/api/exams/${encodeURIComponent(id)}`,
 	examUpdate: id => [`/api/exams/${encodeURIComponent(id)}/update`],
-	examDelete: id => [`/api/exams/${encodeURIComponent(id)}`],
+	// FIX: delete endpoints must be strings (axios.delete expects a single URL)
+	examDelete: id => `/api/exams/${encodeURIComponent(id)}`,
 	examAddQuestions: id => [`/api/exams/${encodeURIComponent(id)}/questions`],
 	examRemoveQuestions: id => [`/api/exams/${encodeURIComponent(id)}/questions/remove`],
 	examPublish: id => [`/api/exams/${encodeURIComponent(id)}/publish`],
@@ -120,7 +135,8 @@ const EP = {
 	questionsMine: ['/api/questions/mine'],
 	questionById: id => `/api/questions/${encodeURIComponent(id)}`,
 	questionUpdate: id => [`/api/questions/${encodeURIComponent(id)}/update`],
-	questionDelete: id => [`/api/questions/${encodeURIComponent(id)}`],
+	// FIX: string for delete
+	questionDelete: id => `/api/questions/${encodeURIComponent(id)}`,
 };
 
 // ---------- Normalizers ----------
@@ -320,8 +336,12 @@ export const duplicateTeacherExam = async examId => {
 };
 
 export const deleteExam = async examId => {
-	const res = await safe(apiClient.delete(EP.examDelete(examId)));
-	const ok = (res?.data?.success ?? res?.status === 200) ? true : true;
+	const res = await tryDelete(EP.examDelete(examId));
+	const ok = !!(
+		res?.data?.success ??
+		res?.data?.data?.success ??
+		(res?.status >= 200 && res?.status < 300)
+	);
 	return { success: ok };
 };
 
@@ -351,8 +371,13 @@ export const updateTeacherQuestion = async (id, payload) => {
 };
 
 export const deleteTeacherQuestion = async id => {
-	const res = await safe(apiClient.delete(EP.questionDelete(id)));
-	return { success: !!(res?.data?.success ?? true) };
+	const res = await tryDelete(EP.questionDelete(id));
+	const ok = !!(
+		res?.data?.success ??
+		res?.data?.data?.success ??
+		(res?.status >= 200 && res?.status < 300)
+	);
+	return { success: ok };
 };
 
 // ---------- Submissions (Teacher) ----------
