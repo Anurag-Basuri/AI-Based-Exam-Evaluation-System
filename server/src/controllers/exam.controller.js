@@ -658,19 +658,21 @@ const regenerateExamCode = asyncHandler(async (req, res) => {
 		throw ApiError.Forbidden('Can only regenerate code for draft or scheduled exams');
 	}
 
-	// Generate unique 6-char uppercase code
-	const gen = () =>
+	// FIX: Generate unique 8-char uppercase code to match student flow
+	const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // omit confusing chars: I,O,0,1
+	const gen = (len = 8) =>
 		Array.from(
-			{ length: 6 },
-			() => 'ABCDEFGHJKLMNPQRSTUVWXY23456789'[Math.floor(Math.random() * 32)],
+			{ length: len },
+			() => alphabet[Math.floor(Math.random() * alphabet.length)],
 		).join('');
-	let code = gen();
-	// ensure unique
-	for (let i = 0; i < 5; i++) {
+
+	let code = gen(8);
+	for (let i = 0; i < 8; i++) {
 		const exists = await Exam.findOne({ searchId: code }).select('_id').lean();
 		if (!exists) break;
-		code = gen();
+		code = gen(8);
 	}
+
 	exam.searchId = code;
 	await exam.save();
 
