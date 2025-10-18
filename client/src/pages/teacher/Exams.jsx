@@ -552,7 +552,8 @@ const TeacherExams = () => {
 	};
 
 	const handleCancel = async exam => {
-		if (!window.confirm('Cancel this scheduled exam? Students will not be able to join.')) return;
+		if (!window.confirm('Cancel this scheduled exam? Students will not be able to join.'))
+			return;
 		try {
 			const fn =
 				TeacherSvc.cancelExam ??
@@ -580,7 +581,8 @@ const TeacherExams = () => {
 	};
 
 	const handleRegenerate = async exam => {
-		if (!window.confirm('Regenerate the share code? Existing code will no longer work.')) return;
+		if (!window.confirm('Regenerate the share code? Existing code will no longer work.'))
+			return;
 		try {
 			const fn =
 				TeacherSvc.regenerateExamShareCode ??
@@ -763,26 +765,30 @@ const TeacherExams = () => {
 			{/* Loading/Error/Empty States */}
 			{loading && (
 				<div
-          aria-busy="true"
-          style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))' }}
-                >
-                    {Array.from({ length: 4 }).map((_, i) => (
-                        <div
-                            key={i}
-                            style={{
-                                height: 180,
-                                borderRadius: 16,
-                                border: '1px solid var(--border)',
-                                background:
-                                    'linear-gradient(90deg, var(--bg) 25%, color-mix(in srgb, var(--bg) 80%, #fff) 37%, var(--bg) 63%)',
-                                backgroundSize: '400% 100%',
-                                animation: 'shimmer 1.1s ease-in-out infinite',
-                            }}
-                        />
-                    ))}
+					aria-busy="true"
+					style={{
+						display: 'grid',
+						gap: 12,
+						gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))',
+					}}
+				>
+					{Array.from({ length: 4 }).map((_, i) => (
+						<div
+							key={i}
+							style={{
+								height: 180,
+								borderRadius: 16,
+								border: '1px solid var(--border)',
+								background:
+									'linear-gradient(90deg, var(--bg) 25%, color-mix(in srgb, var(--bg) 80%, #fff) 37%, var(--bg) 63%)',
+								backgroundSize: '400% 100%',
+								animation: 'shimmer 1.1s ease-in-out infinite',
+							}}
+						/>
+					))}
 
-          <style>{`@keyframes shimmer{0%{background-position:100% 0}100%{background-position:-100% 0}}`}</style>
-                </div>
+					<style>{`@keyframes shimmer{0%{background-position:100% 0}100%{background-position:-100% 0}}`}</style>
+				</div>
 			)}
 			{error && (
 				<div style={{ color: '#ef4444', textAlign: 'center', fontWeight: 700 }}>
