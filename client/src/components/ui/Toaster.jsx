@@ -1,5 +1,6 @@
 import React from 'react';
-import { ToastCtx } from './toast-context';
+
+const ToastCtx = React.createContext(null);
 
 let idSeq = 1;
 const defaultTimeout = { success: 3000, info: 3500, error: 5000 };
@@ -39,8 +40,9 @@ export function ToastProvider({ children }) {
 }
 
 export function useToast() {
-// useToast hook moved to ./toast-context to comply with Fast Refresh rules.
-	return React.useContext(ToastCtx);
+	const ctx = React.useContext(ToastCtx);
+	if (!ctx) throw new Error('useToast must be used inside <ToastProvider>');
+	return ctx;
 }
 
 function ToastViewport({ toasts, onClose }) {
