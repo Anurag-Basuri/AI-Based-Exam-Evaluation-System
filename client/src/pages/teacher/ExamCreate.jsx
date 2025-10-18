@@ -10,6 +10,7 @@ import {
 } from '../../services/teacherServices.js';
 import Alert from '../../components/ui/Alert.jsx';
 import { useToast } from '../../components/ui/Toaster.jsx';
+import PageHeader from '../../components/ui/PageHeader.jsx';
 
 const Stepper = ({ step }) => {
 	const dot = (n, label) => {
@@ -303,14 +304,28 @@ const ExamCreate = () => {
 
 	return (
 		<div style={{ maxWidth: 1200, margin: '0 auto' }}>
-			<header style={{ marginBottom: 16 }}>
-				<h1 style={{ margin: 0, color: 'var(--text)', fontWeight: 800, fontSize: 26 }}>
-					Create Exam
-				</h1>
-				<p style={{ margin: '6px 0 0 0', color: 'var(--text-muted)' }}>
-					Setup details, select or create questions, then review and create.
-				</p>
-			</header>
+			<PageHeader
+				title="Create Exam"
+				subtitle="Setup details, select or create questions, then review and create."
+				breadcrumbs={[{ label: 'Home', to: '/teacher' }, { label: 'Exams', to: '/teacher/exams' }, { label: 'Create' }]}
+				actions={[
+					<button
+						key="cancel"
+						onClick={() => navigate('/teacher/exams')}
+						className="tap"
+						style={{
+							padding: '10px 16px',
+							borderRadius: 10,
+							border: '1px solid var(--border)',
+							background: 'var(--surface)',
+							color: 'var(--text)',
+							fontWeight: 800,
+						}}
+					>
+						← Cancel
+					</button>,
+				]}
+			/>
 
 			<Stepper step={step} />
 
