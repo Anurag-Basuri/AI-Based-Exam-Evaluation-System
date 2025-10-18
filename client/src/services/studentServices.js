@@ -163,6 +163,7 @@ const normalizeSubmission = s => ({
 	id: String(s._id ?? s.id ?? ''),
 	examId: String(s.exam?._id ?? s.examId ?? s.exam ?? ''),
 	examTitle: s.exam?.title ?? s.examTitle ?? 'Exam',
+	duration: Number(s.duration ?? s.exam?.duration ?? 0),
 	answers: Array.isArray(s.answers) ? s.answers : [],
 	score:
 		s.totalScore ??
@@ -202,7 +203,7 @@ export const getMySubmissions = async (params = {}) => {
 	return Array.isArray(list) ? list : [];
 };
 
-export const startSubmission = async (examId) => {
+export const startSubmission = async examId => {
 	const payload = { examId };
 	const res = await tryPost(EP.submissionStart(examId), payload);
 	const data = res?.data?.data ?? res?.data ?? {};
@@ -210,7 +211,7 @@ export const startSubmission = async (examId) => {
 };
 
 // Alias for UI import
-export const startExam = async (examId) => startSubmission(examId);
+export const startExam = async examId => startSubmission(examId);
 
 // Search by code (8-char) - removed duplicate declaration to avoid redeclaration error
 // Using the earlier normalized implementation defined above.
@@ -222,15 +223,14 @@ export const syncSubmissionAnswers = async (examId, answers = []) => {
 	return normalizeSubmission(data);
 };
 
-// Backward-compatible wrapper: if old calls pass submissionId, try old endpoints then fallback to new body
+// Save answers
 export const saveSubmissionAnswers = async (idOrPayload, maybeAnswers = []) => {
 	// If payload style provided
 	if (idOrPayload && typeof idOrPayload === 'object' && idOrPayload.examId) {
 		return syncSubmissionAnswers(idOrPayload.examId, idOrPayload.answers || []);
 	}
-	// Prefer server route
+	// Try compat by submissionId route first
 	try {
-		// This will fail on our server (no such route), then we fallback
 		const res = await tryPatch(
 			[id => `/api/submissions/${encodeURIComponent(id)}/answers`].map(fn => fn(idOrPayload)),
 			{ answers: maybeAnswers },
@@ -238,6 +238,7 @@ export const saveSubmissionAnswers = async (idOrPayload, maybeAnswers = []) => {
 		const data = res?.data?.data ?? res?.data ?? {};
 		return normalizeSubmission(data);
 	} catch {
+		// Fallback treat provided as examId
 		return syncSubmissionAnswers(idOrPayload, maybeAnswers);
 	}
 };
@@ -249,13 +250,11 @@ export const submitExam = async examId => {
 	return normalizeSubmission(data);
 };
 
-// Backward-compatible wrapper (old signature submitSubmission(submissionId))
+// Submit
 export const submitSubmission = async (idOrPayload = {}, payload = {}) => {
-	// New usage: submitSubmission({ examId })
 	if (idOrPayload && typeof idOrPayload === 'object' && idOrPayload.examId) {
 		return submitExam(idOrPayload.examId);
 	}
-	// Old usage: submitSubmission(submissionId)
 	try {
 		const res = await tryPatch(
 			[id => `/api/submissions/${encodeURIComponent(id)}/submit`].map(fn => fn(idOrPayload)),
@@ -264,7 +263,6 @@ export const submitSubmission = async (idOrPayload = {}, payload = {}) => {
 		const data = res?.data?.data ?? res?.data ?? {};
 		return normalizeSubmission(data);
 	} catch {
-		// Fallback: treat provided id as examId
 		return submitExam(idOrPayload);
 	}
 };

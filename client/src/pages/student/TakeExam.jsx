@@ -72,7 +72,7 @@ const TakeExam = () => {
 		(async () => {
 			setAutoSubmitting(true);
 			try {
-				const updated = await safeApiCall(submitSubmission, submission.id);
+				const updated = await safeApiCall(submitSubmission, { examId: submission.examId });
 				setSubmission(updated);
 				navigate('/student/results', { replace: true });
 			} catch (e) {
@@ -102,9 +102,8 @@ const TakeExam = () => {
 	useEffect(() => {
 		const onVis = () => {
 			if (document.hidden) {
-				// fire-and-forget save
-				if (submission?.id) {
-					saveSubmissionAnswers(submission.id, submission.answers || []).catch(() => {});
+				if (submission?.examId) {
+					saveSubmissionAnswers({ examId: submission.examId, answers: submission.answers || [] }).catch(() => {});
 				}
 			}
 		};
@@ -116,7 +115,7 @@ const TakeExam = () => {
 		if (!submission || saving) return;
 		setSaving(true);
 		try {
-			await safeApiCall(saveSubmissionAnswers, submission.id, submission.answers || []);
+			await safeApiCall(saveSubmissionAnswers, { examId: submission.examId, answers: submission.answers || [] });
 		} catch (e) {
 			setError(e?.message || 'Failed to save');
 		} finally {
@@ -131,7 +130,7 @@ const TakeExam = () => {
 		);
 		if (!ok) return;
 		try {
-			const updated = await safeApiCall(submitSubmission, submission.id);
+			const updated = await safeApiCall(submitSubmission, { examId: submission.examId });
 			setSubmission(updated);
 			navigate('/student/results');
 		} catch (e) {
