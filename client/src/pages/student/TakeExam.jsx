@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
 	safeApiCall,
@@ -8,7 +8,8 @@ import {
 } from '../../services/studentServices.js';
 
 const TakeExam = () => {
-	const { submissionId } = useParams();
+	const params = useParams();
+	const submissionId = params.submissionId || params.id;
 	const navigate = useNavigate();
 	const [submission, setSubmission] = useState(null);
 	const [loading, setLoading] = useState(true);
@@ -103,7 +104,10 @@ const TakeExam = () => {
 		const onVis = () => {
 			if (document.hidden) {
 				if (submission?.examId) {
-					saveSubmissionAnswers({ examId: submission.examId, answers: submission.answers || [] }).catch(() => {});
+					saveSubmissionAnswers({
+						examId: submission.examId,
+						answers: submission.answers || [],
+					}).catch(() => {});
 				}
 			}
 		};
@@ -115,7 +119,10 @@ const TakeExam = () => {
 		if (!submission || saving) return;
 		setSaving(true);
 		try {
-			await safeApiCall(saveSubmissionAnswers, { examId: submission.examId, answers: submission.answers || [] });
+			await safeApiCall(saveSubmissionAnswers, {
+				examId: submission.examId,
+				answers: submission.answers || [],
+			});
 		} catch (e) {
 			setError(e?.message || 'Failed to save');
 		} finally {
