@@ -117,6 +117,8 @@ const ExamCard = ({
 	onExtend15,
 	onRegenerate,
 	onRename,
+	onDelete,
+	onReschedule,
 }) => {
 	const visualStatus = exam.derivedStatus || exam.status || 'draft';
 	const config = statusConfig[visualStatus] || statusConfig.draft;
@@ -412,6 +414,42 @@ const ExamCard = ({
 						</button>
 					</>
 				)}
+
+				{/* Reschedule (scheduled only) */}
+				{isScheduled && (
+					<button
+						onClick={() => onReschedule(exam)}
+						style={{
+							padding: '10px 14px',
+							borderRadius: 8,
+							border: '1px solid var(--border)',
+							background: 'var(--surface)',
+							color: '#1d4ed8',
+							fontWeight: 700,
+						}}
+					>
+						🗓️ Reschedule
+					</button>
+				)}
+
+				{/* Delete (only when not active/live/scheduled) */}
+				{(exam.status === 'draft' ||
+					exam.status === 'cancelled' ||
+					exam.derivedStatus === 'completed') && (
+					<button
+						onClick={() => onDelete(exam)}
+						style={{
+							padding: '10px 14px',
+							borderRadius: 8,
+							border: '1px solid color-mix(in srgb, #ef4444 30%, var(--border))',
+							background: 'var(--surface)',
+							color: '#ef4444',
+							fontWeight: 800,
+						}}
+					>
+						🗑️ Delete
+					</button>
+				)}
 			</div>
 		</article>
 	);
@@ -606,6 +644,70 @@ const TeacherExams = () => {
 			setMessage('✅ Title updated');
 		} catch (e) {
 			setMessage(`❌ ${e?.message || 'Failed to rename exam'}`);
+		}
+	};
+
+	const handleDelete = async exam => {
+		const warn =
+			'Delete this exam permanently?\nThis cannot be undone and removes the exam from your list.';
+		if (!window.confirm(warn)) return;
+		try {
+			const res = await TeacherSvc.safeApiCall(TeacherSvc.deleteExam, exam.id);
+			if (res?.success) {
+				setExams(prev => prev.filter(e => e.id !== exam.id));
+				success('Exam deleted');
+			} else {
+				setErrorBanner('Failed to delete exam');
+			}
+		} catch (e) {
+			setErrorBanner(e?.message || 'Failed to delete exam');
+		}
+	};
+
+	const handleReschedule = async exam => {
+		// Simple prompts for start/end (local datetime input format: YYYY-MM-DDTHH:MM)
+		const toLocalInput = ms => new Date(ms).toISOString().slice(0, 16);
+		const startDefault = exam.startMs
+			? toLocalInput(exam.startMs)
+			: new Date(Date.now() + 60 * 60 * 1000).toISOString().slice(0, 16);
+		const endDefault = exam.endMs
+			? toLocalInput(exam.endMs)
+			: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString().slice(0, 16);
+
+		const startStr = window.prompt('New start (YYYY-MM-DDTHH:MM):', startDefault);
+		if (!startStr) return;
+		const endStr = window.prompt('New end (YYYY-MM-DDTHH:MM):', endDefault);
+		if (!endStr) return;
+
+		const start = new Date(startStr);
+		const end = new Date(endStr);
+		if (
+			!(start instanceof Date) ||
+			isNaN(start.getTime()) ||
+			!(end instanceof Date) ||
+			isNaN(end.getTime())
+		) {
+			setErrorBanner('Invalid date/time format');
+			return;
+		}
+		if (end <= start) {
+			setErrorBanner('End time must be after start time');
+			return;
+		}
+		if (start <= new Date()) {
+			setErrorBanner('Start time must be in the future');
+			return;
+		}
+
+		try {
+			const updated = await TeacherSvc.safeApiCall(TeacherSvc.updateExam, exam.id, {
+				startTime: start.toISOString(),
+				endTime: end.toISOString(),
+			});
+			setExams(prev => prev.map(e => (e.id === exam.id ? updated : e)));
+			success('Exam rescheduled');
+		} catch (e) {
+			setErrorBanner(e?.message || 'Failed to reschedule exam');
 		}
 	};
 
@@ -815,6 +917,8 @@ const TeacherExams = () => {
 							onExtend15={handleExtend15}
 							onRegenerate={handleRegenerate}
 							onRename={handleRename}
+							onDelete={handleDelete}
+							onReschedule={handleReschedule}
 							publishing={publishingIds.has(exam.id)}
 						/>
 					))}
