@@ -1,17 +1,17 @@
 import { Router } from 'express';
 import {
 	startSubmission,
+	startSubmissionByParam,
 	syncAnswers,
+	syncAnswersBySubmissionId,
 	submitSubmission,
+	submitSubmissionById,
 	updateEvaluation,
 	evaluateSubmission,
-	getSubmission, // query-based
+	getSubmission,
 	getExamSubmissions,
 	getMySubmissions,
 	getSubmissionByIdParam,
-	syncAnswersBySubmissionId,
-	submitSubmissionById,
-	startSubmissionByParam,
 	logViolation,
 	testEvaluationService,
 } from '../controllers/submission.controller.js';
