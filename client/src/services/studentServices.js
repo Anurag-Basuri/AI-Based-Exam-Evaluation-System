@@ -159,14 +159,8 @@ const normalizeExam = e => {
 	};
 };
 
-const normalizeSubmission = s => ({
-	id: String(s._id ?? s.id ?? ''),
-	examId: String(s.exam?._id ?? s.examId ?? s.exam ?? ''),
-	examTitle: s.exam?.title ?? s.examTitle ?? 'Exam',
-	duration: Number(s.duration ?? s.exam?.duration ?? 0),
-	answers: Array.isArray(s.answers) ? s.answers : [],
-	questions: (s.exam?.questions || []).map(q => ({
-		// <-- Add this block to normalize questions
+const normalizeSubmission = s => {
+	const questions = (s.exam?.questions || []).map(q => ({
 		id: String(q._id ?? q.id),
 		text: q.text,
 		type: q.type,
@@ -174,25 +168,60 @@ const normalizeSubmission = s => ({
 		options: (q.options || []).map(o => ({
 			id: String(o._id ?? o.id),
 			text: o.text,
+			isCorrect: o.isCorrect,
 		})),
-	})),
-	markedForReview: Array.isArray(s.markedForReview)
-		? s.markedForReview.map(id => String(id))
-		: [],
-	score:
-		s.totalScore ??
-		(Array.isArray(s.evaluations)
-			? s.evaluations.reduce((acc, ev) => acc + (ev?.evaluation?.marks || 0), 0)
-			: (s.score ?? null)),
-	maxScore:
-		s.maxScore ??
-		(Array.isArray(s.answers)
-			? s.answers.reduce((acc, ans) => acc + (ans?.question?.max_marks || 0), 0)
-			: (s.totalMax ?? 0)),
-	status: s.status ?? 'pending',
-	startedAt: s.startedAt ? new Date(s.startedAt).toISOString() : '',
-	submittedAt: s.submittedAt ? new Date(s.submittedAt).toISOString() : '',
-});
+	}));
+
+	// Map answers to match questions by ID
+	const answersByQuestionId = new Map(
+		(s.answers || []).map(a => [String(a.question?._id ?? a.question), a]),
+	);
+
+	// Ensure we have an answer slot for each question
+	const normalizedAnswers = questions.map(q => {
+		const existing = answersByQuestionId.get(q.id);
+		if (existing) {
+			return {
+				question: q.id,
+				responseText: existing.responseText || '',
+				responseOption: existing.responseOption
+					? String(existing.responseOption._id ?? existing.responseOption)
+					: null,
+			};
+		}
+		// Create empty answer slot for missing answers
+		return {
+			question: q.id,
+			responseText: '',
+			responseOption: null,
+		};
+	});
+
+	return {
+		id: String(s._id ?? s.id ?? ''),
+		examId: String(s.exam?._id ?? s.examId ?? s.exam ?? ''),
+		examTitle: s.exam?.title ?? s.examTitle ?? 'Exam',
+		duration: Number(s.duration ?? s.exam?.duration ?? 0),
+		answers: normalizedAnswers,
+		questions: questions,
+		markedForReview: Array.isArray(s.markedForReview)
+			? s.markedForReview.map(id => String(id))
+			: [],
+		score:
+			s.totalScore ??
+			(Array.isArray(s.evaluations)
+				? s.evaluations.reduce((acc, ev) => acc + (ev?.evaluation?.marks || 0), 0)
+				: (s.score ?? null)),
+		maxScore:
+			s.maxScore ??
+			(questions.length > 0
+				? questions.reduce((acc, q) => acc + (q.max_marks || 0), 0)
+				: (s.totalMax ?? 0)),
+		status: s.status ?? 'pending',
+		startedAt: s.startedAt ? new Date(s.startedAt).toISOString() : '',
+		submittedAt: s.submittedAt ? new Date(s.submittedAt).toISOString() : '',
+	};
+};
 
 // ---------- Student: Exams ----------
 export const searchExamByCode = async code => {
@@ -246,7 +275,6 @@ export const syncSubmissionAnswers = async (examId, answers = []) => {
 
 // Save answers
 export const saveSubmissionAnswers = async (submissionId, payload) => {
-	// This function now expects submissionId and a payload object { answers, markedForReview }
 	const res = await tryPatch(
 		[`/api/submissions/${encodeURIComponent(submissionId)}/answers`],
 		payload,
@@ -257,10 +285,9 @@ export const saveSubmissionAnswers = async (submissionId, payload) => {
 
 // Submit
 export const submitSubmission = async (submissionId, payload) => {
-	// Simplified: Always submit by submission ID
-	const res = await tryPatch(
+	const res = await tryPost(
 		[`/api/submissions/${encodeURIComponent(submissionId)}/submit`],
-		payload, // payload should be { submissionType: 'manual' | 'auto' }
+		payload,
 	);
 	const data = res?.data?.data ?? res?.data ?? {};
 	return normalizeSubmission(data);
