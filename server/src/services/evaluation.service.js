@@ -3,8 +3,15 @@ import { ApiError } from '../utils/ApiError.js';
 
 const api = process.env.HF_API_URL;
 const apiKey = process.env.HF_API_KEY;
+
 const EVAL_TIMEOUT_MS = Number(process.env.EVAL_TIMEOUT_MS || 15000);
 const EVAL_MAX_RETRIES = Number(process.env.EVAL_MAX_RETRIES || 1);
+const EVAL_RETRY_DELAY_MS = Number(process.env.EVAL_RETRY_DELAY_MS || 500);
+const EVAL_TEMPERATURE = Number(process.env.EVAL_TEMPERATURE ?? 0.2);
+const EVAL_TOP_P = Number(process.env.EVAL_TOP_P ?? 0.9);
+const EVAL_DO_SAMPLE = String(process.env.EVAL_DO_SAMPLE ?? 'false') === 'true';
+const EVAL_MAX_NEW_TOKENS = Number(process.env.EVAL_MAX_NEW_TOKENS || 220);
+const MAX_ANSWER_CHARS = Number(process.env.EVAL_MAX_ANSWER_CHARS || 1500);
 
 // --- Lightweight keyword extraction helpers (no external deps) ---
 const STOP_WORDS = new Set([
@@ -121,7 +128,6 @@ function extractKeywordsFromText(text, { maxTerms = 10 } = {}) {
 
 function deriveImplicitRubric(questionText = '') {
 	const q = String(questionText).toLowerCase();
-	// Simple heuristics to build a sensible rubric if none provided
 	if (q.includes('explain') || q.includes('describe') || q.includes('discuss')) {
 		return [
 			{ criterion: 'Correctness', weight: 0.4 },
@@ -143,7 +149,6 @@ function deriveImplicitRubric(questionText = '') {
 			{ criterion: 'Clarity', weight: 0.15 },
 		];
 	}
-	// Generic fallback rubric
 	return [
 		{ criterion: 'Relevance', weight: 0.35 },
 		{ criterion: 'Correctness', weight: 0.4 },
@@ -151,45 +156,25 @@ function deriveImplicitRubric(questionText = '') {
 	];
 }
 
-// ---- Teacher Policy Types (all optional) ----
-// policy = {
-//   strictness: 'lenient' | 'moderate' | 'strict',
-//   rubric: [{ criterion: 'Coverage', weight: 0.4 }, ...],
-//   keywords: [{ term: 'neuron', weight: 1 }, ...], // supports simple fallback scoring
-//   penalties: { offTopic: 0.2, factualError: 0.3 },
-//   language: 'en' | 'hi' | ...,
-//   reviewTone: 'concise' | 'detailed',
-//   targetLength: 2 | 3 | 4, // sentences
-//   customInstructions: 'Use these exact rules...',
-//   requireCitations: false
-// }
-
 // Enrich policy: auto-generate rubric/keywords when missing
 function enrichPolicy(basePolicy = {}, question, referenceAnswer) {
 	const policy = { ...(basePolicy || {}) };
-
-	// If no rubric, derive an implicit rubric from the question
 	if (!Array.isArray(policy.rubric) || policy.rubric.length === 0) {
 		const implicit = deriveImplicitRubric(question);
 		policy.rubric = implicit;
 		console.log('[EVAL_POLICY] No rubric provided. Using implicit rubric:', implicit);
 	}
-
-	// If no keywords, extract from question + referenceAnswer (if any)
 	if (!Array.isArray(policy.keywords) || policy.keywords.length === 0) {
 		const seedText = `${question || ''} ${referenceAnswer || ''}`.trim();
 		const derivedKeywords = extractKeywordsFromText(seedText, { maxTerms: 8 });
 		policy.keywords = derivedKeywords;
 		console.log('[EVAL_POLICY] No keywords provided. Derived keywords:', derivedKeywords);
 	}
-
-	// Defaults for other fields
 	policy.strictness = policy.strictness || 'moderate';
 	policy.language = policy.language || 'en';
 	policy.reviewTone = policy.reviewTone || 'concise';
 	policy.targetLength = Number(policy.targetLength || 3);
 	policy.requireCitations = Boolean(policy.requireCitations);
-
 	return policy;
 }
 
@@ -246,8 +231,6 @@ function summarizePolicy(policy = {}) {
 
 function buildPrompt(question, studentAnswer, referenceAnswer, policySummary, policy) {
 	const { lines } = policySummary;
-
-	// If there is no reference answer, instruct the model to infer expected points
 	const guidanceWhenNoRef = referenceAnswer
 		? ''
 		: [
@@ -289,6 +272,49 @@ function buildPrompt(question, studentAnswer, referenceAnswer, policySummary, po
 	]
 		.filter(Boolean)
 		.join('\n');
+}
+
+// ---------- Uniformity helpers ----------
+function createEvalId() {
+	const rnd = Math.random().toString(16).slice(2, 8);
+	return `EVAL-${Date.now()}-${rnd}`;
+}
+function delay(ms) {
+	return new Promise(res => setTimeout(res, ms));
+}
+function sanitizeAnswer(text) {
+	const src = String(text ?? '');
+	const trimmed = src.trim().replace(/\s+/g, ' ');
+	if (trimmed.length <= MAX_ANSWER_CHARS) return { text: trimmed, truncated: false };
+	return { text: trimmed.slice(0, MAX_ANSWER_CHARS), truncated: true };
+}
+function toNumber0_100(any) {
+	// Accept "85", "85.2", "85/100"
+	if (typeof any === 'number') return Math.max(0, Math.min(100, Math.round(any)));
+	const m = String(any ?? '').match(/([0-9]{1,3})(?:\s*\/\s*100)?/);
+	const n = m ? Number(m[1]) : 0;
+	return Math.max(0, Math.min(100, Math.round(isNaN(n) ? 0 : n)));
+}
+function limitSentences(text, maxSentences) {
+	const s = String(text || '')
+		.replace(/\s+/g, ' ')
+		.trim();
+	if (!s) return s;
+	const parts = s.split(/(?<=[.!?])\s+/);
+	return parts.slice(0, Math.max(1, maxSentences)).join(' ');
+}
+function ensureRubricBreakdown(parsed, rubric) {
+	if (!Array.isArray(rubric) || rubric.length === 0) return parsed.rubric_breakdown || [];
+	if (!Array.isArray(parsed.rubric_breakdown) || parsed.rubric_breakdown.length === 0) {
+		// Synthesize neutral breakdown for uniform meta structure
+		return rubric.map(r => ({
+			criterion: r.criterion,
+			weight: Number(r.weight || 0),
+			score: null,
+			notes: '',
+		}));
+	}
+	return parsed.rubric_breakdown;
 }
 
 /**
@@ -338,7 +364,7 @@ function keywordFallback(studentAnswer, policy, weight) {
 
 	const coverage = totalWeight > 0 ? matchedWeight / totalWeight : 0;
 	const score100 = Math.round(coverage * 100);
-	const review = `Automatic fallback scoring applied based on keyword coverage (${matchedWeight}/${totalWeight}). This will be reviewed if needed.`;
+	const review = `Automatic keyword-based scoring applied (${matchedWeight}/${totalWeight} matched). This will be reviewed if needed.`;
 
 	console.warn('[EVAL_SERVICE_FALLBACK] Applied keyword-based scoring.', { score100, matched });
 	return {
@@ -358,27 +384,21 @@ function heuristicFallback(studentAnswer, policy, weight) {
 	if (!text) {
 		return { score: 0, review: 'No answer was provided.' };
 	}
-
-	// Very simple heuristic based on length (tokens) and sentence count
 	const tokens = text.split(/\s+/g).filter(Boolean).length;
 	const sentences = text.split(/[.!?]+/g).filter(s => s.trim().length > 0).length;
 
-	let base = 5; // minimal credit for non-empty
+	let base = 5;
 	if (tokens > 30) base += 3;
 	if (tokens > 60) base += 4;
 	if (sentences >= (policy?.targetLength || 3)) base += 3;
 
-	const score100 = Math.min(20, base); // cap minimal heuristic at 20/100
+	const score100 = Math.min(20, base);
 	return {
 		score: Math.round(score100 * (weight || 1)),
 		review: 'Automatic heuristic scoring applied due to evaluation issues. The answer appears non-empty and reasonably structured, but requires teacher review.',
 	};
 }
 
-/**
- * Evaluate an answer with optional teacher policy.
- * Works with or without rubric/reference answer.
- */
 export async function evaluateAnswer(
 	question,
 	studentAnswer,
@@ -386,43 +406,54 @@ export async function evaluateAnswer(
 	weight = 1,
 	policy = null,
 ) {
-	console.log(`[EVAL_SERVICE] Start. q="${String(question).slice(0, 60)}...", weight=${weight}`);
+	const evalId = createEvalId();
+	const cleanQ = String(question ?? '').trim();
+	const { text: cleanAns, truncated } = sanitizeAnswer(studentAnswer);
+	console.log(`[EVAL_SERVICE ${evalId}] Start. weight=${weight}, truncated=${truncated}`);
+	if (!cleanQ) {
+		console.error(`[EVAL_SERVICE ${evalId}] Missing question text.`);
+		return {
+			score: 0,
+			review: 'System error: missing question text.',
+			meta: { fallback: true, type: 'system', evalId },
+		};
+	}
 
-	// Enrich policy to handle missing rubric/keywords
-	const effectivePolicy = enrichPolicy(policy || {}, question, referenceAnswer);
-	console.log('[EVAL_SERVICE] Effective policy prepared:', {
+	// Uniform policy
+	const effectivePolicy = enrichPolicy(policy || {}, cleanQ, referenceAnswer);
+	console.log(`[EVAL_SERVICE ${evalId}] Effective policy:`, {
 		strictness: effectivePolicy.strictness,
 		rubricLen: effectivePolicy.rubric?.length,
 		keywordsLen: effectivePolicy.keywords?.length,
 	});
-
 	const policySummary = summarizePolicy(effectivePolicy);
-	const prompt = buildPrompt(
-		question,
-		studentAnswer,
-		referenceAnswer,
-		policySummary,
-		effectivePolicy,
-	);
-	console.log(`[EVAL_SERVICE] Prompt built. Length=${prompt.length}`);
+	const prompt = buildPrompt(cleanQ, cleanAns, referenceAnswer, policySummary, effectivePolicy);
+	console.log(`[EVAL_SERVICE ${evalId}] Prompt length=${prompt.length}`);
 
 	let attempt = 0;
 	let lastError = null;
 
 	while (attempt <= EVAL_MAX_RETRIES) {
 		try {
-			if (attempt > 0) console.warn(`[EVAL_SERVICE] Retry attempt ${attempt}...`);
-
+			if (attempt > 0) console.warn(`[EVAL_SERVICE ${evalId}] Retry attempt ${attempt}...`);
 			const response = await axios.post(
 				api,
-				{ inputs: prompt, parameters: { max_new_tokens: 220 } },
+				{
+					inputs: prompt,
+					parameters: {
+						max_new_tokens: EVAL_MAX_NEW_TOKENS,
+						temperature: EVAL_TEMPERATURE,
+						top_p: EVAL_TOP_P,
+						do_sample: EVAL_DO_SAMPLE,
+					},
+				},
 				{
 					headers: { Authorization: `Bearer ${apiKey}` },
 					timeout: EVAL_TIMEOUT_MS,
 				},
 			);
 
-			console.log('[EVAL_SERVICE] Model responded.');
+			console.log(`[EVAL_SERVICE ${evalId}] Model responded.`);
 			let rawOutput = '';
 			const data = response.data;
 
@@ -432,67 +463,70 @@ export async function evaluateAnswer(
 			else if (typeof data === 'object' && data)
 				rawOutput = data.generated_text || JSON.stringify(data);
 			else {
-				console.error('[EVAL_SERVICE] Unexpected response format:', data);
+				console.error(`[EVAL_SERVICE ${evalId}] Unexpected response format:`, data);
 				throw new ApiError(500, 'Unexpected evaluation service response');
 			}
 
-			console.log('[EVAL_SERVICE] Raw output normalized:', rawOutput);
+			console.log(`[EVAL_SERVICE ${evalId}] Raw output normalized:`, rawOutput);
 			const parsed = extractJson(rawOutput);
-			console.log('[EVAL_SERVICE] Parsed JSON:', parsed);
+			console.log(`[EVAL_SERVICE ${evalId}] Parsed JSON:`, parsed);
 
-			let score = Number(parsed.score);
-			if (isNaN(score)) {
-				console.warn(
-					`[EVAL_SERVICE] Parsed score is NaN ("${parsed.score}"). Defaulting to 0.`,
-				);
-				score = 0;
-			}
-			score = Math.max(0, Math.min(100, Math.round(score)));
-			const finalMarks = Math.round(score * (weight || 1));
-			const review =
-				typeof parsed.review === 'string' && parsed.review.trim()
-					? parsed.review.trim()
-					: 'No review provided';
+			const score100 = toNumber0_100(parsed.score);
+			const finalMarks = Math.round(score100 * (weight || 1));
+			const limitedReview = limitSentences(
+				typeof parsed.review === 'string' ? parsed.review : 'No review provided',
+				effectivePolicy.targetLength || 3,
+			);
 
-			console.log(`[EVAL_SERVICE] Success. finalMarks=${finalMarks}`);
-			return {
-				score: finalMarks,
-				review,
-				meta: {
-					rubric_breakdown: parsed.rubric_breakdown || [],
-					keywords_matched: parsed.keywords_matched || [],
-					penalties_applied: parsed.penalties_applied || [],
-				},
+			const meta = {
+				rubric_breakdown: ensureRubricBreakdown(parsed, effectivePolicy.rubric),
+				keywords_matched: parsed.keywords_matched || [],
+				penalties_applied: parsed.penalties_applied || [],
+				evalId,
+				path: 'ai',
+				truncatedInput: truncated || undefined,
 			};
+
+			console.log(`[EVAL_SERVICE ${evalId}] Success. finalMarks=${finalMarks}`);
+			return { score: finalMarks, review: limitedReview, meta };
 		} catch (err) {
 			lastError = err;
-			console.error(`[EVAL_SERVICE] Attempt ${attempt} failed: ${err?.message || err}`);
+			console.error(
+				`[EVAL_SERVICE ${evalId}] Attempt ${attempt} failed: ${err?.message || err}`,
+			);
 			attempt += 1;
 			if (attempt > EVAL_MAX_RETRIES) break;
+			await delay(EVAL_RETRY_DELAY_MS);
 		}
 	}
 
 	// Fallback path
-	console.error('[EVAL_SERVICE] All attempts failed. Considering fallback scoring.');
-	const fbKeyword = keywordFallback(studentAnswer, effectivePolicy, weight);
+	console.error(`[EVAL_SERVICE ${evalId}] All attempts failed. Applying fallbacks.`);
+	const fbKeyword = keywordFallback(cleanAns, effectivePolicy, weight);
 	if (fbKeyword) {
-		console.log('[EVAL_SERVICE] Keyword fallback succeeded.');
+		console.log(`[EVAL_SERVICE ${evalId}] Keyword fallback succeeded.`);
 		return {
 			score: fbKeyword.score,
-			review: fbKeyword.review,
+			review: limitSentences(fbKeyword.review, effectivePolicy.targetLength || 3),
 			meta: {
 				keywords_matched: fbKeyword.meta.keywords_matched,
 				fallback: true,
 				type: 'keyword',
+				evalId,
 			},
 		};
 	}
 
-	const fbHeuristic = heuristicFallback(studentAnswer, effectivePolicy, weight);
-	console.log('[EVAL_SERVICE] Heuristic fallback applied.');
+	const fbHeuristic = heuristicFallback(cleanAns, effectivePolicy, weight);
+	console.log(`[EVAL_SERVICE ${evalId}] Heuristic fallback applied.`);
 	return {
 		score: fbHeuristic.score,
-		review: fbHeuristic.review,
-		meta: { fallback: true, type: 'heuristic', reason: lastError?.message || 'Unknown error' },
+		review: limitSentences(fbHeuristic.review, effectivePolicy.targetLength || 3),
+		meta: {
+			fallback: true,
+			type: 'heuristic',
+			reason: lastError?.message || 'Unknown error',
+			evalId,
+		},
 	};
 }
