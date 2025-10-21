@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
 	safeApiCall,
@@ -6,8 +6,11 @@ import {
 	saveSubmissionAnswers,
 	submitSubmission,
 } from '../../services/studentServices.js';
+import { apiClient } from '../../services/api.js';
 
-// --- Environment Hook (from previous step, unchanged) ---
+const MAX_VIOLATIONS = 5; // Set the warning limit
+
+// --- Environment Hook (unchanged) ---
 const useExamEnvironment = (isExamActive, onViolation) => {
 	useEffect(() => {
 		if (!isExamActive) return;
@@ -35,33 +38,66 @@ const TakeExam = () => {
 	const submissionId = params.submissionId || params.id;
 	const navigate = useNavigate();
 
-	// --- Core State ---
+	// --- State (largely unchanged) ---
 	const [submission, setSubmission] = useState(null);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState('');
-
-	// --- Exam Control State ---
 	const [isStarted, setIsStarted] = useState(false);
 	const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
 	const [markedForReview, setMarkedForReview] = useState([]);
 	const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
-
-	// --- Environment & Action State ---
 	const [violations, setViolations] = useState({ count: 0, lastType: '' });
 	const [violationOverlay, setViolationOverlay] = useState(null);
 	const [saving, setSaving] = useState(false);
 	const [autoSubmitting, setAutoSubmitting] = useState(false);
 	const [lastSaved, setLastSaved] = useState(null);
+	const hasUnsavedChanges = useRef(false);
 
-	// --- Environment Violation Handler ---
-	const handleViolation = useCallback(type => {
-		setViolations(v => ({ count: v.count + 1, lastType: type }));
-		setViolationOverlay(type);
-	}, []);
+	// --- Actions (Submit, Save, etc.) ---
+	const finalSubmit = useCallback(
+		async (isAuto = false, reason = 'Submission confirmed.') => {
+			if (!submission || autoSubmitting) return;
+			setAutoSubmitting(true);
+			// Use a toast or alert for auto-submission reason
+			alert(`Exam is being submitted automatically. Reason: ${reason}`);
+			try {
+				await safeApiCall(saveSubmissionAnswers, submission.id, {
+					answers: submission.answers || [],
+					markedForReview: markedForReview,
+				});
+				await safeApiCall(submitSubmission, {
+					examId: submission.examId,
+					submissionType: isAuto ? 'auto' : 'manual',
+				});
+				if (document.fullscreenElement) document.exitFullscreen();
+				navigate('/student/results', { replace: true });
+			} catch (e) {
+				setError(e?.message || 'Failed to submit. Please check your connection.');
+			}
+		},
+		[submission, autoSubmitting, navigate, markedForReview],
+	);
+
+	// --- Violation Handler with Auto-Submit ---
+	const handleViolation = useCallback(
+		type => {
+			const newCount = violations.count + 1;
+			setViolations({ count: newCount, lastType: type });
+			setViolationOverlay(type);
+			apiClient
+				.post(`/api/submissions/${submissionId}/violation`, { type })
+				.catch(console.error);
+
+			if (newCount > MAX_VIOLATIONS) {
+				finalSubmit(true, `Exceeded warning limit (${MAX_VIOLATIONS} violations).`);
+			}
+		},
+		[violations.count, submissionId, finalSubmit],
+	);
 
 	useExamEnvironment(isStarted && !autoSubmitting, handleViolation);
 
-	// --- Data Loading & Timer (unchanged) ---
+	// --- Data Loading (unchanged) ---
 	useEffect(() => {
 		if (!submissionId) {
 			navigate('/student/exams', { replace: true });
@@ -74,6 +110,7 @@ const TakeExam = () => {
 					navigate('/student/results', { replace: true });
 				} else {
 					setSubmission(s);
+					setMarkedForReview(s.markedForReview || []);
 				}
 			} catch (e) {
 				setError(e?.message || 'Failed to load submission');
@@ -85,7 +122,6 @@ const TakeExam = () => {
 
 	const { remainingMs, remaining } = useTimer(submission);
 
-	// --- Actions: Start, Save, Submit, Navigation ---
 	const handleStartExam = async () => {
 		try {
 			await document.documentElement.requestFullscreen();
@@ -95,38 +131,38 @@ const TakeExam = () => {
 		}
 	};
 
+	const acknowledgeViolation = () => {
+		setViolationOverlay(null);
+		// Attempt to re-enter fullscreen automatically
+		if (!document.fullscreenElement) {
+			document.documentElement.requestFullscreen().catch(err => {
+				console.error('Could not re-enter fullscreen:', err);
+			});
+		}
+	};
+
+	// --- All other handlers (handleQuickSave, handleToggleReview, etc.) are unchanged ---
 	const handleQuickSave = useCallback(async () => {
-		if (!submission || saving) return;
+		if (!submission || saving || !hasUnsavedChanges.current) return;
 		setSaving(true);
+		hasUnsavedChanges.current = false;
 		try {
-			await safeApiCall(saveSubmissionAnswers, {
-				examId: submission.examId,
+			await safeApiCall(saveSubmissionAnswers, submission.id, {
 				answers: submission.answers || [],
+				markedForReview: markedForReview,
 			});
 			setLastSaved(new Date());
 		} catch (e) {
-			/* Non-critical error */
+			hasUnsavedChanges.current = true;
 		} finally {
 			setSaving(false);
 		}
-	}, [submission, saving]);
-
-	const finalSubmit = useCallback(async () => {
-		if (!submission || autoSubmitting) return;
-		setAutoSubmitting(true);
-		try {
-			await handleQuickSave();
-			await safeApiCall(submitSubmission, { examId: submission.examId });
-			if (document.fullscreenElement) document.exitFullscreen();
-			navigate('/student/results', { replace: true });
-		} catch (e) {
-			setError(e?.message || 'Failed to submit. Please check your connection.');
-		}
-	}, [submission, autoSubmitting, navigate, handleQuickSave]);
+	}, [submission, saving, markedForReview]);
 
 	const handleToggleReview = useCallback(() => {
 		const currentQuestionId = submission?.questions?.[currentQuestionIndex]?.id;
 		if (!currentQuestionId) return;
+		hasUnsavedChanges.current = true;
 		setMarkedForReview(prev =>
 			prev.includes(currentQuestionId)
 				? prev.filter(id => id !== currentQuestionId)
@@ -134,17 +170,31 @@ const TakeExam = () => {
 		);
 	}, [submission, currentQuestionIndex]);
 
-	// --- Effects for Auto-Save & Auto-Submit ---
+	const handleAnswerChangeWithSave = (submission, questionId, value, type) => {
+		hasUnsavedChanges.current = true;
+		return handleAnswerChange(submission, questionId, value, type);
+	};
+
+	const handleSaveAndNext = async () => {
+		await handleQuickSave();
+		if (currentQuestionIndex < submission.questions.length - 1) {
+			setCurrentQuestionIndex(i => i + 1);
+		}
+	};
+
 	useEffect(() => {
-		if (remainingMs === 0 && isStarted && !autoSubmitting) finalSubmit();
+		if (remainingMs === 0 && isStarted && !autoSubmitting) {
+			finalSubmit(true, 'Time expired.');
+		}
 	}, [remainingMs, isStarted, autoSubmitting, finalSubmit]);
 
 	useEffect(() => {
-		const id = setInterval(() => isStarted && handleQuickSave(), 30000);
+		const id = setInterval(() => {
+			if (isStarted) handleQuickSave();
+		}, 30000);
 		return () => clearInterval(id);
 	}, [isStarted, handleQuickSave]);
 
-	// --- Memoized Question Status ---
 	const questionStats = useMemo(() => {
 		const questions = submission?.questions || [];
 		const answers = submission?.answers || [];
@@ -182,16 +232,13 @@ const TakeExam = () => {
 	return (
 		<div style={styles.examLayout} className="examLayout">
 			{violationOverlay && (
-				<ViolationOverlay
-					type={violationOverlay}
-					onAcknowledge={() => setViolationOverlay(null)}
-				/>
+				<ViolationOverlay type={violationOverlay} onAcknowledge={acknowledgeViolation} />
 			)}
 
 			{showSubmitConfirm && (
 				<SubmitConfirmation
 					stats={questionStats}
-					onConfirm={finalSubmit}
+					onConfirm={() => finalSubmit(false)}
 					onCancel={() => setShowSubmitConfirm(false)}
 				/>
 			)}
@@ -205,7 +252,7 @@ const TakeExam = () => {
 						index={currentQuestionIndex}
 						answer={submission.answers?.find(a => a.question === currentQuestion.id)}
 						onAnswerChange={(...args) =>
-							setSubmission(prev => handleAnswerChange(prev, ...args))
+							setSubmission(prev => handleAnswerChangeWithSave(prev, ...args))
 						}
 						disabled={autoSubmitting}
 					/>
@@ -221,6 +268,13 @@ const TakeExam = () => {
 						{markedForReview.includes(currentQuestion?.id)
 							? 'Unmark Review'
 							: 'Mark for Review'}
+					</button>
+					<button
+						onClick={handleSaveAndNext}
+						disabled={currentQuestionIndex === submission.questions.length - 1}
+						style={{ background: 'var(--primary)', color: 'white', border: 'none' }}
+					>
+						Save & Next
 					</button>
 					<button
 						onClick={() =>
@@ -252,7 +306,7 @@ const TakeExam = () => {
 						{saving && '...'}
 					</p>
 					<p style={{ color: '#ef4444', fontWeight: 'bold' }}>
-						Violations: {violations.count}
+						Violations: {violations.count} / {MAX_VIOLATIONS}
 					</p>
 				</div>
 				<button
@@ -267,8 +321,7 @@ const TakeExam = () => {
 	);
 };
 
-// --- Helper & UI Components ---
-
+// --- Helper & UI Components (Unchanged) ---
 const useTimer = submission => {
 	const [now, setNow] = useState(() => Date.now());
 	useEffect(() => {
@@ -340,7 +393,7 @@ const QuestionPalette = ({ stats, currentIndex, onSelect }) => (
 
 const ViolationOverlay = ({ type, onAcknowledge }) => {
 	const messages = {
-		fullscreen: 'You have exited fullscreen mode. Please return to fullscreen to continue.',
+		fullscreen: 'You have exited fullscreen mode. This is a violation of the exam rules.',
 		visibility: 'You have switched to another tab or window. This is not allowed.',
 		navigation: 'Navigating away from the exam is not allowed.',
 	};
@@ -349,7 +402,7 @@ const ViolationOverlay = ({ type, onAcknowledge }) => {
 			<div style={styles.violationBox}>
 				<h2>Warning</h2>
 				<p>{messages[type] || 'An exam rule was violated.'}</p>
-				<button onClick={onAcknowledge}>I Understand</button>
+				<button onClick={onAcknowledge}>Return to Exam</button>
 			</div>
 		</div>
 	);
@@ -382,7 +435,6 @@ const SubmitConfirmation = ({ stats, onConfirm, onCancel }) => (
 );
 
 const handleAnswerChange = (submission, questionId, value, type) => {
-	/* Unchanged */
 	if (!submission) return null;
 	const newAnswers = [...(submission.answers || [])];
 	let answer = newAnswers.find(a => a.question === questionId);
@@ -401,7 +453,6 @@ const handleAnswerChange = (submission, questionId, value, type) => {
 };
 
 const QuestionCard = ({ question, index, answer, onAnswerChange, disabled }) => {
-	/* Unchanged */
 	const isMCQ = question.type === 'multiple-choice';
 	return (
 		<div style={styles.questionCard}>
@@ -498,7 +549,27 @@ const styles = {
 		padding: '10px',
 		borderRadius: '8px',
 	},
-	statusInfo: { marginTop: 'auto', fontSize: '14px' },
+	paletteContainer: {
+		border: '1px solid var(--border)',
+		borderRadius: '8px',
+		padding: '8px',
+		background: 'var(--bg)',
+		overflowY: 'auto', // <-- This makes the palette scrollable
+		flex: 1, // <-- This makes it take up available space
+		minHeight: 100, // Ensure it has a minimum height
+	},
+	statusInfo: {
+		marginTop: '0', // Remove margin-top auto
+		fontSize: '14px',
+	},
+	navigationControls: {
+		display: 'grid',
+		gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))',
+		gap: '10px',
+		marginTop: 'auto',
+		paddingTop: '16px',
+		borderTop: '1px solid var(--border)',
+	},
 	submitButton: {
 		padding: '12px',
 		fontSize: '16px',
@@ -519,19 +590,6 @@ const styles = {
 		color: 'var(--text)',
 		border: '1px solid var(--border)',
 		borderRadius: '8px',
-	},
-	navigationControls: {
-		display: 'flex',
-		justifyContent: 'space-between',
-		marginTop: 'auto',
-		paddingTop: '16px',
-		borderTop: '1px solid var(--border)',
-	},
-	paletteContainer: {
-		border: '1px solid var(--border)',
-		borderRadius: '8px',
-		padding: '8px',
-		background: 'var(--bg)',
 	},
 	paletteGrid: {
 		display: 'grid',
@@ -566,6 +624,7 @@ const styles = {
 	},
 };
 
+// --- All other style objects are unchanged ---
 const paletteStatusStyles = {
 	unanswered: { background: 'var(--surface)' },
 	answered: { background: '#10b981', color: 'white', border: 'none' },
