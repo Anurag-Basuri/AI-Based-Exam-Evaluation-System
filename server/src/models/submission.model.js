@@ -134,8 +134,6 @@ const submissionSchema = new mongoose.Schema(
 		},
 		submittedAt: {
 			type: Date,
-			default: Date.now,
-			immutable: true,
 		},
 		evaluatedAt: {
 			type: Date,

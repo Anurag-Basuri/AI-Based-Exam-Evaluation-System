@@ -58,15 +58,15 @@ const TakeExam = () => {
 		async (isAuto = false, reason = 'Submission confirmed.') => {
 			if (!submission || autoSubmitting) return;
 			setAutoSubmitting(true);
-			// Use a toast or alert for auto-submission reason
 			alert(`Exam is being submitted automatically. Reason: ${reason}`);
 			try {
+				// Final save before submitting
 				await safeApiCall(saveSubmissionAnswers, submission.id, {
 					answers: submission.answers || [],
 					markedForReview: markedForReview,
 				});
-				await safeApiCall(submitSubmission, {
-					examId: submission.examId,
+				// Submit with the correct type
+				await safeApiCall(submitSubmission, submission.id, {
 					submissionType: isAuto ? 'auto' : 'manual',
 				});
 				if (document.fullscreenElement) document.exitFullscreen();
