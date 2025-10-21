@@ -14,7 +14,8 @@ async function evaluateSubmissionAnswers(submission) {
 		if (!questionDoc) continue;
 
 		let marks = 0;
-		let remarks = '';
+		let remarks = 'Answer not provided.';
+
 		if (questionDoc.type === 'multiple-choice') {
 			if (ans.responseOption && questionDoc.options) {
 				const correctOption = questionDoc.options.find(opt => opt.isCorrect);
@@ -22,19 +23,26 @@ async function evaluateSubmissionAnswers(submission) {
 					ans.responseOption.toString() === correctOption?._id.toString()
 						? questionDoc.max_marks
 						: 0;
-				remarks = marks > 0 ? 'Correct answer' : 'Incorrect answer';
+				remarks = marks > 0 ? 'Correct answer.' : 'Incorrect answer.';
 			}
-		} else {
-			const refAnswer = questionDoc.answer || null;
-			const weight = questionDoc.max_marks / 100;
-			const evalResult = await evaluateAnswer(
-				questionDoc.text,
-				ans.responseText || '',
-				refAnswer,
-				weight,
-			);
-			marks = evalResult.score;
-			remarks = evalResult.review;
+		} else if (ans.responseText && ans.responseText.trim()) {
+			// Only evaluate subjective if there is text
+			try {
+				const refAnswer = questionDoc.answer || null;
+				const weight = questionDoc.max_marks / 100;
+				const evalResult = await evaluateAnswer(
+					questionDoc.text,
+					ans.responseText,
+					refAnswer,
+					weight,
+				);
+				marks = evalResult.score;
+				remarks = evalResult.review;
+			} catch (e) {
+				console.error(`AI evaluation failed for question ${questionDoc._id}:`, e.message);
+				marks = 0;
+				remarks = 'Evaluation failed. A teacher will review this answer.';
+			}
 		}
 
 		evaluations.push({
