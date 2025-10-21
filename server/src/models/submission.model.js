@@ -46,6 +46,21 @@ const answerSubSchema = new mongoose.Schema(
 	{ _id: false },
 );
 
+const violationSubSchema = new mongoose.Schema(
+	{
+		type: {
+			type: String,
+			enum: ['fullscreen', 'visibility', 'navigation'],
+			required: true,
+		},
+		timestamp: {
+			type: Date,
+			default: Date.now,
+		},
+	},
+	{ _id: false },
+);
+
 const submissionSchema = new mongoose.Schema(
 	{
 		exam: {
@@ -79,6 +94,23 @@ const submissionSchema = new mongoose.Schema(
 			],
 			default: [],
 		},
+
+		// --- NEW & IMPROVED FIELDS ---
+		markedForReview: {
+			type: [mongoose.Schema.Types.ObjectId],
+			ref: 'Question',
+			default: [],
+		},
+		violations: {
+			type: [violationSubSchema],
+			default: [],
+		},
+		submissionType: {
+			type: String,
+			enum: ['manual', 'auto'],
+			default: 'manual',
+		},
+		// --- END NEW & IMPROVED FIELDS ---
 
 		totalMarks: {
 			type: Number,
