@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useToast } from '../../components/ui/Toaster.jsx'; // <-- Import useToast
+import { useToast } from '../../components/ui/Toaster.jsx';
 import {
 	safeApiCall,
 	getSubmissionById,
@@ -10,27 +10,48 @@ import {
 import { apiClient } from '../../services/api.js';
 import TakeExamSkeleton from './components/TakeExamSkeleton.jsx';
 
-const MAX_VIOLATIONS = 5; // Set the warning limit
+const MAX_VIOLATIONS = 5;
+const AUTO_SAVE_INTERVAL = 30000; // 30 seconds
 
-// --- Environment Hook (unchanged) ---
+// --- Environment Hook ---
 const useExamEnvironment = (isExamActive, onViolation) => {
 	useEffect(() => {
 		if (!isExamActive) return;
-		const handleFullscreenChange = () =>
-			!document.fullscreenElement && onViolation('fullscreen');
-		const handleVisibilityChange = () => document.hidden && onViolation('visibility');
-		window.history.pushState(null, '', window.location.href);
+
+		const handleFullscreenChange = () => {
+			if (!document.fullscreenElement) {
+				onViolation('fullscreen');
+			}
+		};
+
+		const handleVisibilityChange = () => {
+			if (document.hidden) {
+				onViolation('visibility');
+			}
+		};
+
 		const handlePopState = () => {
 			window.history.pushState(null, '', window.location.href);
 			onViolation('navigation');
 		};
+
+		// Prevent back navigation
+		window.history.pushState(null, '', window.location.href);
+
+		// Add listeners
 		document.addEventListener('fullscreenchange', handleFullscreenChange);
 		document.addEventListener('visibilitychange', handleVisibilityChange);
 		window.addEventListener('popstate', handlePopState);
+
+		// Block context menu
+		const handleContextMenu = e => e.preventDefault();
+		document.addEventListener('contextmenu', handleContextMenu);
+
 		return () => {
 			document.removeEventListener('fullscreenchange', handleFullscreenChange);
 			document.removeEventListener('visibilitychange', handleVisibilityChange);
 			window.removeEventListener('popstate', handlePopState);
+			document.removeEventListener('contextmenu', handleContextMenu);
 		};
 	}, [isExamActive, onViolation]);
 };
@@ -39,9 +60,9 @@ const TakeExam = () => {
 	const params = useParams();
 	const submissionId = params.submissionId || params.id;
 	const navigate = useNavigate();
-	const { success, error: toastError } = useToast(); // <-- Get toast functions
+	const { success, error: toastError, info } = useToast();
 
-	// --- State (largely unchanged) ---
+	// --- State ---
 	const [submission, setSubmission] = useState(null);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState('');
@@ -57,45 +78,61 @@ const TakeExam = () => {
 	const [isOnline, setIsOnline] = useState(() =>
 		typeof navigator !== 'undefined' ? navigator.onLine : true,
 	);
-	const hasUnsavedChanges = useRef(false);
 
-	// --- Actions (Submit, Save, etc.) ---
+	const hasUnsavedChanges = useRef(false);
+	const saveTimeoutRef = useRef(null);
+
+	// --- Timer Hook ---
+	const { remainingMs, remaining } = useTimer(submission);
+
+	// --- Submit Handler ---
 	const finalSubmit = useCallback(
 		async (isAuto = false, reason = 'Submission confirmed.') => {
 			if (!submission || autoSubmitting) return;
 			setAutoSubmitting(true);
 
-			// Use toast instead of alert
-			toastError(reason, { duration: 5000, title: 'Auto-Submitting Exam' });
+			if (isAuto) {
+				info(reason, { duration: 5000 });
+			}
 
 			try {
 				// Final save before submitting
-				await safeApiCall(saveSubmissionAnswers, submission.id, {
-					answers: submission.answers || [],
-					markedForReview: markedForReview,
-				});
-				// Submit with the correct type
+				if (hasUnsavedChanges.current) {
+					await safeApiCall(saveSubmissionAnswers, submission.id, {
+						answers: submission.answers || [],
+						markedForReview: markedForReview,
+					});
+				}
+
+				// Submit
 				await safeApiCall(submitSubmission, submission.id, {
 					submissionType: isAuto ? 'auto' : 'manual',
 				});
-				if (document.fullscreenElement) document.exitFullscreen();
+
+				if (document.fullscreenElement) {
+					await document.exitFullscreen().catch(() => {});
+				}
 
 				success('Submission successful! Redirecting to results...');
-				navigate('/student/results', { replace: true });
+				setTimeout(() => {
+					navigate('/student/results', { replace: true });
+				}, 1500);
 			} catch (e) {
-				toastError(e?.message || 'Failed to submit. Please check your connection.');
-				setAutoSubmitting(false); // Allow retry if submission fails
+				toastError(e?.message || 'Failed to submit. Please try again.');
+				setAutoSubmitting(false);
 			}
 		},
-		[submission, autoSubmitting, navigate, markedForReview, success, toastError],
+		[submission, autoSubmitting, navigate, markedForReview, success, toastError, info],
 	);
 
-	// --- Violation Handler with Auto-Submit ---
+	// --- Violation Handler ---
 	const handleViolation = useCallback(
 		type => {
 			const newCount = violations.count + 1;
 			setViolations({ count: newCount, lastType: type });
 			setViolationOverlay(type);
+
+			// Log violation to backend
 			apiClient
 				.post(`/api/submissions/${submissionId}/violation`, { type })
 				.catch(console.error);
@@ -109,7 +146,7 @@ const TakeExam = () => {
 
 	useExamEnvironment(isStarted && !autoSubmitting, handleViolation);
 
-	// Warn on browser/tab close while in-progress
+	// --- Prevent tab close ---
 	useEffect(() => {
 		const onBeforeUnload = e => {
 			if (isStarted && submission && submission.status === 'in-progress') {
@@ -122,7 +159,7 @@ const TakeExam = () => {
 		return () => window.removeEventListener('beforeunload', onBeforeUnload);
 	}, [isStarted, submission]);
 
-	// Online/Offline status
+	// --- Online/Offline ---
 	useEffect(() => {
 		const setOn = () => setIsOnline(true);
 		const setOff = () => setIsOnline(false);
@@ -134,11 +171,12 @@ const TakeExam = () => {
 		};
 	}, []);
 
-	// Keyboard shortcuts
+	// --- Keyboard shortcuts ---
 	useEffect(() => {
 		const onKey = e => {
 			if (!isStarted || autoSubmitting) return;
 			const key = `${e.altKey ? 'alt+' : ''}${e.key.toLowerCase()}`;
+
 			if (key === 'alt+n') {
 				e.preventDefault();
 				document.getElementById('save-next-btn')?.click();
@@ -157,21 +195,24 @@ const TakeExam = () => {
 		return () => window.removeEventListener('keydown', onKey);
 	}, [isStarted, autoSubmitting]);
 
-	// --- Data Loading (unchanged) ---
+	// --- Load submission ---
 	useEffect(() => {
 		if (!submissionId) {
 			navigate('/student/exams', { replace: true });
 			return;
 		}
+
 		(async () => {
 			try {
 				const s = await safeApiCall(getSubmissionById, submissionId);
+
 				if (s.status === 'submitted' || s.status === 'evaluated') {
 					navigate('/student/results', { replace: true });
-				} else {
-					setSubmission(s);
-					setMarkedForReview(s.markedForReview || []);
+					return;
 				}
+
+				setSubmission(s);
+				setMarkedForReview(s.markedForReview || []);
 			} catch (e) {
 				setError(e?.message || 'Failed to load submission');
 			} finally {
@@ -180,20 +221,19 @@ const TakeExam = () => {
 		})();
 	}, [submissionId, navigate]);
 
-	const { remainingMs, remaining } = useTimer(submission);
-
+	// --- Start exam ---
 	const handleStartExam = async () => {
 		try {
 			await document.documentElement.requestFullscreen();
 			setIsStarted(true);
 		} catch (err) {
-			alert('Fullscreen is required to start the exam. Please allow it.');
+			toastError('Fullscreen is required to start the exam. Please allow it.');
 		}
 	};
 
+	// --- Acknowledge violation ---
 	const acknowledgeViolation = () => {
 		setViolationOverlay(null);
-		// Attempt to re-enter fullscreen automatically
 		if (!document.fullscreenElement) {
 			document.documentElement.requestFullscreen().catch(err => {
 				console.error('Could not re-enter fullscreen:', err);
@@ -201,11 +241,13 @@ const TakeExam = () => {
 		}
 	};
 
-	// --- All other handlers (handleQuickSave, handleToggleReview, etc.) are unchanged ---
+	// --- Quick save ---
 	const handleQuickSave = useCallback(async () => {
-		if (!submission || saving || !hasUnsavedChanges.current) return;
+		if (!submission || saving || !hasUnsavedChanges.current || !isOnline) return;
+
 		setSaving(true);
 		hasUnsavedChanges.current = false;
+
 		try {
 			await safeApiCall(saveSubmissionAnswers, submission.id, {
 				answers: submission.answers || [],
@@ -214,27 +256,74 @@ const TakeExam = () => {
 			setLastSaved(new Date());
 		} catch (e) {
 			hasUnsavedChanges.current = true;
+			console.error('Auto-save failed:', e);
 		} finally {
 			setSaving(false);
 		}
-	}, [submission, saving, markedForReview]);
+	}, [submission, saving, markedForReview, isOnline]);
 
+	// --- Debounced save ---
+	const debouncedSave = useCallback(() => {
+		if (saveTimeoutRef.current) {
+			clearTimeout(saveTimeoutRef.current);
+		}
+
+		saveTimeoutRef.current = setTimeout(() => {
+			handleQuickSave();
+		}, 2000); // Save 2 seconds after last change
+	}, [handleQuickSave]);
+
+	// --- Toggle review ---
 	const handleToggleReview = useCallback(() => {
 		const currentQuestionId = submission?.questions?.[currentQuestionIndex]?.id;
 		if (!currentQuestionId) return;
+
 		hasUnsavedChanges.current = true;
 		setMarkedForReview(prev =>
 			prev.includes(currentQuestionId)
 				? prev.filter(id => id !== currentQuestionId)
 				: [...prev, currentQuestionId],
 		);
-	}, [submission, currentQuestionIndex]);
+		debouncedSave();
+	}, [submission, currentQuestionIndex, debouncedSave]);
 
-	const handleAnswerChangeWithSave = (submission, questionId, value, type) => {
+	// --- Answer change ---
+	const handleAnswerChange = (questionId, value, type) => {
+		if (!submission) return;
+
 		hasUnsavedChanges.current = true;
-		return handleAnswerChange(submission, questionId, value, type);
+
+		setSubmission(prev => {
+			const answerIndex = (prev.answers || []).findIndex(a => a.question === questionId);
+
+			if (answerIndex === -1) {
+				console.warn(
+					'Attempted to update a non-existent answer slot for question:',
+					questionId,
+				);
+				return prev;
+			}
+
+			const newAnswers = [...prev.answers];
+			const answerToUpdate = { ...newAnswers[answerIndex] };
+
+			if (type === 'multiple-choice') {
+				answerToUpdate.responseOption = value;
+				answerToUpdate.responseText = '';
+			} else {
+				answerToUpdate.responseText = value;
+				answerToUpdate.responseOption = null;
+			}
+
+			newAnswers[answerIndex] = answerToUpdate;
+
+			return { ...prev, answers: newAnswers };
+		});
+
+		debouncedSave();
 	};
 
+	// --- Save and next ---
 	const handleSaveAndNext = async () => {
 		await handleQuickSave();
 		if (currentQuestionIndex < submission.questions.length - 1) {
@@ -242,33 +331,44 @@ const TakeExam = () => {
 		}
 	};
 
+	// --- Auto-submit on time expiry ---
 	useEffect(() => {
 		if (remainingMs === 0 && isStarted && !autoSubmitting) {
 			finalSubmit(true, 'Time expired.');
 		}
 	}, [remainingMs, isStarted, autoSubmitting, finalSubmit]);
 
+	// --- Periodic auto-save ---
 	useEffect(() => {
+		if (!isStarted) return;
+
 		const id = setInterval(() => {
-			if (isStarted) handleQuickSave();
-		}, 30000);
+			handleQuickSave();
+		}, AUTO_SAVE_INTERVAL);
+
 		return () => clearInterval(id);
 	}, [isStarted, handleQuickSave]);
 
+	// --- Question stats ---
 	const questionStats = useMemo(() => {
 		const questions = submission?.questions || [];
 		const answers = submission?.answers || [];
-		const answeredIds = new Set(answers.map(a => a.question));
+
 		let answeredCount = 0;
 		const statusMap = questions.map(q => {
-			const isAnswered = answeredIds.has(q.id);
+			const ans = answers.find(a => a.question === q.id);
+			const isAnswered =
+				(ans?.responseText && ans.responseText.trim()) || ans?.responseOption;
 			const isMarked = markedForReview.includes(q.id);
+
 			if (isAnswered) answeredCount++;
+
 			if (isMarked && isAnswered) return 'answered-review';
 			if (isMarked) return 'review';
 			if (isAnswered) return 'answered';
 			return 'unanswered';
 		});
+
 		return {
 			statusMap,
 			total: questions.length,
@@ -278,10 +378,20 @@ const TakeExam = () => {
 		};
 	}, [submission, markedForReview]);
 
+	// --- Cleanup on unmount ---
+	useEffect(() => {
+		return () => {
+			if (saveTimeoutRef.current) {
+				clearTimeout(saveTimeoutRef.current);
+			}
+		};
+	}, []);
+
 	// --- UI Rendering ---
 	if (loading) return <TakeExamSkeleton />;
 
 	if (error) return <div style={{ ...styles.centeredMessage, color: 'red' }}>Error: {error}</div>;
+
 	if (!submission) return <div style={styles.centeredMessage}>Submission not found.</div>;
 
 	if (!isStarted) {
@@ -299,7 +409,10 @@ const TakeExam = () => {
 			{showSubmitConfirm && (
 				<SubmitConfirmation
 					stats={questionStats}
-					onConfirm={() => finalSubmit(false)}
+					onConfirm={() => {
+						setShowSubmitConfirm(false);
+						finalSubmit(false);
+					}}
 					onCancel={() => setShowSubmitConfirm(false)}
 				/>
 			)}
@@ -309,7 +422,12 @@ const TakeExam = () => {
 				{/* Sticky in-panel toolbar */}
 				<div style={styles.toolbar}>
 					<div
-						style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}
+						style={{
+							display: 'flex',
+							gap: 12,
+							alignItems: 'center',
+							flexWrap: 'wrap',
+						}}
 					>
 						<strong style={{ color: 'var(--text)' }}>
 							Q {currentQuestionIndex + 1} / {questionStats.total}
@@ -325,9 +443,12 @@ const TakeExam = () => {
 							}}
 						>
 							<small
-								style={{ color: isOnline ? '#10b981' : '#ef4444', fontWeight: 700 }}
+								style={{
+									color: isOnline ? '#10b981' : '#ef4444',
+									fontWeight: 700,
+								}}
 							>
-								{isOnline ? 'Connected' : 'Offline'}
+								{isOnline ? '🟢 Connected' : '🔴 Offline'}
 							</small>
 							<small style={{ color: 'var(--text-muted)' }}>
 								{saving
@@ -349,12 +470,11 @@ const TakeExam = () => {
 						question={currentQuestion}
 						index={currentQuestionIndex}
 						answer={submission.answers?.find(a => a.question === currentQuestion.id)}
-						onAnswerChange={(...args) =>
-							setSubmission(prev => handleAnswerChangeWithSave(prev, ...args))
-						}
+						onAnswerChange={handleAnswerChange}
 						disabled={autoSubmitting}
 					/>
 				)}
+
 				<div style={styles.navigationControls}>
 					<button
 						id="prev-btn"
@@ -362,43 +482,57 @@ const TakeExam = () => {
 							await handleQuickSave();
 							setCurrentQuestionIndex(i => Math.max(0, i - 1));
 						}}
-						disabled={currentQuestionIndex === 0}
+						disabled={currentQuestionIndex === 0 || autoSubmitting}
+						style={styles.navButton}
 					>
-						Previous
+						← Previous
 					</button>
-					<button id="mark-review-btn" onClick={handleToggleReview}>
+
+					<button
+						id="mark-review-btn"
+						onClick={handleToggleReview}
+						disabled={autoSubmitting}
+						style={{
+							...styles.navButton,
+							background: markedForReview.includes(currentQuestion?.id)
+								? '#8b5cf6'
+								: 'var(--bg)',
+							color: markedForReview.includes(currentQuestion?.id)
+								? 'white'
+								: 'var(--text)',
+						}}
+					>
 						{markedForReview.includes(currentQuestion?.id)
-							? 'Unmark Review'
-							: 'Mark for Review'}
+							? '✓ Marked'
+							: '⭐ Mark for Review'}
 					</button>
+
 					<button
 						id="save-next-btn"
 						onClick={handleSaveAndNext}
-						disabled={currentQuestionIndex === submission.questions.length - 1}
-						style={{ background: 'var(--primary)', color: 'white', border: 'none' }}
-					>
-						Save & Next
-					</button>
-					<button
-						onClick={async () => {
-							await handleQuickSave();
-							setCurrentQuestionIndex(i =>
-								Math.min(submission.questions.length - 1, i + 1),
-							);
+						disabled={
+							currentQuestionIndex === submission.questions.length - 1 ||
+							autoSubmitting
+						}
+						style={{
+							...styles.navButton,
+							background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+							color: 'white',
 						}}
-						disabled={currentQuestionIndex === submission.questions.length - 1}
 					>
-						Next
+						Save & Next →
 					</button>
 				</div>
 			</div>
 
 			{/* --- Sidebar: Status & Navigation --- */}
 			<div style={styles.statusBar} className="statusBar">
-				<h3>{submission.examTitle}</h3>
+				<h3 style={{ margin: 0, fontSize: 18 }}>{submission.examTitle}</h3>
+
 				<div style={styles.timer}>
 					⏳ {remaining.mm}:{remaining.ss}
 				</div>
+
 				<QuestionPalette
 					stats={questionStats}
 					currentIndex={currentQuestionIndex}
@@ -407,31 +541,43 @@ const TakeExam = () => {
 						setCurrentQuestionIndex(i);
 					}}
 				/>
+
 				<div style={styles.statusInfo}>
-					<p>
-						Last saved: {lastSaved ? lastSaved.toLocaleTimeString() : 'Not yet'}
-						{saving && '...'}
+					<p style={{ margin: '4px 0', fontSize: 13 }}>
+						<strong>Last saved:</strong>{' '}
+						{lastSaved ? lastSaved.toLocaleTimeString() : 'Not yet'}
+						{saving && ' (Saving...)'}
 					</p>
-					<p style={{ color: '#ef4444', fontWeight: 'bold' }}>
-						Violations: {violations.count} / {MAX_VIOLATIONS}
+					<p
+						style={{
+							margin: '4px 0',
+							fontSize: 13,
+							color: violations.count > MAX_VIOLATIONS / 2 ? '#ef4444' : '#f59e0b',
+							fontWeight: 'bold',
+						}}
+					>
+						⚠️ Violations: {violations.count} / {MAX_VIOLATIONS}
 					</p>
 				</div>
+
 				<button
 					id="submit-btn"
 					onClick={() => setShowSubmitConfirm(true)}
 					disabled={autoSubmitting}
 					style={styles.submitButton}
 				>
-					{autoSubmitting ? 'Submitting...' : 'Submit Exam'}
+					{autoSubmitting ? 'Submitting...' : '📤 Submit Exam'}
 				</button>
 			</div>
 		</div>
 	);
 };
 
-// --- Helper & UI Components (Unchanged) ---
+// --- Helper Components ---
+
 const useTimer = submission => {
 	const [now, setNow] = useState(() => Date.now());
+
 	useEffect(() => {
 		const timerId = setInterval(() => setNow(Date.now()), 1000);
 		return () => clearInterval(timerId);
@@ -440,10 +586,12 @@ const useTimer = submission => {
 	return useMemo(() => {
 		if (!submission?.startedAt || !submission?.duration)
 			return { remainingMs: null, remaining: { mm: '--', ss: '--' } };
+
 		const started = new Date(submission.startedAt).getTime();
 		const end = started + Number(submission.duration) * 60 * 1000;
 		const remMs = Math.max(0, end - now);
 		const totalS = Math.floor(remMs / 1000);
+
 		return {
 			remainingMs: remMs,
 			remaining: {
@@ -456,12 +604,30 @@ const useTimer = submission => {
 
 const StartScreen = ({ submission, onStart }) => (
 	<div style={styles.centeredMessage}>
-		<h2>{submission.examTitle}</h2>
-		<p>Duration: {submission.duration} minutes</p>
-		<p>This exam will be conducted in a secure, fullscreen environment.</p>
-		<button onClick={onStart} style={styles.startButton}>
-			Start Exam
-		</button>
+		<div style={styles.startCard}>
+			<h2 style={{ margin: '0 0 16px 0' }}>{submission.examTitle}</h2>
+			<div style={styles.startInfo}>
+				<p>
+					<strong>Duration:</strong> {submission.duration} minutes
+				</p>
+				<p>
+					<strong>Total Questions:</strong> {submission.questions?.length || 0}
+				</p>
+			</div>
+			<div style={styles.startWarning}>
+				<h3 style={{ margin: '0 0 8px 0' }}>Important Instructions:</h3>
+				<ul style={{ margin: 0, paddingLeft: 20, textAlign: 'left' }}>
+					<li>This exam will be conducted in fullscreen mode</li>
+					<li>Do not switch tabs or minimize the window</li>
+					<li>Violations will be logged and may result in auto-submission</li>
+					<li>Ensure stable internet connection</li>
+					<li>Your answers will be auto-saved every 30 seconds</li>
+				</ul>
+			</div>
+			<button onClick={onStart} style={styles.startButton}>
+				🚀 Start Exam
+			</button>
+		</div>
 	</div>
 );
 
@@ -477,6 +643,7 @@ const QuestionPalette = ({ stats, currentIndex, onSelect }) => (
 						...paletteStatusStyles[status],
 						...(i === currentIndex && styles.paletteCurrent),
 					}}
+					title={`Question ${i + 1} - ${status.replace('-', ' ')}`}
 				>
 					{i + 1}
 				</button>
@@ -492,8 +659,8 @@ const QuestionPalette = ({ stats, currentIndex, onSelect }) => (
 				Not Answered
 			</div>
 			<div style={styles.legendItem}>
-				<span style={{ ...styles.legendColor, ...paletteStatusStyles.review }}></span>For
-				Review
+				<span style={{ ...styles.legendColor, ...paletteStatusStyles.review }}></span>
+				For Review
 			</div>
 		</div>
 	</div>
@@ -502,15 +669,21 @@ const QuestionPalette = ({ stats, currentIndex, onSelect }) => (
 const ViolationOverlay = ({ type, onAcknowledge }) => {
 	const messages = {
 		fullscreen: 'You have exited fullscreen mode. This is a violation of the exam rules.',
-		visibility: 'You have switched to another tab or window. This is not allowed.',
+		visibility:
+			'You have switched to another tab or window. This is not allowed during the exam.',
 		navigation: 'Navigating away from the exam is not allowed.',
 	};
+
 	return (
 		<div style={styles.violationOverlay}>
 			<div style={styles.violationBox}>
-				<h2>Warning</h2>
-				<p>{messages[type] || 'An exam rule was violated.'}</p>
-				<button onClick={onAcknowledge}>Return to Exam</button>
+				<h2 style={{ margin: '0 0 16px 0', color: '#ef4444' }}>⚠️ Warning</h2>
+				<p style={{ margin: '0 0 24px 0' }}>
+					{messages[type] || 'An exam rule was violated.'}
+				</p>
+				<button onClick={onAcknowledge} style={styles.violationButton}>
+					Return to Exam
+				</button>
 			</div>
 		</div>
 	);
@@ -519,22 +692,33 @@ const ViolationOverlay = ({ type, onAcknowledge }) => {
 const SubmitConfirmation = ({ stats, onConfirm, onCancel }) => (
 	<div style={styles.violationOverlay}>
 		<div style={styles.violationBox}>
-			<h2>Confirm Submission</h2>
-			<p>Are you sure you want to submit? Here is a summary of your attempt:</p>
-			<ul>
-				<li>
-					Answered: {stats.answered} / {stats.total}
-				</li>
-				<li>
-					Not Answered: {stats.unanswered} / {stats.total}
-				</li>
-				<li>Marked for Review: {stats.review}</li>
-			</ul>
-			<div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-				<button onClick={onCancel} style={{ background: 'grey' }}>
+			<h2 style={{ margin: '0 0 16px 0' }}>Confirm Submission</h2>
+			<p style={{ margin: '0 0 16px 0' }}>
+				Are you sure you want to submit? Here is a summary of your attempt:
+			</p>
+			<div style={styles.submitSummary}>
+				<div style={styles.summaryItem}>
+					<span>Answered:</span>
+					<strong>
+						{stats.answered} / {stats.total}
+					</strong>
+				</div>
+				<div style={styles.summaryItem}>
+					<span>Not Answered:</span>
+					<strong>
+						{stats.unanswered} / {stats.total}
+					</strong>
+				</div>
+				<div style={styles.summaryItem}>
+					<span>Marked for Review:</span>
+					<strong>{stats.review}</strong>
+				</div>
+			</div>
+			<div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginTop: 24 }}>
+				<button onClick={onCancel} style={styles.cancelButton}>
 					Cancel
 				</button>
-				<button onClick={onConfirm} style={{ background: '#dc2626' }}>
+				<button onClick={onConfirm} style={styles.confirmButton}>
 					Submit Now
 				</button>
 			</div>
@@ -542,49 +726,20 @@ const SubmitConfirmation = ({ stats, onConfirm, onCancel }) => (
 	</div>
 );
 
-const handleAnswerChange = (submission, questionId, value, type) => {
-	if (!submission) return null;
-
-	// Find the index of the answer to update. It's guaranteed to exist.
-	const answerIndex = (submission.answers || []).findIndex(a => a.question === questionId);
-
-	// If for some reason it doesn't exist (defensive coding), do nothing.
-	if (answerIndex === -1) {
-		console.warn('Attempted to update a non-existent answer slot for question:', questionId);
-		return submission;
-	}
-
-	// Create a new answers array to avoid direct state mutation
-	const newAnswers = [...submission.answers];
-	const answerToUpdate = { ...newAnswers[answerIndex] }; // Copy the answer object
-
-	if (type === 'multiple-choice') {
-		answerToUpdate.responseOption = value;
-		answerToUpdate.responseText = ''; // Clear other answer type
-	} else {
-		answerToUpdate.responseText = value;
-		answerToUpdate.responseOption = null; // Clear other answer type
-	}
-
-	// Replace the old answer object with the updated one
-	newAnswers[answerIndex] = answerToUpdate;
-
-	// Return the new submission state
-	return { ...submission, answers: newAnswers };
-};
-
 const QuestionCard = ({ question, index, answer, onAnswerChange, disabled }) => {
 	const isMCQ = question.type === 'multiple-choice';
+
 	return (
 		<div style={styles.questionCard}>
 			<div style={styles.questionHeader}>
-				<strong>
+				<strong style={{ fontSize: 16 }}>
 					{index + 1}. {question.text}
 				</strong>
-				<span>{question.max_marks} Marks</span>
+				<span style={styles.marksBadge}>{question.max_marks} Marks</span>
 			</div>
+
 			{isMCQ ? (
-				<div>
+				<div style={{ display: 'grid', gap: 12 }}>
 					{(question.options || []).map(opt => (
 						<label key={opt.id} style={styles.mcqOption}>
 							<input
@@ -596,8 +751,9 @@ const QuestionCard = ({ question, index, answer, onAnswerChange, disabled }) => 
 									onAnswerChange(question.id, e.target.value, 'multiple-choice')
 								}
 								disabled={disabled}
+								style={{ cursor: disabled ? 'not-allowed' : 'pointer' }}
 							/>
-							{opt.text}
+							<span style={{ flex: 1 }}>{opt.text}</span>
 						</label>
 					))}
 				</div>
@@ -606,8 +762,8 @@ const QuestionCard = ({ question, index, answer, onAnswerChange, disabled }) => 
 					value={answer?.responseText || ''}
 					onChange={e => onAnswerChange(question.id, e.target.value, 'descriptive')}
 					disabled={disabled}
-					rows={5}
-					placeholder="Your answer..."
+					rows={8}
+					placeholder="Type your answer here..."
 					style={styles.textarea}
 				/>
 			)}
@@ -621,17 +777,46 @@ const styles = {
 		display: 'grid',
 		placeContent: 'center',
 		textAlign: 'center',
-		minHeight: 'calc(100vh - 64px)',
+		minHeight: '100vh',
 		gap: '1rem',
+		padding: 16,
+		background: 'var(--bg)',
+	},
+	startCard: {
+		background: 'var(--surface)',
+		border: '1px solid var(--border)',
+		borderRadius: 16,
+		padding: 32,
+		maxWidth: 600,
+		boxShadow: 'var(--shadow-lg)',
+	},
+	startInfo: {
+		background: 'var(--bg)',
+		border: '1px solid var(--border)',
+		borderRadius: 12,
+		padding: 16,
+		marginBottom: 24,
+		textAlign: 'left',
+	},
+	startWarning: {
+		background: 'rgba(239, 68, 68, 0.1)',
+		border: '1px solid rgba(239, 68, 68, 0.3)',
+		borderRadius: 12,
+		padding: 16,
+		marginBottom: 24,
+		color: 'var(--text)',
 	},
 	startButton: {
-		padding: '12px 24px',
+		padding: '14px 28px',
 		fontSize: '16px',
+		fontWeight: 800,
 		cursor: 'pointer',
-		background: '#10b981',
+		background: 'linear-gradient(135deg, #10b981, #059669)',
 		color: 'white',
 		border: 'none',
-		borderRadius: '8px',
+		borderRadius: '10px',
+		width: '100%',
+		transition: 'transform 0.2s',
 	},
 	examLayout: {
 		display: 'grid',
@@ -667,81 +852,198 @@ const styles = {
 		fontWeight: 'bold',
 		textAlign: 'center',
 		background: 'var(--bg)',
-		padding: '10px',
-		borderRadius: '8px',
+		padding: '12px',
+		borderRadius: '10px',
+		border: '2px solid var(--border)',
+		fontVariantNumeric: 'tabular-nums',
 	},
 	paletteContainer: {
 		border: '1px solid var(--border)',
 		borderRadius: '8px',
 		padding: '8px',
 		background: 'var(--bg)',
-		overflowY: 'auto', // <-- This makes the palette scrollable
-		flex: 1, // <-- This makes it take up available space
-		minHeight: 100, // Ensure it has a minimum height
-	},
-	statusInfo: {
-		marginTop: '0', // Remove margin-top auto
-		fontSize: '14px',
-	},
-	navigationControls: {
-		display: 'grid',
-		gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))',
-		gap: '10px',
-		marginTop: 'auto',
-		paddingTop: '16px',
-		borderTop: '1px solid var(--border)',
-	},
-	submitButton: {
-		padding: '12px',
-		fontSize: '16px',
-		fontWeight: 'bold',
-		cursor: 'pointer',
-		background: '#dc2626',
-		color: 'white',
-		border: 'none',
-		borderRadius: '8px',
-	},
-	questionCard: { flexGrow: 1, color: 'var(--text)', marginBottom: '16px' },
-	questionHeader: { display: 'flex', justifyContent: 'space-between', marginBottom: 12 },
-	mcqOption: { display: 'flex', gap: 8, padding: '8px', cursor: 'pointer' },
-	textarea: {
-		width: '100%',
-		padding: '8px',
-		background: 'var(--bg)',
-		color: 'var(--text)',
-		border: '1px solid var(--border)',
-		borderRadius: '8px',
+		overflowY: 'auto',
+		flex: 1,
+		minHeight: 100,
 	},
 	paletteGrid: {
 		display: 'grid',
-		gridTemplateColumns: 'repeat(auto-fill, minmax(40px, 1fr))',
+		gridTemplateColumns: 'repeat(5, 1fr)',
 		gap: '8px',
 	},
 	paletteButton: {
 		aspectRatio: '1',
 		border: '1px solid var(--border)',
-		borderRadius: '4px',
+		borderRadius: '6px',
 		cursor: 'pointer',
+		fontSize: 13,
+		fontWeight: 700,
+		transition: 'all 0.2s',
 	},
-	paletteCurrent: { outline: '2px solid var(--primary)', outlineOffset: '2px' },
-	legend: { display: 'flex', gap: '1rem', fontSize: '12px', marginTop: '8px', flexWrap: 'wrap' },
-	legendItem: { display: 'flex', alignItems: 'center', gap: '4px' },
-	legendColor: { width: '12px', height: '12px', borderRadius: '2px' },
+	paletteCurrent: {
+		outline: '3px solid var(--primary)',
+		outlineOffset: '2px',
+	},
+	legend: {
+		display: 'flex',
+		gap: '0.5rem',
+		fontSize: '11px',
+		marginTop: '12px',
+		flexWrap: 'wrap',
+	},
+	legendItem: {
+		display: 'flex',
+		alignItems: 'center',
+		gap: '4px',
+	},
+	legendColor: {
+		width: '14px',
+		height: '14px',
+		borderRadius: '3px',
+		border: '1px solid var(--border)',
+	},
+	statusInfo: {
+		marginTop: '0',
+		fontSize: '14px',
+		color: 'var(--text-muted)',
+	},
+	navigationControls: {
+		display: 'grid',
+		gridTemplateColumns: 'repeat(3, 1fr)',
+		gap: '10px',
+		marginTop: 'auto',
+		paddingTop: '16px',
+		borderTop: '1px solid var(--border)',
+	},
+	navButton: {
+		padding: '12px',
+		fontSize: '14px',
+		fontWeight: 700,
+		cursor: 'pointer',
+		background: 'var(--bg)',
+		color: 'var(--text)',
+		border: '1px solid var(--border)',
+		borderRadius: '8px',
+		transition: 'all 0.2s',
+	},
+	submitButton: {
+		padding: '14px',
+		fontSize: '16px',
+		fontWeight: 'bold',
+		cursor: 'pointer',
+		background: 'linear-gradient(135deg, #dc2626, #b91c1c)',
+		color: 'white',
+		border: 'none',
+		borderRadius: '10px',
+	},
+	questionCard: {
+		flexGrow: 1,
+		color: 'var(--text)',
+		marginBottom: '16px',
+	},
+	questionHeader: {
+		display: 'flex',
+		justifyContent: 'space-between',
+		alignItems: 'center',
+		marginBottom: 16,
+		gap: 12,
+	},
+	marksBadge: {
+		padding: '6px 12px',
+		background: 'rgba(59, 130, 246, 0.1)',
+		color: '#3b82f6',
+		borderRadius: 20,
+		fontSize: 13,
+		fontWeight: 800,
+		whiteSpace: 'nowrap',
+	},
+	mcqOption: {
+		display: 'flex',
+		alignItems: 'center',
+		gap: 12,
+		padding: '12px 16px',
+		cursor: 'pointer',
+		background: 'var(--bg)',
+		border: '1px solid var(--border)',
+		borderRadius: '8px',
+		transition: 'all 0.2s',
+	},
+	textarea: {
+		width: '100%',
+		padding: '12px',
+		background: 'var(--bg)',
+		color: 'var(--text)',
+		border: '1px solid var(--border)',
+		borderRadius: '8px',
+		fontFamily: 'inherit',
+		fontSize: '14px',
+		lineHeight: 1.5,
+		resize: 'vertical',
+	},
 	violationOverlay: {
 		position: 'fixed',
 		inset: 0,
-		background: 'rgba(0,0,0,0.8)',
+		background: 'rgba(0,0,0,0.9)',
 		zIndex: 100,
 		display: 'grid',
 		placeItems: 'center',
+		padding: 16,
 	},
 	violationBox: {
 		background: 'var(--surface)',
-		padding: '2rem',
-		borderRadius: '12px',
+		padding: '32px',
+		borderRadius: '16px',
 		textAlign: 'center',
-		maxWidth: '400px',
-		border: '1px solid #ef4444',
+		maxWidth: '500px',
+		width: '100%',
+		border: '2px solid #ef4444',
+		boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
+	},
+	violationButton: {
+		padding: '12px 24px',
+		fontSize: '16px',
+		fontWeight: 800,
+		cursor: 'pointer',
+		background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+		color: 'white',
+		border: 'none',
+		borderRadius: '8px',
+		width: '100%',
+	},
+	submitSummary: {
+		background: 'var(--bg)',
+		border: '1px solid var(--border)',
+		borderRadius: '12px',
+		padding: '16px',
+		display: 'grid',
+		gap: '12px',
+	},
+	summaryItem: {
+		display: 'flex',
+		justifyContent: 'space-between',
+		alignItems: 'center',
+	},
+	cancelButton: {
+		padding: '12px 24px',
+		fontSize: '16px',
+		fontWeight: 700,
+		cursor: 'pointer',
+		background: 'var(--bg)',
+		color: 'var(--text)',
+		border: '1px solid var(--border)',
+		borderRadius: '8px',
+		flex: 1,
+	},
+	confirmButton: {
+		padding: '12px 24px',
+		fontSize: '16px',
+		fontWeight: 700,
+		cursor: 'pointer',
+		background: 'linear-gradient(135deg, #dc2626, #b91c1c)',
+		color: 'white',
+		border: 'none',
+		borderRadius: '8px',
+		flex: 1,
 	},
 	toolbar: {
 		position: 'sticky',
@@ -755,7 +1057,7 @@ const styles = {
 	toolbarPill: {
 		fontSize: 12,
 		fontWeight: 800,
-		padding: '4px 8px',
+		padding: '4px 10px',
 		borderRadius: 999,
 		background: 'rgba(16,185,129,0.15)',
 		color: '#10b981',
@@ -764,7 +1066,7 @@ const styles = {
 	toolbarPillMuted: {
 		fontSize: 12,
 		fontWeight: 800,
-		padding: '4px 8px',
+		padding: '4px 10px',
 		borderRadius: 999,
 		background: 'var(--bg)',
 		color: 'var(--text-muted)',
@@ -772,27 +1074,46 @@ const styles = {
 	},
 	toolbarTimer: {
 		fontWeight: 800,
-		padding: '4px 8px',
+		padding: '6px 12px',
 		borderRadius: 8,
 		border: '1px solid var(--border)',
 		background: 'var(--bg)',
+		fontVariantNumeric: 'tabular-nums',
 	},
 };
 
-// --- All other style objects are unchanged ---
 const paletteStatusStyles = {
-	unanswered: { background: 'var(--surface)' },
+	unanswered: { background: 'var(--surface)', color: 'var(--text-muted)' },
 	answered: { background: '#10b981', color: 'white', border: 'none' },
 	review: { background: '#8b5cf6', color: 'white', border: 'none' },
-	'answered-review': { background: '#10b981', color: 'white', border: '2px solid #8b5cf6' },
+	'answered-review': {
+		background: '#10b981',
+		color: 'white',
+		border: '3px solid #8b5cf6',
+		boxShadow: '0 0 0 1px white inset',
+	},
 };
 
-const mediaQuery = `@media (max-width: 900px) {
-  .examLayout { grid-template-columns: 1fr; height: auto; }
-  .statusBar { position: relative; top: 0; height: auto; }
-}`;
+// Media query for responsive design
+const mediaQuery = `
+  @media (max-width: 900px) {
+    .examLayout { 
+      grid-template-columns: 1fr !important; 
+      height: auto !important; 
+    }
+    .statusBar { 
+      position: relative !important; 
+      top: 0 !important; 
+      height: auto !important; 
+    }
+  }
+`;
+
 const styleSheet = document.createElement('style');
 styleSheet.innerText = mediaQuery;
-document.head.appendChild(styleSheet);
+if (!document.querySelector('style[data-exam-styles]')) {
+	styleSheet.setAttribute('data-exam-styles', 'true');
+	document.head.appendChild(styleSheet);
+}
 
 export default TakeExam;
