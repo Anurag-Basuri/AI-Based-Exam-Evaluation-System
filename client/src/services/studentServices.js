@@ -165,16 +165,17 @@ const normalizeSubmission = s => ({
 	examTitle: s.exam?.title ?? s.examTitle ?? 'Exam',
 	duration: Number(s.duration ?? s.exam?.duration ?? 0),
 	answers: Array.isArray(s.answers) ? s.answers : [],
-	questions: (s.exam?.questions || []).map(q => ({ // <-- Add this block to normalize questions
-        id: String(q._id ?? q.id),
-        text: q.text,
-        type: q.type,
-        max_marks: q.max_marks,
-        options: (q.options || []).map(o => ({
-            id: String(o._id ?? o.id),
-            text: o.text,
-        })),
-    })),
+	questions: (s.exam?.questions || []).map(q => ({
+		// <-- Add this block to normalize questions
+		id: String(q._id ?? q.id),
+		text: q.text,
+		type: q.type,
+		max_marks: q.max_marks,
+		options: (q.options || []).map(o => ({
+			id: String(o._id ?? o.id),
+			text: o.text,
+		})),
+	})),
 	score:
 		s.totalScore ??
 		(Array.isArray(s.evaluations)
@@ -184,7 +185,7 @@ const normalizeSubmission = s => ({
 		s.maxScore ??
 		(Array.isArray(s.answers)
 			? s.answers.reduce((acc, ans) => acc + (ans?.question?.max_marks || 0), 0)
-			: s.totalMax ?? 0),
+			: (s.totalMax ?? 0)),
 	status: s.status ?? 'pending',
 	startedAt: s.startedAt ? new Date(s.startedAt).toISOString() : '',
 	submittedAt: s.submittedAt ? new Date(s.submittedAt).toISOString() : '',
@@ -241,49 +242,25 @@ export const syncSubmissionAnswers = async (examId, answers = []) => {
 };
 
 // Save answers
-export const saveSubmissionAnswers = async (idOrPayload, maybeAnswers = []) => {
-	// If payload style provided
-	if (idOrPayload && typeof idOrPayload === 'object' && idOrPayload.examId) {
-		return syncSubmissionAnswers(idOrPayload.examId, idOrPayload.answers || []);
-	}
-	// Try compat by submissionId route first
-	try {
-		const res = await tryPatch(
-			[id => `/api/submissions/${encodeURIComponent(id)}/answers`].map(fn => fn(idOrPayload)),
-			{ answers: maybeAnswers },
-		);
-		const data = res?.data?.data ?? res?.data ?? {};
-		return normalizeSubmission(data);
-	} catch (err) {
-		// Fallback was incorrect, now it correctly calls the primary sync function
-		// if the submissionId-based route fails.
-		console.warn('Fallback to syncSubmissionAnswers due to error:', err);
-		return syncSubmissionAnswers(idOrPayload, maybeAnswers);
-	}
-};
-
-// Preferred server-aligned submit: by examId (body)
-export const submitExam = async examId => {
-	const res = await tryPost(EP.submissionSubmitBody, { examId });
+export const saveSubmissionAnswers = async (submissionId, payload) => {
+	// This function now expects submissionId and a payload object { answers, markedForReview }
+	const res = await tryPatch(
+		[`/api/submissions/${encodeURIComponent(submissionId)}/answers`],
+		payload,
+	);
 	const data = res?.data?.data ?? res?.data ?? {};
 	return normalizeSubmission(data);
 };
 
 // Submit
-export const submitSubmission = async (idOrPayload = {}, payload = {}) => {
-	if (idOrPayload && typeof idOrPayload === 'object' && idOrPayload.examId) {
-		return submitExam(idOrPayload.examId);
-	}
-	try {
-		const res = await tryPatch(
-			[id => `/api/submissions/${encodeURIComponent(id)}/submit`].map(fn => fn(idOrPayload)),
-			{ ...payload },
-		);
-		const data = res?.data?.data ?? res?.data ?? {};
-		return normalizeSubmission(data);
-	} catch {
-		return submitExam(idOrPayload);
-	}
+export const submitSubmission = async (submissionId, payload) => {
+	// Simplified: Always submit by submission ID
+	const res = await tryPatch(
+		[`/api/submissions/${encodeURIComponent(submissionId)}/submit`],
+		payload, // payload should be { submissionType: 'manual' | 'auto' }
+	);
+	const data = res?.data?.data ?? res?.data ?? {};
+	return normalizeSubmission(data);
 };
 
 export const getSubmissionById = async submissionId => {
@@ -336,9 +313,9 @@ export const getMySubmissionsForIssues = async () => {
 
 // Ensure cookies
 try {
-    if (apiClient?.defaults) {
-        apiClient.defaults.withCredentials = true;
-    }
+	if (apiClient?.defaults) {
+		apiClient.defaults.withCredentials = true;
+	}
 } catch {
-    // noop
+	// noop
 }
