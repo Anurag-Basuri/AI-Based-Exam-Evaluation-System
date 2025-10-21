@@ -8,53 +8,67 @@ import { ApiResponse } from '../utils/ApiResponse.js';
 
 // Helper: Evaluate all answers in a submission
 async function evaluateSubmissionAnswers(submission) {
+	console.log(`[SUBMISSION_CTRL] Starting evaluation for submission ID: ${submission._id}`);
 	const evaluations = [];
-	for (const ans of submission.answers) {
-		const questionDoc = await Question.findById(ans.question);
-		if (!questionDoc) continue;
-
-		let marks = 0;
-		let remarks = 'Answer not provided.';
-
-		if (questionDoc.type === 'multiple-choice') {
-			if (ans.responseOption && questionDoc.options) {
-				const correctOption = questionDoc.options.find(opt => opt.isCorrect);
-				marks =
-					ans.responseOption.toString() === correctOption?._id.toString()
-						? questionDoc.max_marks
-						: 0;
-				remarks = marks > 0 ? 'Correct answer.' : 'Incorrect answer.';
-			}
-		} else if (ans.responseText && ans.responseText.trim()) {
-			// Only evaluate subjective if there is text
-			try {
-				const refAnswer = questionDoc.answer || null;
-				const weight = questionDoc.max_marks / 100;
-				const evalResult = await evaluateAnswer(
-					questionDoc.text,
-					ans.responseText,
-					refAnswer,
-					weight,
+	// Use Promise.all for concurrent evaluations
+	await Promise.all(
+		submission.answers.map(async ans => {
+			const questionDoc = await Question.findById(ans.question);
+			if (!questionDoc) {
+				console.warn(
+					`[SUBMISSION_CTRL] Question ${ans.question} not found for submission ${submission._id}. Skipping.`,
 				);
-				marks = evalResult.score;
-				remarks = evalResult.review;
-			} catch (e) {
-				console.error(`AI evaluation failed for question ${questionDoc._id}:`, e.message);
-				marks = 0;
-				remarks = 'Evaluation failed. A teacher will review this answer.';
+				return;
 			}
-		}
 
-		evaluations.push({
-			question: questionDoc._id,
-			evaluation: {
-				evaluator: 'ai',
-				marks,
-				remarks,
-				evaluatedAt: new Date(),
-			},
-		});
-	}
+			console.log(`[SUBMISSION_CTRL] Evaluating answer for question ID: ${questionDoc._id}`);
+			let marks = 0;
+			let remarks = 'Answer not provided.';
+
+			if (questionDoc.type === 'multiple-choice') {
+				if (ans.responseOption && questionDoc.options) {
+					const correctOption = questionDoc.options.find(opt => opt.isCorrect);
+					marks =
+						ans.responseOption.toString() === correctOption?._id.toString()
+							? questionDoc.max_marks
+							: 0;
+					remarks = marks > 0 ? 'Correct answer.' : 'Incorrect answer.';
+				}
+			} else if (ans.responseText && ans.responseText.trim()) {
+				// Only evaluate subjective if there is text
+				try {
+					const refAnswer = questionDoc.answer || null;
+					const weight = questionDoc.max_marks / 100;
+					const evalResult = await evaluateAnswer(
+						questionDoc.text,
+						ans.responseText,
+						refAnswer,
+						weight,
+					);
+					marks = evalResult.score;
+					remarks = evalResult.review;
+					console.log(
+						`[SUBMISSION_CTRL] Subjective evaluation SUCCEEDED for question ${questionDoc._id}. Marks: ${marks}`,
+					);
+				} catch (e) {
+					console.error(
+						`[SUBMISSION_CTRL] Subjective evaluation FAILED for question ${questionDoc._id}. Error: ${e.message}. Awarding 0 marks.`,
+					);
+					marks = 0;
+					remarks =
+						'Evaluation failed due to a system error. A teacher will review this answer.';
+				}
+			}
+
+			evaluations.push({
+				question: questionDoc._id,
+				evaluation: { evaluator: 'ai', marks, remarks, evaluatedAt: new Date() },
+			});
+		}),
+	);
+	console.log(
+		`[SUBMISSION_CTRL] Finished evaluation for submission ID: ${submission._id}. Total evaluations: ${evaluations.length}`,
+	);
 	return evaluations;
 }
 
@@ -164,8 +178,9 @@ const syncAnswers = asyncHandler(async (req, res) => {
 
 // Submit a submission (mark as submitted and evaluate)
 const submitSubmission = asyncHandler(async (req, res) => {
+	console.log('[SUBMISSION_CTRL] Received request to submit and evaluate submission.');
 	const studentId = req.student?._id || req.user?.id;
-	const { examId, submissionType = 'manual' } = req.body; // <-- Read submissionType from body
+	const { examId, submissionType = 'manual' } = req.body;
 
 	const submission = await Submission.findOne({ exam: examId, student: studentId });
 	if (!submission) throw ApiError.NotFound('Submission not found');
@@ -176,11 +191,15 @@ const submitSubmission = asyncHandler(async (req, res) => {
 	submission.submissionType = submissionType; // <-- Correctly assign type
 
 	// Automated Evaluation
+	console.log(
+		`[SUBMISSION_CTRL] Calling evaluateSubmissionAnswers for submission on exam ${examId}`,
+	);
 	submission.evaluations = await evaluateSubmissionAnswers(submission);
 	submission.evaluatedAt = new Date();
 	submission.status = 'evaluated';
 	await submission.save();
 
+	console.log(`[SUBMISSION_CTRL] Submission ${submission._id} successfully evaluated and saved.`);
 	return ApiResponse.success(res, submission, 'Submission submitted and evaluated');
 });
 
