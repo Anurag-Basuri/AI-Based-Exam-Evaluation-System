@@ -12,7 +12,7 @@ const TakeExam = () => {
 	const submissionId = params.submissionId || params.id;
 	const navigate = useNavigate();
 	const [submission, setSubmission] = useState(null);
-	const [loading, setLoading] = useState(true);
+	const [loading, setLoading] = useState(true); 
 	const [saving, setSaving] = useState(false);
 	const [error, setError] = useState('');
 	const [autoSubmitting, setAutoSubmitting] = useState(false);
