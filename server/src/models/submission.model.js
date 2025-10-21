@@ -102,7 +102,7 @@ const answerSubSchema = new mongoose.Schema(
 	{ _id: false },
 );
 
-const SubmissionSchema = new mongoose.Schema(
+const submissionSchema = new mongoose.Schema(
 	{
 		exam: {
 			type: mongoose.Schema.Types.ObjectId,
@@ -184,11 +184,41 @@ const SubmissionSchema = new mongoose.Schema(
 	},
 );
 
-// Ensure at least one answer or mark as empty submission
+// Ensure array fields are arrays and answers are unique by question
 submissionSchema.pre('validate', function (next) {
-	if (!Array.isArray(this.answers)) {
-		this.answers = [];
+	if (!Array.isArray(this.answers)) this.answers = [];
+	if (!Array.isArray(this.evaluations)) this.evaluations = [];
+
+	// De-duplicate answers by question (keep last occurrence)
+	const seen = new Set();
+	for (let i = this.answers.length - 1; i >= 0; i--) {
+		const qid = String(this.answers[i]?.question || '');
+		if (!qid) {
+			this.answers.splice(i, 1);
+			continue;
+		}
+		if (seen.has(qid)) {
+			this.answers.splice(i, 1);
+		} else {
+			seen.add(qid);
+		}
 	}
+
+	// De-duplicate evaluations by question (keep last occurrence)
+	const seenEval = new Set();
+	for (let i = this.evaluations.length - 1; i >= 0; i--) {
+		const qid = String(this.evaluations[i]?.question || '');
+		if (!qid) {
+			this.evaluations.splice(i, 1);
+			continue;
+		}
+		if (seenEval.has(qid)) {
+			this.evaluations.splice(i, 1);
+		} else {
+			seenEval.add(qid);
+		}
+	}
+
 	next();
 });
 
@@ -224,9 +254,6 @@ submissionSchema.pre('save', function (next) {
 });
 
 submissionSchema.index({ exam: 1, student: 1 }, { unique: true });
-
-// --- Ensure each question within a submission's answers array is unique ---
-submissionSchema.index({ _id: 1, 'answers.question': 1 }, { unique: true });
 
 const Submission = mongoose.model('Submission', submissionSchema);
 

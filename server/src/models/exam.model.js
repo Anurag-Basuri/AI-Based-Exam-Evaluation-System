@@ -1,5 +1,4 @@
 import mongoose from 'mongoose';
-import { nanoid } from 'nanoid';
 import slugify from 'slugify';
 
 const EXAM_LOCK_WINDOW = process.env.EXAM_LOCK_WINDOW
@@ -79,7 +78,7 @@ const AiPolicySchema = new mongoose.Schema(
 	{ _id: false },
 );
 
-const ExamSchema = new mongoose.Schema(
+const examSchema = new mongoose.Schema(
 	{
 		criterion: {
 			type: String,
@@ -179,7 +178,8 @@ const ExamSchema = new mongoose.Schema(
 // Generate slug before saving
 examSchema.pre('save', function (next) {
 	if (this.isModified('title') || this.isNew) {
-		this.slug = `${slugify(this.title, { lower: true, strict: true })}-${this.searchId}`;
+		// Use the actual field name (criterion) instead of undefined searchId
+		this.slug = `${slugify(this.title, { lower: true, strict: true })}-${this.criterion}`;
 	}
 	next();
 });
