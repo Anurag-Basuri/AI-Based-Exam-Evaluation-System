@@ -1,26 +1,82 @@
 import mongoose from 'mongoose';
 
-// Evaluation sub-schema (exactly one per answer)
-const evaluationSubSchema = new mongoose.Schema(
+const EvaluationMetaSchema = new mongoose.Schema(
+	{
+		rubric_breakdown: {
+			type: Array,
+			default: undefined,
+		},
+		keywords_matched: {
+			type: Array,
+			default: undefined,
+		},
+		penalties_applied: {
+			type: Array,
+			default: undefined,
+		},
+		evalId: {
+			type: String,
+		},
+		path: {
+			type: String,
+		},
+		truncatedInput: {
+			type: Boolean,
+		},
+		fallback: {
+			type: Boolean,
+		},
+		type: {
+			type: String,
+		},
+		reason: {
+			type: String,
+		},
+		message: {
+			type: String,
+		},
+	},
+	{ _id: false },
+);
+
+const SingleEvaluationSchema = new mongoose.Schema(
 	{
 		evaluator: {
 			type: String,
-			enum: ['ai', 'teacher'],
-			required: true,
+			enum: ['ai', 'teacher', 'system'],
+			default: 'ai',
 		},
 		marks: {
 			type: Number,
-			min: 0,
 			required: true,
+			min: 0,
 		},
 		remarks: {
 			type: String,
-			trim: true,
-			maxlength: 1000,
+			default: '',
 		},
 		evaluatedAt: {
 			type: Date,
 			default: Date.now,
+		},
+		meta: {
+			type: EvaluationMetaSchema,
+			default: undefined,
+		},
+	},
+	{ _id: false },
+);
+
+const EvaluationSchema = new mongoose.Schema(
+	{
+		question: {
+			type: mongoose.Schema.Types.ObjectId,
+			ref: 'Question',
+			required: true,
+		},
+		evaluation: {
+			type: SingleEvaluationSchema,
+			required: true,
 		},
 	},
 	{ _id: false },
@@ -46,22 +102,7 @@ const answerSubSchema = new mongoose.Schema(
 	{ _id: false },
 );
 
-const violationSubSchema = new mongoose.Schema(
-	{
-		type: {
-			type: String,
-			enum: ['fullscreen', 'visibility', 'navigation'],
-			required: true,
-		},
-		timestamp: {
-			type: Date,
-			default: Date.now,
-		},
-	},
-	{ _id: false },
-);
-
-const submissionSchema = new mongoose.Schema(
+const SubmissionSchema = new mongoose.Schema(
 	{
 		exam: {
 			type: mongoose.Schema.Types.ObjectId,
@@ -81,19 +122,7 @@ const submissionSchema = new mongoose.Schema(
 		},
 
 		// Evaluations: one per question, matches answers
-		evaluations: {
-			type: [
-				{
-					question: {
-						type: mongoose.Schema.Types.ObjectId,
-						ref: 'Question',
-						required: true,
-					},
-					evaluation: evaluationSubSchema,
-				},
-			],
-			default: [],
-		},
+		evaluations: { type: [EvaluationSchema], default: [] },
 
 		// --- NEW & IMPROVED FIELDS ---
 		markedForReview: {
@@ -102,15 +131,26 @@ const submissionSchema = new mongoose.Schema(
 			default: [],
 		},
 		violations: {
-			type: [violationSubSchema],
+			type: [
+				new mongoose.Schema(
+					{
+						type: { type: String, required: true },
+						at: { type: Date, default: Date.now },
+					},
+					{ _id: false },
+				),
+			],
 			default: [],
+		},
+		evaluatedBy: {
+			type: mongoose.Schema.Types.ObjectId,
+			ref: 'Teacher'
 		},
 		submissionType: {
 			type: String,
 			enum: ['manual', 'auto'],
 			default: 'manual',
 		},
-		// --- END NEW & IMPROVED FIELDS ---
 
 		totalMarks: {
 			type: Number,
@@ -129,7 +169,7 @@ const submissionSchema = new mongoose.Schema(
 
 		status: {
 			type: String,
-			enum: ['started', 'in-progress', 'submitted', 'evaluated', 'cancelled'],
+			enum: ['in-progress', 'submitted', 'evaluated'],
 			default: 'in-progress',
 		},
 		submittedAt: {
@@ -138,16 +178,10 @@ const submissionSchema = new mongoose.Schema(
 		evaluatedAt: {
 			type: Date,
 		},
-		evaluatedBy: {
-			type: mongoose.Schema.Types.ObjectId,
-			ref: 'Teacher',
-		},
-		isPublished: {
-			type: Boolean,
-			default: false,
-		},
 	},
-	{ timestamps: true },
+	{
+		timestamps: true
+	},
 );
 
 // Ensure at least one answer or mark as empty submission
