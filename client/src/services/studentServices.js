@@ -165,6 +165,16 @@ const normalizeSubmission = s => ({
 	examTitle: s.exam?.title ?? s.examTitle ?? 'Exam',
 	duration: Number(s.duration ?? s.exam?.duration ?? 0),
 	answers: Array.isArray(s.answers) ? s.answers : [],
+	questions: (s.exam?.questions || []).map(q => ({ // <-- Add this block to normalize questions
+        id: String(q._id ?? q.id),
+        text: q.text,
+        type: q.type,
+        max_marks: q.max_marks,
+        options: (q.options || []).map(o => ({
+            id: String(o._id ?? o.id),
+            text: o.text,
+        })),
+    })),
 	score:
 		s.totalScore ??
 		(Array.isArray(s.evaluations)
@@ -174,7 +184,7 @@ const normalizeSubmission = s => ({
 		s.maxScore ??
 		(Array.isArray(s.answers)
 			? s.answers.reduce((acc, ans) => acc + (ans?.question?.max_marks || 0), 0)
-			: (s.totalMax ?? 0)),
+			: s.totalMax ?? 0),
 	status: s.status ?? 'pending',
 	startedAt: s.startedAt ? new Date(s.startedAt).toISOString() : '',
 	submittedAt: s.submittedAt ? new Date(s.submittedAt).toISOString() : '',
