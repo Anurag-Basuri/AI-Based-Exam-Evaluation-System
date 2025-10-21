@@ -148,7 +148,7 @@ const syncAnswers = asyncHandler(async (req, res) => {
 // Submit a submission (mark as submitted and evaluate)
 const submitSubmission = asyncHandler(async (req, res) => {
 	const studentId = req.student?._id || req.user?.id;
-	const { examId } = req.body;
+	const { examId, submissionType = 'manual' } = req.body; // <-- Read submissionType from body
 
 	const submission = await Submission.findOne({ exam: examId, student: studentId });
 	if (!submission) throw ApiError.NotFound('Submission not found');
@@ -156,6 +156,7 @@ const submitSubmission = asyncHandler(async (req, res) => {
 
 	submission.status = 'submitted';
 	submission.submittedAt = new Date();
+	submission.submissionType = submissionType; // <-- Correctly assign type
 
 	// Automated Evaluation
 	submission.evaluations = await evaluateSubmissionAnswers(submission);
@@ -369,13 +370,15 @@ const syncAnswersBySubmissionId = asyncHandler(async (req, res) => {
 const submitSubmissionById = asyncHandler(async (req, res) => {
 	const studentId = req.student?._id || req.user?.id;
 	const id = req.params.id;
+	const { submissionType = 'manual' } = req.body;
+
 	if (!id) throw ApiError.BadRequest('Submission ID is required');
 	const submission = await Submission.findOne({ _id: id, student: studentId });
 	if (!submission) throw ApiError.NotFound('Submission not found');
 	if (submission.status !== 'in-progress') throw ApiError.Forbidden('Already submitted');
 	submission.status = 'submitted';
 	submission.submittedAt = new Date();
-	submission.submissionType = 'manual'; // <-- Set submission type
+	submission.submissionType = submissionType; // <-- Correctly assign type
 
 	submission.evaluations = await evaluateSubmissionAnswers(submission);
 	submission.evaluatedAt = new Date();
