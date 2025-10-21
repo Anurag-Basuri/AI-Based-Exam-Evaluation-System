@@ -97,7 +97,7 @@ const submissionSchema = new mongoose.Schema(
 
 		status: {
 			type: String,
-			enum: ['in-progress', 'submitted'],
+			enum: ['started', 'in-progress', 'submitted', 'evaluated', 'cancelled'],
 			default: 'in-progress',
 		},
 		submittedAt: {
@@ -162,4 +162,5 @@ submissionSchema.pre('save', function (next) {
 submissionSchema.index({ exam: 1, student: 1 }, { unique: true });
 
 const Submission = mongoose.model('Submission', submissionSchema);
+
 export default Submission;
