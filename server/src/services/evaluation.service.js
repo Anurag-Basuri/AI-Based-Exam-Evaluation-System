@@ -49,15 +49,30 @@ Expected JSON:
 }
 
 function extractJson(rawOutput) {
-	// Try to extract JSON object from output using regex
-	const jsonMatch = rawOutput.match(/\{[\s\S]*\}/);
-	if (!jsonMatch) {
-		throw ApiError.UnprocessableEntity('No JSON found in model response', rawOutput);
+	// Find the first '{' and the last '}' to get the JSON block.
+	const firstBrace = rawOutput.indexOf('{');
+	const lastBrace = rawOutput.lastIndexOf('}');
+
+	if (firstBrace === -1 || lastBrace === -1 || lastBrace < firstBrace) {
+		throw new ApiError(500, 'No valid JSON object found in model response', { rawOutput });
 	}
+
+	const jsonString = rawOutput.substring(firstBrace, lastBrace + 1);
+
 	try {
-		return JSON.parse(jsonMatch[0]);
+		// The model might return JSON with trailing commas, which is invalid.
+		// A common fix is to use a more lenient parser or clean the string.
+		// For this, we'll remove trailing commas before parsing.
+		const cleanedJsonString = jsonString
+			.replace(/,\s*\]/g, ']') // remove trailing comma in array
+			.replace(/,\s*\}/g, '}'); // remove trailing comma in object
+
+		return JSON.parse(cleanedJsonString);
 	} catch (e) {
-		throw ApiError.UnprocessableEntity('Model returned invalid JSON', rawOutput);
+		throw new ApiError(500, 'Model returned invalid JSON', {
+			originalError: e.message,
+			rawOutput,
+		});
 	}
 }
 
@@ -87,29 +102,27 @@ export async function evaluateAnswer(question, studentAnswer, referenceAnswer = 
 			},
 		);
 
-		// Handle various output formats
+		// --- ROBUST RESPONSE PARSING ---
 		let rawOutput = '';
-		if (typeof response.data === 'string') {
-			rawOutput = response.data;
-		} else if (Array.isArray(response.data)) {
-			rawOutput = response.data[0]?.generated_text || '';
-		} else if (response.data?.generated_text) {
-			rawOutput = response.data.generated_text;
-		} else if (response.data?.score !== undefined && response.data?.review !== undefined) {
-			// Direct JSON response
-			rawOutput = JSON.stringify(response.data);
-		} else {
-			rawOutput = JSON.stringify(response.data);
-		}
+		const responseData = response.data;
 
-		let parsed;
-		try {
-			parsed = extractJson(rawOutput);
-		} catch (err) {
-			// Log for debugging
-			console.error('JSON extraction error:', err.message, rawOutput);
-			throw err;
+		if (typeof responseData === 'string') {
+			rawOutput = responseData;
+		} else if (Array.isArray(responseData) && responseData.length > 0) {
+			// Handle formats like [{ "generated_text": "..." }]
+			rawOutput = responseData[0]?.generated_text || JSON.stringify(responseData[0]);
+		} else if (typeof responseData === 'object' && responseData !== null) {
+			// Handle formats like { "generated_text": "..." } or direct JSON { "score": ... }
+			rawOutput = responseData.generated_text || JSON.stringify(responseData);
+		} else {
+			throw new ApiError(
+				500,
+				'Received an unexpected response format from evaluation service',
+			);
 		}
+		// --- END ROBUST RESPONSE PARSING ---
+
+		const parsed = extractJson(rawOutput);
 
 		// Validate score
 		let score = Number(parsed.score);
@@ -117,14 +130,14 @@ export async function evaluateAnswer(question, studentAnswer, referenceAnswer = 
 		score = Math.max(0, Math.min(100, Math.round(score)));
 
 		// Apply weight (e.g., scale to max marks of question)
-		score = Math.round(score * weight);
+		const finalMarks = Math.round(score * weight);
 
 		const review =
 			typeof parsed.review === 'string' && parsed.review.trim().length > 0
 				? parsed.review.trim()
 				: 'No review provided';
 
-		return { score, review };
+		return { score: finalMarks, review };
 	} catch (error) {
 		// Axios error handling
 		let details = error.response?.data || error.message;
