@@ -89,7 +89,8 @@ const startSubmission = asyncHandler(async (req, res) => {
 
 	if (!examId) throw ApiError.BadRequest('Exam ID is required');
 
-	const exam = await Exam.findById(examId);
+	// Fetch exam and its question IDs
+	const exam = await Exam.findById(examId).select('status startTime endTime duration questions');
 	if (!exam) throw ApiError.NotFound('Exam not found');
 	if (exam.status !== 'active') throw ApiError.Forbidden('Exam is not active');
 
@@ -109,12 +110,20 @@ const startSubmission = asyncHandler(async (req, res) => {
 		return ApiResponse.success(res, existing, 'Submission already started');
 	}
 
+	// --- Pre-populate answer slots ---
+	const initialAnswers = (exam.questions || []).map(questionId => ({
+		question: questionId,
+		responseText: '',
+		responseOption: null,
+	}));
+
 	const submission = new Submission({
 		exam: examId,
 		student: studentId,
 		startedAt: new Date(),
 		duration: exam.duration,
-		status: 'in-progress', // Standardize
+		status: 'in-progress',
+		answers: initialAnswers,
 	});
 
 	await submission.save();
