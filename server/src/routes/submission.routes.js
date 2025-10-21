@@ -12,6 +12,7 @@ import {
 	syncAnswersBySubmissionId,
 	submitSubmissionById,
 	startSubmissionByParam,
+	logViolation, // <-- Add new import
 } from '../controllers/submission.controller.js';
 import { checkAuth, verifyStudent, verifyTeacher } from '../middlewares/auth.middleware.js';
 import { body, param, query } from 'express-validator';
@@ -55,6 +56,18 @@ router.patch(
 	body('answers').isArray().withMessage('Answers must be an array'),
 	syncAnswersBySubmissionId,
 );
+
+// --- NEW ROUTE ---
+// Log a violation during an exam
+router.post(
+	'/:id/violation',
+	checkAuth,
+	verifyStudent,
+	param('id').notEmpty().withMessage('Submission ID is required'),
+	body('type').notEmpty().withMessage('Violation type is required'),
+	logViolation,
+);
+// --- END NEW ROUTE ---
 
 // Student submits the exam (manual submit)
 router.post(
