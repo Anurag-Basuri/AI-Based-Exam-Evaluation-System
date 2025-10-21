@@ -1,5 +1,5 @@
 import React, { Suspense } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom'; // Import useLocation
 import Sidebar from '../components/Sidebar.jsx';
 import ErrorBoundary from '../components/ErrorBoundary.jsx';
 import RouteFallback from '../components/RouteFallback.jsx';
@@ -10,6 +10,7 @@ const SIDEBAR_WIDTH = 280;
 const MOBILE_BREAKPOINT = 1024;
 
 const StudentDash = () => {
+	const location = useLocation(); // Get current location
 	const { theme } = useTheme();
 	const { user, logout } = useAuth();
 
@@ -173,6 +174,20 @@ const StudentDash = () => {
 		],
 		[],
 	);
+
+	// Check if the current route is the exam page
+	const isTakingExam = location.pathname.includes('/take');
+
+	// If taking an exam, render only the Outlet to allow for a clean fullscreen view
+	if (isTakingExam) {
+		return (
+			<ErrorBoundary>
+				<Suspense fallback={<RouteFallback message="Loading Exam..." />}>
+					<Outlet />
+				</Suspense>
+			</ErrorBoundary>
+		);
+	}
 
 	return (
 		<>
