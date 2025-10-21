@@ -117,6 +117,7 @@ const StudentExams = () => {
 	const CODE_LEN = 8;
 	const [code, setCode] = React.useState('');
 	const [searching, setSearching] = React.useState(false);
+	const [starting, setStarting] = React.useState(false); // New state for start button
 	const [found, setFound] = React.useState(null);
 	const [submissions, setSubmissions] = React.useState([]);
 	const [errorBanner, setErrorBanner] = React.useState('');
@@ -157,33 +158,36 @@ const StudentExams = () => {
 	};
 
 	const handleStart = async () => {
-		if (!found?.id) return;
+		if (!found?.id || starting) return;
+		setStarting(true);
+		setErrorBanner('');
 		try {
-			const s = await StudentSvc.safeApiCall(StudentSvc.startExam, found.id);
-			const sid = s?.id || s?._id;
-			if (!sid) {
-				setErrorBanner('Could not start exam. Try again.');
-				return;
+			const submission = await StudentSvc.safeApiCall(StudentSvc.startExam, found.id);
+			const submissionId = submission?.id;
+
+			if (!submissionId) {
+				throw new Error('Could not start exam. Please try again.');
 			}
-			// If already submitted/evaluated on server, send to results
-			if (String(s.status || '').toLowerCase() !== 'in-progress') {
-				success('You have already finished this exam');
-				navigate('/student/results');
-				return;
-			}
-			success('Exam started');
-			navigate(`/student/take/${encodeURIComponent(sid)}`);
+
+			// If status is not 'in-progress', it means we are resuming or it's already done.
+			// The TakeExam page will handle redirection if it's submitted/evaluated.
+			success('Exam session initiated. Redirecting...');
+			navigate(`/student/take/${encodeURIComponent(submissionId)}`);
 		} catch (e) {
 			setErrorBanner(e?.message || 'Unable to start exam');
+		} finally {
+			setStarting(false);
 		}
 	};
 
 	const handleContinue = async sub => {
+		if (continuingId) return;
+		setContinuingId(sub.id);
 		try {
-			setContinuingId(sub.id);
-			// Use submissionId, not examId
+			// Just navigate; TakeExam page will fetch the latest state.
 			navigate(`/student/take/${encodeURIComponent(sub.id)}`);
-		} finally {
+		} catch (e) {
+			toastError('Could not open exam.');
 			setContinuingId('');
 		}
 	};
@@ -339,6 +343,7 @@ const StudentExams = () => {
 						<div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
 							<button
 								onClick={handleStart}
+								disabled={starting}
 								className="tap"
 								style={{
 									padding: '10px 14px',
@@ -347,10 +352,10 @@ const StudentExams = () => {
 									background: 'linear-gradient(135deg, #10b981, #059669)',
 									color: '#fff',
 									fontWeight: 900,
-									cursor: 'pointer',
+									cursor: starting ? 'not-allowed' : 'pointer',
 								}}
 							>
-								🚀 Start exam
+								{starting ? 'Starting...' : '🚀 Start Exam'}
 							</button>
 						</div>
 					</div>
