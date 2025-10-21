@@ -6,9 +6,82 @@ const EXAM_LOCK_WINDOW = process.env.EXAM_LOCK_WINDOW
 	? Number(process.env.EXAM_LOCK_WINDOW)
 	: 5 * 60 * 1000; // 5 minutes default
 
-const examSchema = new mongoose.Schema(
+const RubricItemSchema = new mongoose.Schema(
 	{
-		searchId: {
+		criterion: {
+			type: String,
+			trim: true,
+		},
+		weight: {
+			type: Number,
+			min: 0,
+			max: 1,
+		},
+	},
+	{ _id: false },
+);
+
+const KeywordItemSchema = new mongoose.Schema(
+	{
+		term: {
+			type: String,
+			trim: true,
+		},
+		weight: {
+			type: Number,
+			default: 1,
+		},
+	},
+	{ _id: false },
+);
+
+const AiPolicySchema = new mongoose.Schema(
+	{
+		strictness: {
+			type: String,
+			enum: ['lenient', 'moderate', 'strict'],
+			default: 'moderate',
+		},
+		language: {
+			type: String,
+			default: 'en',
+		},
+		reviewTone: {
+			type: String,
+			default: 'concise',
+		},
+		targetLength: {
+			type: Number,
+			default: 3,
+		},
+		requireCitations: {
+			type: Boolean,
+			default: false,
+		},
+		customInstructions: {
+			type: String,
+			default: '',
+		},
+		rubric: {
+			type: [RubricItemSchema],
+			default: [],
+		},
+		keywords: {
+			type: [KeywordItemSchema],
+			default: [],
+		},
+		penalties: {
+			type: Map,
+			of: Number,
+			default: undefined,
+		},
+	},
+	{ _id: false },
+);
+
+const ExamSchema = new mongoose.Schema(
+	{
+		criterion: {
 			type: String,
 			unique: true,
 			required: [true, 'Search ID is required'],
@@ -96,6 +169,7 @@ const examSchema = new mongoose.Schema(
 			unique: true,
 			trim: true,
 		},
+		aiPolicy: { type: AiPolicySchema, default: undefined },
 	},
 	{
 		timestamps: true,
