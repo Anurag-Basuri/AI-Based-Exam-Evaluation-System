@@ -12,7 +12,7 @@ const TakeExam = () => {
 	const submissionId = params.submissionId || params.id;
 	const navigate = useNavigate();
 	const [submission, setSubmission] = useState(null);
-	const [loading, setLoading] = useState(true); 
+	const [loading, setLoading] = useState(true);
 	const [saving, setSaving] = useState(false);
 	const [error, setError] = useState('');
 	const [autoSubmitting, setAutoSubmitting] = useState(false);
@@ -152,6 +152,29 @@ const TakeExam = () => {
 		}
 	};
 
+	const handleAnswerChange = (questionId, value, type) => {
+		setSubmission(prev => {
+			if (!prev) return null;
+			const newAnswers = [...(prev.answers || [])];
+			let answer = newAnswers.find(a => a.question === questionId);
+
+			if (!answer) {
+				answer = { question: questionId };
+				newAnswers.push(answer);
+			}
+
+			if (type === 'multiple-choice') {
+				answer.responseOption = value;
+				delete answer.responseText;
+			} else {
+				answer.responseText = value;
+				delete answer.responseOption;
+			}
+
+			return { ...prev, answers: newAnswers };
+		});
+	};
+
 	if (loading)
 		return (
 			<div aria-busy="true" style={{ color: 'var(--text)' }}>
@@ -170,7 +193,7 @@ const TakeExam = () => {
 	const locked = status !== 'in-progress';
 
 	return (
-		<div style={{ display: 'grid', gap: 12 }}>
+		<div style={{ display: 'grid', gap: 16 }}>
 			{/* Sticky toolbar with timer */}
 			<div
 				style={{
@@ -248,21 +271,106 @@ const TakeExam = () => {
 				Submission ID: {submission.id}
 			</div>
 
-			{/* Placeholder Question Panel */}
-			<div
-				style={{
-					padding: 16,
-					border: '1px solid var(--border)',
-					borderRadius: 12,
-					background: 'var(--surface)',
-					color: 'var(--text)',
-				}}
-			>
-				<p style={{ margin: 0 }}>
-					This is a placeholder exam-taking page. Render questions and capture answers
-					here.
-				</p>
+			{/* Questions List */}
+			<div style={{ display: 'grid', gap: 16 }}>
+				{(submission.questions || []).map((q, index) => (
+					<QuestionCard
+						key={q.id}
+						question={q}
+						index={index}
+						answer={submission.answers?.find(a => a.question === q.id)}
+						onAnswerChange={handleAnswerChange}
+						disabled={locked}
+					/>
+				))}
+				{(!submission.questions || submission.questions.length === 0) && (
+					<div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 20 }}>
+						No questions found for this exam.
+					</div>
+				)}
 			</div>
+		</div>
+	);
+};
+
+const QuestionCard = ({ question, index, answer, onAnswerChange, disabled }) => {
+	const isMCQ = question.type === 'multiple-choice';
+
+	return (
+		<div
+			style={{
+				padding: 16,
+				border: '1px solid var(--border)',
+				borderRadius: 12,
+				background: 'var(--surface)',
+				color: 'var(--text)',
+			}}
+		>
+			<div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+				<strong style={{ flex: 1 }}>
+					{index + 1}. {question.text}
+				</strong>
+				<span
+					style={{
+						fontSize: 12,
+						fontWeight: 700,
+						padding: '4px 8px',
+						borderRadius: 8,
+						background: 'var(--bg)',
+						border: '1px solid var(--border)',
+					}}
+				>
+					{question.max_marks} Marks
+				</span>
+			</div>
+
+			{isMCQ ? (
+				<div style={{ display: 'grid', gap: 8 }}>
+					{(question.options || []).map(opt => (
+						<label
+							key={opt.id}
+							style={{
+								display: 'flex',
+								alignItems: 'center',
+								gap: 8,
+								padding: '8px 12px',
+								borderRadius: 8,
+								background: 'var(--bg)',
+								cursor: disabled ? 'not-allowed' : 'pointer',
+							}}
+						>
+							<input
+								type="radio"
+								name={`q_${question.id}`}
+								value={opt.id}
+								checked={answer?.responseOption === opt.id}
+								onChange={e =>
+									onAnswerChange(question.id, e.target.value, 'multiple-choice')
+								}
+								disabled={disabled}
+							/>
+							<span>{opt.text}</span>
+						</label>
+					))}
+				</div>
+			) : (
+				<textarea
+					value={answer?.responseText || ''}
+					onChange={e => onAnswerChange(question.id, e.target.value, 'descriptive')}
+					disabled={disabled}
+					rows={5}
+					placeholder="Your answer..."
+					style={{
+						width: '100%',
+						padding: '8px 12px',
+						borderRadius: 8,
+						border: '1px solid var(--border)',
+						background: 'var(--bg)',
+						color: 'var(--text)',
+						resize: 'vertical',
+					}}
+				/>
+			)}
 		</div>
 	);
 };
