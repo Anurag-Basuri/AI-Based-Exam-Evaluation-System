@@ -16,6 +16,7 @@ const TakeExam = () => {
 	const [saving, setSaving] = useState(false);
 	const [error, setError] = useState('');
 	const [autoSubmitting, setAutoSubmitting] = useState(false);
+	const [lastSaved, setLastSaved] = useState(null);
 
 	// Early guard: if param missing, send back to Exams
 	useEffect(() => {
@@ -92,6 +93,19 @@ const TakeExam = () => {
 		})();
 	}, [remainingMs, submission, autoSubmitting, navigate]);
 
+	// Auto-save periodically (e.g., every 30 seconds)
+	useEffect(() => {
+		const autoSaveInterval = setInterval(() => {
+			// Trigger save only if there are changes and not already saving
+			if (submission && !saving) {
+				handleQuickSave();
+			}
+		}, 30000); // 30 seconds
+
+		return () => clearInterval(autoSaveInterval);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [submission, saving]);
+
 	// Quick save (Ctrl/Cmd+S)
 	useEffect(() => {
 		const onKeyDown = e => {
@@ -130,6 +144,7 @@ const TakeExam = () => {
 				examId: submission.examId,
 				answers: submission.answers || [],
 			});
+			setLastSaved(new Date()); // Set save timestamp
 		} catch (e) {
 			setError(e?.message || 'Failed to save');
 		} finally {
@@ -227,23 +242,26 @@ const TakeExam = () => {
 					>
 						⏳ {remaining.mm}:{remaining.ss}
 					</div>
-					<div style={{ display: 'flex', gap: 8 }}>
-						<button
-							onClick={handleQuickSave}
-							disabled={saving || locked}
-							aria-busy={saving}
-							title="Ctrl/Cmd + S to save quickly"
-							style={{
-								padding: '8px 12px',
-								borderRadius: 8,
-								border: '1px solid var(--border)',
-								background: 'var(--surface)',
-								color: 'var(--text)',
-								cursor: saving || locked ? 'not-allowed' : 'pointer',
-							}}
-						>
-							{saving ? 'Saving…' : '💾 Save'}
-						</button>
+					<div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+						{saving && (
+							<span
+								style={{
+									fontSize: 12,
+									color: 'var(--text-muted)',
+									fontStyle: 'italic',
+								}}
+							>
+								Saving...
+							</span>
+						)}
+						{lastSaved && !saving && (
+							<span
+								style={{ fontSize: 12, color: 'var(--primary)' }}
+								title={lastSaved.toLocaleTimeString()}
+							>
+								✅ Saved
+							</span>
+						)}
 						<button
 							onClick={handleSubmit}
 							disabled={locked || autoSubmitting}
