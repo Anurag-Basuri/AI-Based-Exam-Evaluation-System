@@ -310,8 +310,16 @@ const getSubmissionByIdParam = asyncHandler(async (req, res) => {
 	const id = req.params.id;
 	if (!id) throw ApiError.BadRequest('Submission ID is required');
 	const submission = await Submission.findOne({ _id: id, student: studentId })
-		.populate('exam', 'title duration startTime endTime')
-		.populate({ path: 'answers.question', model: 'Question' });
+		.populate({
+			path: 'exam',
+			select: 'title duration startTime endTime questions', // <-- Ensure questions are selected
+			populate: {
+				path: 'questions', // <-- Populate the questions array
+				model: 'Question',
+			},
+		})
+		.populate({ path: 'answers.question', model: 'Question' }); // Keep for safety
+
 	if (!submission) throw ApiError.NotFound('Submission not found');
 	// Backfill duration if missing
 	if (!submission.duration && submission.exam?.duration) {
