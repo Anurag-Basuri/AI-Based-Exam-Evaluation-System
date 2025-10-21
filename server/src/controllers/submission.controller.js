@@ -64,6 +64,7 @@ async function finalizeAsSubmitted(submission, exam) {
 	if (submission.status !== 'in-progress') return submission;
 	submission.status = 'submitted';
 	submission.submittedAt = new Date();
+	submission.submissionType = 'auto';
 
 	// Automated Evaluation -> evaluated
 	submission.evaluations = await evaluateSubmissionAnswers(submission);
@@ -332,12 +333,16 @@ const getSubmissionByIdParam = asyncHandler(async (req, res) => {
 const syncAnswersBySubmissionId = asyncHandler(async (req, res) => {
 	const studentId = req.student?._id || req.user?.id;
 	const id = req.params.id;
-	const { answers } = req.body;
-	if (!id || !Array.isArray(answers)) {
-		throw ApiError.BadRequest('Submission ID and answers are required');
+	const { answers, markedForReview } = req.body; // <-- Get markedForReview from body
+
+	// Validate that at least one field is present to update
+	if (!Array.isArray(answers) && !Array.isArray(markedForReview)) {
+		throw ApiError.BadRequest('No data provided to sync.');
 	}
+
 	const submission = await Submission.findOne({ _id: id, student: studentId });
 	if (!submission) throw ApiError.NotFound('Submission not found');
+
 	const exam = await Exam.findById(submission.exam);
 	if (!exam) throw ApiError.NotFound('Exam not found');
 	if (isExpired(submission, exam) && submission.status === 'in-progress') {
@@ -347,9 +352,17 @@ const syncAnswersBySubmissionId = asyncHandler(async (req, res) => {
 	if (submission.status !== 'in-progress') {
 		return ApiResponse.success(res, submission, 'Submission no longer editable');
 	}
-	submission.answers = answers;
+
+	// Update fields if they were provided in the request
+	if (Array.isArray(answers)) {
+		submission.answers = answers;
+	}
+	if (Array.isArray(markedForReview)) {
+		submission.markedForReview = markedForReview;
+	}
+
 	await submission.save();
-	return ApiResponse.success(res, submission, 'Answers synced');
+	return ApiResponse.success(res, submission, 'State synced');
 });
 
 // Submit by submission ID
@@ -362,11 +375,37 @@ const submitSubmissionById = asyncHandler(async (req, res) => {
 	if (submission.status !== 'in-progress') throw ApiError.Forbidden('Already submitted');
 	submission.status = 'submitted';
 	submission.submittedAt = new Date();
+	submission.submissionType = 'manual'; // <-- Set submission type
+
 	submission.evaluations = await evaluateSubmissionAnswers(submission);
 	submission.evaluatedAt = new Date();
 	submission.status = 'evaluated';
 	await submission.save();
 	return ApiResponse.success(res, submission, 'Submission submitted and evaluated');
+});
+
+// Log a student violation during an exam
+const logViolation = asyncHandler(async (req, res) => {
+	const studentId = req.student?._id || req.user?.id;
+	const submissionId = req.params.id;
+	const { type } = req.body;
+
+	const submission = await Submission.findOneAndUpdate(
+		{ _id: submissionId, student: studentId, status: 'in-progress' },
+		{ $push: { violations: { type } } },
+		{ new: true },
+	);
+
+	if (!submission) {
+		// Don't throw an error, just fail silently. It's not a critical path.
+		return ApiResponse.success(res, null, 'Could not log violation.');
+	}
+
+	return ApiResponse.success(
+		res,
+		{ violationCount: submission.violations.length },
+		'Violation logged.',
+	);
 });
 
 export {
@@ -382,4 +421,5 @@ export {
 	getSubmissionByIdParam,
 	syncAnswersBySubmissionId,
 	submitSubmissionById,
+	logViolation,
 };
