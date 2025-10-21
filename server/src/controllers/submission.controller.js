@@ -15,17 +15,18 @@ async function evaluateSubmissionAnswers(submission) {
 		console.log('[SUBMISSION_CTRL] Exam AI policy detected.');
 	}
 
-	const evaluations = [];
-	await Promise.all(
+	const evaluations = await Promise.all(
 		submission.answers.map(async ans => {
 			const questionDoc = await Question.findById(ans.question).lean();
 			if (!questionDoc) {
 				console.warn(`[SUBMISSION_CTRL] Question ${ans.question} not found. Skipping.`);
-				return;
+				return null;
 			}
 
 			let marks = 0;
 			let remarks = 'Answer not provided.';
+			let meta = undefined;
+			let evaluator = 'ai';
 
 			if (questionDoc.type === 'multiple-choice') {
 				if (ans.responseOption && questionDoc.options) {
@@ -35,8 +36,10 @@ async function evaluateSubmissionAnswers(submission) {
 							? questionDoc.max_marks
 							: 0;
 					remarks = marks > 0 ? 'Correct answer.' : 'Incorrect answer.';
+				} else {
+					remarks = 'No option selected.';
 				}
-			} else if (ans.responseText && ans.responseText.trim()) {
+			} else if (ans.responseText && String(ans.responseText).trim()) {
 				const refAnswer = questionDoc.answer || null;
 				const weight = (questionDoc.max_marks || 0) / 100;
 
@@ -62,6 +65,7 @@ async function evaluateSubmissionAnswers(submission) {
 					);
 					marks = evalResult.score;
 					remarks = evalResult.review;
+					meta = evalResult.meta;
 					console.log(
 						`[SUBMISSION_CTRL] Evaluation OK for question ${questionDoc._id}. Marks: ${marks}`,
 					);
@@ -73,19 +77,31 @@ async function evaluateSubmissionAnswers(submission) {
 					marks = 0;
 					remarks =
 						'Evaluation failed due to a system error. A teacher will review this answer.';
+					meta = { fallback: true, type: 'controller-error', message: e.message };
+					evaluator = 'system';
 				}
+			} else {
+				meta = { fallback: true, type: 'empty-answer' };
 			}
 
-			evaluations.push({
+			return {
 				question: questionDoc._id,
-				evaluation: { evaluator: 'ai', marks, remarks, evaluatedAt: new Date() },
-			});
+				evaluation: {
+					evaluator,
+					marks,
+					remarks,
+					evaluatedAt: new Date(),
+					meta,
+				},
+			};
 		}),
 	);
+
+	const filtered = evaluations.filter(Boolean);
 	console.log(
-		`[SUBMISSION_CTRL] Finished evaluation for submission ${submission._id}. Count: ${evaluations.length}`,
+		`[SUBMISSION_CTRL] Finished evaluation for submission ${submission._id}. Count: ${filtered.length}`,
 	);
-	return evaluations;
+	return filtered;
 }
 
 function isExpired(submission, exam) {
