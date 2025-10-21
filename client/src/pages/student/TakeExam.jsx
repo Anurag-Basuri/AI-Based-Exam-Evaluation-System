@@ -8,6 +8,7 @@ import {
 	submitSubmission,
 } from '../../services/studentServices.js';
 import { apiClient } from '../../services/api.js';
+import TakeExamSkeleton from './components/TakeExamSkeleton.jsx';
 
 const MAX_VIOLATIONS = 5; // Set the warning limit
 
@@ -53,6 +54,9 @@ const TakeExam = () => {
 	const [saving, setSaving] = useState(false);
 	const [autoSubmitting, setAutoSubmitting] = useState(false);
 	const [lastSaved, setLastSaved] = useState(null);
+	const [isOnline, setIsOnline] = useState(() =>
+		typeof navigator !== 'undefined' ? navigator.onLine : true,
+	);
 	const hasUnsavedChanges = useRef(false);
 
 	// --- Actions (Submit, Save, etc.) ---
@@ -104,6 +108,54 @@ const TakeExam = () => {
 	);
 
 	useExamEnvironment(isStarted && !autoSubmitting, handleViolation);
+
+	// Warn on browser/tab close while in-progress
+	useEffect(() => {
+		const onBeforeUnload = e => {
+			if (isStarted && submission && submission.status === 'in-progress') {
+				e.preventDefault();
+				e.returnValue = '';
+				return '';
+			}
+		};
+		window.addEventListener('beforeunload', onBeforeUnload);
+		return () => window.removeEventListener('beforeunload', onBeforeUnload);
+	}, [isStarted, submission]);
+
+	// Online/Offline status
+	useEffect(() => {
+		const setOn = () => setIsOnline(true);
+		const setOff = () => setIsOnline(false);
+		window.addEventListener('online', setOn);
+		window.addEventListener('offline', setOff);
+		return () => {
+			window.removeEventListener('online', setOn);
+			window.removeEventListener('offline', setOff);
+		};
+	}, []);
+
+	// Keyboard shortcuts
+	useEffect(() => {
+		const onKey = e => {
+			if (!isStarted || autoSubmitting) return;
+			const key = `${e.altKey ? 'alt+' : ''}${e.key.toLowerCase()}`;
+			if (key === 'alt+n') {
+				e.preventDefault();
+				document.getElementById('save-next-btn')?.click();
+			} else if (key === 'alt+p') {
+				e.preventDefault();
+				document.getElementById('prev-btn')?.click();
+			} else if (key === 'alt+m') {
+				e.preventDefault();
+				document.getElementById('mark-review-btn')?.click();
+			} else if (key === 'alt+s') {
+				e.preventDefault();
+				document.getElementById('submit-btn')?.click();
+			}
+		};
+		window.addEventListener('keydown', onKey);
+		return () => window.removeEventListener('keydown', onKey);
+	}, [isStarted, autoSubmitting]);
 
 	// --- Data Loading (unchanged) ---
 	useEffect(() => {
@@ -227,7 +279,8 @@ const TakeExam = () => {
 	}, [submission, markedForReview]);
 
 	// --- UI Rendering ---
-	if (loading) return <div style={styles.centeredMessage}>Loading Exam...</div>;
+	if (loading) return <TakeExamSkeleton />;
+
 	if (error) return <div style={{ ...styles.centeredMessage, color: 'red' }}>Error: {error}</div>;
 	if (!submission) return <div style={styles.centeredMessage}>Submission not found.</div>;
 
@@ -253,6 +306,43 @@ const TakeExam = () => {
 
 			{/* --- Main Content: Current Question --- */}
 			<div style={styles.questionPanel}>
+				{/* Sticky in-panel toolbar */}
+				<div style={styles.toolbar}>
+					<div
+						style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}
+					>
+						<strong style={{ color: 'var(--text)' }}>
+							Q {currentQuestionIndex + 1} / {questionStats.total}
+						</strong>
+						<span style={styles.toolbarPill}>Answered: {questionStats.answered}</span>
+						<span style={styles.toolbarPillMuted}>Review: {questionStats.review}</span>
+						<span
+							style={{
+								marginLeft: 'auto',
+								display: 'inline-flex',
+								gap: 8,
+								alignItems: 'center',
+							}}
+						>
+							<small
+								style={{ color: isOnline ? '#10b981' : '#ef4444', fontWeight: 700 }}
+							>
+								{isOnline ? 'Connected' : 'Offline'}
+							</small>
+							<small style={{ color: 'var(--text-muted)' }}>
+								{saving
+									? 'Saving…'
+									: lastSaved
+										? `Saved ${lastSaved.toLocaleTimeString()}`
+										: 'Not saved yet'}
+							</small>
+							<span style={styles.toolbarTimer}>
+								⏳ {remaining.mm}:{remaining.ss}
+							</span>
+						</span>
+					</div>
+				</div>
+
 				{currentQuestion && (
 					<QuestionCard
 						key={currentQuestion.id}
@@ -267,17 +357,22 @@ const TakeExam = () => {
 				)}
 				<div style={styles.navigationControls}>
 					<button
-						onClick={() => setCurrentQuestionIndex(i => Math.max(0, i - 1))}
+						id="prev-btn"
+						onClick={async () => {
+							await handleQuickSave();
+							setCurrentQuestionIndex(i => Math.max(0, i - 1));
+						}}
 						disabled={currentQuestionIndex === 0}
 					>
 						Previous
 					</button>
-					<button onClick={handleToggleReview}>
+					<button id="mark-review-btn" onClick={handleToggleReview}>
 						{markedForReview.includes(currentQuestion?.id)
 							? 'Unmark Review'
 							: 'Mark for Review'}
 					</button>
 					<button
+						id="save-next-btn"
 						onClick={handleSaveAndNext}
 						disabled={currentQuestionIndex === submission.questions.length - 1}
 						style={{ background: 'var(--primary)', color: 'white', border: 'none' }}
@@ -285,11 +380,12 @@ const TakeExam = () => {
 						Save & Next
 					</button>
 					<button
-						onClick={() =>
+						onClick={async () => {
+							await handleQuickSave();
 							setCurrentQuestionIndex(i =>
 								Math.min(submission.questions.length - 1, i + 1),
-							)
-						}
+							);
+						}}
 						disabled={currentQuestionIndex === submission.questions.length - 1}
 					>
 						Next
@@ -306,7 +402,10 @@ const TakeExam = () => {
 				<QuestionPalette
 					stats={questionStats}
 					currentIndex={currentQuestionIndex}
-					onSelect={setCurrentQuestionIndex}
+					onSelect={async i => {
+						await handleQuickSave();
+						setCurrentQuestionIndex(i);
+					}}
 				/>
 				<div style={styles.statusInfo}>
 					<p>
@@ -318,6 +417,7 @@ const TakeExam = () => {
 					</p>
 				</div>
 				<button
+					id="submit-btn"
 					onClick={() => setShowSubmitConfirm(true)}
 					disabled={autoSubmitting}
 					style={styles.submitButton}
@@ -629,6 +729,40 @@ const styles = {
 		textAlign: 'center',
 		maxWidth: '400px',
 		border: '1px solid #ef4444',
+	},
+	toolbar: {
+		position: 'sticky',
+		top: 0,
+		zIndex: 1,
+		background: 'var(--surface)',
+		borderBottom: '1px solid var(--border)',
+		margin: '-16px -16px 16px',
+		padding: '12px 16px',
+	},
+	toolbarPill: {
+		fontSize: 12,
+		fontWeight: 800,
+		padding: '4px 8px',
+		borderRadius: 999,
+		background: 'rgba(16,185,129,0.15)',
+		color: '#10b981',
+		border: '1px solid rgba(16,185,129,0.35)',
+	},
+	toolbarPillMuted: {
+		fontSize: 12,
+		fontWeight: 800,
+		padding: '4px 8px',
+		borderRadius: 999,
+		background: 'var(--bg)',
+		color: 'var(--text-muted)',
+		border: '1px solid var(--border)',
+	},
+	toolbarTimer: {
+		fontWeight: 800,
+		padding: '4px 8px',
+		borderRadius: 8,
+		border: '1px solid var(--border)',
+		background: 'var(--bg)',
 	},
 };
 
