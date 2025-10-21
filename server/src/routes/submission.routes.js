@@ -12,12 +12,16 @@ import {
 	syncAnswersBySubmissionId,
 	submitSubmissionById,
 	startSubmissionByParam,
-	logViolation, // <-- Add new import
+	logViolation,
+	testEvaluationService,
 } from '../controllers/submission.controller.js';
 import { checkAuth, verifyStudent, verifyTeacher } from '../middlewares/auth.middleware.js';
 import { body, param, query } from 'express-validator';
 
 const router = Router();
+
+// Directly test the AI evaluation service with a sample question/answer
+router.post('/test-evaluation', testEvaluationService);
 
 // Student starts a submission (enters the exam)
 router.post(
