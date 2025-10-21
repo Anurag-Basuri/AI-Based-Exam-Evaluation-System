@@ -9,19 +9,21 @@ import { ApiResponse } from '../utils/ApiResponse.js';
 // Helper: Evaluate all answers in a submission
 async function evaluateSubmissionAnswers(submission) {
 	console.log(`[SUBMISSION_CTRL] Starting evaluation for submission ID: ${submission._id}`);
+	// Load exam once to read exam-level AI policy (optional)
+	const examDoc = await Exam.findById(submission.exam).select('title aiPolicy');
+	if (examDoc?.aiPolicy) {
+		console.log('[SUBMISSION_CTRL] Exam AI policy detected.');
+	}
+
 	const evaluations = [];
-	// Use Promise.all for concurrent evaluations
 	await Promise.all(
 		submission.answers.map(async ans => {
-			const questionDoc = await Question.findById(ans.question);
+			const questionDoc = await Question.findById(ans.question).lean();
 			if (!questionDoc) {
-				console.warn(
-					`[SUBMISSION_CTRL] Question ${ans.question} not found for submission ${submission._id}. Skipping.`,
-				);
+				console.warn(`[SUBMISSION_CTRL] Question ${ans.question} not found. Skipping.`);
 				return;
 			}
 
-			console.log(`[SUBMISSION_CTRL] Evaluating answer for question ID: ${questionDoc._id}`);
 			let marks = 0;
 			let remarks = 'Answer not provided.';
 
@@ -35,24 +37,38 @@ async function evaluateSubmissionAnswers(submission) {
 					remarks = marks > 0 ? 'Correct answer.' : 'Incorrect answer.';
 				}
 			} else if (ans.responseText && ans.responseText.trim()) {
-				// Only evaluate subjective if there is text
+				const refAnswer = questionDoc.answer || null;
+				const weight = (questionDoc.max_marks || 0) / 100;
+
+				// Merge exam-level and question-level policies (question overrides exam)
+				const mergedPolicy = {
+					...(examDoc?.aiPolicy || {}),
+					...(questionDoc?.aiPolicy || {}),
+				};
+				if (Object.keys(mergedPolicy).length) {
+					console.log(
+						'[SUBMISSION_CTRL] Using merged AI policy for question:',
+						questionDoc._id,
+					);
+				}
+
 				try {
-					const refAnswer = questionDoc.answer || null;
-					const weight = questionDoc.max_marks / 100;
 					const evalResult = await evaluateAnswer(
 						questionDoc.text,
 						ans.responseText,
 						refAnswer,
 						weight,
+						mergedPolicy,
 					);
 					marks = evalResult.score;
 					remarks = evalResult.review;
 					console.log(
-						`[SUBMISSION_CTRL] Subjective evaluation SUCCEEDED for question ${questionDoc._id}. Marks: ${marks}`,
+						`[SUBMISSION_CTRL] Evaluation OK for question ${questionDoc._id}. Marks: ${marks}`,
 					);
 				} catch (e) {
 					console.error(
-						`[SUBMISSION_CTRL] Subjective evaluation FAILED for question ${questionDoc._id}. Error: ${e.message}. Awarding 0 marks.`,
+						`[SUBMISSION_CTRL] Evaluation error for question ${questionDoc._id}.`,
+						e.message,
 					);
 					marks = 0;
 					remarks =
@@ -67,7 +83,7 @@ async function evaluateSubmissionAnswers(submission) {
 		}),
 	);
 	console.log(
-		`[SUBMISSION_CTRL] Finished evaluation for submission ID: ${submission._id}. Total evaluations: ${evaluations.length}`,
+		`[SUBMISSION_CTRL] Finished evaluation for submission ${submission._id}. Count: ${evaluations.length}`,
 	);
 	return evaluations;
 }
