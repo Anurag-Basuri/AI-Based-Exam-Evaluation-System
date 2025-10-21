@@ -466,29 +466,13 @@ const logViolation = asyncHandler(async (req, res) => {
 // A dedicated controller to test the evaluation service in isolation.
 const testEvaluationService = asyncHandler(async (req, res) => {
 	console.log('[TEST_EVAL] Received request to test evaluation service.');
-	const { question, answer } = req.body;
-
+	const { question, answer, referenceAnswer = null, policy = null } = req.body;
 	if (!question || !answer) {
-		throw new ApiError(400, 'Request body must contain a "question" and "answer" field.');
+		throw new ApiError(400, 'Request body must contain "question" and "answer".');
 	}
-
-	console.log(`[TEST_EVAL] Test Question: "${question}"`);
-	console.log(`[TEST_EVAL] Test Answer: "${answer}"`);
-
-	try {
-		// Call the service directly with max_marks = 100 (weight = 1)
-		const result = await evaluateAnswer(question, answer, null, 1);
-
-		console.log('[TEST_EVAL] Service call successful. Result:', result);
-		return ApiResponse.success(res, result, 'AI Evaluation Service responded successfully.');
-	} catch (error) {
-		console.error('[TEST_EVAL] Service call FAILED.', error);
-		throw new ApiError(
-			500,
-			'AI Evaluation Service failed to respond.',
-			error.errors || { message: error.message },
-		);
-	}
+	console.log('[TEST_EVAL] Policy:', policy);
+	const result = await evaluateAnswer(question, answer, referenceAnswer, 1, policy);
+	return ApiResponse.success(res, result, 'AI Evaluation Service responded successfully.');
 });
 
 export {
