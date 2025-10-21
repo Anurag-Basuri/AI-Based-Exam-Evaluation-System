@@ -105,7 +105,7 @@ const startSubmission = asyncHandler(async (req, res) => {
 		student: studentId,
 		startedAt: new Date(),
 		duration: exam.duration,
-		status: 'in-progress',
+		status: 'in-progress', // Standardize
 	});
 
 	await submission.save();

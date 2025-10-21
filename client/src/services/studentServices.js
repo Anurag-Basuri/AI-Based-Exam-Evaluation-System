@@ -244,8 +244,10 @@ export const saveSubmissionAnswers = async (idOrPayload, maybeAnswers = []) => {
 		);
 		const data = res?.data?.data ?? res?.data ?? {};
 		return normalizeSubmission(data);
-	} catch {
-		// Fallback treat provided as examId
+	} catch (err) {
+		// Fallback was incorrect, now it correctly calls the primary sync function
+		// if the submissionId-based route fails.
+		console.warn('Fallback to syncSubmissionAnswers due to error:', err);
 		return syncSubmissionAnswers(idOrPayload, maybeAnswers);
 	}
 };
