@@ -10,6 +10,7 @@ function App() {
 	const location = useLocation();
 	const isAuthPage = location.pathname.toLowerCase().startsWith('/auth');
 	const isLanding = location.pathname === '/';
+	const isTakingExam = location.pathname.includes('/take'); // <-- Add this check
 
 	return (
 		<ToastProvider>
@@ -21,7 +22,8 @@ function App() {
 					color: 'var(--text)',
 				}}
 			>
-				{!isAuthPage && <Header transparent={isLanding} />}
+				{/* Hide header on auth, landing, and during an exam */}
+				{!isAuthPage && !isTakingExam && <Header transparent={isLanding} />}
 				<main style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
 					<AppRoutes />
 				</main>
