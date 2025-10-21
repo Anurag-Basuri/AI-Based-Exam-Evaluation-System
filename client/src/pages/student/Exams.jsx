@@ -8,7 +8,7 @@ import * as StudentSvc from '../../services/studentServices.js';
 const statusStyles = {
 	'in-progress': { color: '#f59e0b', label: 'In Progress', icon: '🟡' },
 	started: { color: '#f59e0b', label: 'Started', icon: '🟡' },
-	submitted: { color: '#3b82f6', label: 'Submitted', icon: '📋' },
+	submitted: { color: '#6366f1', label: 'Evaluating...', icon: '⚙️' },
 	evaluated: { color: '#10b981', label: 'Evaluated', icon: '✅' },
 	pending: { color: 'var(--text-muted)', label: 'Pending', icon: '⏳' },
 };

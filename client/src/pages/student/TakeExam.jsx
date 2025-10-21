@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useToast } from '../../components/ui/Toaster.jsx'; // <-- Import useToast
 import {
 	safeApiCall,
 	getSubmissionById,
@@ -37,6 +38,7 @@ const TakeExam = () => {
 	const params = useParams();
 	const submissionId = params.submissionId || params.id;
 	const navigate = useNavigate();
+	const { success, error: toastError } = useToast(); // <-- Get toast functions
 
 	// --- State (largely unchanged) ---
 	const [submission, setSubmission] = useState(null);
@@ -58,7 +60,10 @@ const TakeExam = () => {
 		async (isAuto = false, reason = 'Submission confirmed.') => {
 			if (!submission || autoSubmitting) return;
 			setAutoSubmitting(true);
-			alert(`Exam is being submitted automatically. Reason: ${reason}`);
+
+			// Use toast instead of alert
+			toastError(reason, { duration: 5000, title: 'Auto-Submitting Exam' });
+
 			try {
 				// Final save before submitting
 				await safeApiCall(saveSubmissionAnswers, submission.id, {
@@ -70,12 +75,15 @@ const TakeExam = () => {
 					submissionType: isAuto ? 'auto' : 'manual',
 				});
 				if (document.fullscreenElement) document.exitFullscreen();
+
+				success('Submission successful! Redirecting to results...');
 				navigate('/student/results', { replace: true });
 			} catch (e) {
-				setError(e?.message || 'Failed to submit. Please check your connection.');
+				toastError(e?.message || 'Failed to submit. Please check your connection.');
+				setAutoSubmitting(false); // Allow retry if submission fails
 			}
 		},
-		[submission, autoSubmitting, navigate, markedForReview],
+		[submission, autoSubmitting, navigate, markedForReview, success, toastError],
 	);
 
 	// --- Violation Handler with Auto-Submit ---
