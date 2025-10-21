@@ -6,153 +6,120 @@ const apiKey = process.env.HF_API_KEY;
 
 // Prompt builder when reference answer is provided
 function buildPromptWithReference(question, studentAnswer, referenceAnswer) {
-	return `
-You are an exam evaluator. Compare the student's answer to the reference answer.
-
-Rules:
-- Score between 0 and 100.
-- Award full marks if meaning matches, even with different wording.
-- Be consistent and deterministic.
-- Keep review short (<100 words).
-- Respond ONLY with valid JSON.
-
-Question: ${question}
-Reference Answer: ${referenceAnswer}
-Student's Answer: ${studentAnswer}
-
-Expected JSON:
-{
-  "score": <0-100>,
-  "review": "<short review>"
-}`;
+	return `Based on the following question, reference answer, and student's answer, evaluate the student's answer on a scale of 0 to 100 and provide a brief review.
+  Question: "${question}"
+  Reference Answer: "${referenceAnswer}"
+  Student's Answer: "${studentAnswer}"
+  Your response must be a valid JSON object with two keys: "score" (a number from 0 to 100) and "review" (a string). Example: {"score": 85, "review": "The answer is mostly correct but misses a key detail."}`;
 }
 
 // Prompt builder when no reference is provided
 function buildPromptWithoutReference(question, studentAnswer) {
-	return `
-You are an exam evaluator. Evaluate the student's answer.
-
-Rules:
-- Score between 0 and 100 based on completeness, relevance, correctness.
-- Be consistent and deterministic.
-- Keep review short (<100 words).
-- Respond ONLY with valid JSON.
-
-Question: ${question}
-Student's Answer: ${studentAnswer}
-
-Expected JSON:
-{
-  "score": <0-100>,
-  "review": "<short review>"
-}`;
+	return `Based on the following question and student's answer, evaluate the student's answer on a scale of 0 to 100 for correctness, relevance, and completeness, and provide a brief review.
+  Question: "${question}"
+  Student's Answer: "${studentAnswer}"
+  Your response must be a valid JSON object with two keys: "score" (a number from 0 to 100) and "review" (a string). Example: {"score": 75, "review": "The answer is relevant but lacks depth."}`;
 }
 
+/**
+ * Extracts a JSON object from a raw string, which might be wrapped in other text or markdown.
+ * @param {string} rawOutput - The raw string from the AI model.
+ * @returns {object} The parsed JSON object.
+ */
 function extractJson(rawOutput) {
+	console.log('[EVAL_SERVICE_EXTRACT] Attempting to find JSON in raw output.');
 	// Find the first '{' and the last '}' to get the JSON block.
 	const firstBrace = rawOutput.indexOf('{');
 	const lastBrace = rawOutput.lastIndexOf('}');
 
 	if (firstBrace === -1 || lastBrace === -1 || lastBrace < firstBrace) {
+		console.error('[EVAL_SERVICE_EXTRACT] No valid JSON object boundaries found.');
 		throw new ApiError(500, 'No valid JSON object found in model response', { rawOutput });
 	}
 
 	const jsonString = rawOutput.substring(firstBrace, lastBrace + 1);
+	console.log(`[EVAL_SERVICE_EXTRACT] Extracted potential JSON string: ${jsonString}`);
 
 	try {
-		// The model might return JSON with trailing commas, which is invalid.
-		// A common fix is to use a more lenient parser or clean the string.
-		// For this, we'll remove trailing commas before parsing.
+		// Clean up common formatting issues before parsing.
 		const cleanedJsonString = jsonString
 			.replace(/,\s*\]/g, ']') // remove trailing comma in array
 			.replace(/,\s*\}/g, '}'); // remove trailing comma in object
 
 		return JSON.parse(cleanedJsonString);
 	} catch (e) {
+		console.error(`[EVAL_SERVICE_EXTRACT] JSON parsing failed: ${e.message}`);
 		throw new ApiError(500, 'Model returned invalid JSON', {
 			originalError: e.message,
-			rawOutput,
+			jsonString,
 		});
 	}
 }
 
 export async function evaluateAnswer(question, studentAnswer, referenceAnswer = null, weight = 1) {
+	console.log(
+		`[EVAL_SERVICE] Starting evaluation for question: "${question.substring(0, 50)}..."`,
+	);
 	const prompt = referenceAnswer
 		? buildPromptWithReference(question, studentAnswer, referenceAnswer)
 		: buildPromptWithoutReference(question, studentAnswer);
 
+	console.log(`[EVAL_SERVICE] Generated prompt. Length: ${prompt.length}`);
+
 	try {
 		const response = await axios.post(
 			api,
-			{
-				inputs: prompt,
-				parameters: {
-					temperature: 0,
-					top_p: 1,
-					top_k: 1,
-					max_new_tokens: 200,
-				},
-			},
-			{
-				headers: {
-					Authorization: `Bearer ${apiKey}`,
-					'Content-Type': 'application/json',
-				},
-				timeout: 15000,
-			},
+			{ inputs: prompt, parameters: { max_new_tokens: 150 } },
+			{ headers: { Authorization: `Bearer ${apiKey}` } },
 		);
 
-		// --- ROBUST RESPONSE PARSING ---
+		console.log('[EVAL_SERVICE] Received raw response from AI model.');
 		let rawOutput = '';
 		const responseData = response.data;
 
+		// Handle various possible response structures from the AI service
 		if (typeof responseData === 'string') {
 			rawOutput = responseData;
 		} else if (Array.isArray(responseData) && responseData.length > 0) {
-			// Handle formats like [{ "generated_text": "..." }]
 			rawOutput = responseData[0]?.generated_text || JSON.stringify(responseData[0]);
 		} else if (typeof responseData === 'object' && responseData !== null) {
-			// Handle formats like { "generated_text": "..." } or direct JSON { "score": ... }
 			rawOutput = responseData.generated_text || JSON.stringify(responseData);
 		} else {
+			console.error('[EVAL_SERVICE] Unexpected response format from AI:', responseData);
 			throw new ApiError(
 				500,
 				'Received an unexpected response format from evaluation service',
 			);
 		}
-		// --- END ROBUST RESPONSE PARSING ---
+		console.log(`[EVAL_SERVICE] Normalized raw output: ${rawOutput}`);
 
 		const parsed = extractJson(rawOutput);
+		console.log('[EVAL_SERVICE] Successfully parsed JSON:', parsed);
 
-		// Validate score
 		let score = Number(parsed.score);
-		if (isNaN(score)) score = 0;
+		if (isNaN(score)) {
+			console.warn(
+				`[EVAL_SERVICE] Warning: Parsed score "${parsed.score}" is not a number. Defaulting to 0.`,
+			);
+			score = 0;
+		}
 		score = Math.max(0, Math.min(100, Math.round(score)));
 
-		// Apply weight (e.g., scale to max marks of question)
 		const finalMarks = Math.round(score * weight);
-
 		const review =
 			typeof parsed.review === 'string' && parsed.review.trim().length > 0
 				? parsed.review.trim()
 				: 'No review provided';
 
+		console.log(
+			`[EVAL_SERVICE] Evaluation successful. Final marks: ${finalMarks}, Review: "${review}"`,
+		);
 		return { score: finalMarks, review };
 	} catch (error) {
-		// Axios error handling
-		let details = error.response?.data || error.message;
-		if (error.code === 'ECONNABORTED') {
-			throw ApiError.InternalServerError('Evaluation service timed out', { details });
-		}
-		if (error.response?.status === 401) {
-			throw ApiError.Unauthorized('Invalid or missing API key', { details });
-		}
-		if (error.response?.status === 429) {
-			throw ApiError.UnprocessableEntity('Evaluation service rate limit exceeded', {
-				details,
-			});
-		}
-		console.error('Evaluation error:', details);
-		throw ApiError.InternalServerError('Error evaluating answer', { details });
+		console.error(
+			`[EVAL_SERVICE] CRITICAL: Full evaluation failed for a question. Error: ${error.message}`,
+		);
+		// Re-throw the error so the controller can handle it gracefully.
+		throw error;
 	}
 }
