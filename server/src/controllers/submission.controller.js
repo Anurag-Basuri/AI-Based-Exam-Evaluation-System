@@ -9,7 +9,6 @@ import { ApiResponse } from '../utils/ApiResponse.js';
 // Helper: Evaluate all answers in a submission
 async function evaluateSubmissionAnswers(submission) {
 	console.log(`[SUBMISSION_CTRL] Starting evaluation for submission ID: ${submission._id}`);
-	// Load exam once to read exam-level AI policy (optional)
 	const examDoc = await Exam.findById(submission.exam).select('title aiPolicy');
 	if (examDoc?.aiPolicy) {
 		console.log('[SUBMISSION_CTRL] Exam AI policy detected.');
@@ -35,14 +34,14 @@ async function evaluateSubmissionAnswers(submission) {
 					);
 					marks = isCorrect ? questionDoc.max_marks : 0;
 					remarks = isCorrect ? 'Correct answer.' : 'Incorrect answer.';
+					meta = { type: 'mcq-auto' };
 				} else {
 					remarks = 'No option selected.';
+					meta = { type: 'mcq-unanswered' };
 				}
 			} else if (ans.responseText && String(ans.responseText).trim()) {
 				const refAnswer = questionDoc.answer || null;
 				const weight = (questionDoc.max_marks || 0) / 100;
-
-				// Merge exam-level and question-level policies (question overrides exam)
 				const mergedPolicy = {
 					...(examDoc?.aiPolicy || {}),
 					...(questionDoc?.aiPolicy || {}),
@@ -134,8 +133,9 @@ const startSubmission = asyncHandler(async (req, res) => {
 
 	if (!examId) throw ApiError.BadRequest('Exam ID is required');
 
-	// Fetch exam and its question IDs
-	const exam = await Exam.findById(examId).select('status startTime endTime duration questions');
+	const exam = await Exam.findById(examId)
+		.select('status startTime endTime duration questions')
+		.populate('questions');
 	if (!exam) throw ApiError.NotFound('Exam not found');
 	if (exam.status !== 'active') throw ApiError.Forbidden('Exam is not active');
 
@@ -144,8 +144,17 @@ const startSubmission = asyncHandler(async (req, res) => {
 		throw ApiError.Forbidden('Exam has not started yet');
 	if (exam.endTime && now > new Date(exam.endTime)) throw ApiError.Forbidden('Exam has ended');
 
-	// Prevent duplicate
-	const existing = await Submission.findOne({ exam: examId, student: studentId });
+	const existing = await Submission.findOne({ exam: examId, student: studentId })
+		.populate({
+			path: 'exam',
+			select: 'title duration startTime endTime questions',
+			populate: {
+				path: 'questions',
+				model: 'Question',
+			},
+		})
+		.populate({ path: 'answers.question', model: 'Question' });
+
 	if (existing) {
 		// If expired while away, auto-submit and return final
 		if (isExpired(existing, exam) && existing.status === 'in-progress') {
@@ -172,6 +181,18 @@ const startSubmission = asyncHandler(async (req, res) => {
 	});
 
 	await submission.save();
+
+	// Populate before returning
+	await submission.populate({
+		path: 'exam',
+		select: 'title duration startTime endTime questions',
+		populate: {
+			path: 'questions',
+			model: 'Question',
+		},
+	});
+	await submission.populate({ path: 'answers.question', model: 'Question' });
+
 	return ApiResponse.success(res, submission, 'Submission started', 201);
 });
 
@@ -395,18 +416,20 @@ const getSubmissionByIdParam = asyncHandler(async (req, res) => {
 	const studentId = req.student?._id || req.user?.id;
 	const id = req.params.id;
 	if (!id) throw ApiError.BadRequest('Submission ID is required');
+
 	const submission = await Submission.findOne({ _id: id, student: studentId })
 		.populate({
 			path: 'exam',
-			select: 'title duration startTime endTime questions', // <-- Ensure questions are selected
+			select: 'title duration startTime endTime questions',
 			populate: {
-				path: 'questions', // <-- Populate the questions array
+				path: 'questions',
 				model: 'Question',
 			},
 		})
-		.populate({ path: 'answers.question', model: 'Question' }); // Keep for safety
+		.populate({ path: 'answers.question', model: 'Question' });
 
 	if (!submission) throw ApiError.NotFound('Submission not found');
+
 	// Backfill duration if missing
 	if (!submission.duration && submission.exam?.duration) {
 		submission.duration = submission.exam.duration;
