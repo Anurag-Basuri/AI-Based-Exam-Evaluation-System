@@ -191,6 +191,9 @@ submissionSchema.pre('save', function (next) {
 
 submissionSchema.index({ exam: 1, student: 1 }, { unique: true });
 
+// --- Ensure each question within a submission's answers array is unique ---
+submissionSchema.index({ _id: 1, 'answers.question': 1 }, { unique: true });
+
 const Submission = mongoose.model('Submission', submissionSchema);
 
 export default Submission;
