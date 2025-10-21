@@ -430,6 +430,36 @@ export async function evaluateAnswer(
 	const prompt = buildPrompt(cleanQ, cleanAns, referenceAnswer, policySummary, effectivePolicy);
 	console.log(`[EVAL_SERVICE ${evalId}] Prompt length=${prompt.length}`);
 
+	// If no AI config is provided, immediately use fallbacks (config-safe behavior)
+	if (!api || !apiKey) {
+		console.warn(
+			`[EVAL_SERVICE ${evalId}] Missing HF API config. Using deterministic fallback scoring.`,
+		);
+		const fbKeyword = keywordFallback(cleanAns, effectivePolicy, weight);
+		if (fbKeyword) {
+			return {
+				score: fbKeyword.score,
+				review: limitSentences(fbKeyword.review, effectivePolicy.targetLength || 3),
+				meta: {
+					keywords_matched: fbKeyword.meta.keywords_matched,
+					fallback: true,
+					type: 'config',
+					evalId,
+				},
+			};
+		}
+		const fbHeuristic = heuristicFallback(cleanAns, effectivePolicy, weight);
+		return {
+			score: fbHeuristic.score,
+			review: limitSentences(fbHeuristic.review, effectivePolicy.targetLength || 3),
+			meta: {
+				fallback: true,
+				type: 'config-heuristic',
+				evalId,
+			},
+		};
+	}
+
 	let attempt = 0;
 	let lastError = null;
 
