@@ -52,12 +52,11 @@ router.patch(
 );
 
 // Compat: sync by submissionId
-router.patch(
+router.post(
 	'/:id/answers',
 	checkAuth,
 	verifyStudent,
 	param('id').notEmpty().withMessage('Submission ID is required'),
-	body('answers').isArray().withMessage('Answers must be an array'),
 	syncAnswersBySubmissionId,
 );
 
@@ -83,7 +82,7 @@ router.post(
 );
 
 // Compat: submit by submissionId
-router.patch(
+router.post(
 	'/:id/submit',
 	checkAuth,
 	verifyStudent,
