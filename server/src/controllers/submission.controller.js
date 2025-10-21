@@ -30,12 +30,11 @@ async function evaluateSubmissionAnswers(submission) {
 
 			if (questionDoc.type === 'multiple-choice') {
 				if (ans.responseOption && questionDoc.options) {
-					const correctOption = questionDoc.options.find(opt => opt.isCorrect);
-					marks =
-						ans.responseOption.toString() === correctOption?._id.toString()
-							? questionDoc.max_marks
-							: 0;
-					remarks = marks > 0 ? 'Correct answer.' : 'Incorrect answer.';
+					const isCorrect = (questionDoc.options || []).some(
+						opt => opt.isCorrect && String(opt?._id) === String(ans.responseOption),
+					);
+					marks = isCorrect ? questionDoc.max_marks : 0;
+					remarks = isCorrect ? 'Correct answer.' : 'Incorrect answer.';
 				} else {
 					remarks = 'No option selected.';
 				}
@@ -176,6 +175,22 @@ const startSubmission = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, submission, 'Submission started', 201);
 });
 
+// Helper to safely merge incoming answers into existing slots
+function mergeAnswers(existingAnswers, incomingAnswers) {
+	const byQ = new Map(existingAnswers.map(a => [String(a.question), { ...a }]));
+	for (const inc of incomingAnswers) {
+		const qid = String(inc?.question || '');
+		if (!qid || !byQ.has(qid)) continue; // ignore unknown questions
+		const prev = byQ.get(qid);
+		byQ.set(qid, {
+			question: prev.question,
+			responseText: inc.responseText ?? prev.responseText ?? '',
+			responseOption: inc.responseOption ?? prev.responseOption ?? null,
+		});
+	}
+	return Array.from(byQ.values());
+}
+
 // Sync answers for a submission (while in-progress)
 const syncAnswers = asyncHandler(async (req, res) => {
 	const studentId = req.student?._id || req.user?.id;
@@ -203,7 +218,8 @@ const syncAnswers = asyncHandler(async (req, res) => {
 		return ApiResponse.success(res, submission, 'Submission no longer editable');
 	}
 
-	submission.answers = answers;
+	// Safe merge (only update answers for known questions)
+	submission.answers = mergeAnswers(submission.answers, answers);
 	await submission.save();
 	return ApiResponse.success(res, submission, 'Answers synced');
 });
@@ -422,12 +438,15 @@ const syncAnswersBySubmissionId = asyncHandler(async (req, res) => {
 		return ApiResponse.success(res, submission, 'Submission no longer editable');
 	}
 
-	// Update fields if they were provided in the request
 	if (Array.isArray(answers)) {
-		submission.answers = answers;
+		submission.answers = mergeAnswers(submission.answers, answers);
 	}
 	if (Array.isArray(markedForReview)) {
-		submission.markedForReview = markedForReview;
+		const allowed = new Set(submission.answers.map(a => String(a.question)));
+		const unique = Array.from(
+			new Set(markedForReview.map(q => String(q)).filter(q => allowed.has(q))),
+		);
+		submission.markedForReview = unique;
 	}
 
 	await submission.save();
