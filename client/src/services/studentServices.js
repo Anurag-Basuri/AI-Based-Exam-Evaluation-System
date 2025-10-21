@@ -176,6 +176,9 @@ const normalizeSubmission = s => ({
 			text: o.text,
 		})),
 	})),
+	markedForReview: Array.isArray(s.markedForReview)
+		? s.markedForReview.map(id => String(id))
+		: [],
 	score:
 		s.totalScore ??
 		(Array.isArray(s.evaluations)
