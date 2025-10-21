@@ -544,19 +544,32 @@ const SubmitConfirmation = ({ stats, onConfirm, onCancel }) => (
 
 const handleAnswerChange = (submission, questionId, value, type) => {
 	if (!submission) return null;
-	const newAnswers = [...(submission.answers || [])];
-	let answer = newAnswers.find(a => a.question === questionId);
-	if (!answer) {
-		answer = { question: questionId };
-		newAnswers.push(answer);
+
+	// Find the index of the answer to update. It's guaranteed to exist.
+	const answerIndex = (submission.answers || []).findIndex(a => a.question === questionId);
+
+	// If for some reason it doesn't exist (defensive coding), do nothing.
+	if (answerIndex === -1) {
+		console.warn('Attempted to update a non-existent answer slot for question:', questionId);
+		return submission;
 	}
+
+	// Create a new answers array to avoid direct state mutation
+	const newAnswers = [...submission.answers];
+	const answerToUpdate = { ...newAnswers[answerIndex] }; // Copy the answer object
+
 	if (type === 'multiple-choice') {
-		answer.responseOption = value;
-		delete answer.responseText;
+		answerToUpdate.responseOption = value;
+		answerToUpdate.responseText = ''; // Clear other answer type
 	} else {
-		answer.responseText = value;
-		delete answer.responseOption;
+		answerToUpdate.responseText = value;
+		answerToUpdate.responseOption = null; // Clear other answer type
 	}
+
+	// Replace the old answer object with the updated one
+	newAnswers[answerIndex] = answerToUpdate;
+
+	// Return the new submission state
 	return { ...submission, answers: newAnswers };
 };
 
