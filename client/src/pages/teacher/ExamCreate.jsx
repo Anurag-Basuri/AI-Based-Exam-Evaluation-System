@@ -227,7 +227,9 @@ const ExamCreate = () => {
 		try {
 			// Backend now returns { items: [...] }
 			const response = await safeApiCall(getTeacherQuestions);
-			setQuestions(Array.isArray(response?.items) ? response.items : []);
+			// Ensure we handle both array and object responses gracefully
+			const items = Array.isArray(response) ? response : response?.items || [];
+			setQuestions(Array.isArray(items) ? items : []);
 		} catch (e) {
 			const msg = e?.message || 'Failed to load your questions';
 			setQError(msg);
