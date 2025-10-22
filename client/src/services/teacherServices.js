@@ -347,14 +347,15 @@ export const deleteExam = async examId => {
 
 // ---------- Questions (Teacher) ----------
 export const getTeacherQuestions = async (params = {}) => {
-	const res = await tryGet(EP.questionsMine, { params });
-	const payload = res?.data?.data ?? res?.data ?? [];
-	const list = Array.isArray(payload)
-		? payload
-		: Array.isArray(payload?.items)
-			? payload.items
-			: [];
-	return list.map(normalizeQuestion);
+    const res = await tryGet(EP.questionsMine, { params });
+    const payload = res?.data?.data ?? res?.data ?? { items: [] };
+    // The backend returns a paginated object { items, page, limit }.
+    // The component needs this full object.
+    const list = Array.isArray(payload?.items) ? payload.items.map(normalizeQuestion) : [];
+    return {
+        ...payload,
+        items: list,
+    };
 };
 
 export const createTeacherQuestion = async payload => {
