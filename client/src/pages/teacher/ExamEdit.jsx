@@ -52,6 +52,14 @@ const ExamEdit = () => {
 	const [detailErrors, setDetailErrors] = React.useState({});
 	const [status, setStatus] = React.useState('draft');
 
+	// Add state for AI Policy
+	const [aiPolicy, setAiPolicy] = React.useState({
+		strictness: 'moderate',
+		reviewTone: 'concise',
+		expectedLength: 20,
+		customInstructions: '',
+	});
+
 	const [questions, setQuestions] = React.useState([]);
 	const [selectedIds, setSelectedIds] = React.useState(new Set());
 	const [query, setQuery] = React.useState('');
@@ -76,6 +84,13 @@ const ExamEdit = () => {
 				// Use correct normalized fields (startMs/endMs)
 				startTime: exam.startMs ? new Date(exam.startMs).toISOString().slice(0, 16) : '',
 				endTime: exam.endMs ? new Date(exam.endMs).toISOString().slice(0, 16) : '',
+			});
+			// Load AI policy, providing defaults if not set
+			setAiPolicy({
+				strictness: exam.aiPolicy?.strictness || 'moderate',
+				reviewTone: exam.aiPolicy?.reviewTone || 'concise',
+				expectedLength: exam.aiPolicy?.expectedLength || 20,
+				customInstructions: exam.aiPolicy?.customInstructions || '',
 			});
 			setStatus(exam.status);
 			setSelectedIds(new Set(exam.questions || []));
@@ -156,9 +171,13 @@ const ExamEdit = () => {
 				startTime: toISO(details.startTime),
 				endTime: toISO(details.endTime),
 				// status is not changed here; publishing is a separate action
+				aiPolicy: {
+					...aiPolicy,
+					expectedLength: Number(aiPolicy.expectedLength),
+				},
 			});
 			// 2) Update question set (server validates ownership)
-			await safeApiCall(setExamQuestions, id, Array.from(selectedIds));
+			await safeApiCall(setExamQuestions, id, { questionIds: Array.from(selectedIds) });
 			success('Exam updated');
 			setTimeout(() => navigate('/teacher/exams'), 400);
 		} catch (e) {
@@ -283,6 +302,8 @@ const ExamEdit = () => {
 					onChange={setDetails}
 					errors={detailErrors}
 					disabled={saving || isLocked}
+					aiPolicy={aiPolicy}
+					onAiPolicyChange={setAiPolicy}
 				/>
 			</section>
 
@@ -403,7 +424,11 @@ const ExamEdit = () => {
 												!canEditQuestions ? undefined : toggleSelected(q.id)
 											}
 											disabled={!canEditQuestions}
-											style={{ cursor: canEditQuestions ? 'pointer' : 'not-allowed' }}
+											style={{
+												cursor: canEditQuestions
+													? 'pointer'
+													: 'not-allowed',
+											}}
 										/>
 										<strong style={{ color: 'var(--text)' }}>
 											{q.type === 'multiple-choice' ? 'MCQ' : 'Subjective'}
