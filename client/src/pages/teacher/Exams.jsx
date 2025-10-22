@@ -472,8 +472,9 @@ const TeacherExams = () => {
 		setLoading(true);
 		setErrorBanner('');
 		try {
-			const data = await TeacherSvc.safeApiCall(TeacherSvc.getTeacherExams);
-			setExams(Array.isArray(data) ? data : []);
+			// The service now returns a paginated object { items: [...] }
+			const response = await TeacherSvc.safeApiCall(TeacherSvc.getTeacherExams);
+			setExams(Array.isArray(response?.items) ? response.items : []);
 		} catch (e) {
 			setErrorBanner(e?.message || 'Failed to load exams');
 		} finally {
@@ -524,6 +525,7 @@ const TeacherExams = () => {
 			return;
 		}
 		const now = Date.now();
+		// Use startMs from normalized data
 		const startsInFuture = exam.startMs && now < exam.startMs;
 		const endsInPast = exam.endMs && now > exam.endMs;
 		const warn = endsInPast
@@ -579,10 +581,8 @@ const TeacherExams = () => {
 	const handleEndNow = async exam => {
 		if (!window.confirm('End this exam immediately?')) return;
 		try {
-			const fn =
-				TeacherSvc.endExamNow ??
-				(id => apiClient.post(`/api/exams/${encodeURIComponent(id)}/end-now`, {}));
-			await TeacherSvc.safeApiCall(fn, exam.id);
+			// Use the specific service function
+			await TeacherSvc.safeApiCall(TeacherSvc.endExamNow, exam.id);
 			await loadExams();
 			success('Exam ended');
 		} catch (e) {
@@ -594,10 +594,8 @@ const TeacherExams = () => {
 		if (!window.confirm('Cancel this scheduled exam? Students will not be able to join.'))
 			return;
 		try {
-			const fn =
-				TeacherSvc.cancelExam ??
-				(id => apiClient.post(`/api/exams/${encodeURIComponent(id)}/cancel`, {}));
-			await TeacherSvc.safeApiCall(fn, exam.id);
+			// Use the specific service function
+			await TeacherSvc.safeApiCall(TeacherSvc.cancelExam, exam.id);
 			await loadExams();
 			success('Exam cancelled');
 		} catch (e) {
@@ -607,11 +605,8 @@ const TeacherExams = () => {
 
 	const handleExtend15 = async exam => {
 		try {
-			const fn =
-				TeacherSvc.extendExamEnd ??
-				((id, body) =>
-					apiClient.patch(`/api/exams/${encodeURIComponent(id)}/extend`, body));
-			await TeacherSvc.safeApiCall(fn, exam.id, { minutes: 15 });
+			// Use the specific service function
+			await TeacherSvc.safeApiCall(TeacherSvc.extendExamEnd, exam.id, { minutes: 15 });
 			await loadExams();
 			success('Extended by 15 minutes');
 		} catch (e) {
@@ -623,10 +618,8 @@ const TeacherExams = () => {
 		if (!window.confirm('Regenerate the share code? Existing code will no longer work.'))
 			return;
 		try {
-			const fn =
-				TeacherSvc.regenerateExamShareCode ??
-				(id => apiClient.post(`/api/exams/${encodeURIComponent(id)}/regenerate-code`, {}));
-			await TeacherSvc.safeApiCall(fn, exam.id);
+			// Use the specific service function
+			await TeacherSvc.safeApiCall(TeacherSvc.regenerateExamShareCode, exam.id);
 			await loadExams();
 			success('New share code generated');
 		} catch (e) {
