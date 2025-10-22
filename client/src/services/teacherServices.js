@@ -289,21 +289,29 @@ export const reorderExamQuestions = async (examId, order = []) => {
 };
 
 export const getTeacherExams = async (params = {}) => {
-	// Prefer fast "mine" list; fallback to /all if not available
-	try {
-		const resMine = await tryGet(EP.examsMine, { params });
-		const payload = resMine?.data?.data ?? resMine?.data ?? [];
-		const list = Array.isArray(payload)
-			? payload
-			: Array.isArray(payload?.items)
-				? payload.items
-				: [];
-		return list.map(normalizeExam);
-	} catch (_) {
-		const resAll = await tryGet(EP.examsAll, { params });
-		const list = resAll?.data?.data || resAll?.data || [];
-		return Array.isArray(list) ? list.map(normalizeExam) : [];
-	}
+    // Prefer fast "mine" list; fallback to /all if not available
+    try {
+        const resMine = await tryGet(EP.examsMine, { params });
+        const payload = resMine?.data?.data ?? resMine?.data ?? { items: [] };
+        const list = Array.isArray(payload?.items) ? payload.items : [];
+
+        // Return the full paginated object with normalized items
+        return {
+            ...payload,
+            items: list.map(normalizeExam),
+        };
+    } catch (_) {
+        const resAll = await tryGet(EP.examsAll, { params });
+        const list = resAll?.data?.data || resAll?.data || [];
+        const items = Array.isArray(list) ? list.map(normalizeExam) : [];
+        // Mimic paginated response for fallback
+        return {
+            items,
+            page: 1,
+            limit: items.length,
+            total: items.length,
+        };
+    }
 };
 
 export const getTeacherExamById = async examId => {
