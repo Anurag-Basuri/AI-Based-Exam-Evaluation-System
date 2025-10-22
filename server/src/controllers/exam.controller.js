@@ -7,7 +7,7 @@ import { syncExamStatuses } from '../services/examStatus.service.js';
 
 // Create an exam (can be created with zero questions, status is 'draft')
 const createExam = asyncHandler(async (req, res) => {
-	const { title, description, duration, questionIds, startTime, endTime } = req.body;
+	const { title, description, duration, questionIds, startTime, endTime, aiPolicy } = req.body;
 	const teacherId = req.teacher?._id || req.user?.id;
 
 	if (!title || !duration || !startTime || !endTime) {
@@ -40,6 +40,7 @@ const createExam = asyncHandler(async (req, res) => {
 		endTime,
 		createdBy: teacherId,
 		status: 'draft',
+		aiPolicy,
 	});
 
 	await exam.save();
@@ -164,7 +165,8 @@ const assertOwner = (doc, teacherId) => {
 // Update an exam (safe status transitions)
 const updateExam = asyncHandler(async (req, res) => {
 	const examId = req.params.id;
-	const { title, description, duration, questions, startTime, endTime, status } = req.body;
+	const { title, description, duration, questions, startTime, endTime, status, aiPolicy } =
+		req.body;
 	const teacherId = req.teacher?._id || req.user?.id;
 
 	if (!examId || !examId.match(/^[a-f\d]{24}$/i)) {
@@ -211,10 +213,11 @@ const updateExam = asyncHandler(async (req, res) => {
 			description !== undefined ||
 			startTime !== undefined ||
 			endTime !== undefined ||
-			Array.isArray(questions)
+			Array.isArray(questions) ||
+			aiPolicy !== undefined // Prevent AI policy changes on locked exams
 		) {
 			throw ApiError.Forbidden(
-				'Cannot modify details/questions of a live/completed/cancelled exam',
+				'Cannot modify details/questions/AI policy of a live/completed/cancelled exam',
 			);
 		}
 	}
@@ -255,6 +258,7 @@ const updateExam = asyncHandler(async (req, res) => {
 	if (endTime !== undefined) updateFields.endTime = endTime;
 	if (status !== undefined) updateFields.status = status;
 	if (Array.isArray(questions)) updateFields.questions = questions;
+	if (aiPolicy !== undefined) updateFields.aiPolicy = aiPolicy; // Add AI policy to update fields
 
 	const updatedExam = await Exam.findByIdAndUpdate(examId, updateFields, {
 		new: true,
@@ -516,11 +520,12 @@ const duplicateExam = asyncHandler(async (req, res) => {
 		title: `${src.title} (Copy)`,
 		description: src.description,
 		duration: src.duration,
-		questions: src.questions, // reuse banked questions; linking handled on publish/explicit set
+		questions: src.questions,
 		startTime: start,
 		endTime: end,
 		createdBy: teacherId,
 		status: 'draft',
+		aiPolicy: src.aiPolicy,
 	});
 	await copy.save();
 

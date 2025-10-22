@@ -23,7 +23,7 @@ const AiPolicySchema = new mongoose.Schema(
 		// Number of expected words in answers
 		expectedLength: {
 			type: Number,
-			default: 10,
+			default: 20,
 		},
 		customInstructions: {
 			type: String,
