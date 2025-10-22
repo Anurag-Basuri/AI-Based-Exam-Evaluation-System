@@ -58,16 +58,20 @@ const getTeacherQuestions = asyncHandler(async (req, res) => {
 	const lim = Math.max(1, Math.min(100, Number(limit)));
 	const skip = (Math.max(1, Number(page)) - 1) * lim;
 
-	const questions = await Question.find(filter)
+	const questionsPromise = Question.find(filter)
 		.sort({ createdAt: -1 })
 		.skip(skip)
 		.limit(lim)
 		.select('_id type text remarks max_marks options createdBy sourceExam createdAt')
 		.lean();
 
+	const totalPromise = Question.countDocuments(filter);
+
+	const [questions, total] = await Promise.all([questionsPromise, totalPromise]);
+
 	return ApiResponse.success(
 		res,
-		{ items: questions, page: Number(page), limit: lim },
+		{ items: questions, page: Number(page), limit: lim, total },
 		'Your questions fetched',
 	);
 });
@@ -130,100 +134,103 @@ const getQuestionById = asyncHandler(async (req, res) => {
 
 // Update a question
 const updateQuestion = asyncHandler(async (req, res) => {
-    const questionId = req.params.id;
-    const teacherId = req.teacher?._id || req.user?.id;
+	const questionId = req.params.id;
+	const teacherId = req.teacher?._id || req.user?.id;
 
-    if (!questionId || !questionId.match(/^[a-f\d]{24}$/i)) {
-        throw ApiError.BadRequest('Invalid question ID');
-    }
+	if (!questionId || !questionId.match(/^[a-f\d]{24}$/i)) {
+		throw ApiError.BadRequest('Invalid question ID');
+	}
 
-    const questionDoc = await Question.findById(questionId);
-    if (!questionDoc) throw ApiError.NotFound('Question not found');
+	const questionDoc = await Question.findById(questionId);
+	if (!questionDoc) throw ApiError.NotFound('Question not found');
 
-    // Ownership
-    if (String(questionDoc.createdBy) !== String(teacherId)) {
-        throw ApiError.Forbidden('Not authorized to update this question');
-    }
+	// Ownership
+	if (String(questionDoc.createdBy) !== String(teacherId)) {
+		throw ApiError.Forbidden('Not authorized to update this question');
+	}
 
-    // If question is part of a linked exam, check lock
-    if (questionDoc.sourceExam) {
-        const exam = await Exam.findById(questionDoc.sourceExam).select('status startTime endTime');
-        if (exam) {
-            const now = new Date();
-            const scheduled = exam.status === 'active' && exam.startTime && now < new Date(exam.startTime);
-            const live =
-                exam.status === 'active' &&
-                exam.startTime &&
-                exam.endTime &&
-                now >= new Date(exam.startTime) &&
-                now <= new Date(exam.endTime);
-            if (live || ['completed', 'cancelled'].includes(exam.status)) {
-                throw ApiError.Forbidden('Cannot update a question tied to a live/completed/cancelled exam');
-            }
-            // Allowed when draft or scheduled (not started)
-        }
-    }
+	// If question is part of a linked exam, check lock
+	if (questionDoc.sourceExam) {
+		const exam = await Exam.findById(questionDoc.sourceExam).select('status startTime endTime');
+		if (exam) {
+			const now = new Date();
+			const scheduled =
+				exam.status === 'active' && exam.startTime && now < new Date(exam.startTime);
+			const live =
+				exam.status === 'active' &&
+				exam.startTime &&
+				exam.endTime &&
+				now >= new Date(exam.startTime) &&
+				now <= new Date(exam.endTime);
+			if (live || ['completed', 'cancelled'].includes(exam.status)) {
+				throw ApiError.Forbidden(
+					'Cannot update a question tied to a live/completed/cancelled exam',
+				);
+			}
+			// Allowed when draft or scheduled (not started)
+		}
+	}
 
-    // Destructure after auth/locks
-    const { type, text, remarks, max_marks, options, answer } = req.body || {};
+	// Destructure after auth/locks
+	const { type, text, remarks, max_marks, options, answer } = req.body || {};
 
-    // Validate MCQ only if MCQ is intended or options are provided
-    if ((type === 'multiple-choice') || (Array.isArray(options) && options.length > 0)) {
-        if (!Array.isArray(options) || options.length < 2) {
-            throw ApiError.BadRequest('Multiple-choice questions must have at least 2 options');
-        }
-        if (!options.some(opt => opt.isCorrect)) {
-            throw ApiError.BadRequest('At least one option must be marked as correct');
-        }
-    }
+	// Validate MCQ only if MCQ is intended or options are provided
+	if (type === 'multiple-choice' || (Array.isArray(options) && options.length > 0)) {
+		if (!Array.isArray(options) || options.length < 2) {
+			throw ApiError.BadRequest('Multiple-choice questions must have at least 2 options');
+		}
+		if (!options.some(opt => opt.isCorrect)) {
+			throw ApiError.BadRequest('At least one option must be marked as correct');
+		}
+	}
 
-    const updateFields = {};
-    if (type) updateFields.type = type;
-    if (typeof text === 'string') updateFields.text = text;
-    if (typeof remarks === 'string') updateFields.remarks = remarks;
-    if (max_marks !== undefined) updateFields.max_marks = max_marks;
-    if (Array.isArray(options)) updateFields.options = options;
-    if (type === 'subjective') updateFields.answer = answer || null;
-    if (!type && answer !== undefined && (questionDoc.type === 'subjective')) {
-        // allow updating answer for existing subjective without changing type
-        updateFields.answer = answer || null;
-    }
+	const updateFields = {};
+	if (type) updateFields.type = type;
+	if (typeof text === 'string') updateFields.text = text;
+	if (typeof remarks === 'string') updateFields.remarks = remarks;
+	if (max_marks !== undefined) updateFields.max_marks = max_marks;
+	if (Array.isArray(options)) updateFields.options = options;
+	if (type === 'subjective') updateFields.answer = answer || null;
+	if (!type && answer !== undefined && questionDoc.type === 'subjective') {
+		// allow updating answer for existing subjective without changing type
+		updateFields.answer = answer || null;
+	}
 
-    const updated = await Question.findByIdAndUpdate(questionId, updateFields, {
-        new: true,
-        runValidators: true,
-    });
+	const updated = await Question.findByIdAndUpdate(questionId, updateFields, {
+		new: true,
+		runValidators: true,
+	});
 
-    return ApiResponse.success(res, updated, 'Question updated successfully');
+	return ApiResponse.success(res, updated, 'Question updated successfully');
 });
 
 // Delete a question (prevent delete if part of a locked exam)
 const deleteQuestion = asyncHandler(async (req, res) => {
-    const questionId = req.params.id;
-    const teacherId = req.teacher?._id || req.user?.id;
+	const questionId = req.params.id;
+	const teacherId = req.teacher?._id || req.user?.id;
 
-    if (!questionId || !questionId.match(/^[a-f\d]{24}$/i)) {
-        throw ApiError.BadRequest('Invalid question ID');
-    }
-    const questionDoc = await Question.findById(questionId);
-    if (!questionDoc) throw ApiError.NotFound('Question not found');
+	if (!questionId || !questionId.match(/^[a-f\d]{24}$/i)) {
+		throw ApiError.BadRequest('Invalid question ID');
+	}
+	const questionDoc = await Question.findById(questionId);
+	if (!questionDoc) throw ApiError.NotFound('Question not found');
 
-    // Ownership
-    if (String(questionDoc.createdBy) !== String(teacherId)) {
-        throw ApiError.Forbidden('Not authorized to delete this question');
-    }
+	// Ownership
+	if (String(questionDoc.createdBy) !== String(teacherId)) {
+		throw ApiError.Forbidden('Not authorized to delete this question');
+	}
 
-    // If question is part of an exam that is active/completed/cancelled, prevent delete
-    if (questionDoc.sourceExam) {
-        const exam = await Exam.findById(questionDoc.sourceExam);
-        if (exam && ['active', 'completed', 'cancelled'].includes(exam.status)) {
-            throw ApiError.Forbidden('Cannot delete a question that is part of a locked exam.');
-        }
-    }
+	// If question is part of an exam that is active/completed/cancelled, prevent delete
+	if (questionDoc.sourceExam) {
+		const exam = await Exam.findById(questionDoc.sourceExam);
+		if (exam && ['active', 'completed', 'cancelled'].includes(exam.status)) {
+			throw ApiError.Forbidden('Cannot delete a question that is part of a locked exam.');
+		}
+	}
 
-    await Question.findByIdAndDelete(questionId);
-    await Exam.updateMany({ questions: questionId }, { $pull: { questions: questionId } });
-    return ApiResponse.success(res, { message: 'Question deleted successfully' });
+	await Question.findByIdAndDelete(questionId);
+	await Exam.updateMany({ questions: questionId }, { $pull: { questions: questionId } });
+	return ApiResponse.success(res, { message: 'Question deleted successfully' });
 });
 
 export {
