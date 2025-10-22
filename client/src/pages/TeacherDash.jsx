@@ -136,7 +136,7 @@ const TeacherDash = () => {
 								textOverflow: 'ellipsis',
 								whiteSpace: 'nowrap',
 							}}
-							title={user?.fullname || user?.username || 'Teacher'}
+							title
 						>
 							{user?.fullname || user?.username || 'Teacher'}
 						</div>
@@ -183,7 +183,8 @@ const TeacherDash = () => {
 		() => [
 			{ key: 'home', label: 'Overview', icon: '📊', to: '/teacher', end: true },
 			{ key: 'exams', label: 'Exams', icon: '📝', to: '/teacher/exams' },
-			{ key: 'results', label: 'Submissions', icon: '📋', to: '/teacher/results' },
+			// The `end` prop is important here to distinguish from the detail view
+			{ key: 'results', label: 'Submissions', icon: '📋', to: '/teacher/results', end: true },
 			{
 				key: 'issues',
 				label: 'Issues',
