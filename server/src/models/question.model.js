@@ -2,79 +2,6 @@ import mongoose from 'mongoose';
 import slugify from 'slugify';
 import { nanoid } from 'nanoid';
 
-const RubricItemSchema = new mongoose.Schema(
-	{
-		criterion: {
-			type: String,
-			trim: true,
-		},
-		weight: {
-			type: Number,
-			min: 0,
-			max: 1,
-		},
-	},
-	{ _id: false },
-);
-
-const KeywordItemSchema = new mongoose.Schema(
-	{
-		term: {
-			type: String,
-			trim: true,
-		},
-		weight: {
-			type: Number,
-			default: 1,
-		},
-	},
-	{ _id: false },
-);
-
-const AiPolicySchema = new mongoose.Schema(
-	{
-		strictness: {
-			type: String,
-			enum: ['lenient', 'moderate', 'strict'],
-			default: 'moderate',
-		},
-		language: {
-			type: String,
-			default: 'en',
-		},
-		reviewTone: {
-			type: String,
-			default: 'concise',
-		},
-		targetLength: {
-			type: Number,
-			default: 3,
-		},
-		requireCitations: {
-			type: Boolean,
-			default: false,
-		},
-		customInstructions: {
-			type: String,
-			default: '',
-		},
-		rubric: {
-			type: [RubricItemSchema],
-			default: [],
-		},
-		keywords: {
-			type: [KeywordItemSchema],
-			default: [],
-		},
-		penalties: {
-			type: Map,
-			of: Number,
-			default: undefined,
-		},
-	},
-	{ _id: false },
-);
-
 const questionSchema = new mongoose.Schema(
 	{
 		type: {
@@ -136,10 +63,6 @@ const questionSchema = new mongoose.Schema(
 			type: String,
 			unique: true,
 			trim: true,
-		},
-		aiPolicy: {
-			type: AiPolicySchema,
-			default: undefined,
 		},
 	},
 	{
