@@ -7,48 +7,48 @@ import { useToast } from '../../components/ui/Toaster.jsx';
 import PageHeader from '../../components/ui/PageHeader.jsx';
 
 const statusConfig = {
-	live: {
-		bg: 'var(--surface)',
-		border: 'var(--border)',
-		color: '#10b981',
-		label: 'Live',
-		icon: '🟢',
-	},
-	active: {
-		bg: 'var(--surface)',
-		border: 'var(--border)',
-		color: '#10b981',
-		label: 'Live',
-		icon: '🟢',
-	},
-	scheduled: {
-		bg: 'var(--surface)',
-		border: 'var(--border)',
-		color: '#1d4ed8',
-		label: 'Scheduled',
-		icon: '🗓️',
-	},
-	draft: {
-		bg: 'var(--surface)',
-		border: 'var(--border)',
-		color: 'var(--text-muted)',
-		label: 'Draft',
-		icon: '📄',
-	},
-	completed: {
-		bg: 'var(--surface)',
-		border: 'var(--border)',
-		color: '#7c3aed',
-		label: 'Completed',
-		icon: '✅',
-	},
-	cancelled: {
-		bg: 'var(--surface)',
-		border: 'var(--border)',
-		color: '#dc2626',
-		label: 'Cancelled',
-		icon: '❌',
-	},
+    live: {
+        bg: '#dcfce7',
+        border: '#22c55e',
+        color: '#166534',
+        label: 'Live',
+        icon: '🟢',
+    },
+    active: {
+        bg: '#dcfce7',
+        border: '#22c55e',
+        color: '#166534',
+        label: 'Live',
+        icon: '🟢',
+    },
+    scheduled: {
+        bg: '#dbeafe',
+        border: '#3b82f6',
+        color: '#1e40af',
+        label: 'Scheduled',
+        icon: '🗓️',
+    },
+    draft: {
+        bg: '#f3f4f6',
+        border: '#9ca3af',
+        color: '#4b5563',
+        label: 'Draft',
+        icon: '📄',
+    },
+    completed: {
+        bg: '#ede9fe',
+        border: '#8b5cf6',
+        color: '#5b21b6',
+        label: 'Completed',
+        icon: '✅',
+    },
+    cancelled: {
+        bg: '#fee2e2',
+        border: '#ef4444',
+        color: '#991b1b',
+        label: 'Cancelled',
+        icon: '❌',
+    },
 };
 
 const FilterButton = ({ active, children, onClick, count }) => (
@@ -120,320 +120,326 @@ const ExamCard = ({
 	onDelete,
 	onReschedule,
 }) => {
-	const visualStatus = exam.derivedStatus || exam.status || 'draft';
-	const config = statusConfig[visualStatus] || statusConfig.draft;
+    const visualStatus = exam.derivedStatus || exam.status || 'draft';
+    const config = statusConfig[visualStatus] || statusConfig.draft;
 
-	// Derive view state
-	const now = Date.now();
-	const isScheduled = exam.status === 'active' && exam.startMs && now < exam.startMs;
-	const isLive =
-		exam.status === 'active' &&
-		exam.startMs &&
-		exam.endMs &&
-		now >= exam.startMs &&
-		now <= exam.endMs;
-	const isDraft = exam.status === 'draft';
+    // Derive view state
+    const now = Date.now();
+    const isScheduled = exam.status === 'active' && exam.startMs && now < exam.startMs;
+    const isLive =
+        exam.status === 'active' &&
+        exam.startMs &&
+        exam.endMs &&
+        now >= exam.startMs &&
+        now <= exam.endMs;
+    const isDraft = exam.status === 'draft';
 
-	return (
-		<article
-			style={{
-				background: 'var(--surface)',
-				borderRadius: 16,
-				border: '1px solid var(--border)',
-				boxShadow: 'var(--shadow-md)',
-				padding: '20px',
-				transition: 'transform .2s ease',
-				position: 'relative',
-				overflow: 'hidden',
-			}}
-			onMouseEnter={e => {
-				e.currentTarget.style.transform = 'translateY(-2px)';
-			}}
-			onMouseLeave={e => {
-				e.currentTarget.style.transform = 'translateY(0)';
-			}}
-		>
-			<div
-				style={{
-					position: 'absolute',
-					top: 0,
-					right: 0,
-					width: 4,
-					height: '100%',
-					background: config.color,
-				}}
-			/>
-			<header style={{ marginBottom: '14px' }}>
-				<div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-					<h3
-						style={{
-							margin: 0,
-							fontSize: 18,
-							fontWeight: 800,
-							color: 'var(--text)',
-							flex: 1,
-						}}
-						title={exam.title}
-					>
-						{exam.title}
-					</h3>
+    return (
+        <article
+            style={{
+                background: 'var(--surface)',
+                borderRadius: 16,
+                border: '1px solid var(--border)',
+                boxShadow: 'var(--shadow-sm)',
+                display: 'flex',
+                flexDirection: 'column',
+                transition: 'transform .2s ease, box-shadow .2s ease',
+            }}
+            onMouseEnter={e => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = 'var(--shadow-lg)';
+            }}
+            onMouseLeave={e => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+            }}
+        >
+            <header
+                style={{
+                    padding: '16px 20px',
+                    borderBottom: '1px solid var(--border)',
+                    background: 'var(--bg)',
+                    borderTopLeftRadius: 16,
+                    borderTopRightRadius: 16,
+                }}
+            >
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 8 }}>
+                    <h3
+                        style={{
+                            margin: 0,
+                            fontSize: 18,
+                            fontWeight: 800,
+                            color: 'var(--text)',
+                            flex: 1,
+                            lineHeight: 1.3,
+                        }}
+                        title={exam.title}
+                    >
+                        {exam.title}
+                    </h3>
 
-					<span
-						style={{
-							display: 'flex',
-							alignItems: 'center',
-							gap: 6,
-							fontSize: 12,
-							padding: '6px 12px',
-							borderRadius: 20,
-							border: `1px solid ${config.border}`,
-							background: config.bg,
-							color: config.color,
-							fontWeight: 800,
-						}}
-					>
-						<span>{config.icon}</span>
-						{config.label}
-					</span>
-				</div>
+                    <span
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 6,
+                            fontSize: 12,
+                            padding: '4px 10px',
+                            borderRadius: 20,
+                            border: `1px solid ${config.border}`,
+                            background: config.bg,
+                            color: config.color,
+                            fontWeight: 800,
+                        }}
+                    >
+                        <span>{config.icon}</span>
+                        {config.label}
+                    </span>
+                </div>
 
-				<div
-					style={{
-						display: 'grid',
-						gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-						gap: 10,
-						color: 'var(--text-muted)',
-						fontSize: 13,
-					}}
-				>
-					<div>
-						<strong style={{ color: 'var(--text)' }}>Start:</strong>{' '}
-						{exam.startAt || '—'}
-					</div>
-					<div>
-						<strong style={{ color: 'var(--text)' }}>End:</strong> {exam.endAt || '—'}
-					</div>
-					<div>
-						<strong style={{ color: 'var(--text)' }}>Enrolled:</strong> {exam.enrolled}
-					</div>
-					<div>
-						<strong style={{ color: 'var(--text)' }}>Submissions:</strong>{' '}
-						{exam.submissions}
-					</div>
-				</div>
+                {/* Share code */}
+                {!isDraft && (
+                    <div
+                        style={{
+                            display: 'flex',
+                            gap: 8,
+                            alignItems: 'center',
+                            marginTop: 10,
+                            justifyContent: 'space-between',
+                            flexWrap: 'wrap',
+                        }}
+                    >
+                        <Badge>
+                            Share code:{' '}
+                            <span style={{ color: 'var(--text)', fontFamily: 'monospace' }}>
+                                {exam.searchId || '—'}
+                            </span>
+                        </Badge>
+                        <button
+                            onClick={() => onCopyCode(exam.searchId)}
+                            disabled={!exam.searchId}
+                            title="Copy share code"
+                            style={{
+                                padding: '6px 10px',
+                                borderRadius: 8,
+                                border: '1px solid var(--border)',
+                                background: 'var(--surface)',
+                                color: 'var(--text)',
+                                cursor: exam.searchId ? 'pointer' : 'not-allowed',
+                                fontWeight: 700,
+                                fontSize: 12,
+                            }}
+                        >
+                            📋 Copy
+                        </button>
+                    </div>
+                )}
+            </header>
 
-				{/* Share code */}
-				<div
-					style={{
-						display: 'flex',
-						gap: 8,
-						alignItems: 'center',
-						marginTop: 10,
-						justifyContent: 'space-between',
-						flexWrap: 'wrap',
-					}}
-				>
-					<Badge>
-						Share code:{' '}
-						<span style={{ color: 'var(--text)' }}>{exam.searchId || '—'}</span>
-					</Badge>
-					<div style={{ display: 'flex', gap: 8 }}>
-						<button
-							onClick={() => onCopyCode(exam.searchId)}
-							disabled={!exam.searchId}
-							title="Copy share code"
-							style={{
-								padding: '8px 10px',
-								borderRadius: 8,
-								border: '1px solid var(--border)',
-								background: 'var(--surface)',
-								color: 'var(--text)',
-								cursor: exam.searchId ? 'pointer' : 'not-allowed',
-								fontWeight: 700,
-								fontSize: 12,
-							}}
-						>
-							📋 Copy
-						</button>
-					</div>
-				</div>
-			</header>
+            <div style={{ padding: '16px 20px', flex: 1 }}>
+                <div
+                    style={{
+                        display: 'grid',
+                        gridTemplateColumns: '1fr 1fr',
+                        gap: '8px 16px',
+                        color: 'var(--text-muted)',
+                        fontSize: 13,
+                        marginBottom: 16,
+                    }}
+                >
+                    <div>
+                        <strong style={{ color: 'var(--text)' }}>Start:</strong>{' '}
+                        {exam.startAt || '—'}
+                    </div>
+                    <div>
+                        <strong style={{ color: 'var(--text)' }}>End:</strong> {exam.endAt || '—'}
+                    </div>
+                    <div>
+                        <strong style={{ color: 'var(--text)' }}>Enrolled:</strong> {exam.enrolled}
+                    </div>
+                    <div>
+                        <strong style={{ color: 'var(--text)' }}>Submissions:</strong>{' '}
+                        {exam.submissions}
+                    </div>
+                </div>
+            </div>
 
-			<div
-				style={{
-					display: 'flex',
-					gap: 10,
-					flexWrap: 'wrap',
-					paddingTop: 12,
-					borderTop: '1px solid var(--border)',
-				}}
-			>
-				<button
-					onClick={() => onEdit(exam)}
-					style={{
-						flex: '1 1 120px',
-						padding: '10px 14px',
-						borderRadius: 8,
-						border: 'none',
-						background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
-						color: '#ffffff',
-						cursor: 'pointer',
-						fontWeight: 700,
-						fontSize: 14,
-						boxShadow: '0 4px 12px rgba(99,102,241,0.25)',
-					}}
-				>
-					✏️ Edit
-				</button>
+            <div
+                style={{
+                    display: 'flex',
+                    gap: 10,
+                    flexWrap: 'wrap',
+                    padding: '0 20px 20px 20px',
+                    borderTop: '1px solid var(--border)',
+                    paddingTop: 16,
+                }}
+            >
+                <button
+                    onClick={() => onEdit(exam)}
+                    style={{
+                        flex: '1 1 120px',
+                        padding: '10px 14px',
+                        borderRadius: 8,
+                        border: 'none',
+                        background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+                        color: '#ffffff',
+                        cursor: 'pointer',
+                        fontWeight: 700,
+                        fontSize: 14,
+                        boxShadow: '0 4px 12px rgba(99,102,241,0.25)',
+                    }}
+                >
+                    ✏️ Edit
+                </button>
 
-				<button
-					onClick={() => onClone(exam)}
-					style={{
-						flex: '1 1 120px',
-						padding: '10px 14px',
-						borderRadius: 8,
-						border: '1px solid var(--border)',
-						background: 'var(--surface)',
-						color: 'var(--text)',
-						cursor: 'pointer',
-						fontWeight: 700,
-						fontSize: 14,
-					}}
-				>
-					📋 Clone
-				</button>
+                <button
+                    onClick={() => onClone(exam)}
+                    style={{
+                        flex: '1 1 120px',
+                        padding: '10px 14px',
+                        borderRadius: 8,
+                        border: '1px solid var(--border)',
+                        background: 'var(--surface)',
+                        color: 'var(--text)',
+                        cursor: 'pointer',
+                        fontWeight: 700,
+                        fontSize: 14,
+                    }}
+                >
+                    📋 Clone
+                </button>
 
-				{/* Only allow publish from draft (server requires draft -> active) */}
-				{exam.status === 'draft' && (
-					<button
-						onClick={() => onPublish(exam)}
-						disabled={publishing}
-						style={{
-							flex: '1 1 120px',
-							padding: '10px 14px',
-							borderRadius: 8,
-							border: 'none',
-							background: publishing
-								? '#9ca3af'
-								: 'linear-gradient(135deg, #10b981, #059669)',
-							color: '#ffffff',
-							cursor: publishing ? 'not-allowed' : 'pointer',
-							fontWeight: 700,
-							fontSize: 14,
-							boxShadow: publishing ? 'none' : '0 4px 12px rgba(16,185,129,0.25)',
-						}}
-					>
-						{publishing ? '⏳ Publishing...' : '🚀 Publish'}
-					</button>
-				)}
+                {/* Only allow publish from draft (server requires draft -> active) */}
+                {exam.status === 'draft' && (
+                    <button
+                        onClick={() => onPublish(exam)}
+                        disabled={publishing}
+                        style={{
+                            flex: '1 1 120px',
+                            padding: '10px 14px',
+                            borderRadius: 8,
+                            border: 'none',
+                            background: publishing
+                                ? '#9ca3af'
+                                : 'linear-gradient(135deg, #10b981, #059669)',
+                            color: '#ffffff',
+                            cursor: publishing ? 'not-allowed' : 'pointer',
+                            fontWeight: 700,
+                            fontSize: 14,
+                            boxShadow: publishing ? 'none' : '0 4px 12px rgba(16,185,129,0.25)',
+                        }}
+                    >
+                        {publishing ? '⏳ Publishing...' : '🚀 Publish'}
+                    </button>
+                )}
 
-				{isScheduled && (
-					<>
-						<button
-							onClick={() => onCancel(exam)}
-							style={{
-								/* neutral */ padding: '10px 14px',
-								borderRadius: 8,
-								border: '1px solid var(--border)',
-								background: 'var(--surface)',
-								color: '#dc2626',
-								fontWeight: 700,
-							}}
-						>
-							⛔ Cancel
-						</button>
-						<button
-							onClick={() => onExtend15(exam)}
-							style={{
-								padding: '10px 14px',
-								borderRadius: 8,
-								border: 'none',
-								background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
-								color: '#fff',
-								fontWeight: 700,
-							}}
-						>
-							➕ Extend +15m
-						</button>
-						<button
-							onClick={() => onRegenerate(exam)}
-							style={{
-								padding: '10px 14px',
-								borderRadius: 8,
-								border: '1px solid var(--border)',
-								background: 'var(--surface)',
-								color: 'var(--text)',
-								fontWeight: 700,
-							}}
-						>
-							🔁 New code
-						</button>
-						<button
-							onClick={() => onRename(exam)}
-							style={{
-								padding: '10px 14px',
-								borderRadius: 8,
-								border: '1px solid var(--border)',
-								background: 'var(--surface)',
-								color: 'var(--text)',
-								fontWeight: 700,
-							}}
-						>
-							🖊️ Rename
-						</button>
-					</>
-				)}
+                {isScheduled && (
+                    <>
+                        <button
+                            onClick={() => onCancel(exam)}
+                            style={{
+                                /* neutral */ padding: '10px 14px',
+                                borderRadius: 8,
+                                border: '1px solid var(--border)',
+                                background: 'var(--surface)',
+                                color: '#dc2626',
+                                fontWeight: 700,
+                            }}
+                        >
+                            ⛔ Cancel
+                        </button>
+                        <button
+                            onClick={() => onExtend15(exam)}
+                            style={{
+                                padding: '10px 14px',
+                                borderRadius: 8,
+                                border: 'none',
+                                background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+                                color: '#fff',
+                                fontWeight: 700,
+                            }}
+                        >
+                            ➕ Extend +15m
+                        </button>
+                        <button
+                            onClick={() => onRegenerate(exam)}
+                            style={{
+                                padding: '10px 14px',
+                                borderRadius: 8,
+                                border: '1px solid var(--border)',
+                                background: 'var(--surface)',
+                                color: 'var(--text)',
+                                fontWeight: 700,
+                            }}
+                        >
+                            🔁 New code
+                        </button>
+                        <button
+                            onClick={() => onRename(exam)}
+                            style={{
+                                padding: '10px 14px',
+                                borderRadius: 8,
+                                border: '1px solid var(--border)',
+                                background: 'var(--surface)',
+                                color: 'var(--text)',
+                                fontWeight: 700,
+                            }}
+                        >
+                            🖊️ Rename
+                        </button>
+                    </>
+                )}
 
-				{isLive && (
-					<>
-						<button
-							onClick={() => onEndNow(exam)}
-							style={{
-								padding: '10px 14px',
-								borderRadius: 8,
-								border: 'none',
-								background: 'linear-gradient(135deg, #ef4444, #dc2626)',
-								color: '#fff',
-								fontWeight: 800,
-							}}
-						>
-							🛑 End now
-						</button>
-						<button
-							onClick={() => onExtend15(exam)}
-							style={{
-								padding: '10px 14px',
-								borderRadius: 8,
-								border: 'none',
-								background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
-								color: '#fff',
-								fontWeight: 700,
-							}}
-						>
-							➕ Extend +15m
-						</button>
-					</>
-				)}
+                {isLive && (
+                    <>
+                        <button
+                            onClick={() => onEndNow(exam)}
+                            style={{
+                                padding: '10px 14px',
+                                borderRadius: 8,
+                                border: 'none',
+                                background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                                color: '#fff',
+                                fontWeight: 800,
+                            }}
+                        >
+                            🛑 End now
+                        </button>
+                        <button
+                            onClick={() => onExtend15(exam)}
+                            style={{
+                                padding: '10px 14px',
+                                borderRadius: 8,
+                                border: 'none',
+                                background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+                                color: '#fff',
+                                fontWeight: 700,
+                            }}
+                        >
+                            ➕ Extend +15m
+                        </button>
+                    </>
+                )}
 
-				{/* Reschedule (scheduled only) */}
-				{isScheduled && (
-					<button
-						onClick={() => onReschedule(exam)}
-						style={{
-							padding: '10px 14px',
-							borderRadius: 8,
-							border: '1px solid var(--border)',
-							background: 'var(--surface)',
-							color: '#1d4ed8',
-							fontWeight: 700,
-						}}
-					>
-						🗓️ Reschedule
-					</button>
-				)}
+                {/* Reschedule (scheduled only) */}
+                {isScheduled && (
+                    <button
+                        onClick={() => onReschedule(exam)}
+                        style={{
+                            padding: '10px 14px',
+                            borderRadius: 8,
+                            border: '1px solid var(--border)',
+                            background: 'var(--surface)',
+                            color: '#1d4ed8',
+                            fontWeight: 700,
+                        }}
+                    >
+                        🗓️ Reschedule
+                    </button>
+                )}
 
-				{/* Delete (only when not active/live/scheduled) */}
-				{(exam.status === 'draft' ||
+                {/* Delete (only when not active/live/scheduled) */}
+                {(exam.status === 'draft' ||
 					exam.status === 'cancelled' ||
 					exam.derivedStatus === 'completed') && (
 					<button
@@ -450,9 +456,9 @@ const ExamCard = ({
 						🗑️ Delete
 					</button>
 				)}
-			</div>
-		</article>
-	);
+            </div>
+        </article>
+    );
 };
 
 const TeacherExams = () => {
@@ -469,18 +475,19 @@ const TeacherExams = () => {
 	const navigate = useNavigate();
 
 	const loadExams = React.useCallback(async () => {
-		setLoading(true);
-		setErrorBanner('');
-		try {
-			// The service now returns a paginated object { items: [...] }
-			const response = await TeacherSvc.safeApiCall(TeacherSvc.getTeacherExams);
-			setExams(Array.isArray(response?.items) ? response.items : []);
-		} catch (e) {
-			setErrorBanner(e?.message || 'Failed to load exams');
-		} finally {
-			setLoading(false);
-		}
-	}, []);
+        setLoading(true);
+        setErrorBanner('');
+        try {
+            // The service now returns a paginated object { items: [...] }
+            const response = await TeacherSvc.safeApiCall(TeacherSvc.getTeacherExams);
+            // FIX: The response is the paginated object itself.
+            setExams(Array.isArray(response?.items) ? response.items : []);
+        } catch (e) {
+            setErrorBanner(e?.message || 'Failed to load exams');
+        } finally {
+            setLoading(false);
+        }
+    }, []);
 
 	React.useEffect(() => {
 		loadExams();
@@ -893,8 +900,8 @@ const TeacherExams = () => {
 				<div
 					style={{
 						display: 'grid',
-						gap: 16,
-						gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))',
+						gap: 20,
+						gridTemplateColumns: 'repeat(auto-fill, minmax(420px, 1fr))',
 					}}
 				>
 					{filteredExams.map(exam => (
