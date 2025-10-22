@@ -384,23 +384,37 @@ const getMySubmissions = asyncHandler(async (req, res) => {
 		// Preserve real status so UI can show Continue button for in-progress
 		const status = sub.status || 'pending';
 
+		// --- NEW: Gate results visibility based on status ---
+		const resultsPublished = status === 'published';
+		let displayScore = null;
+		let displayRemarks = 'Awaiting evaluation.';
+
+		if (status === 'in-progress') {
+			displayRemarks = 'Exam in progress.';
+		} else if (status === 'submitted') {
+			displayRemarks = 'Submitted. Awaiting evaluation.';
+		} else if (status === 'evaluated') {
+			displayRemarks = 'Evaluated. Results will be available soon.';
+		} else if (resultsPublished) {
+			displayScore = score;
+			displayRemarks =
+				Array.isArray(sub.evaluations) && sub.evaluations[0]?.evaluation?.remarks
+					? sub.evaluations[0].evaluation.remarks
+					: 'Results published.';
+		}
+
 		return {
 			id: String(sub._id),
 			examTitle: sub.exam?.title || 'Exam',
 			examId: String(sub.exam?._id || ''),
 			duration: sub.exam?.duration ?? null,
-			score,
+			score: displayScore, // Use gated score
 			maxScore,
 			status,
 			startedAt: sub.startedAt ? new Date(sub.startedAt).toLocaleString() : null,
 			submittedAt: sub.submittedAt ? new Date(sub.submittedAt).toLocaleString() : null,
 			evaluatedAt: sub.evaluatedAt ? new Date(sub.evaluatedAt).toLocaleString() : null,
-			remarks:
-				Array.isArray(sub.evaluations) && sub.evaluations[0]?.evaluation?.remarks
-					? sub.evaluations[0].evaluation.remarks
-					: status === 'evaluated'
-						? 'Evaluated'
-						: 'Awaiting evaluation',
+			remarks: displayRemarks, // Use gated remarks
 		};
 	});
 
@@ -432,6 +446,12 @@ const getSubmissionByIdParam = asyncHandler(async (req, res) => {
 		.populate({ path: 'answers.question', model: 'Question' });
 
 	if (!submission) throw ApiError.NotFound('Submission not found');
+
+	// --- NEW: Gate results visibility ---
+	// If results are not published, do not send evaluation details to the student.
+	if (submission.status !== 'published') {
+		submission.evaluations = []; // Clear evaluations
+	}
 
 	// Backfill duration if missing
 	if (!submission.duration && submission.exam?.duration) {
@@ -536,6 +556,66 @@ const testEvaluationService = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, result, 'AI Evaluation Service responded successfully.');
 });
 
+// Publish results for a single submission
+const publishSingleSubmissionResult = asyncHandler(async (req, res) => {
+	const submissionId = req.params.id;
+	const teacherId = req.teacher?._id || req.user?.id;
+
+	const submission = await Submission.findById(submissionId).populate('exam');
+	if (!submission) throw ApiError.NotFound('Submission not found');
+
+	// Verify teacher owns the exam
+	if (String(submission.exam?.createdBy) !== String(teacherId)) {
+		throw ApiError.Forbidden('You are not authorized to publish results for this exam.');
+	}
+
+	if (submission.status === 'in-progress' || submission.status === 'submitted') {
+		throw ApiError.BadRequest('Cannot publish results for an unevaluated submission.');
+	}
+	if (submission.status === 'published') {
+		return ApiResponse.success(res, submission, 'Results already published.');
+	}
+
+	submission.status = 'published';
+	submission.publishedAt = new Date();
+	await submission.save();
+
+	return ApiResponse.success(res, submission, 'Submission results published successfully.');
+});
+
+// Publish results for all evaluated submissions of an exam
+const publishAllExamResults = asyncHandler(async (req, res) => {
+	const examId = req.params.examId;
+	const teacherId = req.teacher?._id || req.user?.id;
+
+	const exam = await Exam.findById(examId);
+	if (!exam) throw ApiError.NotFound('Exam not found');
+
+	// Verify teacher owns the exam
+	if (String(exam.createdBy) !== String(teacherId)) {
+		throw ApiError.Forbidden('You are not authorized to publish results for this exam.');
+	}
+
+	const result = await Submission.updateMany(
+		{ exam: examId, status: 'evaluated' },
+		{ $set: { status: 'published', publishedAt: new Date() } },
+	);
+
+	if (result.modifiedCount === 0) {
+		return ApiResponse.success(
+			res,
+			{ modifiedCount: 0 },
+			'No submissions were ready for publishing.',
+		);
+	}
+
+	return ApiResponse.success(
+		res,
+		{ modifiedCount: result.modifiedCount },
+		`${result.modifiedCount} submission results published successfully.`,
+	);
+});
+
 export {
 	startSubmission,
 	syncAnswers,
@@ -551,4 +631,6 @@ export {
 	submitSubmissionById,
 	logViolation,
 	testEvaluationService,
+	publishSingleSubmissionResult,
+	publishAllExamResults,
 };
