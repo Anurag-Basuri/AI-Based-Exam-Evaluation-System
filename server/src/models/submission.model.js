@@ -144,7 +144,7 @@ const submissionSchema = new mongoose.Schema(
 		},
 		evaluatedBy: {
 			type: mongoose.Schema.Types.ObjectId,
-			ref: 'Teacher'
+			ref: 'Teacher',
 		},
 		submissionType: {
 			type: String,
@@ -169,7 +169,7 @@ const submissionSchema = new mongoose.Schema(
 
 		status: {
 			type: String,
-			enum: ['in-progress', 'submitted', 'evaluated'],
+			enum: ['in-progress', 'submitted', 'evaluated', 'published'],
 			default: 'in-progress',
 		},
 		submittedAt: {
@@ -178,9 +178,12 @@ const submissionSchema = new mongoose.Schema(
 		evaluatedAt: {
 			type: Date,
 		},
+		publishedAt: {
+			type: Date,
+		},
 	},
 	{
-		timestamps: true
+		timestamps: true,
 	},
 );
 
