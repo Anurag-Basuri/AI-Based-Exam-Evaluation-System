@@ -1,27 +1,30 @@
 import { Router } from 'express';
+import { body, param, query } from 'express-validator';
+import { checkAuth, verifyStudent, verifyTeacher } from '../middlewares/auth.middleware.js';
 import {
 	startSubmission,
-	startSubmissionByParam,
 	syncAnswers,
-	syncAnswersBySubmissionId,
 	submitSubmission,
-	submitSubmissionById,
 	updateEvaluation,
 	evaluateSubmission,
 	getSubmission,
 	getExamSubmissions,
 	getMySubmissions,
+	startSubmissionByParam,
 	getSubmissionByIdParam,
+	syncAnswersBySubmissionId,
+	submitSubmissionById,
 	logViolation,
 	testEvaluationService,
+	publishSingleSubmissionResult,
+	publishAllExamResults,
 } from '../controllers/submission.controller.js';
-import { checkAuth, verifyStudent, verifyTeacher } from '../middlewares/auth.middleware.js';
-import { body, param, query } from 'express-validator';
 
 const router = Router();
 
 // Directly test the AI evaluation service with a sample question/answer
 router.post('/test-evaluation', testEvaluationService);
+router.get('/my-submissions', checkAuth, verifyStudent, getMySubmissions);
 
 // Student starts a submission (enters the exam)
 router.post(
@@ -60,7 +63,6 @@ router.post(
 	syncAnswersBySubmissionId,
 );
 
-// --- NEW ROUTE ---
 // Log a violation during an exam
 router.post(
 	'/:id/violation',
@@ -70,7 +72,6 @@ router.post(
 	body('type').notEmpty().withMessage('Violation type is required'),
 	logViolation,
 );
-// --- END NEW ROUTE ---
 
 // Student submits the exam (manual submit)
 router.post(
@@ -90,24 +91,17 @@ router.post(
 	submitSubmissionById,
 );
 
-// Teacher updates evaluation/marks for a submission
-router.patch(
-	'/:id/evaluate',
-	checkAuth,
-	verifyTeacher,
-	param('id').notEmpty().withMessage('Submission ID is required'),
-	body('evaluations').isArray().withMessage('Evaluations must be an array'),
-	updateEvaluation,
-);
+// --- Teacher-facing routes ---
+router.get('/exam/:id', checkAuth, verifyTeacher, getExamSubmissions);
+router.put('/:id/evaluate', checkAuth, verifyTeacher, updateEvaluation);
+router.post('/:id/evaluate-auto', checkAuth, verifyTeacher, evaluateSubmission);
 
-// Teacher manually triggers evaluation (if needed)
-router.post(
-	'/:id/auto-evaluate',
-	checkAuth,
-	verifyTeacher,
-	param('id').notEmpty().withMessage('Submission ID is required'),
-	evaluateSubmission,
-);
+// --- NEW: Result Publishing Routes (Teacher Only) ---
+router.post('/:id/publish', checkAuth, verifyTeacher, publishSingleSubmissionResult);
+router.post('/exam/:examId/publish-all', checkAuth, verifyTeacher, publishAllExamResults);
+
+// --- Testing ---
+router.post('/test-eval', checkAuth, verifyTeacher, testEvaluationService);
 
 // Get a student's submission for an exam (query)
 router.get(
@@ -120,18 +114,6 @@ router.get(
 );
 
 // Order matters: specific routes BEFORE the catch-all '/:id'
-
-// Get all submissions for an exam (teacher)
-router.get(
-	'/exam/:id',
-	checkAuth,
-	verifyTeacher,
-	param('id').notEmpty().withMessage('Exam ID is required'),
-	getExamSubmissions,
-);
-
-// List submissions for the logged-in student
-router.get('/my', checkAuth, verifyStudent, getMySubmissions);
 
 // Get submission by ID (for resume) — keep this last
 router.get(
