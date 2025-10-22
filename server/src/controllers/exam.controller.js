@@ -566,6 +566,24 @@ const getMyExams = asyncHandler(async (req, res) => {
 			// Note: 'enrolledCount' is the same as submissionCount since a submission is created on start.
 			enrolledCount: { $size: '$submissionDocs' },
 			questionCount: { $size: '$questions' },
+			evaluatedCount: {
+				$size: {
+					$filter: {
+						input: '$submissionDocs',
+						as: 'sub',
+						cond: { $eq: ['$$sub.status', 'evaluated'] },
+					},
+				},
+			},
+			publishedCount: {
+				$size: {
+					$filter: {
+						input: '$submissionDocs',
+						as: 'sub',
+						cond: { $eq: ['$$sub.status', 'published'] },
+					},
+				},
+			},
 		},
 	});
 
@@ -582,7 +600,8 @@ const getMyExams = asyncHandler(async (req, res) => {
 			submissionCount: 1,
 			enrolledCount: 1,
 			questionCount: 1,
-			// Do not send the full submissionDocs array
+			evaluatedCount: 1,
+			publishedCount: 1,
 		},
 	});
 
