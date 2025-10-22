@@ -289,29 +289,29 @@ export const reorderExamQuestions = async (examId, order = []) => {
 };
 
 export const getTeacherExams = async (params = {}) => {
-    // Prefer fast "mine" list; fallback to /all if not available
-    try {
-        const resMine = await tryGet(EP.examsMine, { params });
-        const payload = resMine?.data?.data ?? resMine?.data ?? { items: [] };
-        const list = Array.isArray(payload?.items) ? payload.items : [];
+	// Prefer fast "mine" list; fallback to /all if not available
+	try {
+		const resMine = await tryGet(EP.examsMine, { params });
+		const payload = resMine?.data?.data ?? resMine?.data ?? { items: [] };
+		const list = Array.isArray(payload?.items) ? payload.items : [];
 
-        // Return the full paginated object with normalized items
-        return {
-            ...payload,
-            items: list.map(normalizeExam),
-        };
-    } catch (_) {
-        const resAll = await tryGet(EP.examsAll, { params });
-        const list = resAll?.data?.data || resAll?.data || [];
-        const items = Array.isArray(list) ? list.map(normalizeExam) : [];
-        // Mimic paginated response for fallback
-        return {
-            items,
-            page: 1,
-            limit: items.length,
-            total: items.length,
-        };
-    }
+		// Return the full paginated object with normalized items
+		return {
+			...payload,
+			items: list.map(normalizeExam),
+		};
+	} catch (_) {
+		const resAll = await tryGet(EP.examsAll, { params });
+		const list = resAll?.data?.data || resAll?.data || [];
+		const items = Array.isArray(list) ? list.map(normalizeExam) : [];
+		// Mimic paginated response for fallback
+		return {
+			items,
+			page: 1,
+			limit: items.length,
+			total: items.length,
+		};
+	}
 };
 
 export const getTeacherExamById = async examId => {
@@ -355,15 +355,15 @@ export const deleteExam = async examId => {
 
 // ---------- Questions (Teacher) ----------
 export const getTeacherQuestions = async (params = {}) => {
-    const res = await tryGet(EP.questionsMine, { params });
-    const payload = res?.data?.data ?? res?.data ?? { items: [] };
-    // The backend returns a paginated object { items, page, limit }.
-    // The component needs this full object.
-    const list = Array.isArray(payload?.items) ? payload.items.map(normalizeQuestion) : [];
-    return {
-        ...payload,
-        items: list,
-    };
+	const res = await tryGet(EP.questionsMine, { params });
+	const payload = res?.data?.data ?? res?.data ?? { items: [] };
+	// The backend returns a paginated object { items, page, limit }.
+	// The component needs this full object.
+	const list = Array.isArray(payload?.items) ? payload.items.map(normalizeQuestion) : [];
+	return {
+		...payload,
+		items: list,
+	};
 };
 
 export const createTeacherQuestion = async payload => {
@@ -390,48 +390,22 @@ export const deleteTeacherQuestion = async id => {
 };
 
 // ---------- Submissions (Teacher) ----------
-export const getTeacherSubmissions = async (params = {}) => {
-	// Preferred: pass { examId }. If not provided, aggregates across all your exams.
-	const { examId, teacher, status } = params || {};
-
-	if (examId) {
-		const res = await tryGet(EP.submissionsByExam(examId));
-		const list = res?.data?.data || res?.data || [];
-		let items = Array.isArray(list) ? list.map(normalizeSubmission) : [];
-		return status ? items.filter(s => s.status === String(status).toLowerCase()) : items;
-	}
-
-	// Fallback: aggregate by fetching exams then submissions per exam
-	const examsRes = await tryGet(EP.examsAll, { params: teacher ? { teacher } : {} });
-	const exams = Array.isArray(examsRes?.data?.data || examsRes?.data)
-		? examsRes.data.data || examsRes.data
-		: [];
-	const examIds = exams.map(e => String(e?._id ?? e?.id)).filter(Boolean);
-
-	const results = await Promise.allSettled(examIds.map(id => tryGet(EP.submissionsByExam(id))));
-
-	const merged = [];
-	for (const r of results) {
-		if (r.status === 'fulfilled') {
-			const list = r.value?.data?.data || r.value?.data || [];
-			if (Array.isArray(list)) merged.push(...list);
-		}
-	}
-	let subs = merged.map(normalizeSubmission);
-	return status ? subs.filter(s => s.status === String(status).toLowerCase()) : subs;
+export const getTeacherSubmissions = async (examId = '') => {
+	const url = examId ? `${EP.submissionsByExam}/${examId}` : EP.submissionsAll;
+	return await tryGet(url);
 };
 
-export const updateTeacherEvaluation = async (submissionId, evaluations = []) => {
-	// evaluations: [{ question, marks, remarks }]
-	const res = await tryPatch(EP.submissionEvalUpdate(submissionId), { evaluations });
-	const data = res?.data?.data ?? res?.data ?? {};
-	return normalizeSubmission(data);
+export const evaluateTeacherSubmission = async submissionId => {
+	return await tryPost(`${EP.submissionsBase}/${submissionId}/evaluate-auto`);
 };
 
-export const autoEvaluateTeacherSubmission = async submissionId => {
-	const res = await tryPost(EP.submissionAutoEvaluate(submissionId), {});
-	const data = res?.data?.data ?? res?.data ?? {};
-	return normalizeSubmission(data);
+// --- NEW: Add publishing services ---
+export const publishSingleResult = async submissionId => {
+	return await tryPost(`${EP.submissionsBase}/${submissionId}/publish`);
+};
+
+export const publishAllResults = async examId => {
+	return await tryPost(`${EP.submissionsByExam}/${examId}/publish-all`);
 };
 
 // ---------- Issues (Teacher) ----------
