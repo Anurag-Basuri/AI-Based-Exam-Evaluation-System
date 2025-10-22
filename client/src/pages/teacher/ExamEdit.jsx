@@ -73,13 +73,15 @@ const ExamEdit = () => {
 				title: exam.title,
 				description: exam.description,
 				duration: exam.duration,
+				// Use correct normalized fields (startMs/endMs)
 				startTime: exam.startMs ? new Date(exam.startMs).toISOString().slice(0, 16) : '',
 				endTime: exam.endMs ? new Date(exam.endMs).toISOString().slice(0, 16) : '',
 			});
 			setStatus(exam.status);
 			setSelectedIds(new Set(exam.questions || []));
+			// Backend now returns { items: [...] }
 			const bank = await safeApiCall(getTeacherQuestions);
-			setQuestions(Array.isArray(bank) ? bank : []);
+			setQuestions(Array.isArray(bank?.items) ? bank.items : []);
 		} catch (e) {
 			setErrorBanner(e?.message || 'Failed to load exam');
 		} finally {
@@ -153,7 +155,7 @@ const ExamEdit = () => {
 				duration: Number(details.duration),
 				startTime: toISO(details.startTime),
 				endTime: toISO(details.endTime),
-				// status stays 'draft' while editing; publishing handled elsewhere
+				// status is not changed here; publishing is a separate action
 			});
 			// 2) Update question set (server validates ownership)
 			await safeApiCall(setExamQuestions, id, Array.from(selectedIds));
@@ -378,12 +380,12 @@ const ExamEdit = () => {
 								style={{
 									userSelect: 'none',
 									cursor: isLocked ? 'not-allowed' : 'pointer',
-									background: selected
-										? 'color-mix(in srgb, #3b82f6 12%, var(--surface))'
-										: 'var(--surface)',
+									// Use explicit checkbox, remove color-mix
+									background: 'var(--surface)',
 									border: `2px solid ${selected ? '#3b82f6' : 'var(--border)'}`,
 									borderRadius: 12,
 									padding: 14,
+									boxShadow: selected ? '0 0 0 4px rgba(59,130,246,.12)' : 'none',
 								}}
 							>
 								<div
@@ -393,9 +395,20 @@ const ExamEdit = () => {
 										gap: 10,
 									}}
 								>
-									<strong style={{ color: 'var(--text)' }}>
-										{q.type === 'multiple-choice' ? 'MCQ' : 'Subjective'}
-									</strong>
+									<div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+										<input
+											type="checkbox"
+											checked={selected}
+											onChange={() =>
+												!canEditQuestions ? undefined : toggleSelected(q.id)
+											}
+											disabled={!canEditQuestions}
+											style={{ cursor: canEditQuestions ? 'pointer' : 'not-allowed' }}
+										/>
+										<strong style={{ color: 'var(--text)' }}>
+											{q.type === 'multiple-choice' ? 'MCQ' : 'Subjective'}
+										</strong>
+									</div>
 									<Pill>Marks: {q.max_marks}</Pill>
 								</div>
 								<p
