@@ -602,6 +602,94 @@ const useTimer = submission => {
 	}, [submission, now]);
 };
 
+const EvaluationCriteria = ({ submission }) => {
+	const examPolicy = submission?.examPolicy;
+	const questionsWithPolicy =
+		submission?.questions?.filter(
+			q => q.aiPolicy && (q.aiPolicy.rubric?.length > 0 || q.aiPolicy.keywords?.length > 0),
+		) || [];
+
+	const hasExamPolicy =
+		examPolicy && (examPolicy.rubric?.length > 0 || examPolicy.keywords?.length > 0);
+
+	if (!hasExamPolicy && questionsWithPolicy.length === 0) {
+		return null; // Don't render if no policies are defined
+	}
+
+	return (
+		<div style={styles.criteriaContainer}>
+			<h3 style={{ margin: '0 0 8px 0', fontSize: 16 }}>Evaluation Criteria</h3>
+			<p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 12px 0' }}>
+				The AI will use these rules to grade your descriptive answers.
+			</p>
+
+			{hasExamPolicy && (
+				<div style={styles.criteriaSection}>
+					<strong style={{ fontSize: 14 }}>General Exam Policy</strong>
+					{examPolicy.rubric?.length > 0 && (
+						<div>
+							<h4 style={styles.criteriaHeader}>Rubric:</h4>
+							<ul style={styles.criteriaList}>
+								{examPolicy.rubric.map((item, i) => (
+									<li key={`exam-rubric-${i}`}>
+										{item.criterion} (Weight:{' '}
+										{Math.round((item.weight || 0) * 100)}%)
+									</li>
+								))}
+							</ul>
+						</div>
+					)}
+					{examPolicy.keywords?.length > 0 && (
+						<div>
+							<h4 style={styles.criteriaHeader}>Keywords:</h4>
+							<div style={styles.keywordContainer}>
+								{examPolicy.keywords.map((item, i) => (
+									<span key={`exam-kw-${i}`} style={styles.keywordPill}>
+										{item.term}
+									</span>
+								))}
+							</div>
+						</div>
+					)}
+				</div>
+			)}
+
+			{questionsWithPolicy.map((q, index) => (
+				<div key={q.id} style={styles.criteriaSection}>
+					<strong style={{ fontSize: 14 }}>
+						Policy for Question: "{q.text.substring(0, 50)}..."
+					</strong>
+					{q.aiPolicy.rubric?.length > 0 && (
+						<div>
+							<h4 style={styles.criteriaHeader}>Rubric:</h4>
+							<ul style={styles.criteriaList}>
+								{q.aiPolicy.rubric.map((item, i) => (
+									<li key={`q-${index}-rubric-${i}`}>
+										{item.criterion} (Weight:{' '}
+										{Math.round((item.weight || 0) * 100)}%)
+									</li>
+								))}
+							</ul>
+						</div>
+					)}
+					{q.aiPolicy.keywords?.length > 0 && (
+						<div>
+							<h4 style={styles.criteriaHeader}>Keywords:</h4>
+							<div style={styles.keywordContainer}>
+								{q.aiPolicy.keywords.map((item, i) => (
+									<span key={`q-${index}-kw-${i}`} style={styles.keywordPill}>
+										{item.term}
+									</span>
+								))}
+							</div>
+						</div>
+					)}
+				</div>
+			))}
+		</div>
+	);
+};
+
 const StartScreen = ({ submission, onStart }) => (
 	<div style={styles.centeredMessage}>
 		<div style={styles.startCard}>
@@ -614,14 +702,17 @@ const StartScreen = ({ submission, onStart }) => (
 					<strong>Total Questions:</strong> {submission.questions?.length || 0}
 				</p>
 			</div>
+
+			<EvaluationCriteria submission={submission} />
+
 			<div style={styles.startWarning}>
 				<h3 style={{ margin: '0 0 8px 0' }}>Important Instructions:</h3>
-				<ul style={{ margin: 0, paddingLeft: 20, textAlign: 'left' }}>
-					<li>This exam will be conducted in fullscreen mode</li>
-					<li>Do not switch tabs or minimize the window</li>
-					<li>Violations will be logged and may result in auto-submission</li>
-					<li>Ensure stable internet connection</li>
-					<li>Your answers will be auto-saved every 30 seconds</li>
+				<ul style={{ margin: 0, paddingLeft: 20, textAlign: 'left', fontSize: 14 }}>
+					<li>This exam will be conducted in fullscreen mode.</li>
+					<li>Do not switch tabs, minimize the window, or use other applications.</li>
+					<li>Violations will be logged and may result in auto-submission.</li>
+					<li>Ensure you have a stable internet connection.</li>
+					<li>Your answers will be auto-saved periodically.</li>
 				</ul>
 			</div>
 			<button onClick={onStart} style={styles.startButton}>
@@ -786,23 +877,23 @@ const styles = {
 		background: 'var(--surface)',
 		border: '1px solid var(--border)',
 		borderRadius: 16,
-		padding: 32,
-		maxWidth: 600,
+		padding: '24px',
+		maxWidth: 700,
 		boxShadow: 'var(--shadow-lg)',
 	},
 	startInfo: {
 		background: 'var(--bg)',
 		border: '1px solid var(--border)',
 		borderRadius: 12,
-		padding: 16,
-		marginBottom: 24,
+		padding: '12px 16px',
+		marginBottom: 16,
 		textAlign: 'left',
 	},
 	startWarning: {
 		background: 'rgba(239, 68, 68, 0.1)',
 		border: '1px solid rgba(239, 68, 68, 0.3)',
 		borderRadius: 12,
-		padding: 16,
+		padding: '12px 16px',
 		marginBottom: 24,
 		color: 'var(--text)',
 	},
@@ -1079,6 +1170,44 @@ const styles = {
 		border: '1px solid var(--border)',
 		background: 'var(--bg)',
 		fontVariantNumeric: 'tabular-nums',
+	},
+	criteriaContainer: {
+		background: 'var(--bg)',
+		border: '1px solid var(--border)',
+		borderRadius: 12,
+		padding: '12px 16px',
+		marginBottom: 16,
+		textAlign: 'left',
+	},
+	criteriaSection: {
+		borderTop: '1px solid var(--border)',
+		paddingTop: '8px',
+		marginTop: '8px',
+	},
+	criteriaHeader: {
+		margin: '8px 0 4px 0',
+		fontSize: 13,
+		color: 'var(--text-muted)',
+		fontWeight: 600,
+	},
+	criteriaList: {
+		margin: 0,
+		paddingLeft: 20,
+		fontSize: 13,
+		color: 'var(--text)',
+	},
+	keywordContainer: {
+		display: 'flex',
+		flexWrap: 'wrap',
+		gap: '6px',
+	},
+	keywordPill: {
+		background: 'rgba(59, 130, 246, 0.1)',
+		color: '#3b82f6',
+		padding: '3px 8px',
+		borderRadius: 999,
+		fontSize: 12,
+		fontWeight: 700,
 	},
 };
 
