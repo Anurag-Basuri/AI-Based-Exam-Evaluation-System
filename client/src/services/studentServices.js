@@ -170,6 +170,7 @@ const normalizeSubmission = s => {
 			text: o.text,
 			isCorrect: o.isCorrect,
 		})),
+		aiPolicy: q.aiPolicy,
 	}));
 
 	// Map answers to match questions by ID
@@ -201,6 +202,7 @@ const normalizeSubmission = s => {
 		id: String(s._id ?? s.id ?? ''),
 		examId: String(s.exam?._id ?? s.examId ?? s.exam ?? ''),
 		examTitle: s.exam?.title ?? s.examTitle ?? 'Exam',
+		examPolicy: s.exam?.aiPolicy,
 		duration: Number(s.duration ?? s.exam?.duration ?? 0),
 		answers: normalizedAnswers,
 		questions: questions,
