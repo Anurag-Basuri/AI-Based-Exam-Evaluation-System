@@ -210,6 +210,14 @@ const ExamCreate = () => {
 	});
 	const [detailErrors, setDetailErrors] = React.useState({});
 
+	// Add state for AI Policy
+	const [aiPolicy, setAiPolicy] = React.useState({
+		strictness: 'moderate',
+		reviewTone: 'concise',
+		expectedLength: 20,
+		customInstructions: '',
+	});
+
 	// Step 2: question bank + selection + inline create
 	const [loadingQ, setLoadingQ] = React.useState(false);
 	const [qError, setQError] = React.useState('');
@@ -345,6 +353,10 @@ const ExamCreate = () => {
 				endTime: toISO(details.endTime),
 				// Backend expects an array of IDs
 				questionIds: Array.from(selectedIds),
+				aiPolicy: {
+					...aiPolicy,
+					expectedLength: Number(aiPolicy.expectedLength),
+				},
 			};
 			await safeApiCall(createTeacherExam, payload);
 			success('Exam created successfully');
@@ -418,6 +430,8 @@ const ExamCreate = () => {
 						onChange={setDetails}
 						errors={detailErrors}
 						disabled={saving}
+						aiPolicy={aiPolicy}
+						onAiPolicyChange={setAiPolicy}
 					/>
 					<Toolbar>
 						<div /> {/* Spacer */}
