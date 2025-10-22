@@ -147,10 +147,11 @@ const startSubmission = asyncHandler(async (req, res) => {
 	const existing = await Submission.findOne({ exam: examId, student: studentId })
 		.populate({
 			path: 'exam',
-			select: 'title duration startTime endTime questions',
+			select: 'title duration startTime endTime questions aiPolicy',
 			populate: {
 				path: 'questions',
 				model: 'Question',
+				select: 'text type options max_marks aiPolicy',
 			},
 		})
 		.populate({ path: 'answers.question', model: 'Question' });
@@ -185,10 +186,11 @@ const startSubmission = asyncHandler(async (req, res) => {
 	// Populate before returning
 	await submission.populate({
 		path: 'exam',
-		select: 'title duration startTime endTime questions',
+		select: 'title duration startTime endTime questions aiPolicy',
 		populate: {
 			path: 'questions',
 			model: 'Question',
+			select: 'text type options max_marks aiPolicy',
 		},
 	});
 	await submission.populate({ path: 'answers.question', model: 'Question' });
@@ -420,10 +422,11 @@ const getSubmissionByIdParam = asyncHandler(async (req, res) => {
 	const submission = await Submission.findOne({ _id: id, student: studentId })
 		.populate({
 			path: 'exam',
-			select: 'title duration startTime endTime questions',
+			select: 'title duration startTime endTime questions aiPolicy',
 			populate: {
 				path: 'questions',
 				model: 'Question',
+				select: 'text type options max_marks aiPolicy',
 			},
 		})
 		.populate({ path: 'answers.question', model: 'Question' });
