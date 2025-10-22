@@ -50,11 +50,20 @@ const applyTokensFromResponse = response => {
 
 // Safe API call wrapper
 export const safeApiCall = async (fn, ...args) => {
-	try {
-		const res = await fn(...args);
-		// Support ApiResponse shape or raw data
-		return res?.data?.data ?? res?.data ?? res;
-	} catch (e) {
+    try {
+        const res = await fn(...args);
+        // Support ApiResponse shape (data.data) or raw data.
+        // Handle paginated responses that have an `items` property.
+        const responseData = res?.data?.data ?? res?.data ?? res;
+        if (
+            responseData &&
+            typeof responseData === 'object' &&
+            Object.prototype.hasOwnProperty.call(responseData, 'items')
+        ) {
+            return responseData; // Return the whole object { items, page, ... }
+        }
+        return responseData;
+    } catch (e) {
 		const msg = e?.response?.data?.message || e?.message || 'Request failed';
 		const err = new Error(msg);
 		err.status = e?.response?.status;
