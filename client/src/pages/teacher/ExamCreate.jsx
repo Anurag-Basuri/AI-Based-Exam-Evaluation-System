@@ -307,7 +307,11 @@ const ExamCreate = () => {
 			<PageHeader
 				title="Create Exam"
 				subtitle="Setup details, select or create questions, then review and create."
-				breadcrumbs={[{ label: 'Home', to: '/teacher' }, { label: 'Exams', to: '/teacher/exams' }, { label: 'Create' }]}
+				breadcrumbs={[
+					{ label: 'Home', to: '/teacher' },
+					{ label: 'Exams', to: '/teacher/exams' },
+					{ label: 'Create' },
+				]}
 				actions={[
 					<button
 						key="cancel"
