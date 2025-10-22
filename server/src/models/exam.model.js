@@ -80,7 +80,7 @@ const AiPolicySchema = new mongoose.Schema(
 
 const examSchema = new mongoose.Schema(
 	{
-		criterion: {
+		searchId: {
 			type: String,
 			unique: true,
 			required: [true, 'Search ID is required'],
@@ -178,8 +178,8 @@ const examSchema = new mongoose.Schema(
 // Generate slug before saving
 examSchema.pre('save', function (next) {
 	if (this.isModified('title') || this.isNew) {
-		// Use the actual field name (criterion) instead of undefined searchId
-		this.slug = `${slugify(this.title, { lower: true, strict: true })}-${this.criterion}`;
+		// Use the correct field name 'searchId'
+		this.slug = `${slugify(this.title, { lower: true, strict: true })}-${this.searchId}`;
 	}
 	next();
 });

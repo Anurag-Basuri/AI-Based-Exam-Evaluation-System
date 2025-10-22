@@ -546,7 +546,13 @@ const getMyExams = asyncHandler(async (req, res) => {
 		.select('_id title status searchId startTime endTime duration questions')
 		.lean();
 
-	return ApiResponse.success(res, { items: exams, page: Number(page), limit: lim }, 'Your exams');
+	const total = await Exam.countDocuments(filter);
+
+	return ApiResponse.success(
+		res,
+		{ items: exams, page: Number(page), limit: lim, total },
+		'Your exams',
+	);
 });
 
 // Manually trigger a status sync
@@ -658,25 +664,28 @@ const regenerateExamCode = asyncHandler(async (req, res) => {
 		throw ApiError.Forbidden('Can only regenerate code for draft or scheduled exams');
 	}
 
-	// FIX: Generate unique 8-char uppercase code to match student flow
-	const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // omit confusing chars: I,O,0,1
-	const gen = (len = 8) =>
+	// Generate a unique 8-char code
+	const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz23456789';
+	const genCode = (len = 8) =>
 		Array.from(
 			{ length: len },
 			() => alphabet[Math.floor(Math.random() * alphabet.length)],
 		).join('');
 
-	let code = gen(8);
-	for (let i = 0; i < 8; i++) {
-		const exists = await Exam.findOne({ searchId: code }).select('_id').lean();
-		if (!exists) break;
-		code = gen(8);
+	let newCode = genCode();
+	let attempts = 0;
+	// Loop to ensure the generated code is unique
+	while (await Exam.findOne({ searchId: newCode }).select('_id').lean()) {
+		if (attempts++ > 10) {
+			throw new ApiError(500, 'Failed to generate a unique share code. Please try again.');
+		}
+		newCode = genCode();
 	}
 
-	exam.searchId = code;
+	exam.searchId = newCode;
 	await exam.save();
 
-	return ApiResponse.success(res, { searchId: code }, 'Share code regenerated');
+	return ApiResponse.success(res, { searchId: newCode }, 'Share code regenerated');
 });
 
 export {
