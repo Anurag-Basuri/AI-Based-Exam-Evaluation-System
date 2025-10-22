@@ -5,35 +5,8 @@ const EXAM_LOCK_WINDOW = process.env.EXAM_LOCK_WINDOW
 	? Number(process.env.EXAM_LOCK_WINDOW)
 	: 5 * 60 * 1000; // 5 minutes default
 
-const RubricItemSchema = new mongoose.Schema(
-	{
-		criterion: {
-			type: String,
-			trim: true,
-		},
-		weight: {
-			type: Number,
-			min: 0,
-			max: 1,
-		},
-	},
-	{ _id: false },
-);
-
-const KeywordItemSchema = new mongoose.Schema(
-	{
-		term: {
-			type: String,
-			trim: true,
-		},
-		weight: {
-			type: Number,
-			default: 1,
-		},
-	},
-	{ _id: false },
-);
-
+// Define AI Policy Subschema(Only for subjective questions evaluation)
+// How the model should evaluate subjective answers
 const AiPolicySchema = new mongoose.Schema(
 	{
 		strictness: {
@@ -41,38 +14,22 @@ const AiPolicySchema = new mongoose.Schema(
 			enum: ['lenient', 'moderate', 'strict'],
 			default: 'moderate',
 		},
-		language: {
-			type: String,
-			default: 'en',
-		},
 		reviewTone: {
 			type: String,
+			enum: ['concise', 'detailed', 'comprehensive', 'exhaustive'],
 			default: 'concise',
 		},
-		targetLength: {
+
+		// Number of expected words in answers
+		expectedLength: {
 			type: Number,
-			default: 3,
-		},
-		requireCitations: {
-			type: Boolean,
-			default: false,
+			default: 10,
 		},
 		customInstructions: {
 			type: String,
+			trim: true,
+			maxlength: [500, 'Custom instructions cannot exceed 500 characters'],
 			default: '',
-		},
-		rubric: {
-			type: [RubricItemSchema],
-			default: [],
-		},
-		keywords: {
-			type: [KeywordItemSchema],
-			default: [],
-		},
-		penalties: {
-			type: Map,
-			of: Number,
-			default: undefined,
 		},
 	},
 	{ _id: false },
