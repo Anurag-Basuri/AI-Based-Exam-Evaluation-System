@@ -101,7 +101,7 @@ const AnswerCard = ({ answer, evaluation, onUpdate, disabled }) => {
 };
 
 const TeacherSubmissionGrade = () => {
-	const { submissionId } = useParams();
+	const { submissionId, examId } = useParams(); // Get examId from URL
 	const navigate = useNavigate();
 	const { success, error: toastError } = useToast();
 
@@ -167,14 +167,31 @@ const TeacherSubmissionGrade = () => {
 
 	return (
 		<div>
-			<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+			<div
+				style={{
+					display: 'flex',
+					justifyContent: 'space-between',
+					alignItems: 'center',
+					flexWrap: 'wrap',
+					gap: 16,
+				}}
+			>
 				<PageHeader
 					title={`Grading: ${submission.student.fullname}`}
-					subtitle={`Submission for exam: ${submission.exam.title}`}
+					subtitle={`For exam: ${submission.exam.title}`}
 				/>
-				<button onClick={handleSaveChanges} disabled={saving}>
-					{saving ? 'Saving...' : 'Save All Changes'}
-				</button>
+				<div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+					{/* NEW: Back button for better navigation */}
+					<button
+						onClick={() => navigate(`/teacher/results/${examId}`)}
+						style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}
+					>
+						← Back to Submissions
+					</button>
+					<button onClick={handleSaveChanges} disabled={saving}>
+						{saving ? 'Saving...' : 'Save All Changes'}
+					</button>
+				</div>
 			</div>
 
 			<div style={{ display: 'grid', gap: 24, marginTop: 24 }}>
