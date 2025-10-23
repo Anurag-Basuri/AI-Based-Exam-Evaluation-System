@@ -277,36 +277,48 @@ const submitSubmission = asyncHandler(async (req, res) => {
 // Teacher can update evaluation and review for a submission answer
 const updateEvaluation = asyncHandler(async (req, res) => {
 	const submissionId = req.params.id;
-	const { evaluations } = req.body; // [{ question, marks, remarks }]
+	const teacherId = req.teacher?._id || req.user?.id;
+	const { evaluations } = req.body; // This is an array of updates
 
 	if (!Array.isArray(evaluations) || evaluations.length === 0) {
-		throw ApiError.BadRequest('Evaluations array required');
+		throw ApiError.BadRequest('Evaluations must be a non-empty array.');
 	}
 
-	const submission = await Submission.findById(submissionId);
+	const submission = await Submission.findById(submissionId).populate('exam');
 	if (!submission) throw ApiError.NotFound('Submission not found');
 
-	// Only allow teacher to update
-	const teacherId = req.teacher?._id || req.user?.id;
-	if (!teacherId) throw ApiError.Forbidden('Only teachers can update evaluations');
-
-	// Update evaluations for provided questions
-	for (const update of evaluations) {
-		const idx = submission.evaluations.findIndex(
-			ev => ev.question.toString() === update.question,
-		);
-		if (idx !== -1) {
-			submission.evaluations[idx].evaluation.marks = update.marks;
-			submission.evaluations[idx].evaluation.remarks = update.remarks;
-			submission.evaluations[idx].evaluation.evaluator = 'teacher';
-			submission.evaluations[idx].evaluation.evaluatedAt = new Date();
-		}
+	// Security: Verify teacher owns the exam
+	if (String(submission.exam?.createdBy) !== String(teacherId)) {
+		throw ApiError.Forbidden('You are not authorized to update this submission.');
 	}
-	submission.evaluatedBy = teacherId;
-	submission.evaluatedAt = new Date();
+
+	// Create a map of the updates for efficient lookup
+	const updatesMap = new Map(evaluations.map(e => [String(e.question), e]));
+
+	// Iterate through existing evaluations and apply updates
+	submission.evaluations.forEach(existingEval => {
+		const questionId = String(existingEval.question);
+		if (updatesMap.has(questionId)) {
+			const update = updatesMap.get(questionId);
+			existingEval.evaluation = {
+				evaluator: 'teacher', // Mark as manually edited
+				marks: Number(update.marks),
+				remarks: String(update.remarks),
+				evaluatedAt: new Date(),
+				meta: { ...(existingEval.evaluation.meta || {}), path: 'teacher-override' },
+			};
+		}
+	});
+
+	// Mark the submission as evaluated if it was just submitted
+	if (submission.status === 'submitted') {
+		submission.status = 'evaluated';
+		submission.evaluatedAt = new Date();
+	}
+
 	await submission.save();
 
-	return ApiResponse.success(res, submission, 'Evaluation updated by teacher');
+	return ApiResponse.success(res, submission, 'Evaluation updated successfully');
 });
 
 // Evaluate a submission (manual trigger, if needed)
