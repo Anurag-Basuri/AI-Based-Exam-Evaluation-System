@@ -137,6 +137,9 @@ const EP = {
 	questionUpdate: id => [`/api/questions/${encodeURIComponent(id)}/update`],
 	// FIX: string for delete
 	questionDelete: id => `/api/questions/${encodeURIComponent(id)}`,
+
+	// --- NEW: Teacher-specific submission endpoints ---
+	submissionForGrading: id => `/api/submissions/teacher/${encodeURIComponent(id)}`,
 };
 
 // ---------- Normalizers ----------
@@ -399,13 +402,24 @@ export const evaluateTeacherSubmission = async submissionId => {
 	return await tryPost(`${EP.submissionsBase}/${submissionId}/evaluate-auto`);
 };
 
+export const updateSubmissionEvaluation = async (submissionId, evaluations) => {
+	return await tryPut(EP.submissionEvalUpdate(submissionId), { evaluations });
+};
+
+// --- NEW: Add service for getting a single submission for grading ---
+export const getSubmissionForGrading = async submissionId => {
+	const res = await tryGet(EP.submissionForGrading(submissionId));
+	// No normalization needed here, the grading component needs raw, detailed data
+	return res?.data?.data ?? res?.data ?? null;
+};
+
 // --- NEW: Add publishing services ---
 export const publishSingleResult = async submissionId => {
-	return await tryPost(`${EP.submissionsBase}/${submissionId}/publish`);
+	return await tryPost(EP.submissionEvalUpdate(submissionId).replace('/evaluate', '/publish'));
 };
 
 export const publishAllResults = async examId => {
-	return await tryPost(`${EP.submissionsByExam}/${examId}/publish-all`);
+	return await tryPost(EP.submissionsByExam(examId) + '/publish-all');
 };
 
 // ---------- Issues (Teacher) ----------
