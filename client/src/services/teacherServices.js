@@ -97,49 +97,26 @@ const tryDelete = async (urls, config) => {
 // ---------- Endpoints (server-aligned) ----------
 const EP = {
 	// Exams
-	examCreate: ['/api/exams/create'],
-	examsAll: ['/api/exams/all'],
-	examsMine: ['/api/exams/mine'],
+	exams: '/api/exams/my',
 	examById: id => `/api/exams/${encodeURIComponent(id)}`,
-	examUpdate: id => [`/api/exams/${encodeURIComponent(id)}/update`],
-	// FIX: delete endpoints must be strings (axios.delete expects a single URL)
-	examDelete: id => `/api/exams/${encodeURIComponent(id)}`,
-	examAddQuestions: id => [`/api/exams/${encodeURIComponent(id)}/questions`],
-	examRemoveQuestions: id => [`/api/exams/${encodeURIComponent(id)}/questions/remove`],
-	examPublish: id => [`/api/exams/${encodeURIComponent(id)}/publish`],
-	examDuplicate: id => [`/api/exams/${encodeURIComponent(id)}/duplicate`],
-	examReorder: id => [`/api/exams/${encodeURIComponent(id)}/reorder`],
-	examSetQuestions: id => [`/api/exams/${encodeURIComponent(id)}/questions/set`],
-	examEndNow: id => [`/api/exams/${encodeURIComponent(id)}/end-now`],
-	examCancel: id => [`/api/exams/${encodeURIComponent(id)}/cancel`],
-	examExtend: id => [`/api/exams/${encodeURIComponent(id)}/extend`],
-	examRegenerateCode: id => [`/api/exams/${encodeURIComponent(id)}/regenerate-code`],
+	examCreate: '/api/exams/create',
+	examSetQuestions: id => `/api/exams/${id}/questions/set`,
 
-	// Submissions (teacher)
-	submissionsByExam: examId => `/api/submissions/exam/${encodeURIComponent(examId)}`,
-	submissionEvalUpdate: id => `/api/submissions/${encodeURIComponent(id)}/evaluate`,
-	submissionAutoEvaluate: id => `/api/submissions/${encodeURIComponent(id)}/auto-evaluate`,
-
-	// Issues (teacher)
-	issuesAll: ['/api/issues/all'],
-	issueById: id => `/api/issues/${encodeURIComponent(id)}`,
-	issueResolve: id => `/api/issues/${encodeURIComponent(id)}/resolve`,
-	issueStatus: id => `/api/issues/${encodeURIComponent(id)}/status`,
-
-	// Teacher account
-	teacherUpdate: ['/api/teachers/update'],
-	teacherChangePassword: ['/api/teachers/change-password'],
-
-	// Questions (teacher)
-	questionCreate: ['/api/questions/create'],
-	questionsMine: ['/api/questions/mine'],
+	// Questions
+	questions: '/api/questions/my',
+	questionCreate: '/api/questions/create',
 	questionById: id => `/api/questions/${encodeURIComponent(id)}`,
-	questionUpdate: id => [`/api/questions/${encodeURIComponent(id)}/update`],
-	// FIX: string for delete
 	questionDelete: id => `/api/questions/${encodeURIComponent(id)}`,
 
-	// --- NEW: Teacher-specific submission endpoints ---
+	// Submissions
+	submissionsByExam: examId => `/api/submissions/exam/${encodeURIComponent(examId)}`,
 	submissionForGrading: id => `/api/submissions/teacher/${encodeURIComponent(id)}`,
+	submissionEvalUpdate: id => `/api/submissions/${encodeURIComponent(id)}/evaluate`, // <-- Add this
+	publishSingle: id => `/api/submissions/${id}/publish`,
+	publishAll: examId => `/api/submissions/exam/${examId}/publish-all`,
+
+	// Issues
+	issues: '/api/issues/my',
 };
 
 // ---------- Normalizers ----------
@@ -393,33 +370,36 @@ export const deleteTeacherQuestion = async id => {
 };
 
 // ---------- Submissions (Teacher) ----------
-export const getTeacherSubmissions = async (examId = '') => {
-	const url = examId ? `${EP.submissionsByExam}/${examId}` : EP.submissionsAll;
-	return await tryGet(url);
+export const getTeacherSubmissions = async examId => {
+	// FIX: Call the endpoint function to get the URL string
+	const res = await tryGet(EP.submissionsByExam(examId));
+	return res?.data?.data ?? res?.data ?? [];
 };
 
 export const evaluateTeacherSubmission = async submissionId => {
-	return await tryPost(`${EP.submissionsBase}/${submissionId}/evaluate-auto`);
+	// This endpoint seems unused, but correcting for consistency
+	return await tryPost(`/api/submissions/${submissionId}/evaluate-auto`);
 };
 
 export const updateSubmissionEvaluation = async (submissionId, evaluations) => {
+	// FIX: Call the endpoint function to get the URL string
 	return await tryPut(EP.submissionEvalUpdate(submissionId), { evaluations });
 };
 
-// --- NEW: Add service for getting a single submission for grading ---
 export const getSubmissionForGrading = async submissionId => {
 	const res = await tryGet(EP.submissionForGrading(submissionId));
 	// No normalization needed here, the grading component needs raw, detailed data
 	return res?.data?.data ?? res?.data ?? null;
 };
 
-// --- NEW: Add publishing services ---
 export const publishSingleResult = async submissionId => {
-	return await tryPost(EP.submissionEvalUpdate(submissionId).replace('/evaluate', '/publish'));
+	// FIX: Call the endpoint function to get the URL string
+	return await tryPost(EP.publishSingle(submissionId));
 };
 
 export const publishAllResults = async examId => {
-	return await tryPost(EP.submissionsByExam(examId) + '/publish-all');
+	// FIX: Call the endpoint function to get the URL string
+	return await tryPost(EP.publishAll(examId));
 };
 
 // ---------- Issues (Teacher) ----------
