@@ -364,6 +364,36 @@ const getExamSubmissions = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, submissions, 'Exam submissions fetched');
 });
 
+// --- Get a single submission with full details for a teacher to grade ---
+const getSubmissionForGrading = asyncHandler(async (req, res) => {
+	const submissionId = req.params.id;
+	const teacherId = req.teacher?._id || req.user?.id;
+
+	const submission = await Submission.findById(submissionId)
+		.populate({
+			path: 'exam',
+			select: 'title createdBy',
+		})
+		.populate('student', 'fullname email')
+		.populate({
+			path: 'answers.question',
+			model: 'Question',
+			select: 'text type options max_marks',
+		})
+		.lean();
+
+	if (!submission) {
+		throw ApiError.NotFound('Submission not found.');
+	}
+
+	// Security: Ensure the teacher requesting the submission is the one who created the exam
+	if (String(submission.exam?.createdBy) !== String(teacherId)) {
+		throw ApiError.Forbidden('You are not authorized to view this submission.');
+	}
+
+	return ApiResponse.success(res, submission, 'Submission fetched for grading.');
+});
+
 // Get all submissions for the logged-in student (normalized for UI)
 const getMySubmissions = asyncHandler(async (req, res) => {
 	const studentId = req.student?._id || req.user?.id;
@@ -633,4 +663,5 @@ export {
 	testEvaluationService,
 	publishSingleSubmissionResult,
 	publishAllExamResults,
+	getSubmissionForGrading,
 };
