@@ -27,11 +27,12 @@ const TakeExam = lazy(() => import('../pages/student/TakeExam.jsx'));
 // Teacher pages
 const TeacherHome = lazy(() => import('../pages/teacher/Home.jsx'));
 const TeacherExams = lazy(() => import('../pages/teacher/Exams.jsx'));
+const TeacherExamCreate = lazy(() => import('../pages/teacher/ExamCreate.jsx'));
+const TeacherExamEdit = lazy(() => import('../pages/teacher/ExamEdit.jsx'));
 const TeacherResults = lazy(() => import('../pages/teacher/result.jsx'));
+const TeacherSubmissionGrade = lazy(() => import('../pages/teacher/SubmissionGrade.jsx'));
 const TeacherIssues = lazy(() => import('../pages/teacher/issue.jsx'));
 const TeacherSettings = lazy(() => import('../pages/teacher/Settings.jsx'));
-const ExamCreate = lazy(() => import('../pages/teacher/ExamCreate.jsx'));
-const ExamEdit = lazy(() => import('../pages/teacher/ExamEdit.jsx'));
 
 const withBoundary = node => <ErrorBoundary>{node}</ErrorBoundary>;
 
@@ -71,10 +72,9 @@ const AppRoutes = () => (
 					<Route path="results" element={withBoundary(<StudentResults />)} />
 					<Route path="issues" element={withBoundary(<StudentIssues />)} />
 					<Route path="settings" element={withBoundary(<StudentSettings />)} />
+					{/* CONSOLIDATED: Use a single, clear, and canonical route for taking an exam */}
 					<Route path="take-exam/:submissionId" element={withBoundary(<TakeExam />)} />
-					<Route path="take/:submissionId" element={withBoundary(<TakeExam />)} />
-					<Route path="take/:id" element={withBoundary(<TakeExam />)} />
-					<Route path="submission/:id" element={withBoundary(<TakeExam />)} />
+					{/* REMOVED redundant and confusing routes that pointed to the same component */}
 					<Route path="*" element={<Navigate to="/student" replace />} />
 				</Route>
 			</Route>
@@ -84,9 +84,17 @@ const AppRoutes = () => (
 				<Route path="/teacher" element={withBoundary(<TeacherDash />)}>
 					<Route index element={withBoundary(<TeacherHome />)} />
 					<Route path="exams" element={withBoundary(<TeacherExams />)} />
-					<Route path="exams/new" element={withBoundary(<ExamCreate />)} />
-					<Route path="exams/:id/edit" element={withBoundary(<ExamEdit />)} />
+					{/* FIX: Use correct component name and a consistent path */}
+					<Route path="exams/create" element={withBoundary(<TeacherExamCreate />)} />
+					{/* FIX: Use correct component name and a consistent path */}
+					<Route path="exams/edit/:id" element={withBoundary(<TeacherExamEdit />)} />
 					<Route path="results" element={withBoundary(<TeacherResults />)} />
+					{/* This nested route is handled correctly by the result.jsx component */}
+					<Route path="results/:examId" element={withBoundary(<TeacherResults />)} />
+					<Route
+						path="results/:examId/grade/:submissionId"
+						element={withBoundary(<TeacherSubmissionGrade />)}
+					/>
 					<Route path="issues" element={withBoundary(<TeacherIssues />)} />
 					<Route path="settings" element={withBoundary(<TeacherSettings />)} />
 					<Route path="*" element={<Navigate to="/teacher" replace />} />

@@ -278,7 +278,14 @@ const ExamSubmissionsDetail = () => {
 								{config.icon} {config.label}
 							</div>
 							<div style={{ display: 'flex', gap: 8 }}>
-								<button disabled>View/Grade</button>
+								<button
+									onClick={() =>
+										navigate(`/teacher/results/${examId}/grade/${sub._id}`)
+									}
+									disabled={sub.status === 'in-progress'}
+								>
+									View/Grade
+								</button>
 								{sub.status === 'evaluated' && (
 									<button
 										onClick={() => handlePublishSingle(sub._id)}
