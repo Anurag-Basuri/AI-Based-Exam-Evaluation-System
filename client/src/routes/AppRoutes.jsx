@@ -88,9 +88,10 @@ const AppRoutes = () => (
 					<Route path="exams/create" element={withBoundary(<TeacherExamCreate />)} />
 					{/* FIX: Use correct component name and a consistent path */}
 					<Route path="exams/edit/:id" element={withBoundary(<TeacherExamEdit />)} />
+
 					<Route path="results" element={withBoundary(<TeacherResults />)} />
-					{/* This nested route is handled correctly by the result.jsx component */}
 					<Route path="results/:examId" element={withBoundary(<TeacherResults />)} />
+
 					<Route
 						path="results/:examId/grade/:submissionId"
 						element={withBoundary(<TeacherSubmissionGrade />)}

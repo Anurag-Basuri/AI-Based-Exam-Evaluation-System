@@ -276,6 +276,8 @@ const ExamCard = ({
             >
                 <button
                     onClick={() => onEdit(exam)}
+                   	disabled={isLive}
+                    title={isLive ? 'Cannot edit a live exam' : 'Edit exam details'}
                     style={{
                         flex: '1 1 120px',
                         padding: '10px 14px',
@@ -283,10 +285,11 @@ const ExamCard = ({
                         border: 'none',
                         background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
                         color: '#ffffff',
-                        cursor: 'pointer',
+                        cursor: isLive ? 'not-allowed' : 'pointer',
                         fontWeight: 700,
                         fontSize: 14,
                         boxShadow: '0 4px 12px rgba(99,102,241,0.25)',
+                        opacity: isLive ? 0.6 : 1,
                     }}
                 >
                     ✏️ Edit
@@ -571,19 +574,18 @@ const TeacherExams = () => {
 	};
 
 	const handleEdit = exam => {
-		// Navigate to editor page instead of placeholder message
-		navigate(`/teacher/exams/${encodeURIComponent(exam.id)}/edit`);
-	};
+        navigate(`/teacher/exams/edit/${exam.id}`);
+    };
 
-	const handleCopyCode = async code => {
-		if (!code) return;
-		try {
-			await navigator.clipboard.writeText(code);
-			success('Share code copied');
-		} catch {
-			setErrorBanner('Failed to copy code');
-		}
-	};
+    const handleCopyCode = async code => {
+        if (!code) return;
+        try {
+            await navigator.clipboard.writeText(code);
+            success('Share code copied');
+        } catch {
+            setErrorBanner('Failed to copy code');
+        }
+    };
 
 	const handleEndNow = async exam => {
 		if (!window.confirm('End this exam immediately?')) return;

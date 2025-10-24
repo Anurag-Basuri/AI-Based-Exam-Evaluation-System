@@ -52,33 +52,35 @@ const statusConfig = {
 
 // View 1: List of Exams with Submissions
 const ExamResultsOverview = () => {
-	const navigate = useNavigate();
-	const [loading, setLoading] = React.useState(true);
-	const [error, setError] = React.useState('');
-	const [exams, setExams] = React.useState([]);
+    const navigate = useNavigate();
+    const [loading, setLoading] = React.useState(true);
+    const [error, setError] = React.useState('');
+    const [exams, setExams] = React.useState([]);
 
-	React.useEffect(() => {
-		const loadExamsWithSubmissions = async () => {
-			setLoading(true);
-			try {
-				// We use getMyExams which now returns submission counts
-				const res = await TeacherSvc.safeApiCall(TeacherSvc.getTeacherExams);
-				// Filter to only show exams that have at least one submission
-				const examsWithSubmissions = (res?.items || []).filter(e => e.submissionCount > 0);
-				setExams(examsWithSubmissions);
-			} catch (e) {
-				setError(e.message || 'Failed to load exam results.');
-			} finally {
-				setLoading(false);
-			}
-		};
-		loadExamsWithSubmissions();
-	}, []);
+    React.useEffect(() => {
+        const loadExamsWithSubmissions = async () => {
+            setLoading(true);
+            try {
+                // FIX: Pass the 'hasSubmissions: true' parameter to fetch only relevant exams.
+                // This was the root cause of the invalid data issue.
+                const res = await TeacherSvc.safeApiCall(TeacherSvc.getTeacherExams, {
+                    hasSubmissions: true,
+                });
+                // The service now correctly returns only exams with submissions.
+                setExams(res?.items || []);
+            } catch (e) {
+                setError(e.message || 'Failed to load exam results.');
+            } finally {
+                setLoading(false);
+            }
+        };
+        loadExamsWithSubmissions();
+    }, []);
 
-	if (loading) return <div>Loading Exam Results...</div>;
-	if (error) return <Alert type="error">{error}</Alert>;
+    if (loading) return <div>Loading Exam Results...</div>;
+    if (error) return <Alert type="error">{error}</Alert>;
 
-	return (
+    return (
 		<div>
 			<PageHeader
 				title="Exam Results"
@@ -130,7 +132,7 @@ const ExamResultsOverview = () => {
 								/>
 							</div>
 							<button
-								onClick={() => navigate(`/teacher/results/${exam._id}`)}
+								onClick={() => navigate(`/teacher/results/${exam.id}`)} // Use the normalized 'id' field
 								style={{
 									width: '100%',
 									padding: '12px',
