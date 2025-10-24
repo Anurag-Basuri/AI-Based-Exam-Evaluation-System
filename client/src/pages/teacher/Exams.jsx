@@ -6,6 +6,140 @@ import Alert from '../../components/ui/Alert.jsx';
 import { useToast } from '../../components/ui/Toaster.jsx';
 import PageHeader from '../../components/ui/PageHeader.jsx';
 
+const ActionModal = ({ title, children, onConfirm, onCancel, confirmText = 'Confirm' }) => (
+	<div
+		style={{
+			position: 'fixed',
+			inset: 0,
+			background: 'rgba(0,0,0,0.5)',
+			backdropFilter: 'blur(4px)',
+			display: 'grid',
+			placeItems: 'center',
+			padding: 16,
+			zIndex: 100,
+		}}
+		onClick={onCancel}
+	>
+		<div
+			style={{
+				background: 'var(--surface)',
+				border: '1px solid var(--border)',
+				borderRadius: 16,
+				padding: '20px',
+				width: 'min(500px, 95vw)',
+				boxShadow: 'var(--shadow-lg)',
+			}}
+			onClick={e => e.stopPropagation()}
+		>
+			<h3 style={{ marginTop: 0, color: 'var(--text)' }}>{title}</h3>
+			<div style={{ margin: '16px 0' }}>{children}</div>
+			<div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+				<button
+					onClick={onCancel}
+					style={{
+						padding: '10px 16px',
+						borderRadius: 8,
+						border: '1px solid var(--border)',
+						background: 'var(--surface)',
+						color: 'var(--text)',
+						fontWeight: 700,
+					}}
+				>
+					Cancel
+				</button>
+				<button
+					onClick={onConfirm}
+					style={{
+						padding: '10px 16px',
+						borderRadius: 8,
+						border: 'none',
+						background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+						color: '#fff',
+						fontWeight: 700,
+					}}
+				>
+					{confirmText}
+				</button>
+			</div>
+		</div>
+	</div>
+);
+
+const MoreActionsMenu = ({ children }) => {
+	const [isOpen, setIsOpen] = React.useState(false);
+	const ref = React.useRef(null);
+
+	React.useEffect(() => {
+		const handleClickOutside = event => {
+			if (ref.current && !ref.current.contains(event.target)) {
+				setIsOpen(false);
+			}
+		};
+		document.addEventListener('mousedown', handleClickOutside);
+		return () => document.removeEventListener('mousedown', handleClickOutside);
+	}, []);
+
+	return (
+		<div ref={ref} style={{ position: 'relative' }}>
+			<button
+				onClick={() => setIsOpen(o => !o)}
+				style={{
+					flex: '1 1 120px',
+					padding: '10px 14px',
+					borderRadius: 8,
+					border: '1px solid var(--border)',
+					background: 'var(--surface)',
+					color: 'var(--text)',
+					fontWeight: 700,
+					fontSize: 14,
+				}}
+			>
+				More...
+			</button>
+			{isOpen && (
+				<div
+					style={{
+						position: 'absolute',
+						right: 0,
+						bottom: '100%',
+						marginBottom: 8,
+						background: 'var(--surface)',
+						border: '1px solid var(--border)',
+						borderRadius: 8,
+						boxShadow: 'var(--shadow-lg)',
+						zIndex: 10,
+						minWidth: 180,
+						display: 'flex',
+						flexDirection: 'column',
+						padding: 6,
+					}}
+				>
+					{React.Children.map(children, child =>
+						React.cloneElement(child, {
+							style: {
+								...child.props.style,
+								width: '100%',
+								textAlign: 'left',
+								padding: '10px 14px',
+								background: 'transparent',
+								border: 'none',
+								borderRadius: 6,
+								cursor: 'pointer',
+							},
+							onMouseEnter: e => (e.currentTarget.style.background = 'var(--bg)'),
+							onMouseLeave: e => (e.currentTarget.style.background = 'transparent'),
+							onClick: e => {
+								child.props.onClick(e);
+								setIsOpen(false);
+							},
+						}),
+					)}
+				</div>
+			)}
+		</div>
+	);
+};
+
 const statusConfig = {
 	live: {
 		bg: '#dcfce7',
@@ -483,6 +617,7 @@ const TeacherExams = () => {
 	const [errorBanner, setErrorBanner] = React.useState('');
 	const { success, error: toastError } = useToast();
 	const navigate = useNavigate();
+	const [modal, setModal] = React.useState({ type: null, exam: null, value: '' });
 
 	const loadExams = React.useCallback(async () => {
 		setLoading(true);
@@ -636,16 +771,7 @@ const TeacherExams = () => {
 	};
 
 	const handleRename = async exam => {
-		const title = window.prompt('New exam title:', exam.title);
-		if (!title || !title.trim()) return;
-		try {
-			const fn = TeacherSvc.updateExam;
-			const updated = await TeacherSvc.safeApiCall(fn, exam.id, { title: title.trim() });
-			setExams(prev => prev.map(e => (e.id === exam.id ? updated : e)));
-			setMessage('✅ Title updated');
-		} catch (e) {
-			setMessage(`❌ ${e?.message || 'Failed to rename exam'}`);
-		}
+		setModal({ type: 'rename', exam, value: exam.title });
 	};
 
 	const handleDelete = async exam => {
@@ -666,7 +792,6 @@ const TeacherExams = () => {
 	};
 
 	const handleReschedule = async exam => {
-		// Simple prompts for start/end (local datetime input format: YYYY-MM-DDTHH:MM)
 		const toLocalInput = ms => new Date(ms).toISOString().slice(0, 16);
 		const startDefault = exam.startMs
 			? toLocalInput(exam.startMs)
@@ -675,40 +800,51 @@ const TeacherExams = () => {
 			? toLocalInput(exam.endMs)
 			: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString().slice(0, 16);
 
-		const startStr = window.prompt('New start (YYYY-MM-DDTHH:MM):', startDefault);
-		if (!startStr) return;
-		const endStr = window.prompt('New end (YYYY-MM-DDTHH:MM):', endDefault);
-		if (!endStr) return;
+		setModal({
+			type: 'reschedule',
+			exam,
+			value: { start: startDefault, end: endDefault },
+		});
+	};
 
-		const start = new Date(startStr);
-		const end = new Date(endStr);
-		if (
-			!(start instanceof Date) ||
-			isNaN(start.getTime()) ||
-			!(end instanceof Date) ||
-			isNaN(end.getTime())
-		) {
-			setErrorBanner('Invalid date/time format');
-			return;
-		}
-		if (end <= start) {
-			setErrorBanner('End time must be after start time');
-			return;
-		}
-		if (start <= new Date()) {
-			setErrorBanner('Start time must be in the future');
-			return;
-		}
+	const handleModalConfirm = async () => {
+		const { type, exam, value } = modal;
+		if (!type || !exam) return;
 
 		try {
-			const updated = await TeacherSvc.safeApiCall(TeacherSvc.updateExam, exam.id, {
-				startTime: start.toISOString(),
-				endTime: end.toISOString(),
-			});
-			setExams(prev => prev.map(e => (e.id === exam.id ? updated : e)));
-			success('Exam rescheduled');
+			if (type === 'rename') {
+				if (!value || !value.trim()) return;
+				const updated = await TeacherSvc.safeApiCall(TeacherSvc.updateExam, exam.id, {
+					title: value.trim(),
+				});
+				setExams(prev => prev.map(e => (e.id === exam.id ? updated : e)));
+				success('Title updated');
+			} else if (type === 'reschedule') {
+				const start = new Date(value.start);
+				const end = new Date(value.end);
+				if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+					setErrorBanner('Invalid date/time format');
+					return;
+				}
+				if (end <= start) {
+					setErrorBanner('End time must be after start time');
+					return;
+				}
+				if (start <= new Date()) {
+					setErrorBanner('Start time must be in the future');
+					return;
+				}
+				const updated = await TeacherSvc.safeApiCall(TeacherSvc.updateExam, exam.id, {
+					startTime: start.toISOString(),
+					endTime: end.toISOString(),
+				});
+				setExams(prev => prev.map(e => (e.id === exam.id ? updated : e)));
+				success('Exam rescheduled');
+			}
 		} catch (e) {
-			setErrorBanner(e?.message || 'Failed to reschedule exam');
+			setErrorBanner(e?.message || `Failed to perform action: ${type}`);
+		} finally {
+			setModal({ type: null, exam: null, value: '' });
 		}
 	};
 
@@ -778,6 +914,80 @@ const TeacherExams = () => {
 						{errorBanner}
 					</Alert>
 				</div>
+			)}
+
+			{modal.type === 'rename' && (
+				<ActionModal
+					title="Rename Exam"
+					onCancel={() => setModal({ type: null, exam: null, value: '' })}
+					onConfirm={handleModalConfirm}
+					confirmText="Rename"
+				>
+					<input
+						type="text"
+						value={modal.value}
+						onChange={e => setModal(m => ({ ...m, value: e.target.value }))}
+						style={{
+							width: '100%',
+							padding: '12px',
+							borderRadius: 8,
+							border: '1px solid var(--border)',
+						}}
+						placeholder="New exam title"
+					/>
+				</ActionModal>
+			)}
+
+			{modal.type === 'reschedule' && (
+				<ActionModal
+					title="Reschedule Exam"
+					onCancel={() => setModal({ type: null, exam: null, value: '' })}
+					onConfirm={handleModalConfirm}
+					confirmText="Reschedule"
+				>
+					<div style={{ display: 'grid', gap: 12 }}>
+						<label>
+							New Start Time
+							<input
+								type="datetime-local"
+								value={modal.value.start}
+								onChange={e =>
+									setModal(m => ({
+										...m,
+										value: { ...m.value, start: e.target.value },
+									}))
+								}
+								style={{
+									width: '100%',
+									padding: '12px',
+									borderRadius: 8,
+									border: '1px solid var(--border)',
+									marginTop: 4,
+								}}
+							/>
+						</label>
+						<label>
+							New End Time
+							<input
+								type="datetime-local"
+								value={modal.value.end}
+								onChange={e =>
+									setModal(m => ({
+										...m,
+										value: { ...m.value, end: e.target.value },
+									}))
+								}
+								style={{
+									width: '100%',
+									padding: '12px',
+									borderRadius: 8,
+									border: '1px solid var(--border)',
+									marginTop: 4,
+								}}
+							/>
+						</label>
+					</div>
+				</ActionModal>
 			)}
 
 			<div
