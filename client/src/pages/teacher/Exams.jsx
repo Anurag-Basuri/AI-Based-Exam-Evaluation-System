@@ -745,7 +745,7 @@ const TeacherExams = () => {
 					</button>,
 					<button
 						key="create"
-						onClick={() => navigate('/teacher/exams/new')}
+						onClick={() => navigate('/teacher/exams/create')}
 						className="tap"
 						style={{
 							padding: '12px 20px',

@@ -308,6 +308,26 @@ export const updateExam = async (examId, body = {}) => {
 	return normalizeExam(data);
 };
 
+export const endExamNow = async examId => {
+	const res = await tryPost(EP.examUpdate(examId), { status: 'completed' });
+	return normalizeExam(res?.data?.data ?? res?.data ?? {});
+};
+
+export const cancelExam = async examId => {
+	const res = await tryPost(EP.examUpdate(examId), { status: 'cancelled' });
+	return normalizeExam(res?.data?.data ?? res?.data ?? {});
+};
+
+export const extendExamEnd = async (examId, { minutes }) => {
+	const res = await tryPost(EP.examUpdate(examId), { extend: { minutes } });
+	return normalizeExam(res?.data?.data ?? res?.data ?? {});
+};
+
+export const regenerateExamShareCode = async examId => {
+	const res = await tryPost(EP.examUpdate(examId), { regenerateCode: true });
+	return normalizeExam(res?.data?.data ?? res?.data ?? {});
+};
+
 // Keep for generic updates; for publishing prefer publishTeacherExam below
 export const updateExamStatus = async (examId, statusBody = {}) => {
 	return updateExam(examId, statusBody);
