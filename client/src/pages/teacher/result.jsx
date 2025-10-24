@@ -48,6 +48,80 @@ const statusConfig = {
 	'in-progress': { label: 'In Progress', color: '#f59e0b', icon: '⏳' },
 };
 
+const ScoreDistributionChart = ({ submissions }) => {
+	const scoreData = React.useMemo(() => {
+		const bins = Array(10).fill(0);
+		let total = 0;
+		submissions.forEach(s => {
+			if (s.score !== null && s.maxScore > 0) {
+				const percentage = (s.score / s.maxScore) * 100;
+				const binIndex = Math.min(9, Math.floor(percentage / 10));
+				bins[binIndex]++;
+				total++;
+			}
+		});
+		const maxCount = Math.max(...bins);
+		return { bins, maxCount, total };
+	}, [submissions]);
+
+	if (scoreData.total === 0) {
+		return <Alert type="info">No scored submissions available to display a chart.</Alert>;
+	}
+
+	return (
+		<div
+			style={{
+				background: 'var(--surface)',
+				border: '1px solid var(--border)',
+				borderRadius: 12,
+				padding: '16px 20px',
+			}}
+		>
+			<h4 style={{ marginTop: 0, marginBottom: 16, color: 'var(--text)' }}>
+				Score Distribution
+			</h4>
+			<div
+				style={{
+					display: 'grid',
+					gridTemplateColumns: 'repeat(10, 1fr)',
+					gap: '4px',
+					height: 150,
+					alignItems: 'flex-end',
+				}}
+			>
+				{scoreData.bins.map((count, i) => (
+					<div
+						key={i}
+						style={{
+							display: 'flex',
+							flexDirection: 'column',
+							alignItems: 'center',
+							gap: 4,
+						}}
+						title={`${count} student(s)`}
+					>
+						<div
+							style={{
+								width: '80%',
+								height:
+									scoreData.maxCount > 0
+										? `${(count / scoreData.maxCount) * 100}%`
+										: '0%',
+								background: 'var(--primary-gradient)',
+								borderRadius: '4px 4px 0 0',
+								transition: 'height 0.3s ease-out',
+							}}
+						/>
+						<div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>
+							{i * 10}-{i * 10 + 10}
+						</div>
+					</div>
+				))}
+			</div>
+		</div>
+	);
+};
+
 // --- Main Views ---
 
 // View 1: List of Exams with Submissions
@@ -268,6 +342,18 @@ const ExamSubmissionsDetail = () => {
 		return items;
 	}, [submissions, filters]);
 
+	const stats = React.useMemo(() => {
+		const scoredSubs = submissions.filter(s => s.score !== null);
+		if (scoredSubs.length === 0) {
+			return { avg: 'N/A', high: 'N/A', low: 'N/A' };
+		}
+		const scores = scoredSubs.map(s => s.score);
+		const avg = (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1);
+		const high = Math.max(...scores).toFixed(1);
+		const low = Math.min(...scores).toFixed(1);
+		return { avg, high, low };
+	}, [submissions]);
+
 	if (loading)
 		return <div style={{ textAlign: 'center', padding: 40 }}>Loading Submissions...</div>;
 	if (error) return <Alert type="error">{error}</Alert>;
@@ -305,6 +391,21 @@ const ExamSubmissionsDetail = () => {
 					</button>,
 				]}
 			/>
+			<div
+				style={{
+					display: 'grid',
+					gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+					gap: 16,
+					marginBottom: 16,
+				}}
+			>
+				<ScoreDistributionChart submissions={submissions} />
+				<div style={{ display: 'grid', gap: 16 }}>
+					<StatCard label="Average Score" value={stats.avg} icon="📊" color="#3b82f6" />
+					<StatCard label="Highest Score" value={stats.high} icon="🔼" color="#10b981" />
+					<StatCard label="Lowest Score" value={stats.low} icon="🔽" color="#f97316" />
+				</div>
+			</div>
 			<div
 				style={{
 					display: 'flex',
