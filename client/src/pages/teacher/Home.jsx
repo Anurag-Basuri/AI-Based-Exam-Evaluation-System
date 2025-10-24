@@ -95,7 +95,6 @@ const ActionButton = ({ icon, label, onClick, variant = 'primary' }) => {
 const TeacherHome = () => {
 	const navigate = useNavigate();
 	const { user } = useAuth();
-	const teacherId = user?._id || user?.id;
 	const name = user?.fullname || user?.username || 'Teacher';
 
 	const [stats, setStats] = React.useState({
@@ -112,26 +111,29 @@ const TeacherHome = () => {
 		setLoading(true);
 		setError('');
 		try {
-			const [exams, issues, subs] = await Promise.all([
-				safeApiCall(getTeacherExams, { teacher: teacherId }),
-				safeApiCall(getTeacherIssues),
-				safeApiCall(getTeacherSubmissions, { teacher: teacherId }),
+			// FIX: Corrected API calls to fetch all necessary data
+			const [examsResponse, issues, subsResponse] = await Promise.all([
+				safeApiCall(getTeacherExams), // No params needed to get all exams for counts
+				safeApiCall(getTeacherIssues, { status: 'open' }), // Fetch only open issues
+				safeApiCall(getTeacherSubmissions), // No examId to get all submissions
 			]);
 
+			const exams = examsResponse?.items || [];
+			const subs = subsResponse || [];
+
 			setStats({
-				live: exams.filter(e => e.status === 'active' || e.status === 'live').length,
-				scheduled: exams.filter(e => e.status === 'scheduled').length,
-				draft: exams.filter(e => e.status === 'draft').length,
-				pendingSubs: subs.filter(s => ['pending', 'submitted'].includes(s.status)).length,
-				openIssues: issues.filter(i => i.status !== 'resolved').length,
+				live: exams.filter(e => e.derivedStatus === 'live').length,
+				scheduled: exams.filter(e => e.derivedStatus === 'scheduled').length,
+				draft: exams.filter(e => e.derivedStatus === 'draft').length,
+				pendingSubs: subs.filter(s => ['submitted', 'evaluated'].includes(s.status)).length,
+				openIssues: Array.isArray(issues) ? issues.length : 0,
 			});
 		} catch (e) {
 			setError(e.message || 'Failed to load dashboard data');
 		} finally {
 			setLoading(false);
 		}
-	}, [teacherId]);
-
+	}, []);
 	React.useEffect(() => {
 		loadData();
 	}, [loadData]);
