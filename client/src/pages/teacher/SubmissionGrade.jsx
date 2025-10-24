@@ -5,6 +5,51 @@ import PageHeader from '../../components/ui/PageHeader.jsx';
 import Alert from '../../components/ui/Alert.jsx';
 import * as TeacherSvc from '../../services/teacherServices.js';
 
+const AiInsight = ({ meta }) => {
+	if (!meta || typeof meta !== 'object') return null;
+
+	const renderList = (title, items) => {
+		if (!Array.isArray(items) || items.length === 0) return null;
+		return (
+			<div>
+				<strong style={{ fontSize: 13, color: 'var(--text-muted)' }}>{title}</strong>
+				<ul style={{ margin: '4px 0', paddingLeft: 20, fontSize: 14 }}>
+					{items.map((item, i) => (
+						<li key={i}>{typeof item === 'string' ? item : JSON.stringify(item)}</li>
+					))}
+				</ul>
+			</div>
+		);
+	};
+
+	return (
+		<div
+			style={{
+				background: 'color-mix(in srgb, var(--primary) 5%, transparent)',
+				border: '1px solid color-mix(in srgb, var(--primary) 20%, transparent)',
+				borderRadius: 8,
+				padding: '12px 16px',
+				marginTop: 12,
+				display: 'grid',
+				gap: 8,
+			}}
+		>
+			<h5 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: 'var(--primary)' }}>
+				🤖 AI Evaluation Insights
+			</h5>
+			{renderList('Rubric Breakdown:', meta.rubric_breakdown)}
+			{renderList('Keywords Matched:', meta.keywords_matched)}
+			{renderList('Penalties Applied:', meta.penalties_applied)}
+			{meta.fallback && (
+				<p style={{ fontSize: 13, margin: 0, color: '#f59e0b' }}>
+					Fell back to a simpler evaluation model. Reason:{' '}
+					{meta.reason || 'Not specified'}
+				</p>
+			)}
+		</div>
+	);
+};
+
 const AnswerCard = ({ answer, evaluation, onUpdate, disabled }) => {
 	const question = answer.question;
 	const isMCQ = question.type === 'multiple-choice';
@@ -134,6 +179,7 @@ const AnswerCard = ({ answer, evaluation, onUpdate, disabled }) => {
 					</div>
 				</div>
 			</div>
+			{aiEval?.meta && <AiInsight meta={aiEval.meta} />}
 			<style>{`
         @media (max-width: 480px) {
           .grade-inputs {
@@ -256,6 +302,21 @@ const TeacherSubmissionGrade = () => {
 					</button>,
 				]}
 			/>
+
+			{submission.violations?.length > 0 && (
+				<div style={{ marginBottom: 16 }}>
+					<Alert type="warning">
+						<strong>{submission.violations.length} Violation(s) Logged:</strong>
+						<ul style={{ margin: '8px 0 0', paddingLeft: 20 }}>
+							{submission.violations.map((v, i) => (
+								<li key={i}>
+									{v.type} at {new Date(v.at).toLocaleTimeString()}
+								</li>
+							))}
+						</ul>
+					</Alert>
+				</div>
+			)}
 
 			<div style={{ display: 'grid', gap: 24, marginTop: 24 }}>
 				{Array.from(answersMap.keys()).map(questionId => (
