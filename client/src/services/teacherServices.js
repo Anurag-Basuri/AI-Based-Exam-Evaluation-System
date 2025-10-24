@@ -80,7 +80,7 @@ const tryPut = async (urls, body, config) => {
 	throw parseAxiosError(lastErr);
 };
 
-// ADD: tryDelete helper (same retry semantics)
+// Delete with fallback URLs
 const tryDelete = async (urls, config) => {
 	let lastErr;
 	for (const url of Array.isArray(urls) ? urls : [urls]) {
@@ -100,20 +100,20 @@ const EP = {
 	exams: '/api/exams/my',
 	examById: id => `/api/exams/${encodeURIComponent(id)}`,
 	examCreate: '/api/exams/create',
-	examUpdate: id => `/api/exams/${encodeURIComponent(id)}`, // FIX: Add missing endpoint
-	examDelete: id => `/api/exams/${encodeURIComponent(id)}`, // FIX: Add missing endpoint
-	examPublish: id => `/api/exams/${id}/publish`, // FIX: Add missing endpoint
-	examDuplicate: id => `/api/exams/${id}/duplicate`, // FIX: Add missing endpoint
-	examSetQuestions: id => `/api/exams/${id}/questions/set`,
-	examAddQuestions: id => `/api/exams/${id}/questions`, // FIX: Add missing endpoint
-	examRemoveQuestions: id => `/api/exams/${id}/questions/remove`, // FIX: Add missing endpoint
-	examReorder: id => `/api/exams/${id}/reorder`, // FIX: Add missing endpoint
+	examUpdate: id => `/api/exams/${encodeURIComponent(id)}`,
+	examDelete: id => `/api/exams/${encodeURIComponent(id)}`,
+	examPublish: id => `/api/exams/${encodeURIComponent(id)}/publish`,
+	examDuplicate: id => `/api/exams/${encodeURIComponent(id)}/duplicate`,
+	examSetQuestions: id => `/api/exams/${encodeURIComponent(id)}/questions/set`,
+	examAddQuestions: id => `/api/exams/${encodeURIComponent(id)}/questions`,
+	examRemoveQuestions: id => `/api/exams/${encodeURIComponent(id)}/questions/remove`,
+	examReorder: id => `/api/exams/${encodeURIComponent(id)}/reorder`,
 
 	// Questions
 	questions: '/api/questions/my',
 	questionCreate: '/api/questions/create',
 	questionById: id => `/api/questions/${encodeURIComponent(id)}`,
-	questionUpdate: id => `/api/questions/${encodeURIComponent(id)}`, // FIX: Add missing endpoint
+	questionUpdate: id => `/api/questions/${encodeURIComponent(id)}`,
 	questionDelete: id => `/api/questions/${encodeURIComponent(id)}`,
 
 	// Submissions
@@ -124,14 +124,14 @@ const EP = {
 	publishAll: examId => `/api/submissions/exam/${examId}/publish-all`,
 
 	// Issues
-	issues: '/api/issues/my',
-	issueById: id => `/api/issues/${id}`, // FIX: Add missing endpoint
-	issueResolve: id => `/api/issues/${id}/resolve`, // FIX: Add missing endpoint
-	issueStatus: id => `/api/issues/${id}/status`, // FIX: Add missing endpoint
+	issues: '/api/issues/all',
+	issueById: id => `/api/issues/${id}`,
+	issueResolve: id => `/api/issues/${id}/resolve`,
+	issueStatus: id => `/api/issues/${id}/status`,
 
 	// Profile
-	teacherUpdate: '/api/teachers/me', // FIX: Add missing endpoint
-	teacherChangePassword: '/api/teachers/change-password', // FIX: Add missing endpoint
+	teacherUpdate: '/api/teachers/update',
+	teacherChangePassword: '/api/teachers/change-password',
 };
 
 // ---------- Normalizers ----------
