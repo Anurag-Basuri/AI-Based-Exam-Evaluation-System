@@ -100,7 +100,7 @@ const EP = {
 	exams: '/api/exams/my',
 	examById: id => `/api/exams/${encodeURIComponent(id)}`,
 	examCreate: '/api/exams/create',
-	examUpdate: id => `/api/exams/${encodeURIComponent(id)}/update`,
+	examUpdate: id => `/api/exams/${encodeURIComponent(id)}`, // Corrected: PUT to /:id
 	examDelete: id => `/api/exams/${encodeURIComponent(id)}`,
 	examPublish: id => `/api/exams/${encodeURIComponent(id)}/publish`,
 	examDuplicate: id => `/api/exams/${encodeURIComponent(id)}/duplicate`,
@@ -179,6 +179,8 @@ const normalizeExam = e => {
 		enrolled: typeof enrolled === 'number' ? enrolled : 0,
 		submissions: typeof submissions === 'number' ? submissions : 0,
 		questions: Array.isArray(e?.questions) ? e.questions.map(q => String(q?._id ?? q)) : [],
+		totalMarks: e?.totalMarks ?? 0,
+		publishedAt: e?.publishedAt ? new Date(e.publishedAt).toLocaleString() : null,
 	};
 };
 
