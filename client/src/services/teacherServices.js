@@ -100,7 +100,7 @@ const EP = {
 	exams: '/api/exams/my',
 	examById: id => `/api/exams/${encodeURIComponent(id)}`,
 	examCreate: '/api/exams/create',
-	examUpdate: id => `/api/exams/${encodeURIComponent(id)}/update`, // FIX: Corrected route
+	examUpdate: id => `/api/exams/${encodeURIComponent(id)}/update`, 
 	examDelete: id => `/api/exams/${encodeURIComponent(id)}`,
 	examPublish: id => `/api/exams/${encodeURIComponent(id)}/publish`,
 	examDuplicate: id => `/api/exams/${encodeURIComponent(id)}/duplicate`,

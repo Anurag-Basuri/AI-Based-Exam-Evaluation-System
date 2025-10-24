@@ -4,6 +4,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import { syncExamStatuses } from '../services/examStatus.service.js';
+import mongoose from 'mongoose';
 
 // Create an exam (can be created with zero questions, status is 'draft')
 const createExam = asyncHandler(async (req, res) => {

@@ -61,7 +61,7 @@ router.get('/all', checkAuth, getAllExams);
 router.get('/search/:code', checkAuth, verifyStudent, searchExamByCode);
 
 // Fast list for the logged-in teacher
-router.get('/mine', checkAuth, verifyTeacher, getMyExams);
+router.get('/my', checkAuth, verifyTeacher, getMyExams);
 
 // Optional: ops/testing — trigger a sync now
 router.post('/sync-status', checkAuth, verifyTeacher, syncStatusesNow);
