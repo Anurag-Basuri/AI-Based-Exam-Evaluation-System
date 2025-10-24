@@ -6,7 +6,7 @@ import { ApiResponse } from '../utils/ApiResponse.js';
 
 // Create a question (called one by one before exam creation)
 const createQuestion = asyncHandler(async (req, res) => {
-	const { type, text, remarks, max_marks, options, answer } = req.body;
+	const { type, text, remarks, max_marks, options, answer, difficulty, tags } = req.body;
 	const teacherId = req.teacher?._id || req.user?.id;
 
 	if (!type || !text || !max_marks) {
@@ -32,6 +32,8 @@ const createQuestion = asyncHandler(async (req, res) => {
 		options,
 		answer: type === 'subjective' ? answer || null : undefined,
 		createdBy: teacherId,
+		difficulty: difficulty || 'medium',
+		tags: Array.isArray(tags) ? tags : [],
 	});
 
 	await question.save();
@@ -42,11 +44,23 @@ const createQuestion = asyncHandler(async (req, res) => {
 // Get all questions uploaded by the teacher with filters/pagination
 const getTeacherQuestions = asyncHandler(async (req, res) => {
 	const teacherId = req.teacher?._id || req.user?.id;
-	const { q, type, limit = 20, page = 1 } = req.query;
+	const { q, type, limit = 20, page = 1, difficulty, tags } = req.query;
 
 	const filter = { createdBy: teacherId };
 	if (type && ['multiple-choice', 'subjective'].includes(String(type))) {
 		filter.type = type;
+	}
+	if (difficulty) {
+		filter.difficulty = difficulty;
+	}
+	if (tags) {
+		const tagList = String(tags)
+			.split(',')
+			.map(t => t.trim())
+			.filter(Boolean);
+		if (tagList.length > 0) {
+			filter.tags = { $in: tagList };
+		}
 	}
 	if (q) {
 		filter.$or = [
@@ -88,7 +102,7 @@ const createQuestionsBulk = asyncHandler(async (req, res) => {
 
 	const docs = [];
 	for (const [idx, it] of items.entries()) {
-		const { type, text, remarks, max_marks, options, answer } = it || {};
+		const { type, text, remarks, max_marks, options, answer, difficulty, tags } = it || {};
 		if (!type || !text || !max_marks) {
 			throw ApiError.BadRequest(`Row ${idx + 1}: type, text, max_marks are required`);
 		}
@@ -108,6 +122,8 @@ const createQuestionsBulk = asyncHandler(async (req, res) => {
 			options,
 			answer: type === 'subjective' ? answer || null : undefined,
 			createdBy: teacherId,
+			difficulty: difficulty || 'medium',
+			tags: Array.isArray(tags) ? tags : [],
 		});
 	}
 
@@ -172,7 +188,7 @@ const updateQuestion = asyncHandler(async (req, res) => {
 	}
 
 	// Destructure after auth/locks
-	const { type, text, remarks, max_marks, options, answer } = req.body || {};
+	const { type, text, remarks, max_marks, options, answer, difficulty, tags } = req.body || {};
 
 	// Validate MCQ only if MCQ is intended or options are provided
 	if (type === 'multiple-choice' || (Array.isArray(options) && options.length > 0)) {
@@ -190,6 +206,8 @@ const updateQuestion = asyncHandler(async (req, res) => {
 	if (typeof remarks === 'string') updateFields.remarks = remarks;
 	if (max_marks !== undefined) updateFields.max_marks = max_marks;
 	if (Array.isArray(options)) updateFields.options = options;
+	if (difficulty) updateFields.difficulty = difficulty;
+	if (Array.isArray(tags)) updateFields.tags = tags;
 	if (type === 'subjective') updateFields.answer = answer || null;
 	if (!type && answer !== undefined && questionDoc.type === 'subjective') {
 		// allow updating answer for existing subjective without changing type
