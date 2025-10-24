@@ -164,108 +164,35 @@ const assertOwner = (doc, teacherId) => {
 
 // Update an exam (safe status transitions)
 const updateExam = asyncHandler(async (req, res) => {
-	const examId = req.params.id;
-	const { title, description, duration, questions, startTime, endTime, status, aiPolicy } =
-		req.body;
+	const { id } = req.params;
+	const { title, description, duration, startTime, endTime, aiPolicy } = req.body;
 	const teacherId = req.teacher?._id || req.user?.id;
 
-	if (!examId || !examId.match(/^[a-f\d]{24}$/i)) {
+	if (!id.match(/^[a-f\d]{24}$/i)) {
 		throw ApiError.BadRequest('Invalid exam ID');
 	}
 
-	const exam = await Exam.findById(examId);
+	const exam = await Exam.findById(id);
 	if (!exam) throw ApiError.NotFound('Exam not found');
-
-	// Ownership
 	assertOwner(exam, teacherId);
 
-	// Restrict status transitions
-	if (status && status !== exam.status) {
-		if (['completed', 'cancelled'].includes(exam.status)) {
-			throw ApiError.Forbidden('Cannot change status of a completed or cancelled exam.');
-		}
-		if (exam.status === 'draft' && status === 'active') {
-			const qArr = Array.isArray(questions) ? questions : exam.questions;
-			if (!qArr || qArr.length === 0) {
-				throw ApiError.BadRequest(
-					'Exam must have at least one question before activation.',
-				);
-			}
-		}
-		if (exam.status === 'active' && status === 'draft') {
-			throw ApiError.Forbidden('Cannot revert an active exam to draft.');
-		}
-		if (status === 'completed' && exam.status !== 'active') {
-			throw ApiError.Forbidden('Can only complete an active exam.');
-		}
+	// Prevent edits on exams that are locked (live, completed, cancelled)
+	const isLocked = isLive(exam) || ['completed', 'cancelled'].includes(exam.status);
+	if (isLocked) {
+		throw ApiError.Forbidden('Cannot modify details of a live, completed, or cancelled exam.');
 	}
 
-	// Validate times and allow edits:
-	// - Draft: full edits
-	// - Scheduled (active but not started): allow title/description/duration/start/end changes
-	// - Live/completed/cancelled: disallow time/title changes
-	const scheduled = isScheduled(exam);
-	const live = isLive(exam);
+	// Apply updates for draft or scheduled exams
+	if (title !== undefined) exam.title = title;
+	if (description !== undefined) exam.description = description;
+	if (duration !== undefined) exam.duration = duration;
+	if (startTime !== undefined) exam.startTime = startTime;
+	if (endTime !== undefined) exam.endTime = endTime;
+	if (aiPolicy !== undefined) exam.aiPolicy = aiPolicy;
 
-	if (live || ['completed', 'cancelled'].includes(exam.status)) {
-		if (
-			title !== undefined ||
-			description !== undefined ||
-			startTime !== undefined ||
-			endTime !== undefined ||
-			Array.isArray(questions) ||
-			aiPolicy !== undefined // Prevent AI policy changes on locked exams
-		) {
-			throw ApiError.Forbidden(
-				'Cannot modify details/questions/AI policy of a live/completed/cancelled exam',
-			);
-		}
-	}
+	await exam.save({ validateBeforeSave: true });
 
-	if (startTime && new Date(startTime) <= new Date()) {
-		throw ApiError.BadRequest('Start time must be in the future');
-	}
-	if (endTime && (startTime ? new Date(endTime) <= new Date(startTime) : false)) {
-		throw ApiError.BadRequest('End time must be after start time');
-	}
-	if (
-		!scheduled &&
-		exam.status !== 'draft' &&
-		(startTime !== undefined || endTime !== undefined)
-	) {
-		throw ApiError.Forbidden('Only draft or scheduled (not started) exams can change schedule');
-	}
-
-	// If questions provided on a draft exam, validate ownership
-	if (Array.isArray(questions)) {
-		if (exam.status !== 'draft') {
-			throw ApiError.Forbidden('Can only change questions on a draft exam');
-		}
-		const owned = await Question.find({ _id: { $in: questions }, createdBy: teacherId }).select(
-			'_id',
-		);
-		if (owned.length !== questions.length) {
-			throw ApiError.BadRequest('Some questions do not belong to you or do not exist');
-		}
-	}
-
-	// Only update fields provided
-	const updateFields = {};
-	if (title !== undefined) updateFields.title = title;
-	if (description !== undefined) updateFields.description = description;
-	if (duration !== undefined) updateFields.duration = duration;
-	if (startTime !== undefined) updateFields.startTime = startTime;
-	if (endTime !== undefined) updateFields.endTime = endTime;
-	if (status !== undefined) updateFields.status = status;
-	if (Array.isArray(questions)) updateFields.questions = questions;
-	if (aiPolicy !== undefined) updateFields.aiPolicy = aiPolicy; // Add AI policy to update fields
-
-	const updatedExam = await Exam.findByIdAndUpdate(examId, updateFields, {
-		new: true,
-		runValidators: true,
-	});
-
-	return ApiResponse.success(res, updatedExam, 'Exam updated successfully');
+	return ApiResponse.success(res, exam, 'Exam updated successfully');
 });
 
 // Delete an exam (owner-only, not when live or scheduled)
