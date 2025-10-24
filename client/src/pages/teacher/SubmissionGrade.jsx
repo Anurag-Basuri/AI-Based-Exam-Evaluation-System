@@ -37,7 +37,9 @@ const AnswerCard = ({ answer, evaluation, onUpdate, disabled }) => {
 			<i style={{ color: 'var(--text-muted)' }}>No option selected.</i>
 		);
 	} else if (answer.responseText) {
-		studentResponse = <p style={{ whiteSpace: 'pre-wrap' }}>{answer.responseText}</p>;
+		studentResponse = (
+			<p style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{answer.responseText}</p>
+		);
 	}
 
 	return (
@@ -45,7 +47,8 @@ const AnswerCard = ({ answer, evaluation, onUpdate, disabled }) => {
 			style={{
 				background: 'var(--surface)',
 				border: '1px solid var(--border)',
-				borderRadius: 12,
+				borderRadius: 16,
+				boxShadow: 'var(--shadow-sm)',
 			}}
 		>
 			<div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
@@ -53,25 +56,42 @@ const AnswerCard = ({ answer, evaluation, onUpdate, disabled }) => {
 					style={{
 						display: 'flex',
 						justifyContent: 'space-between',
-						alignItems: 'center',
+						alignItems: 'flex-start',
+						gap: 12,
 					}}
 				>
-					<h4 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>{question.text}</h4>
-					<span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>
-						Max Marks: {question.max_marks}
+					<h4 style={{ margin: 0, fontSize: 16, fontWeight: 700, lineHeight: 1.4 }}>
+						{question.text}
+					</h4>
+					<span
+						style={{
+							fontSize: 12,
+							fontWeight: 700,
+							color: 'var(--text)',
+							background: 'var(--bg)',
+							border: '1px solid var(--border)',
+							padding: '4px 8px',
+							borderRadius: 6,
+							whiteSpace: 'nowrap',
+						}}
+					>
+						{question.max_marks} Marks
 					</span>
 				</div>
 			</div>
 			<div style={{ padding: '16px 20px', background: 'var(--bg)' }}>
-				<strong style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+				<strong style={{ fontSize: 13, color: 'var(--text-muted)', display: 'block' }}>
 					Student's Answer
 				</strong>
-				<div style={{ marginTop: 8 }}>{studentResponse}</div>
+				<div style={{ marginTop: 8, fontSize: 15 }}>{studentResponse}</div>
 			</div>
 			<div style={{ padding: '16px 20px' }}>
-				<div style={{ display: 'grid', gridTemplateColumns: '1fr 120px', gap: 16 }}>
+				<div
+					className="grade-inputs"
+					style={{ display: 'grid', gridTemplateColumns: '1fr 120px', gap: 16 }}
+				>
 					<div>
-						<label style={{ fontSize: 13, fontWeight: 600 }}>
+						<label style={{ fontSize: 13, fontWeight: 600, display: 'block' }}>
 							Remarks {teacherEval && '(Edited by you)'}
 						</label>
 						<textarea
@@ -79,11 +99,20 @@ const AnswerCard = ({ answer, evaluation, onUpdate, disabled }) => {
 							onChange={handleRemarksChange}
 							disabled={disabled}
 							rows="3"
-							style={{ width: '100%', marginTop: 4, resize: 'vertical' }}
+							style={{
+								width: '100%',
+								marginTop: 4,
+								resize: 'vertical',
+								padding: '8px 12px',
+								borderRadius: 8,
+								border: '1px solid var(--border)',
+							}}
 						/>
 					</div>
 					<div>
-						<label style={{ fontSize: 13, fontWeight: 600 }}>Marks</label>
+						<label style={{ fontSize: 13, fontWeight: 600, display: 'block' }}>
+							Marks
+						</label>
 						<input
 							type="number"
 							value={marks}
@@ -91,11 +120,27 @@ const AnswerCard = ({ answer, evaluation, onUpdate, disabled }) => {
 							disabled={disabled}
 							max={question.max_marks}
 							min={0}
-							style={{ width: '100%', marginTop: 4, textAlign: 'center' }}
+							style={{
+								width: '100%',
+								marginTop: 4,
+								textAlign: 'center',
+								padding: '8px 12px',
+								borderRadius: 8,
+								border: '1px solid var(--border)',
+								fontSize: 16,
+								fontWeight: 700,
+							}}
 						/>
 					</div>
 				</div>
 			</div>
+			<style>{`
+        @media (max-width: 480px) {
+          .grade-inputs {
+            grid-template-columns: 1fr;
+          }
+        }
+      `}</style>
 		</div>
 	);
 };
@@ -150,7 +195,7 @@ const TeacherSubmissionGrade = () => {
 				payload,
 			);
 			success('Grades updated successfully!');
-			navigate(`/teacher/results/${submission.exam._id}`);
+			navigate(`/teacher/results/${examId}`);
 		} catch (e) {
 			toastError(e.message || 'Failed to save changes.');
 		} finally {
@@ -158,7 +203,8 @@ const TeacherSubmissionGrade = () => {
 		}
 	};
 
-	if (loading) return <div>Loading Grading Interface...</div>;
+	if (loading)
+		return <div style={{ textAlign: 'center', padding: 40 }}>Loading Grading Interface...</div>;
 	if (error) return <Alert type="error">{error}</Alert>;
 	if (!submission) return <Alert>Submission data could not be found.</Alert>;
 
@@ -167,32 +213,49 @@ const TeacherSubmissionGrade = () => {
 
 	return (
 		<div>
-			<div
-				style={{
-					display: 'flex',
-					justifyContent: 'space-between',
-					alignItems: 'center',
-					flexWrap: 'wrap',
-					gap: 16,
-				}}
-			>
-				<PageHeader
-					title={`Grading: ${submission.student.fullname}`}
-					subtitle={`For exam: ${submission.exam.title}`}
-				/>
-				<div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-					{/* NEW: Back button for better navigation */}
+			<PageHeader
+				title={`Grading: ${submission.student.fullname}`}
+				subtitle={`For exam: ${submission.exam.title}`}
+				breadcrumbs={[
+					{ label: 'Home', to: '/teacher' },
+					{ label: 'Results', to: '/teacher/results' },
+					{ label: submission.exam.title, to: `/teacher/results/${examId}` },
+					{ label: 'Grade' },
+				]}
+				actions={[
 					<button
+						key="back"
 						onClick={() => navigate(`/teacher/results/${examId}`)}
-						style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}
+						className="tap"
+						style={{
+							padding: '10px 16px',
+							background: 'var(--bg)',
+							border: '1px solid var(--border)',
+							borderRadius: 8,
+							fontWeight: 700,
+						}}
 					>
 						← Back to Submissions
-					</button>
-					<button onClick={handleSaveChanges} disabled={saving}>
+					</button>,
+					<button
+						key="save"
+						onClick={handleSaveChanges}
+						disabled={saving}
+						className="tap"
+						style={{
+							padding: '10px 16px',
+							background: 'linear-gradient(135deg, #10b981, #059669)',
+							color: '#fff',
+							border: 'none',
+							borderRadius: 8,
+							fontWeight: 700,
+							opacity: saving ? 0.6 : 1,
+						}}
+					>
 						{saving ? 'Saving...' : 'Save All Changes'}
-					</button>
-				</div>
-			</div>
+					</button>,
+				]}
+			/>
 
 			<div style={{ display: 'grid', gap: 24, marginTop: 24 }}>
 				{Array.from(answersMap.keys()).map(questionId => (
