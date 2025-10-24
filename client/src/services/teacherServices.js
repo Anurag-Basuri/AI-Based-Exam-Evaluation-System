@@ -100,7 +100,7 @@ const EP = {
 	exams: '/api/exams/my',
 	examById: id => `/api/exams/${encodeURIComponent(id)}`,
 	examCreate: '/api/exams/create',
-	examUpdate: id => `/api/exams/${encodeURIComponent(id)}`,
+	examUpdate: id => `/api/exams/${encodeURIComponent(id)}/update`, // FIX: Corrected route
 	examDelete: id => `/api/exams/${encodeURIComponent(id)}`,
 	examPublish: id => `/api/exams/${encodeURIComponent(id)}/publish`,
 	examDuplicate: id => `/api/exams/${encodeURIComponent(id)}/duplicate`,
@@ -108,6 +108,10 @@ const EP = {
 	examAddQuestions: id => `/api/exams/${encodeURIComponent(id)}/questions`,
 	examRemoveQuestions: id => `/api/exams/${encodeURIComponent(id)}/questions/remove`,
 	examReorder: id => `/api/exams/${encodeURIComponent(id)}/reorder`,
+	examEndNow: id => `/api/exams/${encodeURIComponent(id)}/end-now`,
+	examCancel: id => `/api/exams/${encodeURIComponent(id)}/cancel`,
+	examExtend: id => `/api/exams/${encodeURIComponent(id)}/extend`,
+	examRegenerateCode: id => `/api/exams/${encodeURIComponent(id)}/regenerate-code`,
 
 	// Questions
 	questions: '/api/questions/my',
@@ -309,22 +313,24 @@ export const updateExam = async (examId, body = {}) => {
 };
 
 export const endExamNow = async examId => {
-	const res = await tryPost(EP.examUpdate(examId), { status: 'completed' });
+	// FIX: Call the correct, specific endpoint
+	const res = await tryPost(EP.examEndNow(examId));
 	return normalizeExam(res?.data?.data ?? res?.data ?? {});
 };
 
 export const cancelExam = async examId => {
-	const res = await tryPost(EP.examUpdate(examId), { status: 'cancelled' });
+	// FIX: Call the correct, specific endpoint
+	const res = await tryPost(EP.examCancel(examId));
 	return normalizeExam(res?.data?.data ?? res?.data ?? {});
 };
 
 export const extendExamEnd = async (examId, { minutes }) => {
-	const res = await tryPost(EP.examUpdate(examId), { extend: { minutes } });
+	const res = await tryPatch(EP.examExtend(examId), { minutes });
 	return normalizeExam(res?.data?.data ?? res?.data ?? {});
 };
 
 export const regenerateExamShareCode = async examId => {
-	const res = await tryPost(EP.examUpdate(examId), { regenerateCode: true });
+	const res = await tryPost(EP.examRegenerateCode(examId));
 	return normalizeExam(res?.data?.data ?? res?.data ?? {});
 };
 

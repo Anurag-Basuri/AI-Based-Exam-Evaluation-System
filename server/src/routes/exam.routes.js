@@ -56,10 +56,11 @@ router.patch(
 // Get all exams (optionally filter by teacher)
 router.get('/all', checkAuth, getAllExams);
 
-// Student: search exam by search ID (keep before '/:id')
+// --- IMPORTANT: Place specific string routes BEFORE dynamic /:id routes ---
+// Student: search exam by search ID
 router.get('/search/:code', checkAuth, verifyStudent, searchExamByCode);
 
-// Fast list for the logged-in teacher  <-- move this BEFORE '/:id'
+// Fast list for the logged-in teacher
 router.get('/mine', checkAuth, verifyTeacher, getMyExams);
 
 // Optional: ops/testing — trigger a sync now
