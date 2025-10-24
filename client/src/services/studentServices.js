@@ -98,21 +98,18 @@ const EP = {
 
 	// Submissions (student-facing)
 	submissionStart: examId => [
-		'/api/submissions/start', // body: { examId }
-		`/api/submissions/start/${encodeURIComponent(examId)}`,
-		'/api/submissions',
+		`/api/submissions/start/${encodeURIComponent(examId)}`, // Preferred: by param
+		'/api/submissions/start', // Fallback: by body
 	],
-	submissionsMine: [
-		'/api/submissions/my', // server route
-		'/api/submissions/me',
-		'/api/submissions/student',
-	],
+	// FIX: Corrected endpoint to match submission.routes.js
+	submissionsMine: ['/api/submissions/my-submissions'],
 	submissionById: id => `/api/submissions/${encodeURIComponent(id)}`,
-	submissionSync: ['/api/submissions/sync'], // body: { examId, answers }
-	submissionSubmitBody: ['/api/submissions/submit'], // body: { examId }
+	// FIX: This endpoint is for syncing by submission ID, not examId. Renamed for clarity.
+	submissionSyncById: id => `/api/submissions/${encodeURIComponent(id)}/answers`,
+	submissionSubmitById: id => `/api/submissions/${encodeURIComponent(id)}/submit`,
 
 	// Issues (student-facing)
-	issuesMine: ['/api/issues/me', '/api/issues/student', '/api/issues/my'],
+	issuesMine: ['/api/issues/my', '/api/issues/student', '/api/issues/me'],
 	issueCreate: ['/api/issues/create', '/api/issues'],
 	issueById: id => `/api/issues/${encodeURIComponent(id)}`,
 	issueReply: id => [
@@ -265,32 +262,17 @@ export const startSubmission = async examId => {
 // Alias for UI import
 export const startExam = async examId => startSubmission(examId);
 
-// Search by code (8-char) - removed duplicate declaration to avoid redeclaration error
-// Using the earlier normalized implementation defined above.
-
-// Preferred server-aligned sync: by examId
-export const syncSubmissionAnswers = async (examId, answers = []) => {
-	const res = await tryPatch(EP.submissionSync, { examId, answers });
-	const data = res?.data?.data ?? res?.data ?? {};
-	return normalizeSubmission(data);
-};
-
-// Save answers
+// Save answers (and markedForReview) for a given submission ID
 export const saveSubmissionAnswers = async (submissionId, payload) => {
-	const res = await tryPatch(
-		[`/api/submissions/${encodeURIComponent(submissionId)}/answers`],
-		payload,
-	);
+	// FIX: The backend route uses POST, not PATCH.
+	const res = await tryPost([EP.submissionSyncById(submissionId)], payload);
 	const data = res?.data?.data ?? res?.data ?? {};
 	return normalizeSubmission(data);
 };
 
-// Submit
+// Submit by submission ID
 export const submitSubmission = async (submissionId, payload) => {
-	const res = await tryPost(
-		[`/api/submissions/${encodeURIComponent(submissionId)}/submit`],
-		payload,
-	);
+	const res = await tryPost([EP.submissionSubmitById(submissionId)], payload);
 	const data = res?.data?.data ?? res?.data ?? {};
 	return normalizeSubmission(data);
 };
