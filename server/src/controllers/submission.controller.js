@@ -362,17 +362,26 @@ const getSubmission = asyncHandler(async (req, res) => {
 
 // Get all submissions for an exam (for teacher)
 const getExamSubmissions = asyncHandler(async (req, res) => {
-	const examId = req.params.id;
-	if (!examId) throw ApiError.BadRequest('Exam ID required');
-	const submissions = await Submission.find({ exam: examId })
-		.populate('student', 'username fullname email')
-		.populate({
-			path: 'answers.question',
-			model: 'Question',
-		})
-		.lean();
+    const examId = req.params.id;
+    if (!examId) throw ApiError.BadRequest('Exam ID required');
+    const submissions = await Submission.find({ exam: examId })
+        .populate('student', 'username fullname email')
+        .select('student status evaluations startedAt submittedAt violations') // Select violations
+        .lean();
 
-	return ApiResponse.success(res, submissions, 'Exam submissions fetched');
+    // Manually calculate totalMarks for the lean object
+    const results = submissions.map(sub => {
+        const totalMarks = (sub.evaluations || []).reduce(
+            (sum, ev) => sum + (ev?.evaluation?.marks || 0),
+            0,
+        );
+        return {
+            ...sub,
+            totalMarks, // Add totalMarks field
+        };
+    });
+
+    return ApiResponse.success(res, results, 'Exam submissions fetched');
 });
 
 // --- Get a single submission with full details for a teacher to grade ---

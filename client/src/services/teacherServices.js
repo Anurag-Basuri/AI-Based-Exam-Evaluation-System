@@ -188,11 +188,8 @@ const normalizeExam = e => {
 };
 
 const normalizeSubmission = s => {
-	const score =
-		s?.totalScore ??
-		(Array.isArray(s?.evaluations)
-			? s.evaluations.reduce((acc, ev) => acc + (ev?.evaluation?.marks || 0), 0)
-			: (s?.score ?? null));
+	// Use the pre-calculated totalMarks from the backend if available
+	const score = s?.totalMarks ?? s?.totalScore ?? s?.score ?? null;
 
 	const maxScore =
 		s?.maxScore ??
@@ -209,6 +206,7 @@ const normalizeSubmission = s => {
 		status: String(s?.status ?? 'pending').toLowerCase(),
 		score,
 		maxScore,
+		violations: Array.isArray(s.violations) ? s.violations : [],
 		startedAt: s?.startedAt ? new Date(s.startedAt).toLocaleString() : '',
 		submittedAt: s?.submittedAt ? new Date(s.submittedAt).toLocaleString() : '',
 		evaluatedAt: s?.evaluatedAt ? new Date(s.evaluatedAt).toLocaleString() : '',
