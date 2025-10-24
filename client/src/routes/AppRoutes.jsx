@@ -84,11 +84,8 @@ const AppRoutes = () => (
 				<Route path="/teacher" element={withBoundary(<TeacherDash />)}>
 					<Route index element={withBoundary(<TeacherHome />)} />
 					<Route path="exams" element={withBoundary(<TeacherExams />)} />
-					{/* FIX: Use correct component name and a consistent path */}
 					<Route path="exams/create" element={withBoundary(<TeacherExamCreate />)} />
-					{/* FIX: Use correct component name and a consistent path */}
 					<Route path="exams/edit/:id" element={withBoundary(<TeacherExamEdit />)} />
-
 					<Route path="results" element={withBoundary(<TeacherResults />)} />
 					<Route path="results/:examId" element={withBoundary(<TeacherResults />)} />
 

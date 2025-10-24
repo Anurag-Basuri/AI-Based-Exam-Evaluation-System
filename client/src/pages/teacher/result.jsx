@@ -52,99 +52,130 @@ const statusConfig = {
 
 // View 1: List of Exams with Submissions
 const ExamResultsOverview = () => {
-    const navigate = useNavigate();
-    const [loading, setLoading] = React.useState(true);
-    const [error, setError] = React.useState('');
-    const [exams, setExams] = React.useState([]);
+	const navigate = useNavigate();
+	const [loading, setLoading] = React.useState(true);
+	const [error, setError] = React.useState('');
+	const [exams, setExams] = React.useState([]);
 
-    React.useEffect(() => {
-        const loadExamsWithSubmissions = async () => {
-            setLoading(true);
-            try {
-                // FIX: Pass the 'hasSubmissions: true' parameter to fetch only relevant exams.
-                // This was the root cause of the invalid data issue.
-                const res = await TeacherSvc.safeApiCall(TeacherSvc.getTeacherExams, {
-                    hasSubmissions: true,
-                });
-                // The service now correctly returns only exams with submissions.
-                setExams(res?.items || []);
-            } catch (e) {
-                setError(e.message || 'Failed to load exam results.');
-            } finally {
-                setLoading(false);
-            }
-        };
-        loadExamsWithSubmissions();
-    }, []);
+	React.useEffect(() => {
+		const loadExamsWithSubmissions = async () => {
+			setLoading(true);
+			try {
+				// FIX: Pass the 'hasSubmissions: true' parameter to fetch only relevant exams.
+				// This was the root cause of the invalid data issue.
+				const res = await TeacherSvc.safeApiCall(TeacherSvc.getTeacherExams, {
+					hasSubmissions: true,
+				});
+				// The service now correctly returns only exams with submissions.
+				setExams(res?.items || []);
+			} catch (e) {
+				setError(e.message || 'Failed to load exam results.');
+			} finally {
+				setLoading(false);
+			}
+		};
+		loadExamsWithSubmissions();
+	}, []);
 
-    if (loading) return <div>Loading Exam Results...</div>;
-    if (error) return <Alert type="error">{error}</Alert>;
+	if (loading)
+		return <div style={{ textAlign: 'center', padding: 40 }}>Loading Exam Results...</div>;
+	if (error) return <Alert type="error">{error}</Alert>;
 
-    return (
+	return (
 		<div>
 			<PageHeader
 				title="Exam Results"
 				subtitle="Select an exam to view and manage its submissions."
+				breadcrumbs={[{ label: 'Home', to: '/teacher' }, { label: 'Results' }]}
 			/>
 			{exams.length === 0 ? (
 				<Alert>No exams with submissions found.</Alert>
 			) : (
-				<div style={{ display: 'grid', gap: 24 }}>
+				<div
+					style={{
+						display: 'grid',
+						gap: 20,
+						gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 450px), 1fr))',
+					}}
+				>
 					{exams.map(exam => (
 						<article
-							key={exam._id}
+							key={exam.id}
 							style={{
 								background: 'var(--surface)',
 								border: '1px solid var(--border)',
 								borderRadius: 16,
-								padding: 24,
+								display: 'flex',
+								flexDirection: 'column',
 								boxShadow: 'var(--shadow-sm)',
+								transition: 'all .2s ease',
+							}}
+							onMouseEnter={e => {
+								e.currentTarget.style.transform = 'translateY(-2px)';
+								e.currentTarget.style.boxShadow = 'var(--shadow-lg)';
+							}}
+							onMouseLeave={e => {
+								e.currentTarget.style.transform = 'translateY(0)';
+								e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
 							}}
 						>
-							<h3 style={{ marginTop: 0, fontSize: 20, fontWeight: 800 }}>
-								{exam.title}
-							</h3>
-							<div
-								style={{
-									display: 'grid',
-									gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-									gap: 16,
-									marginBottom: 24,
-								}}
-							>
-								<StatCard
-									label="Total Submissions"
-									value={exam.submissionCount}
-									icon="📋"
-									color="#3b82f6"
-								/>
-								<StatCard
-									label="Ready to Publish"
-									value={exam.evaluatedCount}
-									icon="🤖"
-									color="#10b981"
-								/>
-								<StatCard
-									label="Results Published"
-									value={exam.publishedCount}
-									icon="✅"
-									color="#8b5cf6"
-								/>
+							<div style={{ padding: '20px 24px', flex: 1 }}>
+								<h3
+									style={{
+										marginTop: 0,
+										fontSize: 18,
+										fontWeight: 800,
+										lineHeight: 1.3,
+									}}
+								>
+									{exam.title}
+								</h3>
+								<div
+									style={{
+										display: 'grid',
+										gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+										gap: 12,
+										marginTop: 16,
+									}}
+								>
+									<StatCard
+										label="Total Submissions"
+										value={exam.submissions}
+										icon="📋"
+										color="#3b82f6"
+									/>
+									<StatCard
+										label="Ready to Publish"
+										value={exam.evaluatedCount}
+										icon="🤖"
+										color="#10b981"
+									/>
+									<StatCard
+										label="Results Published"
+										value={exam.publishedCount}
+										icon="✅"
+										color="#8b5cf6"
+									/>
+								</div>
 							</div>
-							<button
-								onClick={() => navigate(`/teacher/results/${exam.id}`)} // Use the normalized 'id' field
-								style={{
-									width: '100%',
-									padding: '12px',
-									background: 'var(--bg)',
-									border: '1px solid var(--border)',
-									borderRadius: 10,
-									fontWeight: 700,
-									cursor: 'pointer',
-								}}
-							>
-								View Submissions →
-							</button>
+							<div style={{ padding: '0 24px 20px' }}>
+								<button
+									onClick={() => navigate(`/teacher/results/${exam.id}`)}
+									className="tap"
+									style={{
+										width: '100%',
+										padding: '12px',
+										background: 'var(--bg)',
+										border: '1px solid var(--border)',
+										borderRadius: 10,
+										fontWeight: 700,
+										cursor: 'pointer',
+										fontSize: 14,
+									}}
+								>
+									View Submissions →
+								</button>
+							</div>
 						</article>
 					))}
 				</div>
@@ -166,12 +197,15 @@ const ExamSubmissionsDetail = () => {
 
 	const loadSubmissions = React.useCallback(async () => {
 		setLoading(true);
+		setError('');
 		try {
-			const data = await TeacherSvc.safeApiCall(TeacherSvc.getTeacherSubmissions, examId);
-			setSubmissions(data || []);
-			if (data.length > 0) {
-				setExamTitle(data[0].exam?.title || 'Submissions');
-			}
+			// Fetch both exam details and submissions
+			const [examData, submissionsData] = await Promise.all([
+				TeacherSvc.safeApiCall(TeacherSvc.getTeacherExamById, examId),
+				TeacherSvc.safeApiCall(TeacherSvc.getTeacherSubmissions, examId),
+			]);
+			setExamTitle(examData?.title || 'Submissions');
+			setSubmissions(submissionsData || []);
 		} catch (e) {
 			setError(e.message || 'Failed to load submissions.');
 		} finally {
@@ -209,107 +243,148 @@ const ExamSubmissionsDetail = () => {
 		}
 	};
 
-	if (loading) return <div>Loading Submissions...</div>;
+	if (loading)
+		return <div style={{ textAlign: 'center', padding: 40 }}>Loading Submissions...</div>;
 	if (error) return <Alert type="error">{error}</Alert>;
 
 	const evaluatedCount = submissions.filter(s => s.status === 'evaluated').length;
 
 	return (
 		<div>
-			<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-				<PageHeader
-					title={examTitle}
-					subtitle={`Managing ${submissions.length} submissions`}
-				/>
-				<button
-					onClick={handlePublishAll}
-					disabled={publishing.all || evaluatedCount === 0}
-					style={{
-						padding: '10px 16px',
-						background: '#8b5cf6',
-						color: 'white',
-						border: 'none',
-						borderRadius: 8,
-						fontWeight: 700,
-						cursor: 'pointer',
-						opacity: publishing.all || evaluatedCount === 0 ? 0.5 : 1,
-					}}
-				>
-					{publishing.all ? 'Publishing...' : `Publish All (${evaluatedCount})`}
-				</button>
-			</div>
+			<PageHeader
+				title={examTitle}
+				subtitle={`Managing ${submissions.length} submissions`}
+				breadcrumbs={[
+					{ label: 'Home', to: '/teacher' },
+					{ label: 'Results', to: '/teacher/results' },
+					{ label: examTitle },
+				]}
+				actions={[
+					<button
+						key="publish"
+						onClick={handlePublishAll}
+						disabled={publishing.all || evaluatedCount === 0}
+						className="tap"
+						style={{
+							padding: '10px 16px',
+							background: 'linear-gradient(135deg, #8b5cf6, #6d28d9)',
+							color: 'white',
+							border: 'none',
+							borderRadius: 8,
+							fontWeight: 700,
+							cursor: 'pointer',
+							opacity: publishing.all || evaluatedCount === 0 ? 0.6 : 1,
+						}}
+					>
+						{publishing.all ? 'Publishing...' : `Publish All (${evaluatedCount})`}
+					</button>,
+				]}
+			/>
+			<style>{`
+        .sub-row {
+          display: grid;
+          grid-template-columns: 2fr 1fr 1fr auto;
+          align-items: center;
+          gap: 16px;
+          padding: 12px 20px;
+          background: var(--surface);
+          border: 1px solid var(--border);
+          border-radius: 12px;
+        }
+        @media (max-width: 768px) {
+          .sub-row {
+            grid-template-columns: 1fr;
+            gap: 12px;
+            padding: 16px;
+          }
+          .sub-row-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            width: 100%;
+          }
+          .sub-row-actions > button {
+            width: 100%;
+            padding: 10px;
+          }
+        }
+      `}</style>
 
-			<div style={{ display: 'grid', gap: 16 }}>
-				{submissions.map(sub => {
-					const config = statusConfig[sub.status] || {};
-					const totalScore = (sub.evaluations || []).reduce(
-						(acc, e) => acc + (e.evaluation?.marks || 0),
-						0,
-					);
-					// Calculate the maximum possible score for the submission
-					const maxScore = (sub.answers || []).reduce(
-						(acc, a) => acc + (a.question?.max_marks || 0),
-						0,
-					);
-					return (
-						<div
-							key={sub._id}
-							style={{
-								display: 'grid',
-								gridTemplateColumns: '1fr 1fr auto auto',
-								alignItems: 'center',
-								gap: 16,
-								padding: '12px 20px',
-								background: 'var(--surface)',
-								border: '1px solid var(--border)',
-								borderRadius: 12,
-							}}
-						>
-							<strong>{sub.student?.fullname || 'Unknown Student'}</strong>
-							<div>
-								{/* Show score relative to max score */}
-								Score:{' '}
-								<strong>
-									{totalScore.toFixed(1)} / {maxScore}
-								</strong>
-							</div>
-							<div
-								style={{
-									display: 'inline-flex',
-									alignItems: 'center',
-									gap: 6,
-									padding: '4px 10px',
-									borderRadius: 20,
-									background: config.color,
-									color: 'white',
-									fontSize: 12,
-									fontWeight: 700,
-								}}
-							>
-								{config.icon} {config.label}
-							</div>
-							<div style={{ display: 'flex', gap: 8 }}>
-								<button
-									onClick={() =>
-										navigate(`/teacher/results/${examId}/grade/${sub._id}`)
-									}
-									disabled={sub.status === 'in-progress'}
+			{submissions.length === 0 ? (
+				<Alert>No submissions found for this exam yet.</Alert>
+			) : (
+				<div style={{ display: 'grid', gap: 12 }}>
+					{submissions.map(sub => {
+						const config = statusConfig[sub.status] || {};
+						return (
+							<div key={sub.id} className="sub-row">
+								<div style={{ fontWeight: 700, color: 'var(--text)' }}>
+									{sub.studentName || 'Unknown Student'}
+								</div>
+								<div>
+									Score:{' '}
+									<strong style={{ color: 'var(--text)' }}>
+										{(sub.score ?? 0).toFixed(1)} / {sub.maxScore ?? 'N/A'}
+									</strong>
+								</div>
+								<div
+									style={{
+										display: 'inline-flex',
+										alignItems: 'center',
+										gap: 6,
+										padding: '4px 10px',
+										borderRadius: 20,
+										background: config.color,
+										color: 'white',
+										fontSize: 12,
+										fontWeight: 700,
+									}}
 								>
-									View/Grade
-								</button>
-								{sub.status === 'evaluated' && (
+									{config.icon} {config.label}
+								</div>
+								<div
+									className="sub-row-actions"
+									style={{ display: 'flex', gap: 8 }}
+								>
 									<button
-										onClick={() => handlePublishSingle(sub._id)}
-										disabled={publishing.single === sub._id}
+										onClick={() =>
+											navigate(`/teacher/results/${examId}/grade/${sub.id}`)
+										}
+										disabled={sub.status === 'in-progress'}
+										className="tap"
+										style={{
+											padding: '8px 12px',
+											fontWeight: 600,
+											borderRadius: 6,
+											border: '1px solid var(--border)',
+											background: 'var(--bg)',
+										}}
 									>
-										{publishing.single === sub._id ? '...' : 'Publish'}
+										View/Grade
 									</button>
-								)}
+									{sub.status === 'evaluated' && (
+										<button
+											onClick={() => handlePublishSingle(sub.id)}
+											disabled={publishing.single === sub.id}
+											className="tap"
+											style={{
+												padding: '8px 12px',
+												fontWeight: 600,
+												borderRadius: 6,
+												border: 'none',
+												background: 'var(--primary-gradient)',
+												color: '#fff',
+											}}
+										>
+											{publishing.single === sub.id ? '...' : 'Publish'}
+										</button>
+									)}
+								</div>
 							</div>
-						</div>
-					);
-				})}
-			</div>
+						);
+					})}
+				</div>
+			)}
 		</div>
 	);
 };
