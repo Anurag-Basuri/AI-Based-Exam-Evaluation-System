@@ -7,28 +7,17 @@ import { useTheme } from '../hooks/useTheme.js';
 import { useAuth } from '../hooks/useAuth.js';
 import { safeApiCall, getTeacherIssues } from '../services/teacherServices.js';
 
-const SIDEBAR_WIDTH = 280;
-const MOBILE_BREAKPOINT = 1024;
-
 const TeacherDash = () => {
 	const { theme } = useTheme();
 	const { user, logout } = useAuth();
-
-	const [isMobile, setIsMobile] = React.useState(
-		typeof window !== 'undefined' ? window.innerWidth < MOBILE_BREAKPOINT : false,
-	);
-	const [sidebarOpen, setSidebarOpen] = React.useState(false);
+	const [sidebarOpen, setSidebarOpen] = React.useState(window.innerWidth >= 1024);
 	const [loggingOutFooter, setLoggingOutFooter] = React.useState(false);
 	const [openIssuesCount, setOpenIssuesCount] = React.useState(0);
 
 	React.useEffect(() => {
 		const onResize = () => {
-			const mobile = window.innerWidth < MOBILE_BREAKPOINT;
-			setIsMobile(mobile);
-			if (!mobile) setSidebarOpen(true);
-			else setSidebarOpen(false);
+			setSidebarOpen(window.innerWidth >= 1024);
 		};
-		onResize();
 		window.addEventListener('resize', onResize);
 		return () => window.removeEventListener('resize', onResize);
 	}, []);
@@ -183,7 +172,6 @@ const TeacherDash = () => {
 		() => [
 			{ key: 'home', label: 'Overview', icon: '📊', to: '/teacher', end: true },
 			{ key: 'exams', label: 'Exams', icon: '📝', to: '/teacher/exams' },
-			// The `end` prop is important here to distinguish from the detail view
 			{ key: 'results', label: 'Submissions', icon: '📋', to: '/teacher/results', end: true },
 			{
 				key: 'issues',
@@ -199,110 +187,105 @@ const TeacherDash = () => {
 
 	return (
 		<>
-			{/* Mobile Drawer Sidebar */}
-			{isMobile && (
-				<ErrorBoundary>
-					<Sidebar
-						header={headerEl}
-						footer={footerEl}
-						width={SIDEBAR_WIDTH}
-						collapsedWidth={SIDEBAR_WIDTH}
-						theme={theme}
-						items={items}
-						collapsible={true}
-						expanded={sidebarOpen}
-						onToggle={setSidebarOpen}
-						mobileBreakpoint={MOBILE_BREAKPOINT}
-					/>
-				</ErrorBoundary>
-			)}
+			<style>{`
+        :root {
+          --sidebar-width: 280px;
+          --sidebar-width-collapsed: 0px;
+          --page-padding: 16px;
+        }
+        .teacher-dash-layout {
+          display: grid;
+          grid-template-columns: var(--sidebar-width-collapsed) 1fr;
+          gap: var(--page-padding);
+          padding: var(--page-padding);
+          align-items: start;
+          min-height: calc(100dvh - var(--header-h, 64px));
+          background: ${
+				theme === 'dark'
+					? 'radial-gradient(ellipse at top left, rgba(59,130,246,0.05) 0%, transparent 50%), var(--bg)'
+					: 'radial-gradient(ellipse at top left, rgba(59,130,246,0.06) 0%, transparent 50%), var(--bg)'
+			};
+          transition: grid-template-columns 0.3s ease-in-out;
+        }
+        @media (min-width: 1024px) {
+          .teacher-dash-layout {
+            grid-template-columns: var(--sidebar-width) 1fr;
+          }
+        }
+      `}</style>
 
-			{/* Desktop: sticky sidebar + content */}
-			<div
-				style={{
-					display: 'grid',
-					gridTemplateColumns: isMobile ? '1fr' : `${SIDEBAR_WIDTH}px 1fr`,
-					gap: 16,
-					padding: 16,
-					alignItems: 'start',
-					minHeight: `calc(100dvh - var(--header-h, 64px))`,
-					background:
-						theme === 'dark'
-							? 'radial-gradient(ellipse at top left, rgba(59,130,246,0.05) 0%, transparent 50%), var(--bg)'
-							: 'radial-gradient(ellipse at top left, rgba(59,130,246,0.06) 0%, transparent 50%), var(--bg)',
-				}}
-			>
-				{!isMobile && (
+			<div className="teacher-dash-layout">
+				<aside>
 					<ErrorBoundary>
-						<aside style={{ width: SIDEBAR_WIDTH }}>
-							<Sidebar
-								header={headerEl}
-								footer={footerEl}
-								width={SIDEBAR_WIDTH}
-								collapsedWidth={SIDEBAR_WIDTH}
-								theme={theme}
-								items={items}
-								collapsible={true}
-								expanded={true}
-								mobileBreakpoint={MOBILE_BREAKPOINT}
-							/>
-						</aside>
+						<Sidebar
+							header={headerEl}
+							footer={footerEl}
+							width={280}
+							collapsedWidth={80}
+							theme={theme}
+							items={items}
+							collapsible={true}
+							expanded={sidebarOpen}
+							onToggle={setSidebarOpen}
+							mobileBreakpoint={1024}
+						/>
 					</ErrorBoundary>
-				)}
+				</aside>
 
-				<section
+				<main
 					style={{
 						background: 'var(--surface)',
 						border: '1px solid var(--border)',
 						borderRadius: 14,
-						padding: 16,
+						padding: 'clamp(12px, 3vw, 24px)',
 						minHeight: '60vh',
 						boxShadow: 'var(--shadow-md)',
 					}}
 				>
 					{/* Mobile toolbar */}
-					{isMobile && (
-						<div
+					<div className="mobile-toolbar" style={{ display: 'none' }}>
+						<button
+							onClick={() => setSidebarOpen(true)}
 							style={{
-								display: 'flex',
-								alignItems: 'center',
-								gap: 10,
-								marginBottom: 12,
-								borderBottom: '1px solid var(--border)',
-								paddingBottom: 10,
+								padding: '8px 12px',
+								borderRadius: 10,
+								background: 'var(--bg)',
+								color: 'var(--text)',
+								border: '1px solid var(--border)',
+								fontWeight: 800,
 							}}
 						>
-							<button
-								onClick={() => setSidebarOpen(true)}
-								style={{
-									padding: '8px 12px',
-									borderRadius: 10,
-									background: 'var(--bg)',
-									color: 'var(--text)',
-									border: '1px solid var(--border)',
-									fontWeight: 800,
-								}}
-							>
-								☰ Menu
-							</button>
-							<div
-								style={{
-									marginLeft: 'auto',
-									color: 'var(--text-muted)',
-									fontSize: 12,
-								}}
-							>
-								{new Date().toLocaleDateString()}
-							</div>
+							☰ Menu
+						</button>
+						<div
+							style={{
+								marginLeft: 'auto',
+								color: 'var(--text-muted)',
+								fontSize: 12,
+							}}
+						>
+							{new Date().toLocaleDateString()}
 						</div>
-					)}
+					</div>
+					<style>{`
+            @media (max-width: 1023px) {
+              .mobile-toolbar {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                margin-bottom: 12px;
+                border-bottom: 1px solid var(--border);
+                padding-bottom: 10px;
+              }
+            }
+          `}</style>
 
 					<ErrorBoundary>
 						<Suspense fallback={<RouteFallback message="Loading page" />}>
 							<Outlet />
 						</Suspense>
 					</ErrorBoundary>
-				</section>
+				</main>
 			</div>
 		</>
 	);
