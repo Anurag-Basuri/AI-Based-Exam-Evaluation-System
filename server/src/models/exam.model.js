@@ -71,6 +71,12 @@ const examSchema = new mongoose.Schema(
 			trim: true,
 			maxlength: [400, 'Description cannot exceed 400 characters'],
 		},
+		instructions: {
+			type: String,
+			trim: true,
+			maxlength: [2000, 'Instructions cannot exceed 2000 characters'],
+			default: '',
+		},
 		createdBy: {
 			type: mongoose.Schema.Types.ObjectId,
 			ref: 'Teacher',
@@ -120,6 +126,10 @@ const examSchema = new mongoose.Schema(
 			type: Date,
 			default: null,
 		},
+		autoPublishResults: {
+			type: Boolean,
+			default: false,
+		},
 		totalMarks: {
 			type: Number,
 			default: 0,
@@ -164,14 +174,14 @@ examSchema.pre('validate', function (next) {
 
 // Mark exam completed if endTime has passed
 examSchema.pre('save', function (next) {
-    if (this.isModified('status') && this.status === 'active' && !this.publishedAt) {
-        this.publishedAt = new Date();
-    }
-    // Only transition from 'active' to 'completed'
-    if (this.status === 'active' && this.endTime && this.endTime < new Date()) {
-        this.status = 'completed';
-    }
-    next();
+	if (this.isModified('status') && this.status === 'active' && !this.publishedAt) {
+		this.publishedAt = new Date();
+	}
+	// Only transition from 'active' to 'completed'
+	if (this.status === 'active' && this.endTime && this.endTime < new Date()) {
+		this.status = 'completed';
+	}
+	next();
 });
 
 // Simple cleanup function for orphan exams (call from a scheduled job if needed)
