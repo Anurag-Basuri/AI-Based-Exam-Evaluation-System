@@ -136,7 +136,7 @@ const TeacherDash = () => {
 								textOverflow: 'ellipsis',
 								whiteSpace: 'nowrap',
 							}}
-							title
+							title={user?.fullname || user?.username || 'Teacher'}
 						>
 							{user?.fullname || user?.username || 'Teacher'}
 						</div>

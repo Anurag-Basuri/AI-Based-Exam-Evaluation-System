@@ -315,11 +315,11 @@ const ExamSubmissionsDetail = () => {
 // --- Router Component ---
 
 const TeacherResults = () => {
-	const location = useLocation();
-	// Check if the URL has an ID param to decide which view to show
-	const isDetailView = /^\/teacher\/results\/.+/.test(location.pathname);
+	const { examId } = useParams(); // Use useParams to get the examId from the URL
 
-	return isDetailView ? <ExamSubmissionsDetail /> : <ExamResultsOverview />;
+	// If an examId is present in the URL, render the detail view.
+	// Otherwise, render the overview of all exams with submissions.
+	return examId ? <ExamSubmissionsDetail /> : <ExamResultsOverview />;
 };
 
 export default TeacherResults;
