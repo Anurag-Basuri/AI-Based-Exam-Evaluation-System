@@ -399,19 +399,20 @@ export const deleteTeacherQuestion = async id => {
 
 // ---------- Submissions (Teacher) ----------
 export const getTeacherSubmissions = async examId => {
-	// FIX: Call the endpoint function to get the URL string
 	const res = await tryGet(EP.submissionsByExam(examId));
-	return res?.data?.data ?? res?.data ?? [];
+	const list = res?.data?.data ?? res?.data ?? [];
+	return Array.isArray(list) ? list.map(normalizeSubmission) : [];
 };
 
 export const evaluateTeacherSubmission = async submissionId => {
 	// This endpoint seems unused, but correcting for consistency
-	return await tryPost(`/api/submissions/${submissionId}/evaluate-auto`);
+	const res = await tryPost(`/api/submissions/${submissionId}/evaluate-auto`);
+	return res?.data?.data ?? res?.data ?? {};
 };
 
 export const updateSubmissionEvaluation = async (submissionId, evaluations) => {
-	// FIX: Call the endpoint function to get the URL string
-	return await tryPut(EP.submissionEvalUpdate(submissionId), { evaluations });
+	const res = await tryPut(EP.submissionEvalUpdate(submissionId), { evaluations });
+	return res?.data?.data ?? res?.data ?? {};
 };
 
 export const getSubmissionForGrading = async submissionId => {
@@ -421,13 +422,13 @@ export const getSubmissionForGrading = async submissionId => {
 };
 
 export const publishSingleResult = async submissionId => {
-	// FIX: Call the endpoint function to get the URL string
-	return await tryPost(EP.publishSingle(submissionId));
+	const res = await tryPost(EP.publishSingle(submissionId));
+	return res?.data?.data ?? res?.data ?? {};
 };
 
 export const publishAllResults = async examId => {
-	// FIX: Call the endpoint function to get the URL string
-	return await tryPost(EP.publishAll(examId));
+	const res = await tryPost(EP.publishAll(examId));
+	return res?.data?.data ?? res?.data ?? {};
 };
 
 // ---------- Issues (Teacher) ----------
