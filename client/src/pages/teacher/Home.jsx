@@ -112,20 +112,26 @@ const TeacherHome = () => {
 		setError('');
 		try {
 			// FIX: Corrected API calls to fetch all necessary data
-			const [examsResponse, issues, subsResponse] = await Promise.all([
-				safeApiCall(getTeacherExams), // No params needed to get all exams for counts
-				safeApiCall(getTeacherIssues, { status: 'open' }), // Fetch only open issues
-				safeApiCall(getTeacherSubmissions), // No examId to get all submissions
+			const [allExamsResponse, issues, examsWithSubsResponse] = await Promise.all([
+				safeApiCall(getTeacherExams),
+				safeApiCall(getTeacherIssues, { status: 'open' }),
+				safeApiCall(getTeacherExams, { hasSubmissions: true }),
 			]);
 
-			const exams = examsResponse?.items || [];
-			const subs = subsResponse || [];
+			const allExams = allExamsResponse?.items || [];
+			const examsWithSubs = examsWithSubsResponse?.items || [];
+
+			// Calculate pending submissions from the exams that have them
+			const pendingSubsCount = examsWithSubs.reduce(
+				(acc, exam) => acc + (exam.evaluatedCount || 0),
+				0,
+			);
 
 			setStats({
-				live: exams.filter(e => e.derivedStatus === 'live').length,
-				scheduled: exams.filter(e => e.derivedStatus === 'scheduled').length,
-				draft: exams.filter(e => e.derivedStatus === 'draft').length,
-				pendingSubs: subs.filter(s => ['submitted', 'evaluated'].includes(s.status)).length,
+				live: allExams.filter(e => e.derivedStatus === 'live').length,
+				scheduled: allExams.filter(e => e.derivedStatus === 'scheduled').length,
+				draft: allExams.filter(e => e.derivedStatus === 'draft').length,
+				pendingSubs: pendingSubsCount,
 				openIssues: Array.isArray(issues) ? issues.length : 0,
 			});
 		} catch (e) {
