@@ -248,7 +248,8 @@ const ExamEdit = () => {
 							fontWeight: 800,
 						}}
 					>
-						← Back
+						<span className="desktop-only">← Back</span>
+						<span className="mobile-only">←</span>
 					</button>,
 					<button
 						key="save"
@@ -273,6 +274,14 @@ const ExamEdit = () => {
 					</button>,
 				]}
 			/>
+			<style>{`
+        .desktop-only { display: inline; }
+        .mobile-only { display: none; }
+        @media (max-width: 768px) {
+          .desktop-only { display: none; }
+          .mobile-only { display: inline; }
+        }
+      `}</style>
 
 			{errorBanner && (
 				<div style={{ marginBottom: 12 }}>
