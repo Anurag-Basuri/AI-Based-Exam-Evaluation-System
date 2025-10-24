@@ -245,6 +245,8 @@ const normalizeQuestion = q => ({
 	type: q?.type === 'multiple-choice' || q?.type === 'subjective' ? q.type : 'subjective',
 	text: q?.text ?? '',
 	remarks: q?.remarks ?? '',
+	difficulty: q?.difficulty ?? 'medium',
+	tags: Array.isArray(q?.tags) ? q.tags : [],
 	max_marks: Number.isFinite(q?.max_marks) ? q.max_marks : 1,
 	options: Array.isArray(q?.options)
 		? q.options.map((o, i) => ({
