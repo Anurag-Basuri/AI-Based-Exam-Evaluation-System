@@ -100,7 +100,7 @@ const EP = {
 	exams: '/api/exams/my',
 	examById: id => `/api/exams/${encodeURIComponent(id)}`,
 	examCreate: '/api/exams/create',
-	examUpdate: id => `/api/exams/${encodeURIComponent(id)}`, // Corrected: PUT to /:id
+	examUpdate: id => `/api/exams/${encodeURIComponent(id)}/update`,
 	examDelete: id => `/api/exams/${encodeURIComponent(id)}`,
 	examPublish: id => `/api/exams/${encodeURIComponent(id)}/publish`,
 	examDuplicate: id => `/api/exams/${encodeURIComponent(id)}/duplicate`,
@@ -116,6 +116,7 @@ const EP = {
 	// Questions
 	questions: '/api/questions/my',
 	questionCreate: '/api/questions/create',
+	questionBulkCreate: '/api/questions/bulk',
 	questionById: id => `/api/questions/${encodeURIComponent(id)}`,
 	questionUpdate: id => `/api/questions/${encodeURIComponent(id)}/update`,
 	questionDelete: id => `/api/questions/${encodeURIComponent(id)}`,
@@ -382,6 +383,12 @@ export const createTeacherQuestion = async payload => {
 	const res = await tryPost(EP.questionCreate, payload);
 	const data = res?.data?.data ?? res?.data ?? {};
 	return normalizeQuestion(data);
+};
+
+export const createQuestionsBulk = async items => {
+	const res = await tryPost(EP.questionBulkCreate, { items });
+	const data = res?.data?.data ?? res?.data ?? {};
+	return { count: data.count || 0 };
 };
 
 // Optionals if needed later
