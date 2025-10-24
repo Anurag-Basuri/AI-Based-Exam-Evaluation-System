@@ -116,6 +116,7 @@ const ExamCard = ({
 	onCancel,
 	onExtend15,
 	onRegenerate,
+	onRename,
 	onDelete,
 	onReschedule,
 }) => {
@@ -258,8 +259,7 @@ const ExamCard = ({
 						<strong style={{ color: 'var(--text)' }}>End:</strong> {exam.endAt || '—'}
 					</div>
 					<div>
-						<strong style={{ color: 'var(--text)' }}>Total Marks:</strong>{' '}
-						{exam.totalMarks || '—'}
+						<strong style={{ color: 'var(--text)' }}>Enrolled:</strong> {exam.enrolled}
 					</div>
 					<div>
 						<strong style={{ color: 'var(--text)' }}>Submissions:</strong>{' '}
@@ -281,10 +281,10 @@ const ExamCard = ({
 				<button
 					onClick={() => onEdit(exam)}
 					// SIMPLIFIED: Use the reliable derivedStatus for UI logic.
-					disabled={exam.status !== 'draft'}
+					disabled={exam.derivedStatus === 'live'}
 					title={
-						exam.status !== 'draft'
-							? 'Only draft exams can be edited'
+						exam.derivedStatus === 'live'
+							? 'Cannot edit a live exam'
 							: 'Edit exam details'
 					}
 					style={{
@@ -294,11 +294,11 @@ const ExamCard = ({
 						border: 'none',
 						background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
 						color: '#ffffff',
-						cursor: exam.status !== 'draft' ? 'not-allowed' : 'pointer',
+						cursor: exam.derivedStatus === 'live' ? 'not-allowed' : 'pointer',
 						fontWeight: 700,
 						fontSize: 14,
 						boxShadow: '0 4px 12px rgba(99,102,241,0.25)',
-						opacity: exam.status !== 'draft' ? 0.6 : 1,
+						opacity: exam.derivedStatus === 'live' ? 0.6 : 1,
 					}}
 				>
 					✏️ Edit
@@ -385,6 +385,19 @@ const ExamCard = ({
 							}}
 						>
 							🔁 New code
+						</button>
+						<button
+							onClick={() => onRename(exam)}
+							style={{
+								padding: '10px 14px',
+								borderRadius: 8,
+								border: '1px solid var(--border)',
+								background: 'var(--surface)',
+								color: 'var(--text)',
+								fontWeight: 700,
+							}}
+						>
+							🖊️ Rename
 						</button>
 					</>
 				)}
@@ -619,6 +632,19 @@ const TeacherExams = () => {
 			success('New share code generated');
 		} catch (e) {
 			setErrorBanner(e?.message || 'Failed to regenerate code');
+		}
+	};
+
+	const handleRename = async exam => {
+		const title = window.prompt('New exam title:', exam.title);
+		if (!title || !title.trim()) return;
+		try {
+			const fn = TeacherSvc.updateExam;
+			const updated = await TeacherSvc.safeApiCall(fn, exam.id, { title: title.trim() });
+			setExams(prev => prev.map(e => (e.id === exam.id ? updated : e)));
+			setMessage('✅ Title updated');
+		} catch (e) {
+			setMessage(`❌ ${e?.message || 'Failed to rename exam'}`);
 		}
 	};
 
