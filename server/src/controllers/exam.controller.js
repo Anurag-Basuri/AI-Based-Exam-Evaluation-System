@@ -535,7 +535,7 @@ const duplicateExam = asyncHandler(async (req, res) => {
 // Get teacher's own exams (fast list)
 const getMyExams = asyncHandler(async (req, res) => {
 	const teacherId = req.teacher?._id || req.user?.id;
-	const { status, q, limit = 20, page = 1 } = req.query;
+	const { status, q, limit = 20, page = 1, hasSubmissions } = req.query;
 
 	const lim = Math.max(1, Math.min(100, Number(limit)));
 	const skip = (Math.max(1, Number(page)) - 1) * lim;
@@ -558,6 +558,15 @@ const getMyExams = asyncHandler(async (req, res) => {
 			as: 'submissionDocs',
 		},
 	});
+
+	// --- Conditionally filter for exams with submissions ---
+	if (hasSubmissions === 'true') {
+		pipeline.push({
+			$match: {
+				'submissionDocs.0': { $exists: true },
+			},
+		});
+	}
 
 	// 3. Add counts and project final fields
 	pipeline.push({
