@@ -78,6 +78,7 @@ const TakeExam = () => {
 	const [isOnline, setIsOnline] = useState(() =>
 		typeof navigator !== 'undefined' ? navigator.onLine : true,
 	);
+	const [isHubOpen, setIsHubOpen] = useState(false);
 
 	const hasUnsavedChanges = useRef(false);
 	const saveTimeoutRef = useRef(null);
@@ -299,7 +300,8 @@ const TakeExam = () => {
 
 	// --- Answer change ---
 	const handleAnswerChange = (questionId, value, type) => {
-		if (!submission) return;
+		// Set a flag indicating there are unsaved changes.
+		hasUnsavedChanges.current = true;
 
 		let updatedAnswer;
 		setSubmission(prev => {
@@ -336,6 +338,7 @@ const TakeExam = () => {
 
 	// --- Save and next ---
 	const handleSaveAndNext = async () => {
+		// FIX: Await the save operation before moving to the next question.
 		await handleQuickSave();
 		if (currentQuestionIndex < submission.questions.length - 1) {
 			setCurrentQuestionIndex(i => i + 1);
@@ -429,6 +432,48 @@ const TakeExam = () => {
 				/>
 			)}
 
+			{/* --- Mobile-only Exam Hub Drawer --- */}
+			<div
+				className="examHubDrawer"
+				style={{
+					...styles.examHubDrawer,
+					transform: isHubOpen ? 'translateX(0)' : 'translateX(100%)',
+				}}
+			>
+				<div
+					style={{
+						padding: 16,
+						display: 'flex',
+						flexDirection: 'column',
+						height: '100%',
+					}}
+				>
+					<button onClick={() => setIsHubOpen(false)} style={styles.closeHubButton}>
+						× Close
+					</button>
+					<StatusBarContent
+						submission={submission}
+						stats={questionStats}
+						currentIndex={currentQuestionIndex}
+						onSelect={async i => {
+							await handleQuickSave();
+							setCurrentQuestionIndex(i);
+							setIsHubOpen(false);
+						}}
+						remaining={remaining}
+						lastSaved={lastSaved}
+						saving={saving}
+						violations={violations}
+						onFinalSubmit={() => {
+							setIsHubOpen(false);
+							setShowSubmitConfirm(true);
+						}}
+						autoSubmitting={autoSubmitting}
+					/>
+				</div>
+			</div>
+			{isHubOpen && <div style={styles.drawerBackdrop} onClick={() => setIsHubOpen(false)} />}
+
 			{/* --- Main Content: Current Question --- */}
 			<div style={styles.questionPanel}>
 				{/* Sticky in-panel toolbar */}
@@ -459,10 +504,14 @@ const TakeExam = () => {
 									color: isOnline ? '#10b981' : '#ef4444',
 									fontWeight: 700,
 								}}
+								className="hide-on-mobile"
 							>
 								{isOnline ? '🟢 Connected' : '🔴 Offline'}
 							</small>
-							<small style={{ color: 'var(--text-muted)' }}>
+							<small
+								style={{ color: 'var(--text-muted)' }}
+								className="hide-on-mobile"
+							>
 								{saving
 									? 'Saving…'
 									: lastSaved
@@ -472,6 +521,13 @@ const TakeExam = () => {
 							<span style={styles.toolbarTimer}>
 								⏳ {remaining.mm}:{remaining.ss}
 							</span>
+							<button
+								className="show-on-mobile tap"
+								style={styles.hubButton}
+								onClick={() => setIsHubOpen(true)}
+							>
+								☰ Hub
+							</button>
 						</span>
 					</div>
 				</div>
@@ -539,53 +595,74 @@ const TakeExam = () => {
 
 			{/* --- Sidebar: Status & Navigation --- */}
 			<div style={styles.statusBar} className="statusBar">
-				<h3 style={{ margin: 0, fontSize: 18 }}>{submission.examTitle}</h3>
-
-				<div style={styles.timer}>
-					⏳ {remaining.mm}:{remaining.ss}
-				</div>
-
-				<QuestionPalette
+				<StatusBarContent
+					submission={submission}
 					stats={questionStats}
 					currentIndex={currentQuestionIndex}
 					onSelect={async i => {
+						// FIX: Await save before changing index
 						await handleQuickSave();
 						setCurrentQuestionIndex(i);
 					}}
+					remaining={remaining}
+					lastSaved={lastSaved}
+					saving={saving}
+					violations={violations}
+					onFinalSubmit={() => setShowSubmitConfirm(true)}
+					autoSubmitting={autoSubmitting}
 				/>
-
-				<div style={styles.statusInfo}>
-					<p style={{ margin: '4px 0', fontSize: 13 }}>
-						<strong>Last saved:</strong>{' '}
-						{lastSaved ? lastSaved.toLocaleTimeString() : 'Not yet'}
-						{saving && ' (Saving...)'}
-					</p>
-					<p
-						style={{
-							margin: '4px 0',
-							fontSize: 13,
-							color: violations.count > MAX_VIOLATIONS / 2 ? '#ef4444' : '#f59e0b',
-							fontWeight: 'bold',
-						}}
-					>
-						⚠️ Violations: {violations.count} / {MAX_VIOLATIONS}
-					</p>
-				</div>
-
-				<button
-					id="submit-btn"
-					onClick={() => setShowSubmitConfirm(true)}
-					disabled={autoSubmitting}
-					style={styles.submitButton}
-				>
-					{autoSubmitting ? 'Submitting...' : '📤 Submit Exam'}
-				</button>
 			</div>
 		</div>
 	);
 };
 
 // --- Helper Components ---
+
+const StatusBarContent = ({
+	submission,
+	stats,
+	currentIndex,
+	onSelect,
+	remaining,
+	lastSaved,
+	saving,
+	violations,
+	onFinalSubmit,
+	autoSubmitting,
+}) => (
+	<>
+		<h3 style={{ margin: 0, fontSize: 18 }}>{submission.examTitle}</h3>
+		<div style={styles.timer}>
+			⏳ {remaining.mm}:{remaining.ss}
+		</div>
+		<QuestionPalette stats={stats} currentIndex={currentIndex} onSelect={onSelect} />
+		<div style={styles.statusInfo}>
+			<p style={{ margin: '4px 0', fontSize: 13 }}>
+				<strong>Last saved:</strong>{' '}
+				{lastSaved ? lastSaved.toLocaleTimeString() : 'Not yet'}
+				{saving && ' (Saving...)'}
+			</p>
+			<p
+				style={{
+					margin: '4px 0',
+					fontSize: 13,
+					color: violations.count > MAX_VIOLATIONS / 2 ? '#ef4444' : '#f59e0b',
+					fontWeight: 'bold',
+				}}
+			>
+				⚠️ Violations: {violations.count} / {MAX_VIOLATIONS}
+			</p>
+		</div>
+		<button
+			id="submit-btn"
+			onClick={onFinalSubmit}
+			disabled={autoSubmitting}
+			style={styles.submitButton}
+		>
+			{autoSubmitting ? 'Submitting...' : '📤 Submit Exam'}
+		</button>
+	</>
+);
 
 const useTimer = submission => {
 	const [now, setNow] = useState(() => Date.now());
@@ -1091,6 +1168,7 @@ const styles = {
 		color: 'white',
 		border: 'none',
 		borderRadius: '10px',
+		marginTop: 'auto', // Pushes to bottom
 	},
 	questionCard: {
 		flexGrow: 1,
@@ -1307,16 +1385,16 @@ const styles = {
 
 // Media query for responsive design
 const mediaQuery = `
+  .show-on-mobile { display: none !important; }
   @media (max-width: 900px) {
     .examLayout { 
       grid-template-columns: 1fr !important; 
       height: auto !important; 
+      padding: 8px !important;
     }
-    .statusBar { 
-      position: relative !important; 
-      top: 0 !important; 
-      height: auto !important; 
-    }
+    .statusBar { display: none !important; }
+    .hide-on-mobile { display: none !important; }
+    .show-on-mobile { display: inline-flex !important; }
   }
 `;
 
