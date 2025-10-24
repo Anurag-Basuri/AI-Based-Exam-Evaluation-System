@@ -16,9 +16,9 @@ import PageHeader from '../../components/ui/PageHeader.jsx';
 
 const Stepper = ({ step }) => {
 	const steps = [
-		{ n: 1, label: 'Exam details' },
-		{ n: 2, label: 'Select questions' },
-		{ n: 3, label: 'Review & create' },
+		{ n: 1, label: 'Details' },
+		{ n: 2, label: 'Questions' },
+		{ n: 3, label: 'Review' },
 	];
 
 	return (
@@ -35,10 +35,9 @@ const Stepper = ({ step }) => {
 			<ol
 				style={{
 					listStyle: 'none',
-					display: 'grid',
-					gridTemplateColumns: '1fr auto 1fr auto 1fr',
+					display: 'flex',
+					justifyContent: 'space-between',
 					alignItems: 'center',
-					gap: 8,
 					margin: 0,
 					padding: 0,
 				}}
@@ -46,7 +45,6 @@ const Stepper = ({ step }) => {
 				{steps.map((s, idx) => {
 					const active = step === s.n;
 					const done = step > s.n;
-					const isLast = idx === steps.length - 1;
 					return (
 						<React.Fragment key={s.n}>
 							<li
@@ -85,6 +83,7 @@ const Stepper = ({ step }) => {
 									{s.n}
 								</div>
 								<span
+									className="desktop-only"
 									style={{
 										color: active ? 'var(--text)' : 'var(--text-muted)',
 										fontWeight: active ? 800 : 700,
@@ -97,10 +96,15 @@ const Stepper = ({ step }) => {
 									{s.label}
 								</span>
 							</li>
-							{!isLast && (
+							{idx < steps.length - 1 && (
 								<li
 									aria-hidden
-									style={{ height: 2, background: 'var(--border)' }}
+									style={{
+										flex: 1,
+										height: 2,
+										background: 'var(--border)',
+										margin: '0 8px',
+									}}
 								/>
 							)}
 						</React.Fragment>
@@ -405,10 +409,43 @@ const ExamCreate = () => {
 							fontWeight: 800,
 						}}
 					>
-						← Cancel
+						<span className="desktop-only">← Cancel</span>
+						<span className="mobile-only">← Back</span>
 					</button>,
 				]}
 			/>
+			<style>{`
+        .desktop-only { display: inline; }
+        .mobile-only { display: none; }
+        .step2-grid {
+          display: grid;
+          grid-template-columns: 2fr 1fr;
+          gap: 16px;
+        }
+        .step2-aside {
+          background: var(--bg);
+          border: 1px solid var(--border);
+          border-radius: 12px;
+          padding: 12px;
+          height: 100%;
+          align-self: start;
+          position: sticky;
+          top: 12px;
+        }
+
+        @media (max-width: 768px) {
+          .desktop-only { display: none; }
+          .mobile-only { display: inline; }
+          .step2-grid {
+            grid-template-columns: 1fr;
+          }
+          .step2-aside {
+            position: static;
+            height: auto;
+            margin-top: 16px;
+          }
+        }
+      `}</style>
 
 			<Stepper step={step} />
 
@@ -461,7 +498,7 @@ const ExamCreate = () => {
 					title="2) Select questions"
 					subtitle="Pick from your bank or create new ones."
 				>
-					<div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
+					<div className="step2-grid">
 						{/* Left: bank */}
 						<div>
 							<div
@@ -748,18 +785,7 @@ const ExamCreate = () => {
 						</div>
 
 						{/* Right: selection basket */}
-						<aside
-							style={{
-								background: 'var(--bg)',
-								border: '1px solid var(--border)',
-								borderRadius: 12,
-								padding: 12,
-								height: '100%',
-								alignSelf: 'start',
-								position: 'sticky',
-								top: 12,
-							}}
-						>
+						<aside className="step2-aside">
 							<div
 								style={{
 									display: 'flex',
