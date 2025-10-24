@@ -100,23 +100,38 @@ const EP = {
 	exams: '/api/exams/my',
 	examById: id => `/api/exams/${encodeURIComponent(id)}`,
 	examCreate: '/api/exams/create',
+	examUpdate: id => `/api/exams/${encodeURIComponent(id)}`, // FIX: Add missing endpoint
+	examDelete: id => `/api/exams/${encodeURIComponent(id)}`, // FIX: Add missing endpoint
+	examPublish: id => `/api/exams/${id}/publish`, // FIX: Add missing endpoint
+	examDuplicate: id => `/api/exams/${id}/duplicate`, // FIX: Add missing endpoint
 	examSetQuestions: id => `/api/exams/${id}/questions/set`,
+	examAddQuestions: id => `/api/exams/${id}/questions`, // FIX: Add missing endpoint
+	examRemoveQuestions: id => `/api/exams/${id}/questions/remove`, // FIX: Add missing endpoint
+	examReorder: id => `/api/exams/${id}/reorder`, // FIX: Add missing endpoint
 
 	// Questions
 	questions: '/api/questions/my',
 	questionCreate: '/api/questions/create',
 	questionById: id => `/api/questions/${encodeURIComponent(id)}`,
+	questionUpdate: id => `/api/questions/${encodeURIComponent(id)}`, // FIX: Add missing endpoint
 	questionDelete: id => `/api/questions/${encodeURIComponent(id)}`,
 
 	// Submissions
 	submissionsByExam: examId => `/api/submissions/exam/${encodeURIComponent(examId)}`,
 	submissionForGrading: id => `/api/submissions/teacher/${encodeURIComponent(id)}`,
-	submissionEvalUpdate: id => `/api/submissions/${encodeURIComponent(id)}/evaluate`, // <-- Add this
+	submissionEvalUpdate: id => `/api/submissions/${encodeURIComponent(id)}/evaluate`,
 	publishSingle: id => `/api/submissions/${id}/publish`,
 	publishAll: examId => `/api/submissions/exam/${examId}/publish-all`,
 
 	// Issues
 	issues: '/api/issues/my',
+	issueById: id => `/api/issues/${id}`, // FIX: Add missing endpoint
+	issueResolve: id => `/api/issues/${id}/resolve`, // FIX: Add missing endpoint
+	issueStatus: id => `/api/issues/${id}/status`, // FIX: Add missing endpoint
+
+	// Profile
+	teacherUpdate: '/api/teachers/me', // FIX: Add missing endpoint
+	teacherChangePassword: '/api/teachers/change-password', // FIX: Add missing endpoint
 };
 
 // ---------- Normalizers ----------
@@ -269,29 +284,16 @@ export const reorderExamQuestions = async (examId, order = []) => {
 };
 
 export const getTeacherExams = async (params = {}) => {
-	// Prefer fast "mine" list; fallback to /all if not available
-	try {
-		const resMine = await tryGet(EP.examsMine, { params });
-		const payload = resMine?.data?.data ?? resMine?.data ?? { items: [] };
-		const list = Array.isArray(payload?.items) ? payload.items : [];
+	// Prefer fast "my" exams list
+	const res = await tryGet(EP.exams, { params });
+	const payload = res?.data?.data ?? res?.data ?? { items: [] };
+	const list = Array.isArray(payload?.items) ? payload.items : [];
 
-		// Return the full paginated object with normalized items
-		return {
-			...payload,
-			items: list.map(normalizeExam),
-		};
-	} catch (_) {
-		const resAll = await tryGet(EP.examsAll, { params });
-		const list = resAll?.data?.data || resAll?.data || [];
-		const items = Array.isArray(list) ? list.map(normalizeExam) : [];
-		// Mimic paginated response for fallback
-		return {
-			items,
-			page: 1,
-			limit: items.length,
-			total: items.length,
-		};
-	}
+	// Return the full paginated object with normalized items
+	return {
+		...payload,
+		items: list.map(normalizeExam),
+	};
 };
 
 export const getTeacherExamById = async examId => {
@@ -335,7 +337,7 @@ export const deleteExam = async examId => {
 
 // ---------- Questions (Teacher) ----------
 export const getTeacherQuestions = async (params = {}) => {
-	const res = await tryGet(EP.questionsMine, { params });
+	const res = await tryGet(EP.questions, { params });
 	const payload = res?.data?.data ?? res?.data ?? { items: [] };
 	// The backend returns a paginated object { items, page, limit }.
 	// The component needs this full object.
@@ -404,8 +406,8 @@ export const publishAllResults = async examId => {
 
 // ---------- Issues (Teacher) ----------
 export const getTeacherIssues = async (params = {}) => {
-	const res = await tryGet(EP.issuesAll, { params });
-	const list = res?.data?.data || res?.data || [];
+	const res = await tryGet(EP.issues, { params });
+	const list = res?.data?.data?.items || res?.data?.items || res?.data || [];
 	return Array.isArray(list) ? list.map(normalizeIssue) : [];
 };
 
