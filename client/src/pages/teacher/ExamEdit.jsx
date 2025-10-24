@@ -45,9 +45,11 @@ const ExamEdit = () => {
 	const [details, setDetails] = React.useState({
 		title: '',
 		description: '',
+		instructions: '',
 		duration: 60,
 		startTime: '',
 		endTime: '',
+		autoPublishResults: false,
 	});
 	const [detailErrors, setDetailErrors] = React.useState({});
 	const [status, setStatus] = React.useState('draft');
@@ -80,10 +82,12 @@ const ExamEdit = () => {
 			setDetails({
 				title: exam.title,
 				description: exam.description,
+				instructions: exam.instructions,
 				duration: exam.duration,
 				// Use correct normalized fields (startMs/endMs)
 				startTime: exam.startMs ? new Date(exam.startMs).toISOString().slice(0, 16) : '',
 				endTime: exam.endMs ? new Date(exam.endMs).toISOString().slice(0, 16) : '',
+				autoPublishResults: exam.autoPublishResults,
 			});
 			// Load AI policy, providing defaults if not set
 			setAiPolicy({
@@ -171,9 +175,11 @@ const ExamEdit = () => {
 			await safeApiCall(updateExam, id, {
 				title: details.title.trim(),
 				description: details.description?.trim() || '',
+				instructions: details.instructions?.trim() || '',
 				duration: Number(details.duration),
 				startTime: toISO(details.startTime),
 				endTime: toISO(details.endTime),
+				autoPublishResults: details.autoPublishResults,
 				// status is not changed here; publishing is a separate action
 				aiPolicy: {
 					...aiPolicy,

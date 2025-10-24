@@ -167,6 +167,7 @@ const normalizeExam = e => {
 		id: String(e?._id ?? e?.id ?? ''),
 		title: e?.title ?? 'Untitled Exam',
 		description: e?.description ?? '',
+		instructions: e?.instructions ?? '',
 		duration: e?.duration ?? 0,
 		status: rawStatus, // server status
 		derivedStatus, // UI status: draft/scheduled/live/completed/cancelled
@@ -181,6 +182,7 @@ const normalizeExam = e => {
 		questions: Array.isArray(e?.questions) ? e.questions.map(q => String(q?._id ?? q)) : [],
 		totalMarks: e?.totalMarks ?? 0,
 		publishedAt: e?.publishedAt ? new Date(e.publishedAt).toLocaleString() : null,
+		autoPublishResults: !!e?.autoPublishResults,
 	};
 };
 
