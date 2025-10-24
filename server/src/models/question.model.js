@@ -1,6 +1,4 @@
 import mongoose from 'mongoose';
-import slugify from 'slugify';
-import { nanoid } from 'nanoid';
 
 const questionSchema = new mongoose.Schema(
 	{
@@ -20,6 +18,21 @@ const questionSchema = new mongoose.Schema(
 			type: String,
 			trim: true,
 			maxlength: [500, 'Remarks cannot exceed 500 characters'],
+		},
+		difficulty: {
+			type: String,
+			enum: ['easy', 'medium', 'hard'],
+			default: 'medium',
+		},
+		tags: {
+			type: [
+				{
+					type: String,
+					trim: true,
+					lowercase: true,
+				},
+			],
+			default: [],
 		},
 		max_marks: {
 			type: Number,
@@ -59,16 +72,14 @@ const questionSchema = new mongoose.Schema(
 			type: mongoose.Schema.Types.ObjectId,
 			ref: 'Exam',
 		},
-		slug: {
-			type: String,
-			unique: true,
-			trim: true,
-		},
 	},
 	{
 		timestamps: true,
 	},
 );
+
+// Add index for tags for faster searching
+questionSchema.index({ tags: 1 });
 
 // Validation
 questionSchema.pre('validate', function (next) {
@@ -92,14 +103,6 @@ questionSchema.pre('validate', function (next) {
 		if (this.answer === undefined) this.answer = null;
 	}
 
-	next();
-});
-
-// Generate slug
-questionSchema.pre('save', function (next) {
-	if (this.isModified('text') || this.isNew) {
-		this.slug = `${slugify(this.text.slice(0, 50), { lower: true, strict: true })}-${nanoid(6)}`;
-	}
 	next();
 });
 
