@@ -244,6 +244,11 @@ const ExamSubmissionsDetail = () => {
 						(acc, e) => acc + (e.evaluation?.marks || 0),
 						0,
 					);
+					// Calculate the maximum possible score for the submission
+					const maxScore = (sub.answers || []).reduce(
+						(acc, a) => acc + (a.question?.max_marks || 0),
+						0,
+					);
 					return (
 						<div
 							key={sub._id}
@@ -260,7 +265,11 @@ const ExamSubmissionsDetail = () => {
 						>
 							<strong>{sub.student?.fullname || 'Unknown Student'}</strong>
 							<div>
-								Score: <strong>{totalScore.toFixed(1)}</strong>
+								{/* Show score relative to max score */}
+								Score:{' '}
+								<strong>
+									{totalScore.toFixed(1)} / {maxScore}
+								</strong>
 							</div>
 							<div
 								style={{
