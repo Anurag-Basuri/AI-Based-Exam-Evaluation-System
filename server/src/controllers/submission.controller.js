@@ -42,24 +42,23 @@ async function evaluateSubmissionAnswers(submission) {
 			} else if (ans.responseText && String(ans.responseText).trim()) {
 				const refAnswer = questionDoc.answer || null;
 				const weight = (questionDoc.max_marks || 0) / 100;
-				const mergedPolicy = {
-					...(examDoc?.aiPolicy || {}),
-					...(questionDoc?.aiPolicy || {}),
-				};
-				if (Object.keys(mergedPolicy).length) {
+				// FIX: Use the exam's AI policy directly. There is no per-question AI policy.
+				const policy = examDoc?.aiPolicy || {};
+
+				if (Object.keys(policy).length) {
 					console.log(
-						'[SUBMISSION_CTRL] Using merged AI policy for question:',
+						'[SUBMISSION_CTRL] Using exam AI policy for question:',
 						questionDoc._id,
 					);
 				}
 
 				try {
 					const evalResult = await evaluateAnswer(
-						questionDoc.text,
+						questionDoc, // Pass the full question object
 						ans.responseText,
 						refAnswer,
 						weight,
-						mergedPolicy,
+						policy, // Pass the corrected policy
 					);
 					marks = evalResult.score;
 					remarks = evalResult.review;
