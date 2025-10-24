@@ -56,8 +56,15 @@ const AnswerCard = ({ answer, evaluation, onUpdate, disabled }) => {
 	const aiEval = evaluation?.evaluation;
 	const teacherEval = aiEval?.evaluator === 'teacher';
 
+	// FIX: Initialize state from evaluation, ensuring it reflects the most recent data.
 	const [marks, setMarks] = React.useState(aiEval?.marks ?? 0);
 	const [remarks, setRemarks] = React.useState(aiEval?.remarks ?? '');
+
+	// Sync local state if the parent evaluation data changes (e.g., after a save)
+	React.useEffect(() => {
+		setMarks(aiEval?.marks ?? 0);
+		setRemarks(aiEval?.remarks ?? '');
+	}, [aiEval]);
 
 	const handleMarksChange = e => {
 		const newMarks = Math.max(0, Math.min(question.max_marks, Number(e.target.value)));
@@ -76,10 +83,32 @@ const AnswerCard = ({ answer, evaluation, onUpdate, disabled }) => {
 		const selectedOption = question.options.find(
 			opt => String(opt._id) === String(answer.responseOption),
 		);
-		studentResponse = selectedOption ? (
-			<span>{selectedOption.text}</span>
-		) : (
-			<i style={{ color: 'var(--text-muted)' }}>No option selected.</i>
+		const correctOption = question.options.find(opt => opt.isCorrect);
+
+		studentResponse = (
+			<div style={{ display: 'grid', gap: '8px' }}>
+				<div>
+					<strong>Student's Answer: </strong>
+					{selectedOption ? (
+						<span
+							style={{
+								color: selectedOption.isCorrect ? '#10b981' : '#ef4444',
+								fontWeight: 700,
+							}}
+						>
+							{selectedOption.text}
+						</span>
+					) : (
+						<i style={{ color: 'var(--text-muted)' }}>No option selected.</i>
+					)}
+				</div>
+				<div>
+					<strong>Correct Answer: </strong>
+					<span style={{ color: '#10b981', fontWeight: 500 }}>
+						{correctOption?.text ?? 'N/A'}
+					</span>
+				</div>
+			</div>
 		);
 	} else if (answer.responseText) {
 		studentResponse = (
@@ -96,33 +125,43 @@ const AnswerCard = ({ answer, evaluation, onUpdate, disabled }) => {
 				boxShadow: 'var(--shadow-sm)',
 			}}
 		>
-			<div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
-				<div
+			<div
+				style={{
+					padding: '16px 20px',
+					borderBottom: '1px solid var(--border)',
+					display: 'flex',
+					flexWrap: 'wrap', // Allow wrapping on small screens
+					justifyContent: 'space-between',
+					alignItems: 'flex-start',
+					gap: 12,
+				}}
+			>
+				<h4
 					style={{
-						display: 'flex',
-						justifyContent: 'space-between',
-						alignItems: 'flex-start',
-						gap: 12,
+						margin: 0,
+						fontSize: 16,
+						fontWeight: 700,
+						lineHeight: 1.4,
+						flex: '1 1 300px',
 					}}
 				>
-					<h4 style={{ margin: 0, fontSize: 16, fontWeight: 700, lineHeight: 1.4 }}>
-						{question.text}
-					</h4>
-					<span
-						style={{
-							fontSize: 12,
-							fontWeight: 700,
-							color: 'var(--text)',
-							background: 'var(--bg)',
-							border: '1px solid var(--border)',
-							padding: '4px 8px',
-							borderRadius: 6,
-							whiteSpace: 'nowrap',
-						}}
-					>
-						{question.max_marks} Marks
-					</span>
-				</div>
+					{question.text}
+				</h4>
+				<span
+					style={{
+						fontSize: 12,
+						fontWeight: 700,
+						color: 'var(--text)',
+						background: 'var(--bg)',
+						border: '1px solid var(--border)',
+						padding: '4px 8px',
+						borderRadius: 6,
+						whiteSpace: 'nowrap',
+						height: 'fit-content',
+					}}
+				>
+					{question.max_marks} Marks
+				</span>
 			</div>
 			<div style={{ padding: '16px 20px', background: 'var(--bg)' }}>
 				<strong style={{ fontSize: 13, color: 'var(--text-muted)', display: 'block' }}>
@@ -136,7 +175,14 @@ const AnswerCard = ({ answer, evaluation, onUpdate, disabled }) => {
 					style={{ display: 'grid', gridTemplateColumns: '1fr 120px', gap: 16 }}
 				>
 					<div>
-						<label style={{ fontSize: 13, fontWeight: 600, display: 'block' }}>
+						<label
+							style={{
+								fontSize: 13,
+								fontWeight: 600,
+								display: 'block',
+								color: teacherEval ? 'var(--primary)' : 'inherit',
+							}}
+						>
 							Remarks {teacherEval && '(Edited by you)'}
 						</label>
 						<textarea
@@ -155,7 +201,14 @@ const AnswerCard = ({ answer, evaluation, onUpdate, disabled }) => {
 						/>
 					</div>
 					<div>
-						<label style={{ fontSize: 13, fontWeight: 600, display: 'block' }}>
+						<label
+							style={{
+								fontSize: 13,
+								fontWeight: 600,
+								display: 'block',
+								color: teacherEval ? 'var(--primary)' : 'inherit',
+							}}
+						>
 							Marks
 						</label>
 						<input
@@ -171,7 +224,9 @@ const AnswerCard = ({ answer, evaluation, onUpdate, disabled }) => {
 								textAlign: 'center',
 								padding: '8px 12px',
 								borderRadius: 8,
-								border: '1px solid var(--border)',
+								border: `1px solid ${
+									teacherEval ? 'var(--primary)' : 'var(--border)'
+								}`,
 								fontSize: 16,
 								fontWeight: 700,
 							}}
@@ -283,7 +338,7 @@ const TeacherSubmissionGrade = () => {
 							fontWeight: 700,
 						}}
 					>
-						← Back to Submissions
+						← Back
 					</button>,
 					<button
 						key="save"
