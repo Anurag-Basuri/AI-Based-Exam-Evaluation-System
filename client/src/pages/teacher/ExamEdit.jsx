@@ -156,6 +156,10 @@ const ExamEdit = () => {
 	};
 
 	const onSave = async () => {
+		if (status !== 'draft') {
+			setErrorBanner('Only draft exams can be edited.');
+			return;
+		}
 		if (!validateDetails()) {
 			setErrorBanner('Fix highlighted fields');
 			return;
@@ -192,7 +196,7 @@ const ExamEdit = () => {
 		return status === 'active' && new Date(details.startTime) > new Date();
 	}, [status, details.startTime]);
 
-	const canEditQuestions = status === 'draft' || isScheduled;
+	const canEditQuestions = status === 'draft';
 
 	// Open editor for a question
 	const openEditQuestion = q => {
@@ -249,22 +253,20 @@ const ExamEdit = () => {
 					<button
 						key="save"
 						onClick={onSave}
-						disabled={saving || status !== 'draft'}
+						disabled={saving || isLocked}
 						className="tap"
-						title={
-							status !== 'draft' ? 'Only draft exams can be edited' : 'Save changes'
-						}
+						title={isLocked ? 'Only draft exams can be edited' : 'Save changes'}
 						style={{
 							padding: '10px 16px',
 							borderRadius: 10,
 							border: 'none',
 							background:
-								saving || status !== 'draft'
+								saving || isLocked
 									? '#9ca3af'
 									: 'linear-gradient(135deg, #10b981, #059669)',
 							color: '#fff',
 							fontWeight: 900,
-							cursor: saving || status !== 'draft' ? 'not-allowed' : 'pointer',
+							cursor: saving || isLocked ? 'not-allowed' : 'pointer',
 						}}
 					>
 						{saving ? 'Saving…' : 'Save changes'}
@@ -330,6 +332,14 @@ const ExamEdit = () => {
 						{selectedIds.size} selected • {totalMarks} marks
 					</Pill>
 				</header>
+				{!canEditQuestions && (
+					<div style={{ marginBottom: 12 }}>
+						<Alert type="info">
+							Question selection is locked because this exam is no longer a draft. You
+							can still view the selected questions.
+						</Alert>
+					</div>
+				)}
 
 				<div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 12 }}>
 					<div style={{ position: 'relative', flex: '1 1 360px' }}>
@@ -395,9 +405,7 @@ const ExamEdit = () => {
 						return (
 							<div
 								key={q.id}
-								onClick={() =>
-									!canEditQuestions ? undefined : toggleSelected(q.id)
-								}
+								onClick={() => (isLocked ? undefined : toggleSelected(q.id))}
 								style={{
 									userSelect: 'none',
 									cursor: isLocked ? 'not-allowed' : 'pointer',
@@ -421,13 +429,11 @@ const ExamEdit = () => {
 											type="checkbox"
 											checked={selected}
 											onChange={() =>
-												!canEditQuestions ? undefined : toggleSelected(q.id)
+												isLocked ? undefined : toggleSelected(q.id)
 											}
-											disabled={!canEditQuestions}
+											disabled={isLocked}
 											style={{
-												cursor: canEditQuestions
-													? 'pointer'
-													: 'not-allowed',
+												cursor: isLocked ? 'pointer' : 'not-allowed',
 											}}
 										/>
 										<strong style={{ color: 'var(--text)' }}>
