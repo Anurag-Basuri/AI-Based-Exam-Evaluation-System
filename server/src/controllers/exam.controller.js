@@ -8,7 +8,17 @@ import mongoose from 'mongoose';
 
 // Create an exam (can be created with zero questions, status is 'draft')
 const createExam = asyncHandler(async (req, res) => {
-	const { title, description, duration, questionIds, startTime, endTime, aiPolicy } = req.body;
+	const {
+		title,
+		description,
+		duration,
+		questionIds,
+		startTime,
+		endTime,
+		aiPolicy,
+		instructions,
+		autoPublishResults,
+	} = req.body;
 	const teacherId = req.teacher?._id || req.user?.id;
 
 	if (!title || !duration || !startTime || !endTime) {
@@ -42,6 +52,8 @@ const createExam = asyncHandler(async (req, res) => {
 		createdBy: teacherId,
 		status: 'draft',
 		aiPolicy,
+		instructions,
+		autoPublishResults,
 		totalMarks: questions.reduce((sum, q) => sum + (q.max_marks || 0), 0),
 	});
 
@@ -173,7 +185,16 @@ const assertOwner = (doc, teacherId) => {
 // Update an exam (safe status transitions)
 const updateExam = asyncHandler(async (req, res) => {
 	const { id } = req.params;
-	const { title, description, duration, startTime, endTime, aiPolicy } = req.body;
+	const {
+		title,
+		description,
+		duration,
+		startTime,
+		endTime,
+		aiPolicy,
+		instructions,
+		autoPublishResults,
+	} = req.body;
 	const teacherId = req.teacher?._id || req.user?.id;
 
 	if (!id.match(/^[a-f\d]{24}$/i)) {
@@ -198,6 +219,8 @@ const updateExam = asyncHandler(async (req, res) => {
 	if (startTime !== undefined) exam.startTime = startTime;
 	if (endTime !== undefined) exam.endTime = endTime;
 	if (aiPolicy !== undefined) exam.aiPolicy = aiPolicy;
+	if (instructions !== undefined) exam.instructions = instructions;
+	if (autoPublishResults !== undefined) exam.autoPublishResults = autoPublishResults;
 
 	await exam.save({ validateBeforeSave: true });
 
@@ -456,6 +479,7 @@ const duplicateExam = asyncHandler(async (req, res) => {
 	const copy = new Exam({
 		title: `${src.title} (Copy)`,
 		description: src.description,
+		instructions: src.instructions,
 		duration: src.duration,
 		questions: src.questions,
 		startTime: start,
@@ -463,6 +487,7 @@ const duplicateExam = asyncHandler(async (req, res) => {
 		createdBy: teacherId,
 		status: 'draft',
 		aiPolicy: src.aiPolicy,
+		autoPublishResults: src.autoPublishResults,
 	});
 	await copy.save();
 
@@ -549,6 +574,8 @@ const getMyExams = asyncHandler(async (req, res) => {
 			evaluatedCount: 1,
 			publishedCount: 1,
 			totalMarks: 1,
+			instructions: 1,
+			autoPublishResults: 1,
 		},
 	});
 
