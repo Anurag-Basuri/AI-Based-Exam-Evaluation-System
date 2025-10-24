@@ -100,7 +100,7 @@ const EP = {
 	exams: '/api/exams/my',
 	examById: id => `/api/exams/${encodeURIComponent(id)}`,
 	examCreate: '/api/exams/create',
-	examUpdate: id => `/api/exams/${encodeURIComponent(id)}/update`, 
+	examUpdate: id => `/api/exams/${encodeURIComponent(id)}/update`,
 	examDelete: id => `/api/exams/${encodeURIComponent(id)}`,
 	examPublish: id => `/api/exams/${encodeURIComponent(id)}/publish`,
 	examDuplicate: id => `/api/exams/${encodeURIComponent(id)}/duplicate`,
@@ -313,25 +313,25 @@ export const updateExam = async (examId, body = {}) => {
 };
 
 export const endExamNow = async examId => {
-	// FIX: Call the correct, specific endpoint
 	const res = await tryPost(EP.examEndNow(examId));
 	return normalizeExam(res?.data?.data ?? res?.data ?? {});
 };
 
 export const cancelExam = async examId => {
-	// FIX: Call the correct, specific endpoint
 	const res = await tryPost(EP.examCancel(examId));
 	return normalizeExam(res?.data?.data ?? res?.data ?? {});
 };
 
-export const extendExamEnd = async (examId, { minutes }) => {
-	const res = await tryPatch(EP.examExtend(examId), { minutes });
+export const extendExamEnd = async (examId, payload) => {
+	const res = await tryPatch(EP.examExtend(examId), payload);
 	return normalizeExam(res?.data?.data ?? res?.data ?? {});
 };
 
 export const regenerateExamShareCode = async examId => {
 	const res = await tryPost(EP.examRegenerateCode(examId));
-	return normalizeExam(res?.data?.data ?? res?.data ?? {});
+	// The backend returns { searchId }, so we need to handle this partial update
+	const data = res?.data?.data ?? res?.data ?? {};
+	return { searchId: data.searchId };
 };
 
 // Keep for generic updates; for publishing prefer publishTeacherExam below
