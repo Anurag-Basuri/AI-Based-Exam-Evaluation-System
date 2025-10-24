@@ -62,11 +62,9 @@ const ExamResultsOverview = () => {
 			setLoading(true);
 			try {
 				// FIX: Pass the 'hasSubmissions: true' parameter to fetch only relevant exams.
-				// This was the root cause of the invalid data issue.
 				const res = await TeacherSvc.safeApiCall(TeacherSvc.getTeacherExams, {
 					hasSubmissions: true,
 				});
-				// The service now correctly returns only exams with submissions.
 				setExams(res?.items || []);
 			} catch (e) {
 				setError(e.message || 'Failed to load exam results.');
@@ -194,6 +192,7 @@ const ExamSubmissionsDetail = () => {
 	const [submissions, setSubmissions] = React.useState([]);
 	const [examTitle, setExamTitle] = React.useState('');
 	const [publishing, setPublishing] = React.useState({ all: false, single: null });
+	const [filters, setFilters] = React.useState({ status: 'all', sortBy: 'name_asc' });
 
 	const loadSubmissions = React.useCallback(async () => {
 		setLoading(true);
@@ -243,6 +242,32 @@ const ExamSubmissionsDetail = () => {
 		}
 	};
 
+	const filteredAndSortedSubmissions = React.useMemo(() => {
+		let items = [...submissions];
+		// Filter
+		if (filters.status !== 'all') {
+			items = items.filter(s => s.status === filters.status);
+		}
+		// Sort
+		switch (filters.sortBy) {
+			case 'name_asc':
+				items.sort((a, b) => a.studentName.localeCompare(b.studentName));
+				break;
+			case 'name_desc':
+				items.sort((a, b) => b.studentName.localeCompare(a.studentName));
+				break;
+			case 'score_asc':
+				items.sort((a, b) => (a.score ?? 0) - (b.score ?? 0));
+				break;
+			case 'score_desc':
+				items.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+				break;
+			default:
+				break;
+		}
+		return items;
+	}, [submissions, filters]);
+
 	if (loading)
 		return <div style={{ textAlign: 'center', padding: 40 }}>Loading Submissions...</div>;
 	if (error) return <Alert type="error">{error}</Alert>;
@@ -280,6 +305,50 @@ const ExamSubmissionsDetail = () => {
 					</button>,
 				]}
 			/>
+			<div
+				style={{
+					display: 'flex',
+					gap: 16,
+					padding: '12px',
+					background: 'var(--surface)',
+					borderRadius: 12,
+					border: '1px solid var(--border)',
+					marginBottom: 16,
+					flexWrap: 'wrap',
+				}}
+			>
+				<select
+					value={filters.status}
+					onChange={e => setFilters(f => ({ ...f, status: e.target.value }))}
+					style={{
+						padding: '8px 12px',
+						borderRadius: 8,
+						border: '1px solid var(--border)',
+						background: 'var(--bg)',
+					}}
+				>
+					<option value="all">Filter by Status</option>
+					<option value="in-progress">In Progress</option>
+					<option value="submitted">Submitted</option>
+					<option value="evaluated">Evaluated</option>
+					<option value="published">Published</option>
+				</select>
+				<select
+					value={filters.sortBy}
+					onChange={e => setFilters(f => ({ ...f, sortBy: e.target.value }))}
+					style={{
+						padding: '8px 12px',
+						borderRadius: 8,
+						border: '1px solid var(--border)',
+						background: 'var(--bg)',
+					}}
+				>
+					<option value="name_asc">Sort by Name (A-Z)</option>
+					<option value="name_desc">Sort by Name (Z-A)</option>
+					<option value="score_desc">Sort by Score (High-Low)</option>
+					<option value="score_asc">Sort by Score (Low-High)</option>
+				</select>
+			</div>
 			<style>{`
         .sub-row {
           display: grid;
@@ -314,12 +383,35 @@ const ExamSubmissionsDetail = () => {
 				<Alert>No submissions found for this exam yet.</Alert>
 			) : (
 				<div style={{ display: 'grid', gap: 12 }}>
-					{submissions.map(sub => {
+					{filteredAndSortedSubmissions.map(sub => {
 						const config = statusConfig[sub.status] || {};
 						return (
 							<div key={sub.id} className="sub-row">
-								<div style={{ fontWeight: 700, color: 'var(--text)' }}>
+								<div
+									style={{
+										fontWeight: 700,
+										color: 'var(--text)',
+										display: 'flex',
+										alignItems: 'center',
+										gap: 8,
+									}}
+								>
 									{sub.studentName || 'Unknown Student'}
+									{sub.violations?.length > 0 && (
+										<span
+											title={`${sub.violations.length} violation(s) logged`}
+											style={{
+												background: '#fef2f2',
+												color: '#ef4444',
+												padding: '2px 8px',
+												borderRadius: 12,
+												fontSize: 12,
+												fontWeight: 800,
+											}}
+										>
+											⚠️ {sub.violations.length}
+										</span>
+									)}
 								</div>
 								<div>
 									Score:{' '}
