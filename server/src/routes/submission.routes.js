@@ -53,16 +53,6 @@ router.post(
 	startSubmissionByParam,
 );
 
-// Student syncs answers during exam
-router.patch(
-	'/sync',
-	checkAuth,
-	verifyStudent,
-	body('examId').notEmpty().withMessage('Exam ID is required'),
-	body('answers').isArray().withMessage('Answers must be an array'),
-	syncAnswers,
-);
-
 // Compat: sync by submissionId
 router.post(
 	'/:id/answers',
