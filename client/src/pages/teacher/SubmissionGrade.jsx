@@ -228,19 +228,21 @@ const TeacherSubmissionGrade = () => {
 	};
 
 	const handleSaveChanges = async () => {
+		const payload = Object.values(updatedEvals);
+		if (payload.length === 0) {
+			toastError('No changes to save.');
+			return; // Exit early
+		}
+
 		setSaving(true);
 		try {
-			const payload = Object.values(updatedEvals);
-			if (payload.length === 0) {
-				toastError('No changes to save.');
-				return;
-			}
 			await TeacherSvc.safeApiCall(
 				TeacherSvc.updateSubmissionEvaluation,
 				submissionId,
 				payload,
 			);
 			success('Grades updated successfully!');
+			// IMPORTANT: Only navigate on success
 			navigate(`/teacher/results/${examId}`);
 		} catch (e) {
 			toastError(e.message || 'Failed to save changes.');
@@ -286,7 +288,7 @@ const TeacherSubmissionGrade = () => {
 					<button
 						key="save"
 						onClick={handleSaveChanges}
-						disabled={saving}
+						disabled={saving || Object.keys(updatedEvals).length === 0}
 						className="tap"
 						style={{
 							padding: '10px 16px',
@@ -295,7 +297,8 @@ const TeacherSubmissionGrade = () => {
 							border: 'none',
 							borderRadius: 8,
 							fontWeight: 700,
-							opacity: saving ? 0.6 : 1,
+							cursor: 'pointer',
+							opacity: saving || Object.keys(updatedEvals).length === 0 ? 0.6 : 1,
 						}}
 					>
 						{saving ? 'Saving...' : 'Save All Changes'}
