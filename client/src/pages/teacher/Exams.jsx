@@ -133,6 +133,8 @@ const ExamCard = ({
         now >= exam.startMs &&
         now <= exam.endMs;
     const isDraft = exam.status === 'draft';
+    const isCompleted = exam.derivedStatus === 'completed';
+    const isCancelled = exam.status === 'cancelled';
 
     return (
         <article
@@ -443,23 +445,21 @@ const ExamCard = ({
                 )}
 
                 {/* Delete (only when not active/live/scheduled) */}
-                {(exam.status === 'draft' ||
-					exam.status === 'cancelled' ||
-					exam.derivedStatus === 'completed') && (
-					<button
-						onClick={() => onDelete(exam)}
-						style={{
-							padding: '10px 14px',
-							borderRadius: 8,
-							border: '1px solid color-mix(in srgb, #ef4444 30%, var(--border))',
-							background: 'var(--surface)',
-							color: '#ef4444',
-							fontWeight: 800,
-						}}
-					>
-						🗑️ Delete
-					</button>
-				)}
+                {(isDraft || isCancelled || isCompleted) && (
+                    <button
+                        onClick={() => onDelete(exam)}
+                        style={{
+                            padding: '10px 14px',
+                            borderRadius: 8,
+                            border: '1px solid color-mix(in srgb, #ef4444 30%, var(--border))',
+                            background: 'var(--surface)',
+                            color: '#ef4444',
+                            fontWeight: 800,
+                        }}
+                    >
+                        🗑️ Delete
+                    </button>
+                )}
             </div>
         </article>
     );
@@ -482,53 +482,44 @@ const TeacherExams = () => {
         setLoading(true);
         setErrorBanner('');
         try {
-            // The service now returns a paginated object { items: [...] }
-            const response = await TeacherSvc.safeApiCall(TeacherSvc.getTeacherExams);
-            // FIX: The response is the paginated object itself.
+            const params = {
+                status: status === 'all' ? undefined : status,
+                q: query || undefined,
+                sortBy: sortBy,
+            };
+            const response = await TeacherSvc.safeApiCall(TeacherSvc.getTeacherExams, params);
             setExams(Array.isArray(response?.items) ? response.items : []);
         } catch (e) {
             setErrorBanner(e?.message || 'Failed to load exams');
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [status, query, sortBy]);
 
-	React.useEffect(() => {
-		loadExams();
-	}, [loadExams]);
+    React.useEffect(() => {
+        loadExams();
+    }, [loadExams]);
 
-	const filteredExams = React.useMemo(() => {
-		const qLower = query.trim().toLowerCase();
-		let list = exams.filter(exam => {
-			const visual = exam.derivedStatus || exam.status;
-			const matchesStatus = status === 'all' || visual === status;
-			const matchesQuery = !qLower || exam.title.toLowerCase().includes(qLower);
-			return matchesStatus && matchesQuery;
-		});
-		// Sort
-		if (sortBy === 'start') {
-			list = list.sort((a, b) => (a.startMs || 0) - (b.startMs || 0));
-		} else if (sortBy === 'title') {
-			list = list.sort((a, b) => a.title.localeCompare(b.title));
-		}
-		return list;
-	}, [exams, status, query, sortBy]);
+    const filteredExams = React.useMemo(() => {
+        // Filtering is now done on the backend, client just displays the result.
+        return exams;
+    }, [exams]);
 
-	const statusCounts = React.useMemo(() => {
-		const counts = {
-			all: exams.length,
-			live: 0,
-			scheduled: 0,
-			draft: 0,
-			completed: 0,
-			cancelled: 0,
-		};
-		exams.forEach(exam => {
-			const visual = exam.derivedStatus || exam.status;
-			if (counts[visual] !== undefined) counts[visual] += 1;
-		});
-		return counts;
-	}, [exams]);
+    const statusCounts = React.useMemo(() => {
+        const counts = {
+            all: exams.length,
+            live: 0,
+            scheduled: 0,
+            draft: 0,
+            completed: 0,
+            cancelled: 0,
+        };
+        exams.forEach(exam => {
+            const visual = exam.derivedStatus || exam.status;
+            if (counts[visual] !== undefined) counts[visual] += 1;
+        });
+        return counts;
+    }, [exams]);
 
 	const handlePublish = async exam => {
 		if (!exam?.questions?.length) {
@@ -588,103 +579,99 @@ const TeacherExams = () => {
         }
     };
 
-	const handleEndNow = async exam => {
-		if (!window.confirm('End this exam immediately?')) return;
-		try {
-			// Use the specific service function
-			await TeacherSvc.safeApiCall(TeacherSvc.endExamNow, exam.id);
-			await loadExams();
-			success('Exam ended');
-		} catch (e) {
-			setErrorBanner(e?.message || 'Failed to end exam');
-		}
-	};
+    const handleEndNow = async exam => {
+        if (!window.confirm('End this exam immediately?')) return;
+        try {
+            const updated = await TeacherSvc.safeApiCall(TeacherSvc.endExamNow, exam.id);
+            setExams(prev => prev.map(e => (e.id === exam.id ? updated : e)));
+            success('Exam ended');
+        } catch (e) {
+            setErrorBanner(e?.message || 'Failed to end exam');
+        }
+    };
 
-	const handleCancel = async exam => {
-		if (!window.confirm('Cancel this scheduled exam? Students will not be able to join.'))
-			return;
-		try {
-			// Use the specific service function
-			await TeacherSvc.safeApiCall(TeacherSvc.cancelExam, exam.id);
-			await loadExams();
-			success('Exam cancelled');
-		} catch (e) {
-			setErrorBanner(e?.message || 'Failed to cancel exam');
-		}
-	};
+    const handleCancel = async exam => {
+        if (!window.confirm('Cancel this scheduled exam? Students will not be able to join.'))
+            return;
+        try {
+            const updated = await TeacherSvc.safeApiCall(TeacherSvc.cancelExam, exam.id);
+            setExams(prev => prev.map(e => (e.id === exam.id ? updated : e)));
+            success('Exam cancelled');
+        } catch (e) {
+            setErrorBanner(e?.message || 'Failed to cancel exam');
+        }
+    };
 
-	const handleExtend15 = async exam => {
-		try {
-			// Use the specific service function
-			await TeacherSvc.safeApiCall(TeacherSvc.extendExamEnd, exam.id, { minutes: 15 });
-			await loadExams();
-			success('Extended by 15 minutes');
-		} catch (e) {
-			setErrorBanner(e?.message || 'Failed to extend exam');
-		}
-	};
+    const handleExtend15 = async exam => {
+        try {
+            const updated = await TeacherSvc.safeApiCall(TeacherSvc.extendExamEnd, exam.id, { minutes: 15 });
+            setExams(prev => prev.map(e => (e.id === exam.id ? updated : e)));
+            success('Extended by 15 minutes');
+        } catch (e) {
+            setErrorBanner(e?.message || 'Failed to extend exam');
+        }
+    };
 
-	const handleRegenerate = async exam => {
-		if (!window.confirm('Regenerate the share code? Existing code will no longer work.'))
-			return;
-		try {
-			// Use the specific service function
-			await TeacherSvc.safeApiCall(TeacherSvc.regenerateExamShareCode, exam.id);
-			await loadExams();
-			success('New share code generated');
-		} catch (e) {
-			setErrorBanner(e?.message || 'Failed to regenerate code');
-		}
-	};
+    const handleRegenerate = async exam => {
+        if (!window.confirm('Regenerate the share code? Existing code will no longer work.'))
+            return;
+        try {
+            const { searchId } = await TeacherSvc.safeApiCall(TeacherSvc.regenerateExamShareCode, exam.id);
+            setExams(prev => prev.map(e => (e.id === exam.id ? { ...e, searchId } : e)));
+            success('New share code generated');
+        } catch (e) {
+            setErrorBanner(e?.message || 'Failed to regenerate code');
+        }
+    };
 
-	const handleRename = async exam => {
-		const title = window.prompt('New exam title:', exam.title);
-		if (!title || !title.trim()) return;
-		try {
-			const fn = TeacherSvc.updateExam;
-			const updated = await TeacherSvc.safeApiCall(fn, exam.id, { title: title.trim() });
-			setExams(prev => prev.map(e => (e.id === exam.id ? updated : e)));
-			setMessage('✅ Title updated');
-		} catch (e) {
-			setMessage(`❌ ${e?.message || 'Failed to rename exam'}`);
-		}
-	};
+    const handleRename = async exam => {
+        const title = window.prompt('New exam title:', exam.title);
+        if (!title || !title.trim()) return;
+        try {
+            const fn = TeacherSvc.updateExam;
+            const updated = await TeacherSvc.safeApiCall(fn, exam.id, { title: title.trim() });
+            setExams(prev => prev.map(e => (e.id === exam.id ? updated : e)));
+            setMessage('✅ Title updated');
+        } catch (e) {
+            setMessage(`❌ ${e?.message || 'Failed to rename exam'}`);
+        }
+    };
 
-	const handleDelete = async exam => {
-		const warn =
-			'Delete this exam permanently?\nThis cannot be undone and removes the exam from your list.';
-		if (!window.confirm(warn)) return;
-		try {
-			const res = await TeacherSvc.safeApiCall(TeacherSvc.deleteExam, exam.id);
-			if (res?.success) {
-				setExams(prev => prev.filter(e => e.id !== exam.id));
-				success('Exam deleted');
-			} else {
-				setErrorBanner('Failed to delete exam');
-			}
-		} catch (e) {
-			setErrorBanner(e?.message || 'Failed to delete exam');
-		}
-	};
+    const handleDelete = async exam => {
+        const warn =
+            'Delete this exam permanently?\nThis cannot be undone and removes the exam from your list.';
+        if (!window.confirm(warn)) return;
+        try {
+            const res = await TeacherSvc.safeApiCall(TeacherSvc.deleteExam, exam.id);
+            if (res?.success) {
+                setExams(prev => prev.filter(e => e.id !== exam.id));
+                success('Exam deleted');
+            } else {
+                setErrorBanner('Failed to delete exam');
+            }
+        } catch (e) {
+            setErrorBanner(e?.message || 'Failed to delete exam');
+        }
+    };
 
-	const handleReschedule = async exam => {
-		// Simple prompts for start/end (local datetime input format: YYYY-MM-DDTHH:MM)
-		const toLocalInput = ms => new Date(ms).toISOString().slice(0, 16);
-		const startDefault = exam.startMs
-			? toLocalInput(exam.startMs)
-			: new Date(Date.now() + 60 * 60 * 1000).toISOString().slice(0, 16);
-		const endDefault = exam.endMs
-			? toLocalInput(exam.endMs)
-			: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString().slice(0, 16);
+    const handleReschedule = async exam => {
+        // Simple prompts for start/end (local datetime input format: YYYY-MM-DDTHH:MM)
+        const toLocalInput = ms => new Date(ms).toISOString().slice(0, 16);
+        const startDefault = exam.startMs
+            ? toLocalInput(exam.startMs)
+            : new Date(Date.now() + 60 * 60 * 1000).toISOString().slice(0, 16);
+        const endDefault = exam.endMs
+            ? toLocalInput(exam.endMs)
+            : new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString().slice(0, 16);
 
-		const startStr = window.prompt('New start (YYYY-MM-DDTHH:MM):', startDefault);
-		if (!startStr) return;
-		const endStr = window.prompt('New end (YYYY-MM-DDTHH:MM):', endDefault);
-		if (!endStr) return;
+        const startStr = window.prompt('New start (YYYY-MM-DDTHH:MM):', startDefault);
+        if (!startStr) return;
+        const endStr = window.prompt('New end (YYYY-MM-DDTHH:MM):', endDefault);
+        if (!endStr) return;
 
-		const start = new Date(startStr);
-		const end = new Date(endStr);
-		if (
+        const start = new Date(startStr);
+        const end = new Date(endStr);
+        if (
 			!(start instanceof Date) ||
 			isNaN(start.getTime()) ||
 			!(end instanceof Date) ||
@@ -744,7 +731,8 @@ const TeacherExams = () => {
 							fontWeight: 800,
 						}}
 					>
-						↻ Refresh
+						<span className="desktop-only">↻ Refresh</span>
+						<span className="mobile-only">↻</span>
 					</button>,
 					<button
 						key="create"
@@ -760,17 +748,26 @@ const TeacherExams = () => {
 							boxShadow: '0 8px 20px rgba(16,185,129,0.3)',
 						}}
 					>
-						➕ Create Exam
+						<span className="desktop-only">➕ Create Exam</span>
+						<span className="mobile-only">➕</span>
 					</button>,
 				]}
 			/>
-			{errorBanner && (
-				<div style={{ marginBottom: 12 }}>
-					<Alert type="error" onClose={() => setErrorBanner('')}>
-						{errorBanner}
-					</Alert>
-				</div>
-			)}
+			<style>{`
+        .desktop-only { display: inline; }
+        .mobile-only { display: none; }
+        @media (max-width: 768px) {
+          .desktop-only { display: none; }
+          .mobile-only { display: inline; }
+        }
+      `}</style>
+            {errorBanner && (
+                <div style={{ marginBottom: 12 }}>
+                    <Alert type="error" onClose={() => setErrorBanner('')}>
+                        {errorBanner}
+                    </Alert>
+                </div>
+            )}
 
 			<div
 				style={{
@@ -904,7 +901,7 @@ const TeacherExams = () => {
 					style={{
 						display: 'grid',
 						gap: 20,
-						gridTemplateColumns: 'repeat(auto-fill, minmax(420px, 1fr))',
+						gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 400px), 1fr))',
 					}}
 				>
 					{filteredExams.map(exam => (
