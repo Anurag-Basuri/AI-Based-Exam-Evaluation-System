@@ -47,7 +47,7 @@ const examSchema = new mongoose.Schema(
 			match: [/^[A-Za-z0-9]{8}$/, 'Search ID must be 8 alphanumeric characters'],
 			immutable: true,
 			default: () => {
-				const ALPHA = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+				const ALPHA = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 				let id = '';
 				for (let i = 0; i < 8; i++) {
 					id += ALPHA[Math.floor(Math.random() * ALPHA.length)];
