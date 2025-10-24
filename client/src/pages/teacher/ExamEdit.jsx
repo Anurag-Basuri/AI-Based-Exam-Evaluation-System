@@ -66,6 +66,7 @@ const ExamEdit = () => {
 	const [selectedIds, setSelectedIds] = React.useState(new Set());
 	const [query, setQuery] = React.useState('');
 	const [typeFilter, setTypeFilter] = React.useState('all');
+	const [difficultyFilter, setDifficultyFilter] = React.useState('all');
 
 	const [showQModal, setShowQModal] = React.useState(false);
 	const [editQuestion, setEditQuestion] = React.useState(null);
@@ -133,10 +134,11 @@ const ExamEdit = () => {
 		const q = query.trim().toLowerCase();
 		return questions.filter(item => {
 			const typeOk = typeFilter === 'all' || item.type === typeFilter;
+			const difficultyOk = difficultyFilter === 'all' || item.difficulty === difficultyFilter;
 			const text = `${item.text ?? ''} ${item.remarks ?? ''}`.toLowerCase();
-			return typeOk && (!q || text.includes(q));
+			return typeOk && (!q || text.includes(q)) && difficultyOk;
 		});
-	}, [questions, query, typeFilter]);
+	}, [questions, query, typeFilter, difficultyFilter]);
 
 	const selectedList = React.useMemo(() => {
 		const map = new Map(questions.map(q => [q.id, q]));
@@ -401,9 +403,30 @@ const ExamEdit = () => {
 							}}
 							disabled={isLocked}
 						>
-							<option value="all">All</option>
+							<option value="all">All Types</option>
 							<option value="multiple-choice">MCQ</option>
 							<option value="subjective">Subjective</option>
+						</select>
+					</Pill>
+					<Pill>
+						Difficulty:&nbsp;
+						<select
+							value={difficultyFilter}
+							onChange={e => setDifficultyFilter(e.target.value)}
+							style={{
+								background: 'var(--bg)',
+								color: 'var(--text)',
+								border: '1px solid var(--border)',
+								borderRadius: 8,
+								padding: '6px 8px',
+								fontWeight: 700,
+							}}
+							disabled={isLocked}
+						>
+							<option value="all">All</option>
+							<option value="easy">Easy</option>
+							<option value="medium">Medium</option>
+							<option value="hard">Hard</option>
 						</select>
 					</Pill>
 				</div>
@@ -454,6 +477,7 @@ const ExamEdit = () => {
 										<strong style={{ color: 'var(--text)' }}>
 											{q.type === 'multiple-choice' ? 'MCQ' : 'Subjective'}
 										</strong>
+										<Pill>{q.difficulty}</Pill>
 									</div>
 									<Pill>Marks: {q.max_marks}</Pill>
 								</div>
@@ -471,6 +495,20 @@ const ExamEdit = () => {
 								>
 									{q.text}
 								</p>
+								{q.tags && q.tags.length > 0 && (
+									<div
+										style={{
+											display: 'flex',
+											flexWrap: 'wrap',
+											gap: 4,
+											marginTop: 8,
+										}}
+									>
+										{q.tags.map(tag => (
+											<Pill key={tag}>{tag}</Pill>
+										))}
+									</div>
+								)}
 								<div
 									style={{
 										display: 'flex',
