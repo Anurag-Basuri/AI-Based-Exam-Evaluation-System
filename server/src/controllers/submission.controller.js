@@ -213,39 +213,6 @@ function mergeAnswers(existingAnswers, incomingAnswers) {
 	return Array.from(byQ.values());
 }
 
-// Sync answers for a submission (while in-progress)
-const syncAnswers = asyncHandler(async (req, res) => {
-	const studentId = req.student?._id || req.user?.id;
-	const { examId, answers } = req.body;
-
-	if (!examId || !Array.isArray(answers)) {
-		throw ApiError.BadRequest('Exam ID and answers are required');
-	}
-
-	const [submission, exam] = await Promise.all([
-		Submission.findOne({ exam: examId, student: studentId }),
-		Exam.findById(examId),
-	]);
-
-	if (!submission) throw ApiError.NotFound('Submission not found');
-	if (!exam) throw ApiError.NotFound('Exam not found');
-
-	// Auto-submit if time is up
-	if (isExpired(submission, exam) && submission.status === 'in-progress') {
-		const finalized = await finalizeAsSubmitted(submission, exam);
-		return ApiResponse.success(res, finalized, 'Time over. Auto-submitted');
-	}
-
-	if (submission.status !== 'in-progress') {
-		return ApiResponse.success(res, submission, 'Submission no longer editable');
-	}
-
-	// Safe merge (only update answers for known questions)
-	submission.answers = mergeAnswers(submission.answers, answers);
-	await submission.save();
-	return ApiResponse.success(res, submission, 'Answers synced');
-});
-
 // Submit a submission (mark as submitted and evaluate)
 const submitSubmission = asyncHandler(async (req, res) => {
 	console.log('[SUBMISSION_CTRL] Received request to submit and evaluate submission.');
@@ -668,7 +635,6 @@ const publishAllExamResults = asyncHandler(async (req, res) => {
 
 export {
 	startSubmission,
-	syncAnswers,
 	submitSubmission,
 	updateEvaluation,
 	evaluateSubmission,
