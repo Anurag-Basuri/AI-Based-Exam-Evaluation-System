@@ -242,59 +242,69 @@ const TakeExam = () => {
 	};
 
 	// --- Quick save ---
-	const handleQuickSave = useCallback(async () => {
-		if (!submission || saving || !hasUnsavedChanges.current || !isOnline) return;
+	const handleQuickSave = useCallback(
+		async (answersToSave, reviewState) => {
+			if (!submission || saving || !isOnline) return;
 
-		setSaving(true);
-		hasUnsavedChanges.current = false;
+			// If no specific data is passed, and there are no general unsaved changes, exit.
+			if (!answersToSave && !reviewState && !hasUnsavedChanges.current) return;
 
-		try {
-			await safeApiCall(saveSubmissionAnswers, submission.id, {
-				answers: submission.answers || [],
-				markedForReview: markedForReview,
-			});
-			setLastSaved(new Date());
-		} catch (e) {
-			hasUnsavedChanges.current = true;
-			console.error('Auto-save failed:', e);
-		} finally {
-			setSaving(false);
-		}
-	}, [submission, saving, markedForReview, isOnline]);
+			setSaving(true);
+			// Reset general flag; specific changes are handled by the payload.
+			hasUnsavedChanges.current = false;
+
+			try {
+				const payload = {};
+				if (answersToSave) payload.answers = answersToSave;
+				if (reviewState) payload.markedForReview = reviewState;
+
+				await safeApiCall(saveSubmissionAnswers, submission.id, payload);
+				setLastSaved(new Date());
+			} catch (e) {
+				hasUnsavedChanges.current = true; // Re-flag on failure
+				console.error('Auto-save failed:', e);
+			} finally {
+				setSaving(false);
+			}
+		},
+		[submission, saving, isOnline],
+	);
 
 	// --- Debounced save ---
-	const debouncedSave = useCallback(() => {
-		if (saveTimeoutRef.current) {
-			clearTimeout(saveTimeoutRef.current);
-		}
+	const debouncedSave = useCallback(
+		(answers, review) => {
+			if (saveTimeoutRef.current) {
+				clearTimeout(saveTimeoutRef.current);
+			}
 
-		saveTimeoutRef.current = setTimeout(() => {
-			handleQuickSave();
-		}, 2000); // Save 2 seconds after last change
-	}, [handleQuickSave]);
+			saveTimeoutRef.current = setTimeout(() => {
+				handleQuickSave(answers, review);
+			}, 2000); // Save 2 seconds after last change
+		},
+		[handleQuickSave],
+	);
 
 	// --- Toggle review ---
 	const handleToggleReview = useCallback(() => {
 		const currentQuestionId = submission?.questions?.[currentQuestionIndex]?.id;
 		if (!currentQuestionId) return;
 
-		hasUnsavedChanges.current = true;
-		setMarkedForReview(prev =>
-			prev.includes(currentQuestionId)
-				? prev.filter(id => id !== currentQuestionId)
-				: [...prev, currentQuestionId],
-		);
-		debouncedSave();
-	}, [submission, currentQuestionIndex, debouncedSave]);
+		const newMarkedForReview = markedForReview.includes(currentQuestionId)
+			? markedForReview.filter(id => id !== currentQuestionId)
+			: [...markedForReview, currentQuestionId];
+
+		setMarkedForReview(newMarkedForReview);
+		debouncedSave(null, newMarkedForReview);
+	}, [submission, currentQuestionIndex, debouncedSave, markedForReview]);
 
 	// --- Answer change ---
 	const handleAnswerChange = (questionId, value, type) => {
 		if (!submission) return;
 
-		hasUnsavedChanges.current = true;
-
+		let updatedAnswer;
 		setSubmission(prev => {
-			const answerIndex = (prev.answers || []).findIndex(a => a.question === questionId);
+			const newAnswers = [...prev.answers];
+			const answerIndex = newAnswers.findIndex(a => a.question === questionId);
 
 			if (answerIndex === -1) {
 				console.warn(
@@ -304,23 +314,24 @@ const TakeExam = () => {
 				return prev;
 			}
 
-			const newAnswers = [...prev.answers];
 			const answerToUpdate = { ...newAnswers[answerIndex] };
 
 			if (type === 'multiple-choice') {
 				answerToUpdate.responseOption = value;
-				answerToUpdate.responseText = '';
 			} else {
 				answerToUpdate.responseText = value;
-				answerToUpdate.responseOption = null;
 			}
 
 			newAnswers[answerIndex] = answerToUpdate;
+			updatedAnswer = answerToUpdate; // Capture the single updated answer
 
 			return { ...prev, answers: newAnswers };
 		});
 
-		debouncedSave();
+		// OPTIMIZATION: Only send the single changed answer to the backend.
+		if (updatedAnswer) {
+			debouncedSave([updatedAnswer], null);
+		}
 	};
 
 	// --- Save and next ---
@@ -343,11 +354,12 @@ const TakeExam = () => {
 		if (!isStarted) return;
 
 		const id = setInterval(() => {
-			handleQuickSave();
+			// This periodic save is a fallback. It will only run if there are changes.
+			handleQuickSave(null, markedForReview);
 		}, AUTO_SAVE_INTERVAL);
 
 		return () => clearInterval(id);
-	}, [isStarted, handleQuickSave]);
+	}, [isStarted, handleQuickSave, markedForReview]);
 
 	// --- Question stats ---
 	const questionStats = useMemo(() => {
@@ -478,8 +490,8 @@ const TakeExam = () => {
 				<div style={styles.navigationControls}>
 					<button
 						id="prev-btn"
-						onClick={async () => {
-							await handleQuickSave();
+						onClick={() => {
+							// No need to save, just navigate. Debounce handles saving.
 							setCurrentQuestionIndex(i => Math.max(0, i - 1));
 						}}
 						disabled={currentQuestionIndex === 0 || autoSubmitting}
@@ -722,6 +734,29 @@ const StartScreen = ({ submission, onStart }) => (
 	</div>
 );
 
+const paletteStatusStyles = {
+	answered: {
+		background: 'rgba(16,185,129,0.15)',
+		color: '#10b981',
+		borderColor: 'rgba(16,185,129,0.35)',
+	},
+	unanswered: {
+		background: 'rgba(239,68,68,0.1)',
+		color: '#ef4444',
+		borderColor: 'rgba(239,68,68,0.35)',
+	},
+	review: {
+		background: 'rgba(245,158,11,0.1)',
+		color: '#f59e0b',
+		borderColor: 'rgba(245,158,11,0.35)',
+	},
+	'answered-review': {
+		background: 'rgba(139,92,246,0.15)',
+		color: '#8b5cf6',
+		borderColor: 'rgba(139,92,246,0.35)',
+	},
+};
+
 const QuestionPalette = ({ stats, currentIndex, onSelect }) => (
 	<div style={styles.paletteContainer}>
 		<div style={styles.paletteGrid}>
@@ -819,6 +854,10 @@ const SubmitConfirmation = ({ stats, onConfirm, onCancel }) => (
 
 const QuestionCard = ({ question, index, answer, onAnswerChange, disabled }) => {
 	const isMCQ = question.type === 'multiple-choice';
+	const wordCount = useMemo(
+		() => (answer?.responseText || '').trim().split(/\s+/).filter(Boolean).length,
+		[answer?.responseText],
+	);
 
 	return (
 		<div style={styles.questionCard}>
@@ -831,32 +870,58 @@ const QuestionCard = ({ question, index, answer, onAnswerChange, disabled }) => 
 
 			{isMCQ ? (
 				<div style={{ display: 'grid', gap: 12 }}>
-					{(question.options || []).map(opt => (
-						<label key={opt.id} style={styles.mcqOption}>
-							<input
-								type="radio"
-								name={`q_${question.id}`}
-								value={opt.id}
-								checked={answer?.responseOption === opt.id}
-								onChange={e =>
-									onAnswerChange(question.id, e.target.value, 'multiple-choice')
-								}
-								disabled={disabled}
-								style={{ cursor: disabled ? 'not-allowed' : 'pointer' }}
-							/>
-							<span style={{ flex: 1 }}>{opt.text}</span>
-						</label>
-					))}
+					{(question.options || []).map(opt => {
+						const isChecked = answer?.responseOption === opt.id;
+						return (
+							<label
+								key={opt.id}
+								style={{
+									...styles.mcqOption,
+									...(isChecked ? styles.mcqOptionChecked : {}),
+								}}
+							>
+								<input
+									type="radio"
+									name={`q_${question.id}`}
+									value={opt.id}
+									checked={isChecked}
+									onChange={e =>
+										onAnswerChange(
+											question.id,
+											e.target.value,
+											'multiple-choice',
+										)
+									}
+									disabled={disabled}
+									style={{
+										cursor: disabled ? 'not-allowed' : 'pointer',
+										opacity: 0,
+										position: 'absolute',
+									}}
+								/>
+								<span
+									style={{
+										...styles.mcqRadioBubble,
+										...(isChecked ? styles.mcqRadioBubbleChecked : {}),
+									}}
+								/>
+								<span style={{ flex: 1 }}>{opt.text}</span>
+							</label>
+						);
+					})}
 				</div>
 			) : (
-				<textarea
-					value={answer?.responseText || ''}
-					onChange={e => onAnswerChange(question.id, e.target.value, 'descriptive')}
-					disabled={disabled}
-					rows={8}
-					placeholder="Type your answer here..."
-					style={styles.textarea}
-				/>
+				<div style={{ position: 'relative' }}>
+					<textarea
+						value={answer?.responseText || ''}
+						onChange={e => onAnswerChange(question.id, e.target.value, 'descriptive')}
+						disabled={disabled}
+						rows={8}
+						placeholder="Type your answer here..."
+						style={styles.textarea}
+					/>
+					<span style={styles.wordCount}>{wordCount} words</span>
+				</div>
 			)}
 		</div>
 	);
@@ -1058,6 +1123,24 @@ const styles = {
 		border: '1px solid var(--border)',
 		borderRadius: '8px',
 		transition: 'all 0.2s',
+		position: 'relative',
+	},
+	mcqOptionChecked: {
+		background: 'color-mix(in srgb, var(--primary) 10%, transparent)',
+		borderColor: 'var(--primary)',
+	},
+	mcqRadioBubble: {
+		width: 20,
+		height: 20,
+		borderRadius: 999,
+		border: '2px solid var(--border)',
+		background: 'var(--surface)',
+		transition: 'all 0.2s',
+	},
+	mcqRadioBubbleChecked: {
+		borderColor: 'var(--primary)',
+		background: 'var(--primary)',
+		boxShadow: '0 0 0 3px var(--surface) inset',
 	},
 	textarea: {
 		width: '100%',
@@ -1070,6 +1153,17 @@ const styles = {
 		fontSize: '14px',
 		lineHeight: 1.5,
 		resize: 'vertical',
+	},
+	wordCount: {
+		position: 'absolute',
+		bottom: 10,
+		right: 10,
+		fontSize: 11,
+		fontWeight: 600,
+		color: 'var(--text-muted)',
+		background: 'var(--bg)',
+		padding: '2px 6px',
+		borderRadius: 4,
 	},
 	violationOverlay: {
 		position: 'fixed',
@@ -1208,18 +1302,6 @@ const styles = {
 		borderRadius: 999,
 		fontSize: 12,
 		fontWeight: 700,
-	},
-};
-
-const paletteStatusStyles = {
-	unanswered: { background: 'var(--surface)', color: 'var(--text-muted)' },
-	answered: { background: '#10b981', color: 'white', border: 'none' },
-	review: { background: '#8b5cf6', color: 'white', border: 'none' },
-	'answered-review': {
-		background: '#10b981',
-		color: 'white',
-		border: '3px solid #8b5cf6',
-		boxShadow: '0 0 0 1px white inset',
 	},
 };
 

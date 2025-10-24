@@ -3,7 +3,6 @@ import { body, param, query } from 'express-validator';
 import { checkAuth, verifyStudent, verifyTeacher } from '../middlewares/auth.middleware.js';
 import {
 	startSubmission,
-	syncAnswers,
 	submitSubmission,
 	updateEvaluation,
 	evaluateSubmission,
