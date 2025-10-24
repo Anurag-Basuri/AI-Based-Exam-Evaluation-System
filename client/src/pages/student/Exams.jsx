@@ -10,6 +10,7 @@ const statusStyles = {
 	started: { color: '#f59e0b', label: 'Started', icon: '🟡' },
 	submitted: { color: '#6366f1', label: 'Evaluating...', icon: '⚙️' },
 	evaluated: { color: '#10b981', label: 'Evaluated', icon: '✅' },
+	published: { color: '#10b981', label: 'Published', icon: '✅' },
 	pending: { color: 'var(--text-muted)', label: 'Pending', icon: '⏳' },
 };
 
@@ -83,6 +84,56 @@ const PreviousExamCard = ({ submission, onContinue, isContinuing }) => {
 						</span>
 					)}
 				</div>
+			)}
+			{/* --- NEW: Improved Results Display --- */}
+			{submission.status === 'published' && hasScore ? (
+				<div
+					style={{
+						background: 'var(--bg)',
+						border: '1px solid var(--border)',
+						borderRadius: 12,
+						padding: 8,
+						marginBottom: 8,
+						display: 'flex',
+						alignItems: 'center',
+						gap: 8,
+					}}
+				>
+					<span style={{ fontWeight: 800, color: 'var(--text)' }}>
+						{submission.score.toFixed(1)}
+					</span>
+					<span style={{ color: 'var(--text-muted)' }}>/ {submission.maxScore ?? 0}</span>
+					{pct != null && (
+						<span
+							style={{
+								marginLeft: 'auto',
+								color: pct >= 70 ? '#10b981' : '#ef4444',
+								fontWeight: 800,
+								fontSize: 12,
+							}}
+						>
+							{pct}%
+						</span>
+					)}
+				</div>
+			) : (
+				submission.status !== 'in-progress' &&
+				submission.status !== 'started' && (
+					<div
+						style={{
+							background: 'var(--bg)',
+							border: '1px solid var(--border)',
+							borderRadius: 12,
+							padding: '10px 12px',
+							marginBottom: 8,
+							fontSize: 13,
+							fontWeight: 600,
+							color: 'var(--text-muted)',
+						}}
+					>
+						{submission.remarks || 'Results will be available after evaluation.'}
+					</div>
+				)
 			)}
 			{['in-progress', 'started'].includes(submission.status) && (
 				<div style={{ display: 'flex', justifyContent: 'flex-end' }}>
