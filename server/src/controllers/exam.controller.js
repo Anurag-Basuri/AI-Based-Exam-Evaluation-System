@@ -42,6 +42,7 @@ const createExam = asyncHandler(async (req, res) => {
 		createdBy: teacherId,
 		status: 'draft',
 		aiPolicy,
+		totalMarks: questions.reduce((sum, q) => sum + (q.max_marks || 0), 0),
 	});
 
 	await exam.save();
@@ -85,6 +86,9 @@ const addQuestionsToExam = asyncHandler(async (req, res) => {
 	}
 
 	exam.questions = Array.from(new Set([...exam.questions, ...questionIds]));
+	// Recalculate total marks
+	const fullQuestions = await Question.find({ _id: { $in: exam.questions } }).select('max_marks');
+	exam.totalMarks = fullQuestions.reduce((sum, q) => sum + (q.max_marks || 0), 0);
 	await exam.save();
 	await Question.updateMany({ _id: { $in: questionIds } }, { $set: { sourceExam: exam._id } });
 
@@ -113,6 +117,9 @@ const removeQuestionsFromExam = asyncHandler(async (req, res) => {
 	}
 
 	exam.questions = exam.questions.filter(qId => !questionIds.includes(qId.toString()));
+	// Recalculate total marks
+	const fullQuestions = await Question.find({ _id: { $in: exam.questions } }).select('max_marks');
+	exam.totalMarks = fullQuestions.reduce((sum, q) => sum + (q.max_marks || 0), 0);
 	await exam.save();
 	await Question.updateMany({ _id: { $in: questionIds } }, { $unset: { sourceExam: '' } });
 
@@ -177,10 +184,11 @@ const updateExam = asyncHandler(async (req, res) => {
 	if (!exam) throw ApiError.NotFound('Exam not found');
 	assertOwner(exam, teacherId);
 
-	// Prevent edits on exams that are locked (live, completed, cancelled)
-	const isLocked = isLive(exam) || ['completed', 'cancelled'].includes(exam.status);
-	if (isLocked) {
-		throw ApiError.Forbidden('Cannot modify details of a live, completed, or cancelled exam.');
+	// Prevent edits on exams that are not in draft state.
+	if (exam.status !== 'draft') {
+		throw ApiError.Forbidden(
+			'Only draft exams can be fully edited. For scheduled exams, you can only reschedule.',
+		);
 	}
 
 	// Apply updates for draft or scheduled exams
@@ -351,7 +359,7 @@ const setExamQuestions = asyncHandler(async (req, res) => {
 
 	// Verify ownership of all questions
 	const owned = await Question.find({ _id: { $in: questionIds }, createdBy: teacherId }).select(
-		'_id',
+		'_id max_marks',
 	);
 	if (owned.length !== questionIds.length) {
 		throw ApiError.BadRequest('Some questions do not belong to you or do not exist');
@@ -364,6 +372,7 @@ const setExamQuestions = asyncHandler(async (req, res) => {
 	const removed = [...prev].filter(id => !next.has(id));
 
 	exam.questions = questionIds;
+	exam.totalMarks = owned.reduce((sum, q) => sum + (q.max_marks || 0), 0);
 	await exam.save();
 
 	if (added.length) {
@@ -539,6 +548,7 @@ const getMyExams = asyncHandler(async (req, res) => {
 			questionCount: 1,
 			evaluatedCount: 1,
 			publishedCount: 1,
+			totalMarks: 1,
 		},
 	});
 

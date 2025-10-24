@@ -111,14 +111,19 @@ const examSchema = new mongoose.Schema(
 				message: 'End time must be after start time',
 			},
 		},
-		isActive: {
-			type: Boolean,
-			default: true,
-		},
 		status: {
 			type: String,
 			enum: ['draft', 'active', 'completed', 'cancelled'],
 			default: 'draft',
+		},
+		publishedAt: {
+			type: Date,
+			default: null,
+		},
+		totalMarks: {
+			type: Number,
+			default: 0,
+			min: 0,
 		},
 		slug: {
 			type: String,
@@ -159,11 +164,14 @@ examSchema.pre('validate', function (next) {
 
 // Mark exam completed if endTime has passed
 examSchema.pre('save', function (next) {
-	if (this.endTime && this.endTime < new Date()) {
-		this.isActive = false;
-		this.status = 'completed';
-	}
-	next();
+    if (this.isModified('status') && this.status === 'active' && !this.publishedAt) {
+        this.publishedAt = new Date();
+    }
+    // Only transition from 'active' to 'completed'
+    if (this.status === 'active' && this.endTime && this.endTime < new Date()) {
+        this.status = 'completed';
+    }
+    next();
 });
 
 // Simple cleanup function for orphan exams (call from a scheduled job if needed)
