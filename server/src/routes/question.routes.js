@@ -24,7 +24,7 @@ router.post(
 );
 
 // Get all questions for the logged-in teacher (now supports q,type,page,limit)
-router.get('/mine', checkAuth, verifyTeacher, getTeacherQuestions);
+router.get('/my', checkAuth, verifyTeacher, getTeacherQuestions);
 
 // Bulk create questions
 router.post(

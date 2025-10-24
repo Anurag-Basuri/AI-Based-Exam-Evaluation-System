@@ -117,7 +117,7 @@ const EP = {
 	questions: '/api/questions/my',
 	questionCreate: '/api/questions/create',
 	questionById: id => `/api/questions/${encodeURIComponent(id)}`,
-	questionUpdate: id => `/api/questions/${encodeURIComponent(id)}`,
+	questionUpdate: id => `/api/questions/${encodeURIComponent(id)}/update`,
 	questionDelete: id => `/api/questions/${encodeURIComponent(id)}`,
 
 	// Submissions
