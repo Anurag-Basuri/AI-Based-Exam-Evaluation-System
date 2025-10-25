@@ -3,6 +3,7 @@ import Submission from '../models/submission.model.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
+import mongoose from 'mongoose';
 
 // Student raises an issue against a specific submission
 const createIssue = asyncHandler(async (req, res) => {
@@ -33,9 +34,11 @@ const createIssue = asyncHandler(async (req, res) => {
 		{ path: 'assignedTo', select: 'fullname' },
 	]);
 
-	// Emit to a 'teachers' room instead of all clients
-	req.io.to('teachers').emit('new-issue', populatedIssue);
-
+	// Emit to a 'teachers' room
+	const io = req.io || req.app?.get('io');
+	if (io) {
+		io.to('teachers').emit('new-issue', populatedIssue);
+	}
 	return ApiResponse.success(res, populatedIssue, 'Issue raised successfully', 201);
 });
 
@@ -55,15 +58,21 @@ const getAllIssues = asyncHandler(async (req, res) => {
 	const filter = {};
 	if (status) filter.status = String(status).toLowerCase();
 	if (exam) filter.exam = exam;
-
 	// Add search functionality
 	if (search) {
 		const searchRegex = { $regex: search, $options: 'i' };
+
 		const studentIds = await mongoose
 			.model('Student')
 			.find({ fullname: searchRegex })
-			.select('_id');
-		const examIds = await mongoose.model('Exam').find({ title: searchRegex }).select('_id');
+			.select('_id')
+			.lean();
+
+		const examIds = await mongoose
+			.model('Exam')
+			.find({ title: searchRegex })
+			.select('_id')
+			.lean();
 
 		filter.$or = [
 			{ description: searchRegex },
