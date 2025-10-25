@@ -73,7 +73,7 @@ const IssueDetailPanel = ({ issueId, onClose, onUpdate }) => {
 			<button onClick={onClose} style={styles.modalCloseButton}>
 				&times;
 			</button>
-			{loading && <p>Loading details...</p>}
+			{loading && <div style={styles.detailLoading}>Loading details...</div>}
 			{!loading && issue && (
 				<>
 					<h3 style={{ marginTop: 0 }}>{issue.examTitle}</h3>
@@ -337,6 +337,13 @@ const TeacherIssues = () => {
 							</tr>
 						</thead>
 						<tbody>
+							{!loading && filteredIssues.length === 0 && (
+								<tr>
+									<td colSpan="6" style={styles.emptyState}>
+									 No issues match the current filters.
+									</td>
+								</tr>
+							)}
 							{filteredIssues.map(issue => (
 								<IssueRow
 									key={issue.id}
@@ -524,6 +531,16 @@ const styles = {
 		border: '1px solid var(--border)',
 		background: 'var(--bg)',
 		minWidth: '200px',
+	},
+	emptyState: {
+		textAlign: 'center',
+		padding: '48px',
+		color: 'var(--text-muted)',
+	},
+	detailLoading: {
+		textAlign: 'center',
+		padding: '48px',
+		color: 'var(--text-muted)',
 	},
 };
 
