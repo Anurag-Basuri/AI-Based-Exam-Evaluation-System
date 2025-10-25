@@ -2,7 +2,7 @@ import axios from 'axios';
 import { isTokenExpired, getToken, removeToken } from '../utils/handleToken.js';
 
 // ✅ CORRECTED: Point to your backend server running on port 8000
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
 // Axios instance for authenticated requests
 const apiClient = axios.create({

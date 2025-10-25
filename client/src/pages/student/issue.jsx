@@ -3,7 +3,7 @@ import { CSSTransition } from 'react-transition-group';
 import { io } from 'socket.io-client';
 import { useToast } from '../../components/ui/Toaster.jsx';
 import { useAuth } from '../../hooks/useAuth.js';
-import { VITE_API_BASE_URL } from '../../services/api.js';
+import { API_BASE_URL } from '../../services/api.js';
 import {
 	safeApiCall,
 	getMyIssues,
@@ -252,7 +252,7 @@ const StudentIssues = () => {
 	React.useEffect(() => {
 		if (!user?.id) return;
 
-		const socket = io(VITE_API_BASE_URL, {
+		const socket = io(API_BASE_URL, {
 			query: { userId: user.id },
 			withCredentials: true,
 		});
