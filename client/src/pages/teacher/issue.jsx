@@ -7,7 +7,7 @@ import {
 	updateIssueStatus,
 	resolveIssue,
 } from '../../services/teacherServices.js';
-import { VITE_API_BASE_URL } from '../../services/api.js';
+import { API_BASE_URL } from '../../services/api.js';
 
 // (Re-using student status styles for consistency)
 const statusStyles = {
@@ -108,13 +108,13 @@ const IssueRow = ({ issue, onUpdate, onSelect }) => {
 
 	const handleStatusChange = async newStatus => {
 		try {
-			const updatedIssue = await safeApiCall(updateIssueStatus, issue.id, {
-				status: newStatus,
-			});
+			const updatedIssue = await safeApiCall(updateIssueStatus, issue.id, newStatus);
 			onUpdate(updatedIssue);
-			toast({ variant: 'success', title: `Status updated to "${config.label}"` });
+			// BUGFIX: Use the new status to get the correct label for the toast.
+			const newConfig = statusStyles[newStatus] || statusStyles.open;
+			toast.success(`Status updated to "${newConfig.label}"`);
 		} catch (err) {
-			toast({ variant: 'destructive', title: 'Update failed', description: err.message });
+			toast.error('Update failed', { description: err.message });
 		}
 	};
 
@@ -167,15 +167,21 @@ const TeacherIssues = () => {
 
 	useEffect(() => {
 		loadIssues();
-		const socket = io(VITE_API_BASE_URL, { withCredentials: true });
+		const socket = io(API_BASE_URL, { withCredentials: true });
+		socket.emit('join', 'teachers'); // Join the teachers room
+
 		socket.on('new-issue', newIssue => {
 			setIssues(prev => [newIssue, ...prev]);
-			toast({
-				variant: 'info',
-				title: 'New Issue Submitted!',
+			toast.info('New Issue Submitted!', {
 				description: `From ${newIssue.student.fullname}`,
 			});
 		});
+
+		// Listen for updates from other teachers
+		socket.on('issue-update', updatedIssue => {
+			setIssues(prev => prev.map(i => (i.id === updatedIssue.id ? updatedIssue : i)));
+		});
+
 		return () => socket.disconnect();
 	}, [loadIssues, toast]);
 
