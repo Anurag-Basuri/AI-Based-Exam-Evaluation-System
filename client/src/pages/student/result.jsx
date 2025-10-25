@@ -176,95 +176,101 @@ const ResultDetailModal = ({ submissionId, onClose }) => {
 };
 
 const ResultCard = ({ result, onViewDetails }) => {
-	const config = statusStyles[result.status] || statusStyles.pending;
-	const isPublished = result.status === 'published';
-	const hasScore = isPublished && result.score !== null && result.score !== undefined;
-	const percentage =
-		hasScore && result.maxScore > 0 ? Math.round((result.score / result.maxScore) * 100) : 0;
+    const config = statusStyles[result.status] || statusStyles.pending;
+    const isPublished = result.status === 'published';
+    const hasScore = isPublished && result.score !== null && result.score !== undefined;
 
-	return (
-		<article style={styles.resultCard}>
-			<div style={styles.resultCardMain}>
-				<header style={{ marginBottom: '16px' }}>
-					<div style={styles.resultCardHeader}>
-						<h3 style={styles.resultCardTitle}>{result.examTitle}</h3>
-						<span
-							style={{
-								...styles.statusPill,
-								...{
-									border: `1px solid ${config.border}`,
-									background: config.bg,
-									color: config.color,
-								},
-							}}
-						>
-							<span>{config.icon}</span>
-							{config.label}
-						</span>
-					</div>
-					{result.submittedAt && (
-						<div style={styles.resultCardSubtitle}>Submitted: {result.submittedAt}</div>
-					)}
-				</header>
+    return (
+        <article style={styles.resultCard} className="result-card">
+            <div style={styles.resultCardMain}>
+                <header style={{ marginBottom: '16px' }}>
+                    <div style={styles.resultCardHeader}>
+                        <h3 style={styles.resultCardTitle}>{result.examTitle}</h3>
+                        <span
+                            style={{
+                                ...styles.statusPill,
+                                ...{
+                                    border: `1px solid ${config.border}`,
+                                    background: config.bg,
+                                    color: config.color,
+                                },
+                            }}
+                        >
+                            <span>{config.icon}</span>
+                            {config.label}
+                        </span>
+                    </div>
+                    {result.submittedAt && (
+                        <div style={styles.resultCardSubtitle}>Submitted: {result.submittedAt}</div>
+                    )}
+                </header>
 
-				<div style={styles.scoreBox}>
-					{hasScore ? (
-						<>
-							<span style={styles.scoreValue}>{result.score.toFixed(1)}</span>
-							<span style={styles.scoreMax}>/ {result.maxScore || 100}</span>
-							<span
-								style={{
-									...styles.scorePercent,
-									color:
-										percentage >= 70
-											? 'var(--success-text)'
-											: percentage >= 50
-												? 'var(--warning-text)'
-												: 'var(--danger-text)',
-								}}
-							>
-								({percentage}%)
-							</span>
-						</>
-					) : (
-						<span style={styles.awaitingEvalText}>
-							{isPublished ? 'Score not available' : '📝 Awaiting evaluation'}
-						</span>
-					)}
-				</div>
+                <div style={styles.scoreBox}>
+                    {hasScore ? (
+                        <>
+                            <span style={styles.scoreValue}>{result.score.toFixed(1)}</span>
+                            <span style={styles.scoreMax}>/ {result.maxScore || 100}</span>
+                            {result.percentage != null && (
+                                <span
+                                    style={{
+                                        ...styles.scorePercent,
+                                        color:
+                                            result.percentage >= 70
+                                                ? 'var(--success-text)'
+                                                : result.percentage >= 50
+                                                    ? 'var(--warning-text)'
+                                                    : 'var(--danger-text)',
+                                    }}
+                                >
+                                    ({result.percentage}%)
+                                </span>
+                            )}
+                        </>
+                    ) : (
+                        <span style={styles.awaitingEvalText}>
+                            {isPublished ? 'Score not available' : '📝 Awaiting evaluation'}
+                        </span>
+                    )}
+                </div>
 
-				{result.remarks && (
-					<div style={styles.feedbackBox}>
-						<div style={styles.feedbackTitle}>Feedback</div>
-						<p style={styles.feedbackText}>{result.remarks}</p>
-					</div>
-				)}
-			</div>
+                {result.remarks && (
+                    <div style={styles.feedbackBox}>
+                        <div style={styles.feedbackTitle}>Feedback</div>
+                        <p style={styles.feedbackText}>{result.remarks}</p>
+                    </div>
+                )}
+            </div>
 
-			<div style={styles.performancePane}>
-				<div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)' }}>
-					Performance
-				</div>
-				{hasScore && (
-					<div
-						style={{
-							...styles.donutChart,
-							background: `conic-gradient(${percentage >= 70 ? 'var(--success-text)' : percentage >= 50 ? 'var(--warning-text)' : 'var(--danger-text)'} ${percentage * 3.6}deg, var(--border) 0deg)`,
-						}}
-					>
-						<div style={styles.donutChartInner}>{percentage}%</div>
-					</div>
-				)}
-				<button
-					onClick={() => onViewDetails(result.id)}
-					style={styles.detailsButton}
-					disabled={!isPublished}
-				>
-					View Details
-				</button>
-			</div>
-		</article>
-	);
+            <div style={styles.performancePane} id="performance-pane">
+                <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)' }}>
+                    Performance
+                </div>
+                {hasScore && result.percentage != null && (
+                    <div
+                        style={{
+                            ...styles.donutChart,
+                            background: `conic-gradient(${
+                                result.percentage >= 70
+                                    ? 'var(--success-text)'
+                                    : result.percentage >= 50
+                                        ? 'var(--warning-text)'
+                                        : 'var(--danger-text)'
+                            } ${result.percentage * 3.6}deg, var(--border) 0deg)`,
+                        }}
+                    >
+                        <div style={styles.donutChartInner}>{result.percentage}%</div>
+                    </div>
+                )}
+                <button
+                    onClick={() => onViewDetails(result.id)}
+                    style={styles.detailsButton}
+                    disabled={!isPublished}
+                >
+                    View Details
+                </button>
+            </div>
+        </article>
+    );
 };
 
 const StudentResults = () => {
@@ -275,18 +281,18 @@ const StudentResults = () => {
 	const [status, setStatus] = React.useState('all');
 	const [viewingResultId, setViewingResultId] = React.useState(null);
 
-	const loadResults = React.useCallback(async () => {
-		setLoading(true);
-		setError('');
-		try {
-			const data = await safeApiCall(getMySubmissions);
-			setResults(Array.isArray(data) ? data : []);
-		} catch (e) {
-			setError(e?.message || 'Failed to load results');
-		} finally {
-			setLoading(false);
-		}
-	}, []);
+	const loadResults = React.useCallback(async (force = false) => {
+        setLoading(true);
+        setError('');
+        try {
+            const data = await safeApiCall(getMySubmissions, {}, force);
+            setResults(Array.isArray(data) ? data : []);
+        } catch (e) {
+            setError(e?.message || 'Failed to load results');
+        } finally {
+            setLoading(false);
+        }
+    }, []);
 
 	React.useEffect(() => {
 		loadResults();
@@ -338,7 +344,7 @@ const StudentResults = () => {
 					<h1 style={styles.pageTitle}>Results & Feedback</h1>
 					<p style={styles.pageSubtitle}>Review your exam scores and teacher feedback.</p>
 				</div>
-				<button onClick={loadResults} disabled={loading} style={styles.refreshButton}>
+				<button onClick={() => loadResults(true)} disabled={loading} style={styles.refreshButton}>
 					{loading ? '⏳' : '🔄'} Refresh
 				</button>
 			</header>
