@@ -78,7 +78,15 @@ const updateIssueStatus = asyncHandler(async (req, res) => {
 	issue.status = String(status).toLowerCase();
 	await issue.save();
 
-	return ApiResponse.success(res, issue, 'Issue status updated');
+	const populatedIssue = await issue.populate([
+		{ path: 'student', select: 'fullname email' },
+		{ path: 'exam', select: 'title' },
+	]);
+
+	// EMIT REAL-TIME EVENT for the specific student
+	req.io.to(issue.student._id.toString()).emit('issue-update', populatedIssue);
+
+	return ApiResponse.success(res, populatedIssue, 'Issue status updated');
 });
 
 // Teacher resolves an issue
@@ -98,7 +106,15 @@ const resolveIssue = asyncHandler(async (req, res) => {
 	issue.markResolved(teacherId, reply);
 	await issue.save();
 
-	return ApiResponse.success(res, issue, 'Issue resolved');
+	const populatedIssue = await issue.populate([
+		{ path: 'student', select: 'fullname email' },
+		{ path: 'exam', select: 'title' },
+	]);
+
+	// EMIT REAL-TIME EVENT for the specific student
+	req.io.to(issue.student._id.toString()).emit('issue-update', populatedIssue);
+
+	return ApiResponse.success(res, populatedIssue, 'Issue resolved');
 });
 
 // Get a single issue (for details)
