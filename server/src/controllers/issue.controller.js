@@ -32,7 +32,8 @@ const createIssue = asyncHandler(async (req, res) => {
 		{ path: 'exam', select: 'title' },
 	]);
 
-	req.io.emit('new-issue', populatedIssue);
+	// Emit to a 'teachers' room instead of all clients
+	req.io.to('teachers').emit('new-issue', populatedIssue);
 
 	return ApiResponse.success(res, populatedIssue, 'Issue raised successfully', 201);
 });
@@ -100,7 +101,6 @@ const resolveIssue = asyncHandler(async (req, res) => {
 		throw ApiError.NotFound('Issue not found');
 	}
 	if (issue.status === 'resolved') {
-		throw ApiError.Conflict('Issue already resolved');
 	}
 
 	issue.markResolved(teacherId, reply);

@@ -325,6 +325,8 @@ const normalizeIssue = i => ({
 	id: String(i._id ?? i.id ?? ''),
 	examId: String(i.exam?._id ?? i.exam ?? ''),
 	examTitle: i.exam?.title ?? i.examTitle ?? 'Exam',
+	// Handle populated student from createIssue response
+	student: i.student?._id ? { _id: i.student._id } : i.student,
 	issueType: i.issueType ?? i.type ?? 'General',
 	description: i.description ?? '',
 	status: String(i.status || 'open').toLowerCase(),
