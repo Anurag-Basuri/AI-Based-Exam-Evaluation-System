@@ -23,13 +23,16 @@ const PreviousExamCard = ({ submission, onContinue, isContinuing }) => {
 			style={{
 				background: 'var(--surface)',
 				border: '1px solid var(--border)',
-				borderRadius: 14,
-				padding: 14,
-				boxShadow: 'var(--shadow-md)',
+				borderRadius: 16, // Match ResultCard
+				padding: '20px', // Match ResultCard
+				boxShadow: 'var(--shadow-sm)', // Match ResultCard
+				display: 'flex',
+				flexDirection: 'column',
+				gap: 12,
 			}}
 		>
-			<div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
-				<strong style={{ color: 'var(--text)', fontSize: 16, flex: 1 }}>
+			<div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+				<strong style={{ color: 'var(--text)', fontSize: 16, flex: 1, lineHeight: 1.4 }}>
 					{submission.examTitle}
 				</strong>
 				<span
@@ -38,12 +41,12 @@ const PreviousExamCard = ({ submission, onContinue, isContinuing }) => {
 						alignItems: 'center',
 						gap: 6,
 						fontSize: 12,
-						padding: '6px 10px',
+						padding: '6px 12px',
 						borderRadius: 20,
-						border: '1px solid var(--border)',
-						background: 'var(--bg)',
+						border: `1px solid ${cfg.border}`,
+						background: cfg.bg,
 						color: cfg.color,
-						fontWeight: 800,
+						fontWeight: 700,
 					}}
 				>
 					<span>{cfg.icon}</span>
@@ -105,7 +108,7 @@ const PreviousExamCard = ({ submission, onContinue, isContinuing }) => {
 				)
 			)}
 			{['in-progress', 'started'].includes(submission.status) && (
-				<div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+				<div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 'auto' }}>
 					<button
 						onClick={() => onContinue(submission)}
 						disabled={isContinuing}
@@ -214,46 +217,25 @@ const StudentExams = () => {
 
 	return (
 		<div style={{ maxWidth: 1100, margin: '0 auto' }}>
-			<PageHeader
-				title="Student Exams"
-				subtitle="Search by code to join a live/scheduled exam. Continue where you left off."
-				breadcrumbs={[{ label: 'Home', to: '/student' }, { label: 'Exams' }]}
-				actions={[
-					<button
-						key="results"
-						onClick={() => navigate('/student/results')}
-						className="tap"
-						style={{
-							padding: '10px 14px',
-							borderRadius: 10,
-							border: '1px solid var(--border)',
-							background: 'var(--surface)',
-							color: 'var(--text)',
-							fontWeight: 800,
-						}}
-					>
-						📊 My Results
-					</button>,
-					<button
-						key="refresh"
-						onClick={() => loadMine(true)} // Pass true to force refresh
-						className="tap"
-						style={{
-							padding: '10px 14px',
-							borderRadius: 10,
-							border: '1px solid var(--border)',
-							background: 'var(--surface)',
-							color: 'var(--text)',
-							fontWeight: 800,
-						}}
-					>
-						🔄 Refresh
-					</button>,
-				]}
-			/>
+			{/* --- NEW: Consistent Header --- */}
+			<header style={styles.pageHeader}>
+				<div>
+					<h1 style={styles.pageTitle}>Exams</h1>
+					<p style={styles.pageSubtitle}>
+						Join a new exam with a code or continue a previous one.
+					</p>
+				</div>
+				<button
+					onClick={() => loadMine(true)}
+					disabled={starting}
+					style={styles.refreshButton}
+				>
+					{starting ? '⏳' : '🔄'} Refresh
+				</button>
+			</header>
 
 			{errorBanner && (
-				<div style={{ marginBottom: 12 }}>
+				<div style={{ marginBottom: 16 }}>
 					<Alert type="error" onClose={() => setErrorBanner('')}>
 						{errorBanner}
 					</Alert>
@@ -266,14 +248,14 @@ const StudentExams = () => {
 					border: '1px solid var(--border)',
 					borderRadius: 16,
 					padding: 16,
-					marginBottom: 16,
+					marginBottom: 24, // Increased margin
 				}}
 			>
 				<form
 					onSubmit={handleSearch}
-					style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}
+					style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}
 				>
-					<div style={{ position: 'relative', flex: '1 1 320px' }}>
+					<div style={{ flex: '1 1 320px' }}>
 						<label
 							htmlFor="exam-code"
 							style={{
@@ -311,43 +293,45 @@ const StudentExams = () => {
 							}}
 						/>
 					</div>
-					<button
-						type="submit"
-						disabled={searching}
-						className="tap"
-						style={{
-							padding: '12px 16px',
-							borderRadius: 10,
-							border: 'none',
-							background: searching
-								? '#9ca3af'
-								: 'linear-gradient(135deg, #6366f1, #4f46e5)',
-							color: '#fff',
-							fontWeight: 900,
-							cursor: searching ? 'not-allowed' : 'pointer',
-						}}
-					>
-						{searching ? 'Searching…' : '🔍 Search'}
-					</button>
-					<button
-						type="button"
-						onClick={() => {
-							setCode('');
-							setFound(null);
-							setErrorBanner('');
-						}}
-						className="tap"
-						style={{
-							padding: '12px 16px',
-							borderRadius: 10,
-							border: '1px solid var(--border)',
-							background: 'var(--surface)',
-							color: 'var(--text)',
-							fontWeight: 800,
-						}}
-					>
-						✨ Clear
-					</button>
+					<div style={{ display: 'flex', gap: 8 }}>
+						<button
+							type="submit"
+							disabled={searching}
+							className="tap"
+							style={{
+								padding: '12px 16px',
+								borderRadius: 10,
+								border: 'none',
+								background: searching
+									? '#9ca3af'
+									: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+								color: '#fff',
+								fontWeight: 900,
+								cursor: searching ? 'not-allowed' : 'pointer',
+							}}
+						>
+							{searching ? 'Searching…' : '🔍 Search'}
+						</button>
+						<button
+							type="button"
+							onClick={() => {
+								setCode('');
+								setFound(null);
+								setErrorBanner('');
+							}}
+							className="tap"
+							style={{
+								padding: '12px 16px',
+								borderRadius: 10,
+								border: '1px solid var(--border)',
+								background: 'var(--surface)',
+								color: 'var(--text)',
+								fontWeight: 800,
+							}}
+						>
+							✨ Clear
+						</button>
+					</div>
 				</form>
 
 				{found && (
@@ -398,23 +382,18 @@ const StudentExams = () => {
 			</section>
 
 			<section>
-				<h2 style={{ margin: '0 0 8px 0', color: 'var(--text)', fontSize: 18 }}>
-					Previous
+				<h2 style={{ margin: '0 0 16px 0', color: 'var(--text)', fontSize: 20 }}>
+					In Progress & Previous Exams
 				</h2>
 				{submissions.length === 0 ? (
-					<div
-						style={{
-							padding: '40px 16px',
-							textAlign: 'center',
-							background: 'var(--surface)',
-							borderRadius: 16,
-							border: '2px dashed var(--border)',
-						}}
-					>
-						<div style={{ fontSize: 36, marginBottom: 10 }}>📝</div>
-						<div style={{ color: 'var(--text-muted)' }}>
-							No submissions yet. Join an exam using a share code.
-						</div>
+					<div style={styles.emptyStateBox}>
+						<div style={{ fontSize: '48px', marginBottom: 16 }}>📝</div>
+						<h3 style={{ margin: '0 0 8px 0', color: 'var(--text)' }}>
+							No Submissions Yet
+						</h3>
+						<p style={{ margin: 0, color: 'var(--text-muted)' }}>
+							Join an exam using a share code to get started.
+						</p>
 					</div>
 				) : (
 					<div
@@ -437,6 +416,41 @@ const StudentExams = () => {
 			</section>
 		</div>
 	);
+};
+
+// --- NEW: Styles object for consistency ---
+const styles = {
+	pageHeader: {
+		background: 'var(--surface)',
+		padding: '32px 28px',
+		borderRadius: 20,
+		border: '1px solid var(--border)',
+		marginBottom: 32,
+		display: 'flex',
+		justifyContent: 'space-between',
+		alignItems: 'flex-start',
+		gap: 20,
+		flexWrap: 'wrap',
+	},
+	pageTitle: { margin: '0 0 8px 0', fontSize: '28px', fontWeight: 800, color: 'var(--text)' },
+	pageSubtitle: { margin: 0, color: 'var(--text-muted)', fontSize: '16px' },
+	refreshButton: {
+		padding: '12px 16px',
+		borderRadius: '10px',
+		border: '1px solid var(--border)',
+		background: 'var(--surface)',
+		color: 'var(--text)',
+		cursor: 'pointer',
+		fontWeight: 600,
+		fontSize: '14px',
+	},
+	emptyStateBox: {
+		padding: '60px 20px',
+		textAlign: 'center',
+		background: 'var(--surface)',
+		borderRadius: 16,
+		border: '2px dashed var(--border)',
+	},
 };
 
 export default StudentExams;
