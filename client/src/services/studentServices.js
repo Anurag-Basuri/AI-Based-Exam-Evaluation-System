@@ -217,8 +217,9 @@ const normalizeSubmission = s => {
 				? questions.reduce((acc, q) => acc + (q.max_marks || 0), 0)
 				: (s.totalMax ?? 0)),
 		status: s.status ?? 'pending',
-		startedAt: s.startedAt ? new Date(s.startedAt).toISOString() : '',
-		submittedAt: s.submittedAt ? new Date(s.submittedAt).toISOString() : '',
+		startedAt: s.startedAt ? new Date(s.startedAt).toLocaleString() : '',
+		submittedAt: s.submittedAt ? new Date(s.submittedAt).toLocaleString() : '',
+		remarks: s.remarks || '', // Ensure remarks field is present
 	};
 };
 

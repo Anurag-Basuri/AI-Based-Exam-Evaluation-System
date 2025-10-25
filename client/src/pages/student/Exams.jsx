@@ -54,38 +54,6 @@ const PreviousExamCard = ({ submission, onContinue, isContinuing }) => {
 					{cfg.label}
 				</span>
 			</div>
-			{hasScore && (
-				<div
-					style={{
-						background: 'var(--bg)',
-						border: '1px solid var(--border)',
-						borderRadius: 12,
-						padding: 8,
-						marginBottom: 8,
-						display: 'flex',
-						alignItems: 'center',
-						gap: 8,
-					}}
-				>
-					<span style={{ fontWeight: 800, color: 'var(--text)' }}>
-						{submission.score}
-					</span>
-					<span style={{ color: 'var(--text-muted)' }}>/ {submission.maxScore ?? 0}</span>
-					{pct != null && (
-						<span
-							style={{
-								marginLeft: 'auto',
-								color: pct >= 70 ? '#10b981' : '#ef4444',
-								fontWeight: 800,
-								fontSize: 12,
-							}}
-						>
-							{pct}%
-						</span>
-					)}
-				</div>
-			)}
-			{/* --- NEW: Improved Results Display --- */}
 			{submission.status === 'published' && hasScore ? (
 				<div
 					style={{
@@ -107,7 +75,12 @@ const PreviousExamCard = ({ submission, onContinue, isContinuing }) => {
 						<span
 							style={{
 								marginLeft: 'auto',
-								color: pct >= 70 ? '#10b981' : '#ef4444',
+								color:
+									pct >= 70
+										? 'var(--success-text)'
+										: pct >= 40
+											? 'var(--warning-text)'
+											: 'var(--danger-text)',
 								fontWeight: 800,
 								fontSize: 12,
 							}}
