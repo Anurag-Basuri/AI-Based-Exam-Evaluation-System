@@ -86,6 +86,8 @@ const updateIssueStatus = asyncHandler(async (req, res) => {
 
 	// EMIT REAL-TIME EVENT for the specific student
 	req.io.to(issue.student._id.toString()).emit('issue-update', populatedIssue);
+	// ALSO EMIT to all teachers so their UIs update
+	req.io.to('teachers').emit('issue-update', populatedIssue);
 
 	return ApiResponse.success(res, populatedIssue, 'Issue status updated');
 });
@@ -113,6 +115,8 @@ const resolveIssue = asyncHandler(async (req, res) => {
 
 	// EMIT REAL-TIME EVENT for the specific student
 	req.io.to(issue.student._id.toString()).emit('issue-update', populatedIssue);
+	// ALSO EMIT to all teachers so their UIs update
+	req.io.to('teachers').emit('issue-update', populatedIssue);
 
 	return ApiResponse.success(res, populatedIssue, 'Issue resolved');
 });

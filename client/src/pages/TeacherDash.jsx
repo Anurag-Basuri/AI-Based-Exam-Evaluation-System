@@ -1,11 +1,13 @@
 import React, { Suspense } from 'react';
 import { Outlet } from 'react-router-dom';
+import { io } from 'socket.io-client';
 import Sidebar from '../components/Sidebar.jsx';
 import ErrorBoundary from '../components/ErrorBoundary.jsx';
 import RouteFallback from '../components/RouteFallback.jsx';
 import { useTheme } from '../hooks/useTheme.js';
 import { useAuth } from '../hooks/useAuth.js';
 import { safeApiCall, getTeacherIssues } from '../services/teacherServices.js';
+import { API_BASE_URL } from '../services/api.js';
 
 const TeacherDash = () => {
 	const { theme } = useTheme();
@@ -22,6 +24,7 @@ const TeacherDash = () => {
 		return () => window.removeEventListener('resize', onResize);
 	}, []);
 
+	// Fetch initial count and set up real-time listeners
 	React.useEffect(() => {
 		const fetchOpenIssues = async () => {
 			try {
@@ -32,8 +35,23 @@ const TeacherDash = () => {
 			}
 		};
 		fetchOpenIssues();
-		const interval = setInterval(fetchOpenIssues, 60000);
-		return () => clearInterval(interval);
+
+		// Use socket for real-time updates instead of polling
+		const socket = io(API_BASE_URL, { withCredentials: true });
+		socket.emit('join', 'teachers'); // Join the teachers room
+
+		socket.on('new-issue', () => {
+			setOpenIssuesCount(prev => prev + 1);
+		});
+
+		socket.on('issue-update', updatedIssue => {
+			// Refetch to get the most accurate count, as multiple statuses can change
+			fetchOpenIssues();
+		});
+
+		return () => {
+			socket.disconnect();
+		};
 	}, []);
 
 	const headerEl = React.useMemo(
