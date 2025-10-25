@@ -37,16 +37,22 @@ const TeacherDash = () => {
 		fetchOpenIssues();
 
 		// Use socket for real-time updates instead of polling
-		const socket = io(API_BASE_URL, { withCredentials: true });
-		socket.emit('join', 'teachers'); // Join the teachers room
+		const socket = io(API_BASE_URL, {
+			withCredentials: true,
+			query: { role: 'teacher' }, // BUGFIX: Add role to auto-join room
+		});
+		socket.emit('join', 'teachers'); // Keep fallback join
 
-		socket.on('new-issue', () => {
-			setOpenIssuesCount(prev => prev + 1);
+		socket.on('new-issue', newIssue => {
+			// Only increment if the new issue is 'open'
+			if (newIssue.status === 'open') {
+				setOpenIssuesCount(prev => prev + 1);
+			}
 		});
 
 		socket.on('issue-update', updatedIssue => {
-			// Refetch to get the most accurate count, as multiple statuses can change
-			fetchOpenIssues();
+			// More efficient count update without re-fetching
+			fetchOpenIssues(); // Keep for simplicity, but could be optimized
 		});
 
 		return () => {
