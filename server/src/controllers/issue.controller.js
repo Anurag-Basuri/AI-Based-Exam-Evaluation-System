@@ -30,6 +30,7 @@ const createIssue = asyncHandler(async (req, res) => {
 	const populatedIssue = await issue.populate([
 		{ path: 'student', select: 'fullname email' },
 		{ path: 'exam', select: 'title' },
+		{ path: 'assignedTo', select: 'fullname' },
 	]);
 
 	// Emit to a 'teachers' room instead of all clients
