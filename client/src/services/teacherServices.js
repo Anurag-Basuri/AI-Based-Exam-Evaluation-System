@@ -223,10 +223,9 @@ const normalizeIssue = i => ({
 	reply: i?.reply ?? '',
 	studentId: String(i?.student?._id ?? i?.student ?? ''),
 	studentName: i?.student?.fullname ?? i?.studentName ?? 'Student',
-	assignedTo: i?.assignedTo?.fullname ?? null, // Add assigned teacher's name
+	assignedTo: i?.assignedTo?.fullname ?? null,
 	createdAt: i?.createdAt ? new Date(i.createdAt).toLocaleString() : (i?.created_at ?? ''),
 	resolvedAt: i?.resolvedAt ? new Date(i.resolvedAt).toLocaleString() : (i?.resolved_at ?? ''),
-	// Add full activity log for detail view
 	activityLog: Array.isArray(i.activityLog) ? i.activityLog : [],
 });
 
