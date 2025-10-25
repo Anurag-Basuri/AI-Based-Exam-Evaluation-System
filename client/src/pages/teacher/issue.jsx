@@ -6,6 +6,7 @@ import {
 	getTeacherIssues,
 	updateTeacherIssueStatus,
 	resolveTeacherIssue,
+	getTeacherIssueById, // Import new service
 } from '../../services/teacherServices.js';
 import { API_BASE_URL } from '../../services/api.js';
 
@@ -31,115 +32,179 @@ const statusStyles = {
 	},
 };
 
-const ReplyModal = ({ issue, onClose, onUpdate }) => {
+// Detail Panel for a selected issue
+const IssueDetailPanel = ({ issueId, onClose, onUpdate }) => {
+	const [issue, setIssue] = useState(null);
+	const [loading, setLoading] = useState(true);
 	const [reply, setReply] = useState('');
 	const [isSaving, setIsSaving] = useState(false);
 	const { toast } = useToast();
 
-	const handleSubmit = async e => {
+	useEffect(() => {
+		if (!issueId) return;
+		setLoading(true);
+		safeApiCall(getTeacherIssueById, issueId)
+			.then(data => setIssue(data))
+			.catch(err => toast.error('Failed to load issue details', { description: err.message }))
+			.finally(() => setLoading(false));
+	}, [issueId, toast]);
+
+	const handleResolve = async e => {
 		e.preventDefault();
-		if (!reply.trim()) {
-			toast({ variant: 'destructive', title: 'Reply cannot be empty.' });
-			return;
-		}
+		if (!reply.trim()) return toast.error('Reply cannot be empty.');
 		setIsSaving(true);
 		try {
-			const updatedIssue = await safeApiCall(resolveTeacherIssue, issue.id, reply);
-			onUpdate(updatedIssue);
-			toast({ variant: 'success', title: 'Issue Resolved!' });
-			onClose();
+			const updated = await safeApiCall(resolveTeacherIssue, issue.id, reply);
+			onUpdate(updated); // Update list
+			toast.success('Issue has been resolved!');
+			onClose(); // Close panel
 		} catch (err) {
-			toast({
-				variant: 'destructive',
-				title: 'Failed to resolve issue',
-				description: err.message,
-			});
+			toast.error('Failed to resolve', { description: err.message });
 		} finally {
 			setIsSaving(false);
 		}
 	};
 
+	if (!issueId) return null;
+
 	return (
-		<div style={styles.modalBackdrop} onClick={onClose}>
-			<div style={styles.modalContent} onClick={e => e.stopPropagation()}>
-				<button onClick={onClose} style={styles.modalCloseButton}>
-					×
-				</button>
-				<h3 style={{ marginTop: 0 }}>Resolve Issue: {issue.examTitle}</h3>
-				<p style={{ color: 'var(--text-muted)', fontSize: 14 }}>
-					From: {issue.student?.fullname}
-				</p>
-				<div style={styles.detailBox}>
-					<strong>Description:</strong> {issue.description}
-				</div>
-				<form onSubmit={handleSubmit}>
-					<textarea
-						value={reply}
-						onChange={e => setReply(e.target.value)}
-						placeholder="Type your reply to the student..."
-						rows={5}
-						style={styles.textarea}
-						required
-					/>
-					<div
-						style={{
-							display: 'flex',
-							justifyContent: 'flex-end',
-							gap: 10,
-							marginTop: 16,
-						}}
-					>
-						<button type="button" onClick={onClose} style={styles.buttonSecondary}>
-							Cancel
-						</button>
-						<button type="submit" disabled={isSaving} style={styles.buttonPrimary}>
-							{isSaving ? 'Saving...' : 'Save & Resolve'}
-						</button>
+		<div style={styles.detailPanel}>
+			<button onClick={onClose} style={styles.modalCloseButton}>
+				&times;
+			</button>
+			{loading && <p>Loading details...</p>}
+			{!loading && issue && (
+				<>
+					<h3 style={{ marginTop: 0 }}>{issue.examTitle}</h3>
+					<div style={styles.detailMeta}>
+						<span>
+							<strong>Student:</strong> {issue.studentName}
+						</span>
+						<span>
+							<strong>Status:</strong> {issue.status}
+						</span>
+						{issue.assignedTo && (
+							<span>
+								<strong>Assigned To:</strong> {issue.assignedTo}
+							</span>
+						)}
 					</div>
-				</form>
-			</div>
+					<div style={styles.detailBox}>
+						<strong>Description:</strong> {issue.description}
+					</div>
+
+					{issue.status !== 'resolved' && (
+						<form onSubmit={handleResolve} style={{ marginTop: 24 }}>
+							<h4>Resolve Issue</h4>
+							<textarea
+								value={reply}
+								onChange={e => setReply(e.target.value)}
+								placeholder="Type your reply to the student..."
+								rows={4}
+								style={styles.textarea}
+								required
+							/>
+							<div
+								style={{
+									display: 'flex',
+									justifyContent: 'flex-end',
+									marginTop: 10,
+								}}
+							>
+								<button
+									type="submit"
+									disabled={isSaving}
+									style={styles.buttonPrimary}
+								>
+									{isSaving ? 'Saving...' : 'Save & Resolve'}
+								</button>
+							</div>
+						</form>
+					)}
+
+					{issue.reply && (
+						<div style={{ marginTop: 24 }}>
+							<h4>Resolution Reply</h4>
+							<div style={styles.detailBox}>{issue.reply}</div>
+						</div>
+					)}
+
+					<div style={{ marginTop: 24 }}>
+						<h4>Activity Log</h4>
+						<ul style={styles.activityLog}>
+							{(issue.activityLog || []).map((log, i) => (
+								<li key={i}>
+									<strong>{log.user?.fullname || 'System'}</strong>: {log.details}
+									<span
+										style={{
+											fontSize: 12,
+											color: 'var(--text-muted)',
+											marginLeft: 8,
+										}}
+									>
+										{new Date(log.createdAt).toLocaleString()}
+									</span>
+								</li>
+							))}
+						</ul>
+					</div>
+				</>
+			)}
 		</div>
 	);
 };
 
-const IssueRow = ({ issue, onUpdate, onSelect }) => {
+const IssueRow = ({ issue, onUpdate, onSelect, isSelected }) => {
 	const config = statusStyles[issue.status] || statusStyles.open;
 	const { toast } = useToast();
 
-	const handleStatusChange = async newStatus => {
+	const handleClaim = async () => {
 		try {
-			const updatedIssue = await safeApiCall(updateTeacherIssueStatus, issue.id, newStatus);
+			const updatedIssue = await safeApiCall(
+				updateTeacherIssueStatus,
+				issue.id,
+				'in-progress',
+			);
 			onUpdate(updatedIssue);
-			// BUGFIX: Use the new status to get the correct label for the toast.
-			const newConfig = statusStyles[newStatus] || statusStyles.open;
-			toast.success(`Status updated to "${newConfig.label}"`);
+			toast.success('Issue claimed and moved to "In Progress"');
 		} catch (err) {
-			toast.error('Update failed', { description: err.message });
+			toast.error('Failed to claim issue', { description: err.message });
 		}
 	};
 
 	return (
-		<tr style={styles.tableRow}>
-			<td style={styles.tableCell}>{issue.student?.fullname || 'N/A'}</td>
+		<tr
+			style={{
+				...styles.tableRow,
+				background: isSelected ? 'var(--primary-bg)' : 'transparent',
+			}}
+			onClick={() => onSelect(issue)}
+		>
+			<td style={styles.tableCell}>{issue.studentName || 'N/A'}</td>
 			<td style={styles.tableCell}>{issue.examTitle}</td>
 			<td style={styles.tableCell}>
 				<div style={{ ...styles.statusPill, ...config }}>{config.label}</div>
 			</td>
+			<td style={styles.tableCell}>{issue.assignedTo || 'Unassigned'}</td>
 			<td style={styles.tableCell}>{issue.createdAt}</td>
 			<td style={{ ...styles.tableCell, textAlign: 'right' }}>
-				<div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-					{issue.status === 'open' && (
-						<button
-							onClick={() => handleStatusChange('in-progress')}
-							style={styles.actionButton}
-						>
-							Start
-						</button>
-					)}
-					<button onClick={() => onSelect(issue)} style={styles.actionButton}>
-						View & Reply
+				{issue.status === 'open' && (
+					<button
+						onClick={e => {
+							e.stopPropagation();
+							handleClaim();
+						}}
+						style={styles.actionButton}
+					>
+						Claim
 					</button>
-				</div>
+				)}
+				<button
+					onClick={() => onSelect(issue)}
+					style={{ ...styles.actionButton, marginLeft: 8 }}
+				>
+					Details
+				</button>
 			</td>
 		</tr>
 	);
@@ -150,7 +215,8 @@ const TeacherIssues = () => {
 	const [error, setError] = useState('');
 	const [issues, setIssues] = useState([]);
 	const [filter, setFilter] = useState('open');
-	const [selectedIssue, setSelectedIssue] = useState(null);
+	const [searchQuery, setSearchQuery] = useState('');
+	const [selectedIssueId, setSelectedIssueId] = useState(null);
 	const { toast } = useToast();
 
 	const loadIssues = useCallback(async () => {
@@ -190,70 +256,92 @@ const TeacherIssues = () => {
 	};
 
 	const filteredIssues = useMemo(() => {
-		if (filter === 'all') return issues;
-		return issues.filter(i => i.status === filter);
-	}, [issues, filter]);
+		let filtered = issues;
+		if (filter !== 'all') {
+			filtered = filtered.filter(i => i.status === filter);
+		}
+		if (searchQuery) {
+			const q = searchQuery.toLowerCase();
+			filtered = filtered.filter(
+				i =>
+					i.studentName?.toLowerCase().includes(q) ||
+					i.examTitle?.toLowerCase().includes(q) ||
+					i.description?.toLowerCase().includes(q),
+			);
+		}
+		return filtered;
+	}, [issues, filter, searchQuery]);
 
 	return (
-		<div style={{ maxWidth: 1200, margin: '0 auto' }}>
-			{selectedIssue && (
-				<ReplyModal
-					issue={selectedIssue}
-					onClose={() => setSelectedIssue(null)}
+		<div style={styles.pageLayout}>
+			<div style={styles.mainContent}>
+				<header style={styles.header}>
+					<div>
+						<h1 style={styles.title}>Manage Issues</h1>
+						<p style={styles.subtitle}>Review and resolve student-submitted issues.</p>
+					</div>
+					<div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+						<input
+							type="search"
+							placeholder="Search by student, exam..."
+							value={searchQuery}
+							onChange={e => setSearchQuery(e.target.value)}
+							style={styles.searchInput}
+						/>
+						<div style={styles.filterGroup}>
+							{['open', 'in-progress', 'resolved', 'all'].map(f => (
+								<button
+									key={f}
+									onClick={() => setFilter(f)}
+									style={
+										filter === f
+											? styles.filterButtonActive
+											: styles.filterButton
+									}
+								>
+									{f.charAt(0).toUpperCase() + f.slice(1)}
+								</button>
+							))}
+						</div>
+					</div>
+				</header>
+
+				{error && <p style={{ color: 'var(--danger-text)' }}>{error}</p>}
+				{loading && <p>Loading issues...</p>}
+
+				<div style={styles.tableContainer}>
+					<table style={styles.table}>
+						<thead>
+							<tr>
+								<th style={styles.tableHeader}>Student</th>
+								<th style={styles.tableHeader}>Exam</th>
+								<th style={styles.tableHeader}>Status</th>
+								<th style={styles.tableHeader}>Assigned To</th>
+								<th style={styles.tableHeader}>Date</th>
+								<th style={styles.tableHeader}></th>
+							</tr>
+						</thead>
+						<tbody>
+							{filteredIssues.map(issue => (
+								<IssueRow
+									key={issue.id}
+									issue={issue}
+									onUpdate={handleUpdate}
+									onSelect={() => setSelectedIssueId(issue.id)}
+									isSelected={selectedIssueId === issue.id}
+								/>
+							))}
+						</tbody>
+					</table>
+				</div>
+			</div>
+			{selectedIssueId && (
+				<IssueDetailPanel
+					issueId={selectedIssueId}
+					onClose={() => setSelectedIssueId(null)}
 					onUpdate={handleUpdate}
 				/>
 			)}
-			<header style={styles.header}>
-				<div>
-					<h1 style={styles.title}>Manage Issues</h1>
-					<p style={styles.subtitle}>Review and resolve student-submitted issues.</p>
-				</div>
-				<div style={styles.filterGroup}>
-					{['open', 'in-progress', 'resolved', 'all'].map(f => (
-						<button
-							key={f}
-							onClick={() => setFilter(f)}
-							style={filter === f ? styles.filterButtonActive : styles.filterButton}
-						>
-							{f.charAt(0).toUpperCase() + f.slice(1)}
-						</button>
-					))}
-				</div>
-			</header>
-
-			{error && <p style={{ color: 'var(--danger-text)' }}>{error}</p>}
-			{loading && <p>Loading issues...</p>}
-
-			<div style={styles.tableContainer}>
-				<table style={styles.table}>
-					<thead>
-						<tr>
-							<th style={styles.tableHeader}>Student</th>
-							<th style={styles.tableHeader}>Exam</th>
-							<th style={styles.tableHeader}>Status</th>
-							<th style={styles.tableHeader}>Date</th>
-							<th style={styles.tableHeader}></th>
-						</tr>
-					</thead>
-					<tbody>
-						{!loading && filteredIssues.length === 0 && (
-							<tr>
-								<td colSpan="5" style={{ textAlign: 'center', padding: 40 }}>
-									No issues found for this filter.
-								</td>
-							</tr>
-						)}
-						{filteredIssues.map(issue => (
-							<IssueRow
-								key={issue.id}
-								issue={issue}
-								onUpdate={handleUpdate}
-								onSelect={setSelectedIssue}
-							/>
-						))}
-					</tbody>
-				</table>
-			</div>
 		</div>
 	);
 };
@@ -388,6 +476,39 @@ const styles = {
 		color: 'var(--text)',
 		fontWeight: 700,
 		cursor: 'pointer',
+	},
+	pageLayout: { display: 'flex', gap: 24 },
+	mainContent: { flex: 1, minWidth: 0 },
+	detailPanel: {
+		width: '450px',
+		maxWidth: '40vw',
+		background: 'var(--surface)',
+		borderLeft: '1px solid var(--border)',
+		padding: 24,
+		position: 'relative',
+	},
+	detailMeta: {
+		display: 'flex',
+		flexWrap: 'wrap',
+		gap: '8px 16px',
+		fontSize: 13,
+		color: 'var(--text-muted)',
+		marginBottom: 16,
+	},
+	activityLog: {
+		listStyle: 'none',
+		padding: 0,
+		margin: 0,
+		display: 'grid',
+		gap: 12,
+		fontSize: 14,
+	},
+	searchInput: {
+		padding: '8px 12px',
+		borderRadius: 8,
+		border: '1px solid var(--border)',
+		background: 'var(--bg)',
+		minWidth: '200px',
 	},
 };
 
