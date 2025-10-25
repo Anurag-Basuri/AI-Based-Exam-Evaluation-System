@@ -32,6 +32,8 @@ const createIssue = asyncHandler(async (req, res) => {
 		{ path: 'exam', select: 'title' },
 	]);
 
+	req.io.emit('new-issue', populatedIssue);
+
 	return ApiResponse.success(res, populatedIssue, 'Issue raised successfully', 201);
 });
 
