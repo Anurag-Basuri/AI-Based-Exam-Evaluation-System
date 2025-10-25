@@ -331,93 +331,105 @@ const StudentResults = () => {
 	];
 
 	return (
-		<div style={styles.pageContainer}>
-			<ResponsiveStyleManager />
-			{viewingResultId && (
-				<ResultDetailModal
-					submissionId={viewingResultId}
-					onClose={() => setViewingResultId(null)}
-				/>
-			)}
-			<header style={styles.pageHeader}>
-				<div>
-					<h1 style={styles.pageTitle}>Results & Feedback</h1>
-					<p style={styles.pageSubtitle}>Review your exam scores and teacher feedback.</p>
-				</div>
-				<button onClick={() => loadResults(true)} disabled={loading} style={styles.refreshButton}>
-					{loading ? '⏳' : '🔄'} Refresh
-				</button>
-			</header>
+        <div style={styles.pageContainer}>
+            {/* --- CLEANUP: Removed ResponsiveStyleManager --- */}
+            <style>{`
+        @media (max-width: 768px) {
+          .result-card {
+            grid-template-columns: 1fr;
+          }
+          #performance-pane {
+            border-left: none;
+            border-top: 1px solid var(--border);
+            border-radius: 0 0 16px 16px;
+          }
+        }
+      `}</style>
+            {viewingResultId && (
+                <ResultDetailModal
+                    submissionId={viewingResultId}
+                    onClose={() => setViewingResultId(null)}
+                />
+            )}
+            <header style={styles.pageHeader}>
+                <div>
+                    <h1 style={styles.pageTitle}>Results & Feedback</h1>
+                    <p style={styles.pageSubtitle}>Review your exam scores and teacher feedback.</p>
+                </div>
+                <button onClick={() => loadResults(true)} disabled={loading} style={styles.refreshButton}>
+                    {loading ? '⏳' : '🔄'} Refresh
+                </button>
+            </header>
 
-			<div style={styles.controlsContainer}>
-				<div style={{ position: 'relative', flex: '1 1 300px' }}>
-					<input
-						value={query}
-						onChange={e => setQuery(e.target.value)}
-						placeholder="Search by exam title..."
-						style={styles.searchInput}
-					/>
-					<span style={styles.searchIcon}>🔍</span>
-				</div>
-				<div style={styles.filterGroup}>
-					{filterOptions.map(option => (
-						<button
-							key={option.key}
-							onClick={() => setStatus(option.key)}
-							style={
-								status === option.key
-									? styles.filterButtonActive
-									: styles.filterButton
-							}
-						>
-							{option.label}
-							<span
-								style={
-									status === option.key
-										? styles.filterCountActive
-										: styles.filterCount
-								}
-							>
-								{statusCounts[option.key] || 0}
-							</span>
-						</button>
-					))}
-				</div>
-			</div>
+            <div style={styles.controlsContainer}>
+                <div style={{ position: 'relative', flex: '1 1 300px' }}>
+                    <input
+                        value={query}
+                        onChange={e => setQuery(e.target.value)}
+                        placeholder="Search by exam title..."
+                        style={styles.searchInput}
+                    />
+                    <span style={styles.searchIcon}>🔍</span>
+                </div>
+                <div style={styles.filterGroup}>
+                    {filterOptions.map(option => (
+                        <button
+                            key={option.key}
+                            onClick={() => setStatus(option.key)}
+                            style={
+                                status === option.key
+                                    ? styles.filterButtonActive
+                                    : styles.filterButton
+                            }
+                        >
+                            {option.label}
+                            <span
+                                style={
+                                    status === option.key
+                                        ? styles.filterCountActive
+                                        : styles.filterCount
+                                }
+                            >
+                                {statusCounts[option.key] || 0}
+                            </span>
+                        </button>
+                    ))}
+                </div>
+            </div>
 
-			{error && <div style={styles.errorBox}>❌ {error}</div>}
-			{loading && (
-				<div style={styles.loadingBox}>
-					<div style={{ fontSize: '32px', marginBottom: 16 }}>⏳</div>
-					<p style={{ margin: 0, fontWeight: 600 }}>Loading your results...</p>
-				</div>
-			)}
-			{!loading && !error && filteredResults.length === 0 && (
-				<div style={styles.emptyStateBox}>
-					<div style={{ fontSize: '48px', marginBottom: 16 }}>📊</div>
-					<h3 style={{ margin: '0 0 8px 0', color: 'var(--text)' }}>
-						{query || status !== 'all' ? 'No matching results' : 'No results yet'}
-					</h3>
-					<p style={{ margin: 0, color: 'var(--text-muted)' }}>
-						{query || status !== 'all'
+            {error && <div style={styles.errorBox}>❌ {error}</div>}
+            {loading && (
+                <div style={styles.loadingBox}>
+                    <div style={{ fontSize: '32px', marginBottom: 16 }}>⏳</div>
+                    <p style={{ margin: 0, fontWeight: 600 }}>Loading your results...</p>
+                </div>
+            )}
+            {!loading && !error && filteredResults.length === 0 && (
+                <div style={styles.emptyStateBox}>
+                    <div style={{ fontSize: '48px', marginBottom: 16 }}>📊</div>
+                    <h3 style={{ margin: '0 0 8px 0', color: 'var(--text)' }}>
+                        {query || status !== 'all' ? 'No matching results' : 'No results yet'}
+                    </h3>
+                    <p style={{ margin: 0, color: 'var(--text-muted)' }}>
+                        {query || status !== 'all'
 							? 'Try adjusting your search or filters'
 							: 'Complete some exams to see your results here'}
-					</p>
-				</div>
-			)}
-			{!loading && !error && filteredResults.length > 0 && (
-				<div style={{ display: 'grid', gap: 24 }}>
-					{filteredResults.map(result => (
-						<ResultCard
-							key={result.id}
-							result={result}
-							onViewDetails={setViewingResultId}
-						/>
-					))}
-				</div>
-			)}
-		</div>
-	);
+                    </p>
+                </div>
+            )}
+            {!loading && !error && filteredResults.length > 0 && (
+                <div style={{ display: 'grid', gap: 24 }}>
+                    {filteredResults.map(result => (
+                        <ResultCard
+                            key={result.id}
+                            result={result}
+                            onViewDetails={setViewingResultId}
+                        />
+                    ))}
+                </div>
+            )}
+        </div>
+    );
 };
 
 // --- Centralized, theme-aware styles object ---
@@ -549,8 +561,7 @@ const styles = {
 		border: '1px solid var(--border)',
 		boxShadow: 'var(--shadow-sm)',
 		display: 'grid',
-		gridTemplateColumns: '1fr',
-		'@media (min-width: 768px)': { gridTemplateColumns: '1fr 200px' },
+		gridTemplateColumns: '1fr 200px', // Responsive handled by class and style tag
 	},
 	resultCardMain: { padding: '24px' },
 	resultCardHeader: {
@@ -679,31 +690,6 @@ const styles = {
 		cursor: 'pointer',
 		color: 'var(--text-muted)',
 	}
-};
-
-// Add a simple component to manage the stylesheet
-const ResponsiveStyleManager = () => {
-	React.useEffect(() => {
-		const styleSheet = document.createElement('style');
-		styleSheet.id = 'responsive-result-styles';
-		styleSheet.innerHTML = `
-            @media (max-width: 768px) {
-                #result-card {
-                    grid-template-columns: 1fr;
-                }
-                #performance-pane {
-                    border-left: none;
-                    border-top: 1px solid var(--border);
-                    border-radius: 0 0 16px 16px;
-                }
-            }
-        `;
-		document.head.appendChild(styleSheet);
-		return () => {
-			document.head.removeChild(styleSheet);
-		};
-	}, []);
-	return null;
 };
 
 export default StudentResults;
