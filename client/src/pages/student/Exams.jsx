@@ -17,10 +17,6 @@ const statusStyles = {
 const PreviousExamCard = ({ submission, onContinue, isContinuing }) => {
 	const cfg = statusStyles[submission.status] || statusStyles.pending;
 	const hasScore = submission.score != null;
-	const pct =
-		hasScore && submission.maxScore > 0
-			? Math.round((submission.score / submission.maxScore) * 100)
-			: null;
 
 	return (
 		<article
@@ -71,21 +67,21 @@ const PreviousExamCard = ({ submission, onContinue, isContinuing }) => {
 						{submission.score.toFixed(1)}
 					</span>
 					<span style={{ color: 'var(--text-muted)' }}>/ {submission.maxScore ?? 0}</span>
-					{pct != null && (
+					{submission.percentage != null && (
 						<span
 							style={{
 								marginLeft: 'auto',
 								color:
-									pct >= 70
+									submission.percentage >= 70
 										? 'var(--success-text)'
-										: pct >= 40
+										: submission.percentage >= 40
 											? 'var(--warning-text)'
 											: 'var(--danger-text)',
 								fontWeight: 800,
 								fontSize: 12,
 							}}
 						>
-							{pct}%
+							{submission.percentage}%
 						</span>
 					)}
 				</div>
@@ -147,9 +143,9 @@ const StudentExams = () => {
 	const [errorBanner, setErrorBanner] = React.useState('');
 	const [continuingId, setContinuingId] = React.useState('');
 
-	const loadMine = React.useCallback(async () => {
+	const loadMine = React.useCallback(async (force = false) => {
 		try {
-			const list = await StudentSvc.safeApiCall(StudentSvc.getMySubmissions);
+			const list = await StudentSvc.safeApiCall(StudentSvc.getMySubmissions, {}, force);
 			setSubmissions(Array.isArray(list) ? list : []);
 		} catch (e) {
 			setErrorBanner(e?.message || 'Failed to load your submissions');
@@ -237,6 +233,21 @@ const StudentExams = () => {
 						}}
 					>
 						📊 My Results
+					</button>,
+					<button
+						key="refresh"
+						onClick={() => loadMine(true)} // Pass true to force refresh
+						className="tap"
+						style={{
+							padding: '10px 14px',
+							borderRadius: 10,
+							border: '1px solid var(--border)',
+							background: 'var(--surface)',
+							color: 'var(--text)',
+							fontWeight: 800,
+						}}
+					>
+						🔄 Refresh
 					</button>,
 				]}
 			/>
