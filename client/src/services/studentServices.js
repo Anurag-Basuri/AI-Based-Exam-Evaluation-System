@@ -195,6 +195,21 @@ const normalizeSubmission = s => {
 		};
 	});
 
+	const score =
+		s.totalScore ??
+		(Array.isArray(s.evaluations)
+			? s.evaluations.reduce((acc, ev) => acc + (ev?.evaluation?.marks || 0), 0)
+			: (s.score ?? null));
+
+	const maxScore =
+		s.maxScore ??
+		(questions.length > 0
+			? questions.reduce((acc, q) => acc + (q.max_marks || 0), 0)
+			: (s.totalMax ?? 0));
+
+	const hasScore = typeof score === 'number' && Number.isFinite(score);
+	const percentage = hasScore && maxScore > 0 ? Math.round((score / maxScore) * 100) : null;
+
 	return {
 		id: String(s._id ?? s.id ?? ''),
 		examId: String(s.exam?._id ?? s.examId ?? s.exam ?? ''),
@@ -206,16 +221,9 @@ const normalizeSubmission = s => {
 		markedForReview: Array.isArray(s.markedForReview)
 			? s.markedForReview.map(id => String(id))
 			: [],
-		score:
-			s.totalScore ??
-			(Array.isArray(s.evaluations)
-				? s.evaluations.reduce((acc, ev) => acc + (ev?.evaluation?.marks || 0), 0)
-				: (s.score ?? null)),
-		maxScore:
-			s.maxScore ??
-			(questions.length > 0
-				? questions.reduce((acc, q) => acc + (q.max_marks || 0), 0)
-				: (s.totalMax ?? 0)),
+		score,
+		maxScore,
+		percentage, // Centralized percentage calculation
 		status: s.status ?? 'pending',
 		startedAt: s.startedAt ? new Date(s.startedAt).toLocaleString() : '',
 		submittedAt: s.submittedAt ? new Date(s.submittedAt).toLocaleString() : '',
@@ -247,10 +255,34 @@ export const getExamById = async examId => {
 };
 
 // ---------- Student: Submissions ----------
-export const getMySubmissions = async (params = {}) => {
+// --- NEW: Simple in-memory cache for submissions ---
+let submissionsCache = {
+	data: null,
+	timestamp: 0,
+};
+const CACHE_DURATION = 60 * 1000; // 60 seconds
+
+export const getMySubmissions = async (params = {}, forceRefresh = false) => {
+	const now = Date.now();
+	if (
+		!forceRefresh &&
+		submissionsCache.data &&
+		now - submissionsCache.timestamp < CACHE_DURATION
+	) {
+		return submissionsCache.data;
+	}
+
 	const res = await tryGet(EP.submissionsMine, { params });
 	const list = res?.data?.data || res?.data || [];
-	return Array.isArray(list) ? list : [];
+	const normalizedList = Array.isArray(list) ? list.map(normalizeSubmission) : [];
+
+	// Update cache
+	submissionsCache = {
+		data: normalizedList,
+		timestamp: now,
+	};
+
+	return normalizedList;
 };
 
 export const startSubmission = async examId => {
