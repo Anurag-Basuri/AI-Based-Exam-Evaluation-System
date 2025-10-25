@@ -268,6 +268,14 @@ const StudentIssues = () => {
 			});
 		});
 
+		// Add new issue to the top of the list in real-time
+		socket.on('new-issue', newIssue => {
+			// Only add if it's from the current user but created on another device/tab
+			if (newIssue.student?._id === user.id) {
+				setIssues(prevIssues => [newIssue, ...prevIssues]);
+			}
+		});
+
 		return () => {
 			socket.disconnect();
 		};
@@ -283,8 +291,9 @@ const StudentIssues = () => {
 		setSaving(true);
 		setError('');
 		try {
-			await safeApiCall(createIssue, form);
-			await loadData(); // Reload everything
+			const newIssue = await safeApiCall(createIssue, form);
+			// Optimistic UI update: add new issue to the top of the list
+			setIssues(prevIssues => [newIssue, ...prevIssues]);
 			setForm({
 				submissionId: submissions[0]?.id || '',
 				issueType: 'evaluation',
@@ -562,7 +571,13 @@ const StudentIssues = () => {
 			)}
 
 			{!loading && issues.length > 0 && (
-				<div style={{ display: 'grid', gap: '20px', gridTemplateColumns: '1fr' }}>
+				<div
+					style={{
+						display: 'grid',
+						gap: '20px',
+						gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))',
+					}}
+				>
 					{issues.map(issue => (
 						<IssueCard key={issue.id} issue={issue} />
 					))}
