@@ -1,5 +1,30 @@
 import mongoose from 'mongoose';
 
+const activityLogSchema = new mongoose.Schema(
+	{
+		action: {
+			type: String,
+			enum: ['created', 'resolved', 'commented'],
+			required: true
+		},
+		user: {
+			type: mongoose.Schema.Types.ObjectId,
+			refPath: 'userModel'
+		},
+		userModel: {
+			type: String,
+			enum: ['Student', 'Teacher']
+		},
+		details: {
+			type: String
+		}
+	},
+	{
+		timestamps: true,
+		_id: false
+	}
+);
+
 const issueSchema = new mongoose.Schema(
 	{
 		student: {
@@ -35,6 +60,11 @@ const issueSchema = new mongoose.Schema(
 			enum: ['open', 'in-progress', 'resolved'],
 			default: 'open',
 		},
+		// Track which teacher is actively working on the issue
+		assignedTo: {
+			type: mongoose.Schema.Types.ObjectId,
+			ref: 'Teacher',
+		},
 		reply: {
 			type: String,
 			trim: true,
@@ -48,9 +78,24 @@ const issueSchema = new mongoose.Schema(
 		resolvedAt: {
 			type: Date,
 		},
+		// NEW: Keep a log of all actions taken on the issue
+		activityLog: [activityLogSchema],
 	},
 	{ timestamps: true },
 );
+
+// Add initial creation log
+issueSchema.pre('save', function (next) {
+	if (this.isNew) {
+		this.activityLog.push({
+			action: 'created',
+			user: this.student,
+			userModel: 'Student',
+			details: 'Issue created by student.',
+		});
+	}
+	next();
+});
 
 // Mark issue as resolved
 issueSchema.methods.markResolved = function (teacherId, reply) {
@@ -58,6 +103,12 @@ issueSchema.methods.markResolved = function (teacherId, reply) {
 	this.resolvedBy = teacherId;
 	this.resolvedAt = new Date();
 	if (reply) this.reply = reply;
+	this.activityLog.push({
+		action: 'resolved',
+		user: teacherId,
+		userModel: 'Teacher',
+		details: 'Issue marked as resolved.',
+	});
 };
 
 const Issue = mongoose.model('Issue', issueSchema);
