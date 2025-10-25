@@ -19,8 +19,10 @@
 		"react-dom": "^19.1.0",
 		"react-globe.gl": "^2.34.0",
 		"react-router-dom": "^7.7.0",
+		"react-transition-group": "^4.4.5",
 		"react-tsparticles": "^2.12.2",
 		"recharts": "^3.1.0",
+		"socket.io-client": "^4.8.1",
 		"tailwindcss": "^4.1.11",
 		"tsparticles": "^3.8.1",
 		"tsparticles-slim": "^2.12.0"
