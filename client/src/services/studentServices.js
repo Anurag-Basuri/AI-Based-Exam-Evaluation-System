@@ -109,8 +109,8 @@ const EP = {
 	submissionSubmitById: id => `/api/submissions/${encodeURIComponent(id)}/submit`,
 
 	// Issues (student-facing)
-	issuesMine: ['/api/issues/my', '/api/issues/student', '/api/issues/me'],
-	issueCreate: ['/api/issues/create', '/api/issues'],
+	issuesMine: ['/api/issues/student', '/api/issues/me'], // Corrected to match backend
+	issueCreate: ['/api/issues/create'], // FIX: Corrected endpoint to match backend
 	issueById: id => `/api/issues/${encodeURIComponent(id)}`,
 	issueReply: id => [
 		`/api/issues/${encodeURIComponent(id)}/reply`,
@@ -351,11 +351,11 @@ export const replyToIssue = (issueId, message) => tryPost(EP.issueReply(issueId)
 
 // Convenience for issue form dropdown
 export const getMySubmissionsForIssues = async () => {
-	const submissions = await getMySubmissions();
-	return submissions.map(s => ({
-		id: s.id,
-		label: `${s.examTitle} (Submitted: ${s.submittedAt || s.startedAt})`,
-	}));
+    const submissions = await getMySubmissions();
+    return submissions.map(s => ({
+        id: s.id,
+        label: `${s.examTitle} (Submitted: ${s.submittedAt || new Date(s.startedAt).toLocaleString()})`,
+    }));
 };
 
 // Ensure cookies

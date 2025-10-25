@@ -7,15 +7,27 @@ import {
 } from '../../services/studentServices.js';
 
 const statusStyles = {
-	open: { bg: '#fffbeb', border: '#fde68a', color: '#b45309', label: 'Open', icon: '🔴' },
-	'in-progress': {
-		bg: '#eef2ff',
-		border: '#c7d2fe',
-		color: '#3730a3',
-		label: 'In Progress',
-		icon: '🟡',
-	},
-	resolved: { bg: '#f0fdf4', border: '#bbf7d0', color: '#15803d', label: 'Resolved', icon: '🟢' },
+    open: {
+        bg: 'var(--warning-bg)',
+        border: 'var(--warning-border)',
+        color: 'var(--warning-text)',
+        label: 'Open',
+        icon: '🔴',
+    },
+    'in-progress': {
+        bg: 'var(--info-bg)',
+        border: 'var(--info-border)',
+        color: 'var(--info-text)',
+        label: 'In Progress',
+        icon: '🟡',
+    },
+    resolved: {
+        bg: 'var(--success-bg)',
+        border: 'var(--success-border)',
+        color: 'var(--success-text)',
+        label: 'Resolved',
+        icon: '🟢',
+    },
 };
 
 const IssueCard = ({ issue }) => {
@@ -245,14 +257,13 @@ const StudentIssues = () => {
 	};
 
 	return (
-		<section style={{ color: 'var(--text)' }}>
+		<section style={{ maxWidth: 1000, margin: '0 auto' }}>
 			<header
 				style={{
-					background:
-						'linear-gradient(135deg, color-mix(in srgb, #f97316 18%, transparent), color-mix(in srgb, #f97316 6%, transparent))',
+					background: 'var(--surface)',
 					padding: '24px',
 					borderRadius: 16,
-					border: '1px solid color-mix(in srgb, #f97316 20%, transparent)',
+					border: '1px solid var(--border)',
 					boxShadow: 'var(--shadow-md)',
 					marginBottom: '24px',
 					display: 'flex',
@@ -263,25 +274,30 @@ const StudentIssues = () => {
 				}}
 			>
 				<div>
-					<h1 style={{ margin: 0, fontSize: '24px' }}>Support & Issues</h1>
+					<h1 style={{ margin: 0, fontSize: '24px', color: 'var(--text)' }}>
+						Support & Issues
+					</h1>
 					<p style={{ margin: '6px 0 0', color: 'var(--text-muted)' }}>
 						Raise concerns about exam sessions or evaluations.
 					</p>
 				</div>
 				<button
 					onClick={() => setShowForm(s => !s)}
+					disabled={showForm}
 					style={{
 						padding: '10px 16px',
 						borderRadius: 12,
 						border: 'none',
-						background: 'linear-gradient(135deg, #f97316, #ea580c)',
-						color: '#ffffff',
+						background: 'var(--primary-gradient)',
+						color: 'var(--primary-contrast)',
 						fontWeight: 700,
 						cursor: 'pointer',
-						boxShadow: '0 10px 22px rgba(249, 115, 22, 0.25)',
+						boxShadow: 'var(--shadow-lg)',
+						opacity: showForm ? 0.6 : 1,
+						transition: 'opacity 0.2s ease',
 					}}
 				>
-					{showForm ? 'Close Form' : '➕ Create New Issue'}
+					{showForm ? 'Fill the form below' : '➕ Create New Issue'}
 				</button>
 			</header>
 
@@ -305,9 +321,9 @@ const StudentIssues = () => {
 					style={{
 						padding: '14px',
 						borderRadius: 12,
-						background: '#fee2e2',
-						border: '1px solid #fca5a5',
-						color: '#991b1b',
+						background: 'var(--danger-bg)',
+						border: '1px solid var(--danger-border)',
+						color: 'var(--danger-text)',
 						fontWeight: 600,
 						marginBottom: '16px',
 					}}
@@ -331,10 +347,11 @@ const StudentIssues = () => {
 					}}
 				>
 					<div style={{ display: 'grid', gap: 8 }}>
-						<label style={{ fontWeight: 700, color: 'var(--text)' }}>
+						<label htmlFor="issue-submission" style={{ fontWeight: 700, color: 'var(--text)' }}>
 							Related Exam
 						</label>
 						<select
+							id="issue-submission"
 							value={form.submissionId}
 							onChange={e => setForm(s => ({ ...s, submissionId: e.target.value }))}
 							style={{
@@ -357,8 +374,11 @@ const StudentIssues = () => {
 					</div>
 
 					<div style={{ display: 'grid', gap: 8 }}>
-						<label style={{ fontWeight: 700, color: 'var(--text)' }}>Issue Type</label>
+						<label htmlFor="issue-type" style={{ fontWeight: 700, color: 'var(--text)' }}>
+							Issue Type
+						</label>
 						<select
+							id="issue-type"
 							value={form.issueType}
 							onChange={e => setForm(s => ({ ...s, issueType: e.target.value }))}
 							style={{
@@ -379,8 +399,11 @@ const StudentIssues = () => {
 					</div>
 
 					<div style={{ display: 'grid', gap: 8 }}>
-						<label style={{ fontWeight: 700, color: 'var(--text)' }}>Description</label>
+						<label htmlFor="issue-desc" style={{ fontWeight: 700, color: 'var(--text)' }}>
+							Description
+						</label>
 						<textarea
+							id="issue-desc"
 							value={form.description}
 							onChange={e => setForm(s => ({ ...s, description: e.target.value }))}
 							placeholder="Please describe the problem in detail."
@@ -414,7 +437,7 @@ const StudentIssues = () => {
 								borderRadius: 10,
 								border: '1px solid var(--border)',
 								background: 'var(--surface)',
-								color: 'var(--text)',
+							 color: 'var(--text)',
 								cursor: 'pointer',
 								fontWeight: 700,
 							}}
@@ -428,11 +451,11 @@ const StudentIssues = () => {
 								padding: '10px 14px',
 								borderRadius: 10,
 								border: 'none',
-								background: 'linear-gradient(135deg, #f97316, #ea580c)',
-								color: '#ffffff',
+								background: 'var(--primary-gradient)',
+								color: 'var(--primary-contrast)',
 								cursor: 'pointer',
 								fontWeight: 700,
-								boxShadow: '0 10px 20px rgba(249, 115, 22, 0.25)',
+								boxShadow: 'var(--shadow-lg)',
 								opacity: saving ? 0.7 : 1,
 							}}
 						>
@@ -467,7 +490,7 @@ const StudentIssues = () => {
 			)}
 
 			{!loading && issues.length > 0 && (
-				<div style={{ display: 'grid', gap: '20px' }}>
+				<div style={{ display: 'grid', gap: '20px', gridTemplateColumns: '1fr' }}>
 					{issues.map(issue => (
 						<IssueCard key={issue.id} issue={issue} />
 					))}
