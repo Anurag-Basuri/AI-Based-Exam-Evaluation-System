@@ -214,6 +214,16 @@ const normalizeSubmission = s => {
 	const hasScore = typeof score === 'number' && Number.isFinite(score);
 	const percentage = hasScore && maxScore > 0 ? Math.round((score / maxScore) * 100) : null;
 
+	// Robust date handling: format only if it's not already a string
+	const formatDt = dt => {
+		if (!dt || typeof dt === 'string') return dt || '';
+		try {
+			return new Date(dt).toLocaleString();
+		} catch {
+			return '';
+		}
+	};
+
 	return {
 		id: String(s._id ?? s.id ?? ''),
 		examId: String(s.exam?._id ?? s.examId ?? s.exam ?? ''),
@@ -229,8 +239,8 @@ const normalizeSubmission = s => {
 		maxScore,
 		percentage, // Centralized percentage calculation
 		status: s.status ?? 'pending',
-		startedAt: s.startedAt ? new Date(s.startedAt).toLocaleString() : '',
-		submittedAt: s.submittedAt ? new Date(s.submittedAt).toLocaleString() : '',
+		startedAt: formatDt(s.startedAt),
+		submittedAt: formatDt(s.submittedAt),
 		remarks: s.remarks || '', // Ensure remarks field is present
 	};
 };
