@@ -6,7 +6,8 @@ import {
 	getTeacherIssues,
 	updateTeacherIssueStatus,
 	resolveTeacherIssue,
-	getTeacherIssueById, // Import new service
+	getTeacherIssueById,
+	normalizeIssue,
 } from '../../services/teacherServices.js';
 import { API_BASE_URL } from '../../services/api.js';
 
@@ -236,20 +237,28 @@ const TeacherIssues = () => {
 		const socket = io(API_BASE_URL, { withCredentials: true });
 		socket.emit('join', 'teachers'); // Join the teachers room
 
-		socket.on('new-issue', newIssue => {
-			setIssues(prev => [newIssue, ...prev]);
+		socket.on('new-issue', newIssueData => {
+			const normalizedNewIssue = normalizeIssue(newIssueData);
+			setIssues(prev => [normalizedNewIssue, ...prev]);
 			toast.info('New Issue Submitted!', {
-				description: `From ${newIssue.student.fullname}`,
+				description: `From ${normalizedNewIssue.studentName}`,
 			});
 		});
 
 		// Listen for updates from other teachers
-		socket.on('issue-update', updatedIssue => {
-			setIssues(prev => prev.map(i => (i.id === updatedIssue.id ? updatedIssue : i)));
+		socket.on('issue-update', updatedIssueData => {
+			const normalizedUpdatedIssue = normalizeIssue(updatedIssueData);
+			setIssues(prev =>
+				prev.map(i => (i.id === normalizedUpdatedIssue.id ? normalizedUpdatedIssue : i)),
+			);
+			if (selectedIssueId === normalizedUpdatedIssue.id) {
+				setSelectedIssueId(null); // Force re-render of detail panel
+				setTimeout(() => setSelectedIssueId(normalizedUpdatedIssue.id), 0);
+			}
 		});
 
 		return () => socket.disconnect();
-	}, [loadIssues, toast]);
+	}, [loadIssues, toast, selectedIssueId]);
 
 	const handleUpdate = updatedIssue => {
 		setIssues(prev => prev.map(i => (i.id === updatedIssue.id ? updatedIssue : i)));
