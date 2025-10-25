@@ -124,55 +124,73 @@ const AnswerDetail = ({ answer, evaluation }) => {
 
 // --- Result Details Modal ---
 const ResultDetailModal = ({ submissionId, onClose }) => {
-	const [loading, setLoading] = React.useState(true);
-	const [error, setError] = React.useState('');
-	const [submission, setSubmission] = React.useState(null);
+    const [loading, setLoading] = React.useState(true);
+    const [error, setError] = React.useState('');
+    const [submission, setSubmission] = React.useState(null);
 
-	React.useEffect(() => {
-		const loadDetails = async () => {
-			setLoading(true);
-			setError('');
-			try {
-				const data = await safeApiCall(getSubmissionById, submissionId);
-				setSubmission(data);
-			} catch (e) {
-				setError(e.message || 'Failed to load details.');
-			} finally {
-				setLoading(false);
-			}
-		};
-		loadDetails();
-	}, [submissionId]);
+    React.useEffect(() => {
+        const loadDetails = async () => {
+            setLoading(true);
+            setError('');
+            try {
+                const data = await safeApiCall(getSubmissionById, submissionId);
+                setSubmission(data);
+            } catch (e) {
+                setError(e.message || 'Failed to load details.');
+            } finally {
+                setLoading(false);
+            }
+        };
+        loadDetails();
+    }, [submissionId]);
 
-	const answersMap = React.useMemo(
-		() => new Map(submission?.answers.map(a => [String(a.question._id), a])),
-		[submission],
-	);
+    // FIX: answersMap key must be the string id (normalizeSubmission returns 'question' as string)
+    const answersMap = React.useMemo(
+        () => new Map((submission?.answers || []).map(a => [String(a.question), a])),
+        [submission],
+    );
 
-	return (
-		<div style={styles.modalBackdrop} onClick={onClose}>
-			<div style={styles.modalContent} onClick={e => e.stopPropagation()}>
-				<button onClick={onClose} style={styles.modalCloseButton}>
-					×
-				</button>
-				{loading && <p>Loading details...</p>}
-				{error && <p style={{ color: 'var(--danger-text)' }}>{error}</p>}
-				{submission && (
-					<>
-						<h3 style={{ marginTop: 0 }}>{submission.exam.title} - Breakdown</h3>
-						<div style={{ maxHeight: '70vh', overflowY: 'auto', paddingRight: 16 }}>
-							{(submission.evaluations || []).map(ev => {
-								const answer = answersMap.get(String(ev.question));
-								return answer ? (
-									<AnswerDetail key={ev._id} answer={answer} evaluation={ev} />
-								) : null;
-							})}
-						</div>
-					</>
-				)}
-			</div>
-		</div>
-	);
+    // Improve accessibility: close on ESC
+    React.useEffect(() => {
+        const onKey = e => {
+            if (e.key === 'Escape') onClose();
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [onClose]);
+
+    return (
+        <div style={styles.modalBackdrop} onClick={onClose}>
+            <div
+                style={styles.modalContent}
+                onClick={e => e.stopPropagation()}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="result-detail-title"
+            >
+                <button onClick={onClose} style={styles.modalCloseButton} aria-label="Close details">
+                    ×
+                </button>
+                {loading && <p aria-live="polite">Loading details...</p>}
+                {error && <p style={{ color: 'var(--danger-text)' }} role="alert">{error}</p>}
+                {submission && (
+                    <>
+                        <h3 id="result-detail-title" style={{ marginTop: 0 }}>
+                            {submission.exam.title} - Breakdown
+                        </h3>
+                        <div style={{ maxHeight: '70vh', overflowY: 'auto', paddingRight: 16 }}>
+                            {(submission.evaluations || []).map(ev => {
+                                const answer = answersMap.get(String(ev.question));
+                                return answer ? (
+                                    <AnswerDetail key={ev._id} answer={answer} evaluation={ev} />
+                                ) : null;
+                            })}
+                        </div>
+                    </>
+                )}
+            </div>
+        </div>
+    );
 };
 
 const ResultCard = ({ result, onViewDetails }) => {
@@ -332,19 +350,26 @@ const StudentResults = () => {
 
 	return (
         <div style={styles.pageContainer}>
-            {/* --- CLEANUP: Removed ResponsiveStyleManager --- */}
             <style>{`
-        @media (max-width: 768px) {
-          .result-card {
-            grid-template-columns: 1fr;
-          }
-          #performance-pane {
-            border-left: none;
-            border-top: 1px solid var(--border);
-            border-radius: 0 0 16px 16px;
-          }
-        }
-      `}</style>
+                @media (max-width: 768px) {
+                    .result-card { grid-template-columns: 1fr; }
+                    #performance-pane {
+                        border-left: none;
+                        border-top: 1px solid var(--border);
+                        border-radius: 0 0 16px 16px;
+                    }
+                }
+                /* Micro-interactions and accessibility */
+                .tap { transition: transform .15s ease, filter .15s ease; }
+                .tap:active { transform: translateY(1px); }
+                button:focus-visible, .tap:focus-visible {
+                    outline: 2px solid var(--primary);
+                    outline-offset: 2px;
+                }
+                @media (prefers-reduced-motion: reduce) {
+                    * { transition: none !important; animation: none !important; }
+                }
+            `}</style>
             {viewingResultId && (
                 <ResultDetailModal
                     submissionId={viewingResultId}
@@ -356,7 +381,7 @@ const StudentResults = () => {
                     <h1 style={styles.pageTitle}>Results & Feedback</h1>
                     <p style={styles.pageSubtitle}>Review your exam scores and teacher feedback.</p>
                 </div>
-                <button onClick={() => loadResults(true)} disabled={loading} style={styles.refreshButton}>
+                <button onClick={() => loadResults(true)} disabled={loading} style={styles.refreshButton} className="tap" aria-label="Refresh results">
                     {loading ? '⏳' : '🔄'} Refresh
                 </button>
             </header>
