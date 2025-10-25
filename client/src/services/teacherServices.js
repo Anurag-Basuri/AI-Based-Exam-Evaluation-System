@@ -214,17 +214,17 @@ const normalizeSubmission = s => {
 };
 
 const normalizeIssue = i => ({
-	id: String(i?._id ?? i?.id ?? ''),
-	examId: String(i?.exam?._id ?? i?.exam ?? ''),
-	examTitle: i?.exam?.title ?? i?.examTitle ?? 'Exam',
-	issueType: i?.issueType ?? i?.type ?? 'General',
-	description: i?.description ?? '',
-	status: String(i?.status || 'open').toLowerCase(),
-	reply: i?.reply ?? '',
-	studentId: String(i?.student?._id ?? i?.student ?? ''),
-	studentName: i?.student?.fullname ?? i?.studentName ?? 'Student',
-	createdAt: i?.createdAt ? new Date(i.createdAt).toLocaleString() : (i?.created_at ?? ''),
-	resolvedAt: i?.resolvedAt ? new Date(i.resolvedAt).toLocaleString() : (i?.resolved_at ?? ''),
+    id: String(i?._id ?? i?.id ?? ''),
+    examId: String(i?.exam?._id ?? i?.exam ?? ''),
+    examTitle: i?.exam?.title ?? i?.examTitle ?? 'Exam',
+    issueType: i?.issueType ?? i?.type ?? 'General',
+    description: i?.description ?? '',
+    status: String(i?.status || 'open').toLowerCase(),
+    reply: i?.reply ?? '',
+    studentId: String(i?.student?._id ?? i?.student ?? ''),
+    studentName: i?.student?.fullname ?? i?.studentName ?? 'Student',
+    createdAt: i?.createdAt ? new Date(i.createdAt).toLocaleString() : (i?.created_at ?? ''),
+    resolvedAt: i?.resolvedAt ? new Date(i.resolvedAt).toLocaleString() : (i?.resolved_at ?? ''),
 });
 
 const normalizeTeacher = t => ({
