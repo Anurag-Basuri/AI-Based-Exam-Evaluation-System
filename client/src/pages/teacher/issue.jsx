@@ -1,444 +1,388 @@
-import React from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { io } from 'socket.io-client';
+import { useToast } from '../../components/ui/Toaster.jsx';
 import {
 	safeApiCall,
-	getTeacherIssues,
-	resolveTeacherIssue,
+	getAllIssues,
+	updateIssueStatus,
+	resolveIssue,
 } from '../../services/teacherServices.js';
+import { VITE_API_BASE_URL } from '../../services/api.js';
 
+// (Re-using student status styles for consistency)
 const statusStyles = {
-	open: { label: 'Open', color: '#b45309', bg: 'var(--surface)', border: 'var(--border)' },
+	open: {
+		bg: 'var(--warning-bg)',
+		border: 'var(--warning-border)',
+		color: 'var(--warning-text)',
+		label: 'Open',
+	},
 	'in-progress': {
+		bg: 'var(--info-bg)',
+		border: 'var(--info-border)',
+		color: 'var(--info-text)',
 		label: 'In Progress',
-		color: '#4338ca',
-		bg: 'var(--surface)',
-		border: 'var(--border)',
 	},
 	resolved: {
+		bg: 'var(--success-bg)',
+		border: 'var(--success-border)',
+		color: 'var(--success-text)',
 		label: 'Resolved',
-		color: '#047857',
-		bg: 'var(--surface)',
-		border: 'var(--border)',
 	},
 };
 
-const useIssues = () => {
-	const [loading, setLoading] = React.useState(false);
-	const [error, setError] = React.useState('');
-	const [issues, setIssues] = React.useState([]);
+const ReplyModal = ({ issue, onClose, onUpdate }) => {
+	const [reply, setReply] = useState('');
+	const [isSaving, setIsSaving] = useState(false);
+	const { toast } = useToast();
 
-	const load = React.useCallback(async () => {
-		setLoading(true);
-		setError('');
+	const handleSubmit = async e => {
+		e.preventDefault();
+		if (!reply.trim()) {
+			toast({ variant: 'destructive', title: 'Reply cannot be empty.' });
+			return;
+		}
+		setIsSaving(true);
 		try {
-			const data = await safeApiCall(getTeacherIssues);
+			const updatedIssue = await safeApiCall(resolveIssue, issue.id, { reply });
+			onUpdate(updatedIssue);
+			toast({ variant: 'success', title: 'Issue Resolved!' });
+			onClose();
+		} catch (err) {
+			toast({
+				variant: 'destructive',
+				title: 'Failed to resolve issue',
+				description: err.message,
+			});
+		} finally {
+			setIsSaving(false);
+		}
+	};
+
+	return (
+		<div style={styles.modalBackdrop} onClick={onClose}>
+			<div style={styles.modalContent} onClick={e => e.stopPropagation()}>
+				<button onClick={onClose} style={styles.modalCloseButton}>
+					×
+				</button>
+				<h3 style={{ marginTop: 0 }}>Resolve Issue: {issue.examTitle}</h3>
+				<p style={{ color: 'var(--text-muted)', fontSize: 14 }}>
+					From: {issue.student?.fullname}
+				</p>
+				<div style={styles.detailBox}>
+					<strong>Description:</strong> {issue.description}
+				</div>
+				<form onSubmit={handleSubmit}>
+					<textarea
+						value={reply}
+						onChange={e => setReply(e.target.value)}
+						placeholder="Type your reply to the student..."
+						rows={5}
+						style={styles.textarea}
+						required
+					/>
+					<div
+						style={{
+							display: 'flex',
+							justifyContent: 'flex-end',
+							gap: 10,
+							marginTop: 16,
+						}}
+					>
+						<button type="button" onClick={onClose} style={styles.buttonSecondary}>
+							Cancel
+						</button>
+						<button type="submit" disabled={isSaving} style={styles.buttonPrimary}>
+							{isSaving ? 'Saving...' : 'Save & Resolve'}
+						</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	);
+};
+
+const IssueRow = ({ issue, onUpdate, onSelect }) => {
+	const config = statusStyles[issue.status] || statusStyles.open;
+	const { toast } = useToast();
+
+	const handleStatusChange = async newStatus => {
+		try {
+			const updatedIssue = await safeApiCall(updateIssueStatus, issue.id, {
+				status: newStatus,
+			});
+			onUpdate(updatedIssue);
+			toast({ variant: 'success', title: `Status updated to "${config.label}"` });
+		} catch (err) {
+			toast({ variant: 'destructive', title: 'Update failed', description: err.message });
+		}
+	};
+
+	return (
+		<tr style={styles.tableRow}>
+			<td style={styles.tableCell}>{issue.student?.fullname || 'N/A'}</td>
+			<td style={styles.tableCell}>{issue.examTitle}</td>
+			<td style={styles.tableCell}>
+				<div style={{ ...styles.statusPill, ...config }}>{config.label}</div>
+			</td>
+			<td style={styles.tableCell}>{issue.createdAt}</td>
+			<td style={{ ...styles.tableCell, textAlign: 'right' }}>
+				<div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+					{issue.status === 'open' && (
+						<button
+							onClick={() => handleStatusChange('in-progress')}
+							style={styles.actionButton}
+						>
+							Start
+						</button>
+					)}
+					<button onClick={() => onSelect(issue)} style={styles.actionButton}>
+						View & Reply
+					</button>
+				</div>
+			</td>
+		</tr>
+	);
+};
+
+const TeacherIssues = () => {
+	const [loading, setLoading] = useState(true);
+	const [error, setError] = useState('');
+	const [issues, setIssues] = useState([]);
+	const [filter, setFilter] = useState('open');
+	const [selectedIssue, setSelectedIssue] = useState(null);
+	const { toast } = useToast();
+
+	const loadIssues = useCallback(async () => {
+		setLoading(true);
+		try {
+			const data = await safeApiCall(getAllIssues);
 			setIssues(Array.isArray(data) ? data : []);
 		} catch (e) {
-			setError(e?.message || 'Failed to load issues');
+			setError(e.message || 'Failed to load issues');
 		} finally {
 			setLoading(false);
 		}
 	}, []);
 
-	React.useEffect(() => {
-		load();
-	}, [load]);
+	useEffect(() => {
+		loadIssues();
+		const socket = io(VITE_API_BASE_URL, { withCredentials: true });
+		socket.on('new-issue', newIssue => {
+			setIssues(prev => [newIssue, ...prev]);
+			toast({
+				variant: 'info',
+				title: 'New Issue Submitted!',
+				description: `From ${newIssue.student.fullname}`,
+			});
+		});
+		return () => socket.disconnect();
+	}, [loadIssues, toast]);
 
-	return { loading, error, issues, setIssues, reload: load };
-};
-
-const TeacherIssues = () => {
-	const { loading, error, issues, reload } = useIssues();
-	const [status, setStatus] = React.useState('all');
-	const [query, setQuery] = React.useState('');
-	const [activeReply, setActiveReply] = React.useState({
-		id: '',
-		message: '',
-		submitting: false,
-	});
-	const [msg, setMsg] = React.useState('');
-
-	const filtered = issues.filter(issue => {
-		const st = (issue.status || '').toLowerCase();
-		const statusMatch = status === 'all' ? true : st === status;
-		const q = query.trim().toLowerCase();
-		const text =
-			`${issue.studentName || ''} ${issue.examTitle || ''} ${issue.issueType || ''}`.toLowerCase();
-		const queryMatch = !q || text.includes(q);
-		return statusMatch && queryMatch;
-	});
-
-	const handleResolve = async issueId => {
-		if (!activeReply.message.trim()) return;
-		setActiveReply(prev => ({ ...prev, submitting: true }));
-		setMsg('');
-		try {
-			await safeApiCall(resolveTeacherIssue, issueId, { reply: activeReply.message.trim() });
-			await reload();
-			setActiveReply({ id: '', message: '', submitting: false });
-			setMsg('Issue resolved and reply sent to student.');
-		} catch (e) {
-			setMsg(e?.message || 'Could not resolve issue');
-			setActiveReply(prev => ({ ...prev, submitting: false }));
-		}
+	const handleUpdate = updatedIssue => {
+		setIssues(prev => prev.map(i => (i.id === updatedIssue.id ? updatedIssue : i)));
 	};
 
+	const filteredIssues = useMemo(() => {
+		if (filter === 'all') return issues;
+		return issues.filter(i => i.status === filter);
+	}, [issues, filter]);
+
 	return (
-		<section style={{ color: 'var(--text)' }}>
-			<header
-				style={{
-					background:
-						'linear-gradient(135deg, color-mix(in srgb, #f97316 12%, transparent), color-mix(in srgb, #3b82f6 6%, transparent))',
-					padding: 20,
-					borderRadius: 18,
-					border: '1px solid var(--border)',
-					boxShadow: 'var(--shadow-md)',
-					marginBottom: 18,
-				}}
-			>
-				<h1 style={{ margin: 0, color: 'var(--text)' }}>Student Issues</h1>
-				<p style={{ margin: '8px 0 0', color: 'var(--text-muted)' }}>
-					Review, filter, and resolve student-reported issues quickly.
-				</p>
+		<div style={{ maxWidth: 1200, margin: '0 auto' }}>
+			{selectedIssue && (
+				<ReplyModal
+					issue={selectedIssue}
+					onClose={() => setSelectedIssue(null)}
+					onUpdate={handleUpdate}
+				/>
+			)}
+			<header style={styles.header}>
+				<div>
+					<h1 style={styles.title}>Manage Issues</h1>
+					<p style={styles.subtitle}>Review and resolve student-submitted issues.</p>
+				</div>
+				<div style={styles.filterGroup}>
+					{['open', 'in-progress', 'resolved', 'all'].map(f => (
+						<button
+							key={f}
+							onClick={() => setFilter(f)}
+							style={filter === f ? styles.filterButtonActive : styles.filterButton}
+						>
+							{f.charAt(0).toUpperCase() + f.slice(1)}
+						</button>
+					))}
+				</div>
 			</header>
 
-			{msg && (
-				<div
-					role="status"
-					aria-live="polite"
-					style={{
-						marginBottom: 12,
-						padding: '10px 12px',
-						borderRadius: 10,
-						border: '1px solid var(--border)',
-						background: 'var(--surface)',
-						color: 'var(--text)',
-						fontWeight: 600,
-					}}
-				>
-					{msg}
-				</div>
-			)}
+			{error && <p style={{ color: 'var(--danger-text)' }}>{error}</p>}
+			{loading && <p>Loading issues...</p>}
 
-			<div
-				style={{
-					display: 'flex',
-					flexWrap: 'wrap',
-					gap: 12,
-					marginBottom: 16,
-					alignItems: 'center',
-				}}
-			>
-				<div style={{ position: 'relative', flex: 1, minWidth: 240 }}>
-					<input
-						value={query}
-						onChange={e => setQuery(e.target.value)}
-						placeholder="Search by student, exam, or type"
-						style={{
-							width: '100%',
-							padding: '10px 14px 10px 40px',
-							borderRadius: 12,
-							border: '1px solid var(--border)',
-							background: 'var(--surface)',
-							color: 'var(--text)',
-							outline: 'none',
-						}}
-					/>
-					<span
-						aria-hidden
-						style={{
-							position: 'absolute',
-							left: 12,
-							top: '50%',
-							transform: 'translateY(-50%)',
-							color: 'var(--text-muted)',
-						}}
-					>
-						🔎
-					</span>
-				</div>
-
-				<div style={{ display: 'flex', gap: 8 }}>
-					{['all', 'open', 'in-progress', 'resolved'].map(st => {
-						const active = status === st;
-						return (
-							<button
-								key={st}
-								onClick={() => setStatus(st)}
-								style={{
-									padding: '8px 12px',
-									borderRadius: 999,
-									border: active
-										? '2px solid #f97316'
-										: '1px solid var(--border)',
-									background: 'var(--surface)',
-									color: active ? '#9a3412' : 'var(--text)',
-									cursor: 'pointer',
-									fontWeight: 700,
-								}}
-							>
-								{st[0].toUpperCase() + st.slice(1)}
-							</button>
-						);
-					})}
-				</div>
+			<div style={styles.tableContainer}>
+				<table style={styles.table}>
+					<thead>
+						<tr>
+							<th style={styles.tableHeader}>Student</th>
+							<th style={styles.tableHeader}>Exam</th>
+							<th style={styles.tableHeader}>Status</th>
+							<th style={styles.tableHeader}>Date</th>
+							<th style={styles.tableHeader}></th>
+						</tr>
+					</thead>
+					<tbody>
+						{!loading && filteredIssues.length === 0 && (
+							<tr>
+								<td colSpan="5" style={{ textAlign: 'center', padding: 40 }}>
+									No issues found for this filter.
+								</td>
+							</tr>
+						)}
+						{filteredIssues.map(issue => (
+							<IssueRow
+								key={issue.id}
+								issue={issue}
+								onUpdate={handleUpdate}
+								onSelect={setSelectedIssue}
+							/>
+						))}
+					</tbody>
+				</table>
 			</div>
-
-			{loading && (
-				<div style={{ color: 'var(--text-muted)' }} aria-live="polite">
-					Loading student issues…
-				</div>
-			)}
-			{!loading && error && (
-				<div style={{ color: '#ef4444', marginBottom: 12 }} role="alert">
-					❌ {error}
-				</div>
-			)}
-			{!loading && !filtered.length && (
-				<div
-					style={{
-						padding: 20,
-						borderRadius: 16,
-						border: '1px dashed var(--border)',
-						textAlign: 'center',
-						color: 'var(--text-muted)',
-						background: 'var(--surface)',
-					}}
-				>
-					No issues match your filters.
-				</div>
-			)}
-
-			<div style={{ display: 'grid', gap: 16 }} aria-busy={loading ? 'true' : 'false'}>
-				{filtered.map(issue => {
-					const chip =
-						statusStyles[(issue.status || '').toLowerCase()] ?? statusStyles.open;
-					const replying = activeReply.id === issue.id;
-					return (
-						<article
-							key={issue.id}
-							style={{
-								background: 'var(--surface)',
-								borderRadius: 18,
-								border: '1px solid var(--border)',
-								boxShadow: 'var(--shadow-md)',
-								padding: 20,
-								display: 'grid',
-								gap: 12,
-							}}
-						>
-							<header
-								style={{
-									display: 'flex',
-									flexWrap: 'wrap',
-									justifyContent: 'space-between',
-									gap: 12,
-								}}
-							>
-								<div>
-									<h2
-										style={{
-											margin: 0,
-											fontSize: '1.05rem',
-											color: 'var(--text)',
-										}}
-									>
-										{issue.examTitle}
-									</h2>
-									<div style={{ color: 'var(--text-muted)', fontSize: 13 }}>
-										From {issue.studentName} • {issue.createdAt}
-									</div>
-								</div>
-								<span
-									style={{
-										alignSelf: 'flex-start',
-										fontSize: 12,
-										padding: '3px 10px',
-										borderRadius: 999,
-										border: `1px solid ${chip.border}`,
-										background: 'var(--surface)',
-										color: chip.color,
-										fontWeight: 700,
-									}}
-								>
-									{chip.label}
-								</span>
-							</header>
-
-							<div
-								style={{
-									background: 'var(--surface)',
-									borderRadius: 14,
-									padding: 16,
-									border: '1px solid var(--border)',
-								}}
-							>
-								<div
-									style={{
-										fontWeight: 700,
-										marginBottom: 6,
-										color: 'var(--text)',
-									}}
-								>
-									{issue.issueType} Issue
-								</div>
-								<p
-									style={{
-										margin: 0,
-										color: 'var(--text-muted)',
-										lineHeight: 1.6,
-									}}
-								>
-									{issue.description}
-								</p>
-							</div>
-
-							{issue.reply ? (
-								<div
-									style={{
-										background: 'var(--surface)',
-										borderRadius: 14,
-										padding: 16,
-										border: '1px solid var(--border)',
-										color: 'var(--text)',
-									}}
-								>
-									<strong
-										style={{
-											display: 'block',
-											marginBottom: 6,
-											color: 'var(--text)',
-										}}
-									>
-										Your reply
-									</strong>
-									{issue.reply}
-									{issue.resolvedAt && (
-										<div
-											style={{
-												marginTop: 6,
-												fontSize: 12,
-												color: 'var(--text-muted)',
-											}}
-										>
-											Resolved on {issue.resolvedAt}
-										</div>
-									)}
-								</div>
-							) : replying ? (
-								<form
-									onSubmit={e => {
-										e.preventDefault();
-										handleResolve(issue.id);
-									}}
-									style={{
-										display: 'grid',
-										gap: 10,
-										background: 'var(--surface)',
-										padding: 16,
-										borderRadius: 14,
-										border: '1px solid var(--border)',
-									}}
-								>
-									<textarea
-										value={activeReply.message}
-										onChange={e =>
-											setActiveReply(prev => ({
-												...prev,
-												message: e.target.value,
-											}))
-										}
-										placeholder="Compose a detailed response for the student…"
-										rows={3}
-										required
-										style={{
-											borderRadius: 10,
-											border: '1px solid var(--border)',
-											padding: '10px 12px',
-											outline: 'none',
-											background: 'var(--bg)',
-											color: 'var(--text)',
-											resize: 'vertical',
-										}}
-									/>
-									<div
-										style={{
-											display: 'flex',
-											justifyContent: 'flex-end',
-											gap: 8,
-										}}
-									>
-										<button
-											type="button"
-											onClick={() =>
-												setActiveReply({
-													id: '',
-													message: '',
-													submitting: false,
-												})
-											}
-											style={{
-												padding: '8px 12px',
-												borderRadius: 10,
-												border: '1px solid var(--border)',
-												background: 'var(--surface)',
-												color: 'var(--text)',
-												cursor: 'pointer',
-												fontWeight: 700,
-											}}
-										>
-											Cancel
-										</button>
-										<button
-											type="submit"
-											disabled={activeReply.submitting}
-											style={{
-												padding: '8px 12px',
-												borderRadius: 10,
-												border: 'none',
-												background:
-													'linear-gradient(135deg, #f97316, #ea580c)',
-												color: '#ffffff',
-												cursor: activeReply.submitting
-													? 'not-allowed'
-													: 'pointer',
-												fontWeight: 700,
-												opacity: activeReply.submitting ? 0.7 : 1,
-												boxShadow: '0 10px 20px rgba(249,115,22,0.25)',
-											}}
-										>
-											{activeReply.submitting ? 'Submitting…' : 'Send reply'}
-										</button>
-									</div>
-								</form>
-							) : (
-								<button
-									onClick={() =>
-										setActiveReply({
-											id: issue.id,
-											message: '',
-											submitting: false,
-										})
-									}
-									style={{
-										alignSelf: 'flex-start',
-										padding: '8px 12px',
-										borderRadius: 10,
-										border: '1px solid var(--border)',
-										background: 'var(--surface)',
-										color: 'var(--text)',
-										cursor: 'pointer',
-										fontWeight: 700,
-									}}
-								>
-									Reply & resolve
-								</button>
-							)}
-						</article>
-					);
-				})}
-			</div>
-		</section>
+		</div>
 	);
+};
+
+// Abridged styles for brevity
+const styles = {
+	header: {
+		background: 'var(--surface)',
+		padding: '24px',
+		borderRadius: 16,
+		border: '1px solid var(--border)',
+		marginBottom: 24,
+		display: 'flex',
+		justifyContent: 'space-between',
+		alignItems: 'center',
+		flexWrap: 'wrap',
+		gap: 16,
+	},
+	title: { margin: 0, fontSize: 24, color: 'var(--text)' },
+	subtitle: { margin: '4px 0 0', color: 'var(--text-muted)' },
+	filterGroup: { display: 'flex', gap: 8, background: 'var(--bg)', padding: 4, borderRadius: 10 },
+	filterButton: {
+		padding: '8px 12px',
+		borderRadius: 8,
+		border: 'none',
+		background: 'transparent',
+		color: 'var(--text-muted)',
+		fontWeight: 600,
+		cursor: 'pointer',
+	},
+	filterButtonActive: {
+		padding: '8px 12px',
+		borderRadius: 8,
+		border: 'none',
+		background: 'var(--surface)',
+		color: 'var(--primary)',
+		fontWeight: 600,
+		cursor: 'pointer',
+		boxShadow: 'var(--shadow-sm)',
+	},
+	tableContainer: {
+		background: 'var(--surface)',
+		borderRadius: 16,
+		border: '1px solid var(--border)',
+		overflowX: 'auto',
+	},
+	table: { width: '100%', borderCollapse: 'collapse' },
+	tableHeader: {
+		padding: '12px 16px',
+		textAlign: 'left',
+		borderBottom: '1px solid var(--border)',
+		color: 'var(--text-muted)',
+		fontSize: 12,
+		textTransform: 'uppercase',
+	},
+	tableRow: { '&:not(:last-child)': { borderBottom: '1px solid var(--border)' } },
+	tableCell: { padding: '16px', verticalAlign: 'middle', fontSize: 14 },
+	statusPill: {
+		padding: '4px 10px',
+		borderRadius: 20,
+		fontWeight: 700,
+		fontSize: 12,
+		display: 'inline-block',
+	},
+	actionButton: {
+		padding: '6px 10px',
+		borderRadius: 8,
+		border: '1px solid var(--border)',
+		background: 'var(--surface)',
+		fontWeight: 600,
+		cursor: 'pointer',
+	},
+	modalBackdrop: {
+		position: 'fixed',
+		inset: 0,
+		background: 'rgba(0,0,0,0.6)',
+		display: 'flex',
+		alignItems: 'center',
+		justifyContent: 'center',
+		zIndex: 1000,
+		padding: 16,
+	},
+	modalContent: {
+		background: 'var(--surface)',
+		borderRadius: 16,
+		padding: '24px 32px',
+		width: '100%',
+		maxWidth: '600px',
+		position: 'relative',
+	},
+	modalCloseButton: {
+		position: 'absolute',
+		top: 12,
+		right: 12,
+		background: 'none',
+		border: 'none',
+		fontSize: 24,
+		cursor: 'pointer',
+		color: 'var(--text-muted)',
+	},
+	detailBox: {
+		background: 'var(--bg)',
+		padding: 12,
+		borderRadius: 8,
+		border: '1px solid var(--border)',
+		marginBottom: 16,
+		fontSize: 14,
+	},
+	textarea: {
+		width: '100%',
+		padding: 12,
+		borderRadius: 8,
+		border: '1px solid var(--border)',
+		background: 'var(--bg)',
+		resize: 'vertical',
+		minHeight: 100,
+	},
+	buttonPrimary: {
+		padding: '10px 16px',
+		borderRadius: 8,
+		border: 'none',
+		background: 'var(--primary-gradient)',
+		color: 'var(--primary-contrast)',
+		fontWeight: 700,
+		cursor: 'pointer',
+	},
+	buttonSecondary: {
+		padding: '10px 16px',
+		borderRadius: 8,
+		border: '1px solid var(--border)',
+		background: 'var(--surface)',
+		color: 'var(--text)',
+		fontWeight: 700,
+		cursor: 'pointer',
+	},
 };
 
 export default TeacherIssues;
