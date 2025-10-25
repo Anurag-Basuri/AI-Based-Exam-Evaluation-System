@@ -6,6 +6,15 @@ import { startExamStatusScheduler } from './services/examStatus.service.js';
 
 dotenv.config();
 
+// Create the HTTP server here and initialize Socket.IO once
+const server = http.createServer(app);
+initSocket(server, app);
+
+const PORT = process.env.PORT || 8000;
+server.listen(PORT, () => {
+    console.log(`API listening on :${PORT}`);
+});
+
 // Validate required environment variables
 const requiredEnvVars = [
     'MONGODB_URI',
@@ -20,8 +29,6 @@ if (missingVars.length > 0) {
     });
     process.exit(1);
 }
-
-const PORT = process.env.PORT || 8000;
 
 // Centralized error handler for fatal errors
 function handleFatalError(error, type = 'Fatal Error') {
