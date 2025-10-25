@@ -307,9 +307,9 @@ const StudentDash = () => {
 								padding: 16,
 								flexGrow: 1,
 								overflowY: 'auto',
-								// The height calculation was causing issues.
-								// Let flexbox handle the height automatically.
-								// height: isMobile ? 'calc(100vh - 85px)' : 'auto',
+								// On mobile, ensure the content area can shrink and scroll properly
+								// by setting a flexible base height.
+								minHeight: isMobile ? '0' : 'auto',
 							}}
 						>
 							<ErrorBoundary>

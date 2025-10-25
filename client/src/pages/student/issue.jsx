@@ -407,7 +407,8 @@ const StudentIssues = () => {
 					style={{
 						display: 'grid',
 						gap: '20px',
-						gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))',
+						// Make grid columns responsive: min 320px, max 1fr
+						gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))',
 					}}
 				>
 					{issues.map(issue => (
@@ -460,7 +461,8 @@ const IssueFormModal = ({ isOpen, onClose, onSubmit, form, setForm, submissions,
 					boxShadow: 'var(--shadow-xl)',
 					padding: '24px',
 					width: '100%',
-					maxWidth: '500px',
+					// Ensure modal does not exceed screen width on mobile
+					maxWidth: 'min(500px, 95vw)',
 					display: 'grid',
 					gap: '16px',
 				}}
