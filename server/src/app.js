@@ -1,5 +1,5 @@
 import express from 'express';
-import { applyCors } from './middlewares/cors.middleware.js'; // fix case
+import { applyCors } from './middlewares/cors.middleware.js';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
