@@ -14,20 +14,37 @@ const createIssue = asyncHandler(async (req, res) => {
 		throw ApiError.BadRequest('submissionId, issueType and description are required.');
 	}
 
-	const submission = await Submission.findById(submissionId).lean();
+	// Populate the exam's creator to enable auto-assignment
+	const submission = await Submission.findById(submissionId)
+		.populate({ path: 'exam', select: 'createdBy' })
+		.lean();
+
 	if (!submission) throw ApiError.NotFound('The specified submission does not exist.');
 	if (String(submission.student) !== String(studentId)) {
 		throw ApiError.Forbidden('You can only raise issues for your own submissions.');
 	}
 
-	const issue = await Issue.create({
+	const issueData = {
 		student: studentId,
 		submission: submissionId,
-		exam: submission.exam,
+		exam: submission.exam._id,
 		issueType,
 		description: String(description).trim(),
-		status: 'open',
-	});
+		status: 'open', // Default status
+		activityLog: [], // Initialize activity log
+	};
+
+	// Auto-assign 'evaluation' or 'question' issues to the exam creator
+	if (['evaluation', 'question'].includes(issueType) && submission.exam?.createdBy) {
+		issueData.assignedTo = submission.exam.createdBy;
+		issueData.status = 'in-progress'; // Set status to in-progress as it's assigned
+		issueData.activityLog.push({
+			action: 'assigned',
+			details: `Automatically assigned to the exam creator.`,
+		});
+	}
+
+	const issue = await Issue.create(issueData);
 
 	const populatedIssue = await Issue.findById(issue._id)
 		.populate('student', 'fullname email')
@@ -38,6 +55,11 @@ const createIssue = asyncHandler(async (req, res) => {
 	// Emit to teachers
 	const io = req.io || req.app?.get('io');
 	if (io) io.to('teachers').emit('new-issue', populatedIssue);
+
+	// Also notify the specific teacher if they were auto-assigned and are online
+	if (issueData.assignedTo && io) {
+		io.to(String(issueData.assignedTo)).emit('issue-update', populatedIssue);
+	}
 
 	return ApiResponse.success(res, populatedIssue, 'Issue raised successfully', 201);
 });

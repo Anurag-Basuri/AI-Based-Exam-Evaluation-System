@@ -213,7 +213,7 @@ const normalizeSubmission = s => {
 	};
 };
 
-const normalizeIssue = i => ({
+export const normalizeIssue = i => ({
 	id: String(i?._id ?? i?.id ?? ''),
 	examId: String(i?.exam?._id ?? i?.exam ?? ''),
 	examTitle: i?.exam?.title ?? i?.examTitle ?? 'Exam',
