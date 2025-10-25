@@ -250,26 +250,28 @@ const StudentIssues = () => {
 		if (!user?.id) return;
 
 		const socket = io(API_BASE_URL, {
-			query: { userId: user.id },
+			query: { userId: user.id, role: 'student' },
 			withCredentials: true,
 		});
 
+		socket.on('connect_error', err => {
+			toast.error('Live updates unavailable', { description: err?.message || '' });
+		});
+
 		socket.on('issue-update', updatedIssue => {
-			setIssues(prevIssues =>
-				prevIssues.map(issue => (issue.id === updatedIssue.id ? updatedIssue : issue)),
+			setIssues(prev =>
+				prev.map(issue => (issue.id === updatedIssue.id ? updatedIssue : issue)),
 			);
 			toast.info(`Status for "${updatedIssue.examTitle}" is now ${updatedIssue.status}.`);
 		});
 
 		socket.on('new-issue', newIssue => {
 			if (newIssue.student?._id === user.id) {
-				setIssues(prevIssues => [newIssue, ...prevIssues]);
+				setIssues(prev => [newIssue, ...prev]);
 			}
 		});
 
-		return () => {
-			socket.disconnect();
-		};
+		return () => socket.disconnect();
 	}, [user, toast]);
 
 	const handleSubmit = async e => {
