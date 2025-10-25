@@ -326,6 +326,7 @@ const StudentResults = () => {
 
 	return (
 		<div style={styles.pageContainer}>
+			<ResponsiveStyleManager />
 			{viewingResultId && (
 				<ResultDetailModal
 					submissionId={viewingResultId}
@@ -671,28 +672,7 @@ const styles = {
 		fontSize: 24,
 		cursor: 'pointer',
 		color: 'var(--text-muted)',
-	},
-};
-
-// A simple utility to apply responsive styles
-const applyResponsiveStyles = () => {
-	let styleSheet = document.getElementById('responsive-result-styles');
-	if (styleSheet) styleSheet.remove();
-	styleSheet = document.createElement('style');
-	styleSheet.id = 'responsive-result-styles';
-	styleSheet.innerHTML = `
-        @media (max-width: 768px) {
-            .result-card {
-                grid-template-columns: 1fr;
-            }
-            .performance-pane {
-                border-left: none;
-                border-top: 1px solid var(--border);
-                border-radius: 0 0 16px 16px;
-            }
-        }
-    `;
-	document.head.appendChild(styleSheet);
+	}
 };
 
 // Add a simple component to manage the stylesheet
