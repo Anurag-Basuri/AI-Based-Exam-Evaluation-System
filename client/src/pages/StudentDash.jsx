@@ -214,10 +214,10 @@ const StudentDash = () => {
 				style={{
 					display: 'grid',
 					gridTemplateColumns: isMobile ? '1fr' : `${SIDEBAR_WIDTH}px 1fr`,
-					gap: 16,
-					padding: 16,
+					// gap: 16, // Gap is handled by padding now
+					// padding: 16,
 					alignItems: 'start',
-					minHeight: `calc(100dvh - var(--header-h, 64px))`,
+					minHeight: '100vh', // Ensure it takes full height
 					background:
 						theme === 'dark'
 							? 'radial-gradient(ellipse at top left, rgba(59,130,246,0.05) 0%, transparent 50%), var(--bg)'
@@ -230,6 +230,11 @@ const StudentDash = () => {
 						<aside
 							style={{
 								width: SIDEBAR_WIDTH,
+								position: 'sticky',
+								top: 0,
+								height: '100vh',
+								padding: 16,
+								paddingRight: 8,
 							}}
 						>
 							<Sidebar
@@ -248,59 +253,64 @@ const StudentDash = () => {
 				)}
 
 				{/* Main Content */}
-				<section
-					style={{
-						background: 'var(--surface)',
-						border: '1px solid var(--border)',
-						borderRadius: 14,
-						padding: 16,
-						minHeight: '60vh',
-						boxShadow: 'var(--shadow-md)',
-					}}
-				>
-					{/* Mobile toolbar */}
-					{isMobile && (
-						<div
-							style={{
-								display: 'flex',
-								alignItems: 'center',
-								gap: 10,
-								marginBottom: 12,
-								borderBottom: '1px solid var(--border)',
-								paddingBottom: 10,
-							}}
-						>
-							<button
-								onClick={() => setSidebarOpen(true)}
-								style={{
-									padding: '8px 12px',
-									borderRadius: 10,
-									background: 'var(--bg)',
-									color: 'var(--text)',
-									border: '1px solid var(--border)',
-									fontWeight: 800,
-								}}
-							>
-								☰ Menu
-							</button>
+				<div style={{ padding: isMobile ? 16 : '16px 16px 16px 8px', minWidth: 0 }}>
+					<section
+						style={{
+							background: 'var(--surface)',
+							border: '1px solid var(--border)',
+							borderRadius: 14,
+							minHeight: 'calc(100vh - 32px)', // Adjust for padding
+							boxShadow: 'var(--shadow-md)',
+							display: 'flex',
+							flexDirection: 'column',
+						}}
+					>
+						{/* Mobile toolbar */}
+						{isMobile && (
 							<div
 								style={{
-									marginLeft: 'auto',
-									color: 'var(--text-muted)',
-									fontSize: 12,
+									display: 'flex',
+									alignItems: 'center',
+									gap: 10,
+									borderBottom: '1px solid var(--border)',
+									padding: '10px 16px',
+									flexShrink: 0, // Prevent toolbar from shrinking
 								}}
 							>
-								{new Date().toLocaleDateString()}
+								<button
+									onClick={() => setSidebarOpen(true)}
+									style={{
+										padding: '8px 12px',
+										borderRadius: 10,
+										background: 'var(--bg)',
+										color: 'var(--text)',
+										border: '1px solid var(--border)',
+										fontWeight: 800,
+									}}
+								>
+									☰ Menu
+								</button>
+								<div
+									style={{
+										marginLeft: 'auto',
+										color: 'var(--text-muted)',
+										fontSize: 12,
+									}}
+								>
+									{new Date().toLocaleDateString()}
+								</div>
 							</div>
-						</div>
-					)}
+						)}
 
-					<ErrorBoundary>
-						<Suspense fallback={<RouteFallback message="Loading page" />}>
-							<Outlet />
-						</Suspense>
-					</ErrorBoundary>
-				</section>
+						<div style={{ padding: 16, flexGrow: 1, overflowY: 'auto' }}>
+							<ErrorBoundary>
+								<Suspense fallback={<RouteFallback message="Loading page" />}>
+									<Outlet />
+								</Suspense>
+							</ErrorBoundary>
+						</div>
+					</section>
+				</div>
 			</div>
 		</>
 	);
