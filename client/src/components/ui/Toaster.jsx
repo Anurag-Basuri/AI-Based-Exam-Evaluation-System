@@ -74,32 +74,27 @@ function ToastViewport({ toasts, onClose }) {
 						key={t.id}
 						role="status"
 						style={{
-							borderRadius: 12,
-							border: `1px solid ${fg}40`,
-							background: `color-mix(in srgb, ${fg} 10%, var(--surface))`,
-							color: 'var(--text)',
-							boxShadow: '0 10px 24px rgba(0,0,0,0.14)',
+							color: fg,
+							background: bg,
+							borderRadius: 10,
 							padding: '10px 12px',
+							boxShadow: '0 6px 20px rgba(0,0,0,0.25)',
 							display: 'flex',
 							alignItems: 'center',
 							gap: 10,
-							backdropFilter: 'saturate(140%) blur(4px)',
 						}}
 					>
-						<span style={{ fontSize: 18 }}>
-							{t.type === 'success' ? '✅' : t.type === 'error' ? '⛔' : 'ℹ️'}
-						</span>
-						<div style={{ flex: 1, fontWeight: 700, fontSize: 13 }}>{t.message}</div>
+						<div style={{ flex: 1, color: '#fff' }}>{t.message}</div>
 						<button
 							onClick={() => onClose(t.id)}
-							aria-label="Dismiss"
+							aria-label="Dismiss notification"
 							style={{
-								border: 'none',
 								background: 'transparent',
-								color: bg,
-								fontWeight: 900,
+								border: 'none',
+								color: '#fff',
 								cursor: 'pointer',
 								fontSize: 16,
+								lineHeight: 1,
 							}}
 						>
 							×
