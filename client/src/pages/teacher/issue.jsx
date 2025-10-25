@@ -234,8 +234,15 @@ const TeacherIssues = () => {
 
 	useEffect(() => {
 		loadIssues();
-		const socket = io(API_BASE_URL, { withCredentials: true });
-		socket.emit('join', 'teachers'); // Join the teachers room
+		const socket = io(API_BASE_URL, {
+			withCredentials: true,
+			query: { role: 'teacher' }, // auto-join on server
+		});
+		socket.emit('join', 'teachers'); // fallback
+
+		socket.on('connect_error', err => {
+			toast.error('Real-time updates unavailable', { description: err?.message || '' });
+		});
 
 		socket.on('new-issue', newIssueData => {
 			const normalizedNewIssue = normalizeIssue(newIssueData);
@@ -245,14 +252,13 @@ const TeacherIssues = () => {
 			});
 		});
 
-		// Listen for updates from other teachers
 		socket.on('issue-update', updatedIssueData => {
 			const normalizedUpdatedIssue = normalizeIssue(updatedIssueData);
 			setIssues(prev =>
 				prev.map(i => (i.id === normalizedUpdatedIssue.id ? normalizedUpdatedIssue : i)),
 			);
 			if (selectedIssueId === normalizedUpdatedIssue.id) {
-				setSelectedIssueId(null); // Force re-render of detail panel
+				setSelectedIssueId(null);
 				setTimeout(() => setSelectedIssueId(normalizedUpdatedIssue.id), 0);
 			}
 		});
