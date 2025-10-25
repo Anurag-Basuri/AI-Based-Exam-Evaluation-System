@@ -1,7 +1,7 @@
 import React from 'react';
 import { CSSTransition } from 'react-transition-group';
 import { io } from 'socket.io-client';
-import { useToast, toast } from '../../components/ui/Toaster.jsx';
+import { useToast } from '../../components/ui/Toaster.jsx';
 import { useAuth } from '../../hooks/useAuth.js';
 import { API_BASE_URL } from '../../services/api.js';
 import {
@@ -213,7 +213,7 @@ const StudentIssues = () => {
 	const [showForm, setShowForm] = React.useState(false);
 	const [saving, setSaving] = React.useState(false);
 	const [submissions, setSubmissions] = React.useState([]);
-	const { toast } = useToast();
+	const toast = useToast();
 	const { user } = useAuth();
 	const formNodeRef = React.useRef(null);
 
@@ -261,11 +261,7 @@ const StudentIssues = () => {
 			setIssues(prevIssues =>
 				prevIssues.map(issue => (issue.id === updatedIssue.id ? updatedIssue : issue)),
 			);
-			toast({
-				variant: 'info',
-				title: 'An issue has been updated',
-				description: `Status for "${updatedIssue.examTitle}" is now ${updatedIssue.status}.`,
-			});
+			toast.info(`Status for "${updatedIssue.examTitle}" is now ${updatedIssue.status}.`);
 		});
 
 		// Add new issue to the top of the list in real-time
@@ -284,7 +280,7 @@ const StudentIssues = () => {
 	const handleSubmit = async e => {
 		e.preventDefault();
 		if (!form.submissionId || !form.issueType || !form.description) {
-			toast({ variant: 'destructive', title: 'Please fill all required fields.' });
+			toast.error('Please fill all required fields.');
 			return;
 		}
 
@@ -300,7 +296,7 @@ const StudentIssues = () => {
 				description: '',
 			});
 			setShowForm(false);
-			toast({ variant: 'success', title: 'Your issue has been submitted successfully!' });
+			toast.success('Your issue has been submitted successfully!');
 		} catch (e) {
 			setError(e.message || 'Could not submit issue');
 		} finally {
