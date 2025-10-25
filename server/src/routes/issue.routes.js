@@ -5,7 +5,7 @@ import {
 	getAllIssues,
 	resolveIssue,
 	getIssueById,
-	updateIssueStatus, // Import new controller
+	updateIssueStatus,
 } from '../controllers/issue.controller.js';
 import { checkAuth, verifyStudent, verifyTeacher } from '../middlewares/auth.middleware.js';
 import { body, param, query } from 'express-validator';
@@ -18,17 +18,18 @@ router.post(
 	checkAuth,
 	verifyStudent,
 	body('submissionId').isMongoId().withMessage('A valid submission ID is required'),
-	body('issueType').notEmpty().withMessage('Issue type is required'),
-	body('description').notEmpty().withMessage('Description is required'),
+	body('issueType')
+		.isIn(['evaluation', 'technical', 'question', 'other'])
+		.withMessage('Invalid issue type'),
+	body('description').isString().isLength({ min: 5 }).withMessage('Description is required'),
 	createIssue,
 );
 
-// Get all issues for the logged-in student
+// Student issues (and alias)
 router.get('/student', checkAuth, verifyStudent, getStudentIssues);
-// Alias to support client fallback EP.issuesMine
 router.get('/me', checkAuth, verifyStudent, getStudentIssues);
 
-// Get all issues (for teachers, optionally filter by status or exam)
+// Teacher list/filter
 router.get(
 	'/all',
 	checkAuth,
@@ -38,27 +39,27 @@ router.get(
 	getAllIssues,
 );
 
-// Teacher updates an issue's status (e.g., to 'in-progress')
+// Teacher updates status (restrict to open/in-progress)
 router.patch(
 	'/:id/status',
 	checkAuth,
 	verifyTeacher,
 	param('id').isMongoId().withMessage('Issue ID is required'),
-	body('status').isIn(['open', 'in-progress', 'resolved']).withMessage('Invalid status'),
+	body('status').isIn(['open', 'in-progress']).withMessage('Only open or in-progress allowed'),
 	updateIssueStatus,
 );
 
-// Resolve an issue (teacher only)
+// Resolve with reply
 router.patch(
 	'/:id/resolve',
 	checkAuth,
 	verifyTeacher,
 	param('id').isMongoId().withMessage('Issue ID is required'),
-	body('reply').notEmpty().withMessage('Reply is required'),
+	body('reply').isString().isLength({ min: 2 }).withMessage('Reply is required'),
 	resolveIssue,
 );
 
-// Get a single issue by ID
+// Details
 router.get(
 	'/:id',
 	checkAuth,
