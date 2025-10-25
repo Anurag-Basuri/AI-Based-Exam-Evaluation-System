@@ -10,70 +10,63 @@ const createIssue = asyncHandler(async (req, res) => {
 	const { submissionId, issueType, description } = req.body;
 	const studentId = req.student?._id || req.user?.id;
 
-	const submission = await Submission.findById(submissionId);
-	if (!submission) {
-		throw ApiError.NotFound('The specified submission does not exist.');
+	if (!submissionId || !issueType || !description) {
+		throw ApiError.BadRequest('submissionId, issueType and description are required.');
 	}
-	if (submission.student.toString() !== studentId.toString()) {
+
+	const submission = await Submission.findById(submissionId).lean();
+	if (!submission) throw ApiError.NotFound('The specified submission does not exist.');
+	if (String(submission.student) !== String(studentId)) {
 		throw ApiError.Forbidden('You can only raise issues for your own submissions.');
 	}
 
-	const issue = new Issue({
+	const issue = await Issue.create({
 		student: studentId,
 		submission: submissionId,
-		exam: submission.exam, // Get exam from submission
+		exam: submission.exam,
 		issueType,
-		description,
+		description: String(description).trim(),
 		status: 'open',
 	});
 
-	await issue.save();
-	const populatedIssue = await issue.populate([
-		{ path: 'student', select: 'fullname email' },
-		{ path: 'exam', select: 'title' },
-		{ path: 'assignedTo', select: 'fullname' },
-	]);
+	const populatedIssue = await Issue.findById(issue._id)
+		.populate('student', 'fullname email')
+		.populate('exam', 'title')
+		.populate('assignedTo', 'fullname')
+		.lean();
 
-	// Emit to a 'teachers' room
+	// Emit to teachers
 	const io = req.io || req.app?.get('io');
-	if (io) {
-		io.to('teachers').emit('new-issue', populatedIssue);
-	}
+	if (io) io.to('teachers').emit('new-issue', populatedIssue);
+
 	return ApiResponse.success(res, populatedIssue, 'Issue raised successfully', 201);
 });
 
 // Get all issues for a student
 const getStudentIssues = asyncHandler(async (req, res) => {
 	const studentId = req.student?._id || req.user?.id;
+
 	const issues = await Issue.find({ student: studentId })
 		.populate('exam', 'title')
 		.sort({ createdAt: -1 })
 		.lean();
+
 	return ApiResponse.success(res, issues, 'Student issues fetched');
 });
 
-// Get all issues for a teacher (assigned or all)
+// Get all issues for a teacher (assigned or all) with optional filters
 const getAllIssues = asyncHandler(async (req, res) => {
 	const { status, exam, search } = req.query;
 	const filter = {};
 	if (status) filter.status = String(status).toLowerCase();
 	if (exam) filter.exam = exam;
-	// Add search functionality
+
 	if (search) {
 		const searchRegex = { $regex: search, $options: 'i' };
-
-		const studentIds = await mongoose
-			.model('Student')
-			.find({ fullname: searchRegex })
-			.select('_id')
-			.lean();
-
-		const examIds = await mongoose
-			.model('Exam')
-			.find({ title: searchRegex })
-			.select('_id')
-			.lean();
-
+		const [studentIds, examIds] = await Promise.all([
+			mongoose.model('Student').find({ fullname: searchRegex }).select('_id').lean(),
+			mongoose.model('Exam').find({ title: searchRegex }).select('_id').lean(),
+		]);
 		filter.$or = [
 			{ description: searchRegex },
 			{ student: { $in: studentIds.map(s => s._id) } },
@@ -84,29 +77,32 @@ const getAllIssues = asyncHandler(async (req, res) => {
 	const issues = await Issue.find(filter)
 		.populate('student', 'username fullname email')
 		.populate('exam', 'title')
-		.populate('assignedTo', 'fullname') // Populate assignee name
+		.populate('assignedTo', 'fullname')
 		.sort({ createdAt: -1 })
 		.lean();
 
 	return ApiResponse.success(res, issues, 'All issues fetched');
 });
 
-// Teacher updates an issue's status
+// Teacher updates an issue's status (no resolve here; use resolve endpoint)
 const updateIssueStatus = asyncHandler(async (req, res) => {
 	const { id } = req.params;
 	const { status } = req.body;
-	const teacherId = req.teacher._id;
+	const teacherId = req.teacher?._id;
+
+	if (!['open', 'in-progress'].includes(String(status))) {
+		throw ApiError.BadRequest('Only open or in-progress are allowed here.');
+	}
 
 	const issue = await Issue.findById(id);
-	if (!issue) {
-		throw ApiError.NotFound('Issue not found');
-	}
+	if (!issue) throw ApiError.NotFound('Issue not found');
 	if (issue.status === 'resolved') {
 		throw ApiError.Conflict('Cannot change status of a resolved issue.');
 	}
+
 	issue.status = String(status).toLowerCase();
 
-	// Assign/unassign the issue based on status
+	// Assign/unassign based on status
 	if (issue.status === 'in-progress') {
 		issue.assignedTo = teacherId;
 		issue.activityLog.push({
@@ -116,56 +112,60 @@ const updateIssueStatus = asyncHandler(async (req, res) => {
 			details: 'Issue assigned and moved to In Progress.',
 		});
 	} else if (issue.status === 'open') {
-		issue.assignedTo = null; // Unassign if moved back to open
+		issue.assignedTo = null;
 		issue.activityLog.push({
-			action: 'unassigned',
+			action: 'commented',
 			user: teacherId,
 			userModel: 'Teacher',
-			details: 'Issue unassigned and moved back to Open.',
+			details: 'Issue moved back to Open.',
 		});
 	}
 
 	await issue.save();
 
-	const populatedIssue = await issue.populate([
-		{ path: 'student', select: 'fullname email' },
-		{ path: 'exam', select: 'title' },
-		{ path: 'assignedTo', select: 'fullname' }, // Populate assignee name
-	]);
+	const populatedIssue = await Issue.findById(issue._id)
+		.populate('student', 'fullname email')
+		.populate('exam', 'title')
+		.populate('assignedTo', 'fullname')
+		.lean();
 
-	// EMIT REAL-TIME EVENT for the specific student
-	req.io.to(issue.student._id.toString()).emit('issue-update', populatedIssue);
-	// ALSO EMIT to all teachers so their UIs update
-	req.io.to('teachers').emit('issue-update', populatedIssue);
+	const io = req.io || req.app?.get('io');
+	if (io) {
+		io.to(String(issue.student)).emit('issue-update', populatedIssue);
+		io.to('teachers').emit('issue-update', populatedIssue);
+	}
 
 	return ApiResponse.success(res, populatedIssue, 'Issue status updated');
 });
 
-// Teacher resolves an issue
+// Teacher resolves an issue (with reply)
 const resolveIssue = asyncHandler(async (req, res) => {
 	const issueId = req.params.id;
 	const teacherId = req.teacher?._id || req.user?.id;
 	const { reply } = req.body;
 
+	if (!reply?.trim()) throw ApiError.BadRequest('Reply is required');
+
 	const issue = await Issue.findById(issueId);
-	if (!issue) {
-		throw ApiError.NotFound('Issue not found');
-	}
+	if (!issue) throw ApiError.NotFound('Issue not found');
 	if (issue.status === 'resolved') {
+		return ApiResponse.success(res, issue, 'Issue already resolved');
 	}
 
-	issue.markResolved(teacherId, reply);
+	issue.markResolved(teacherId, String(reply).trim());
 	await issue.save();
 
-	const populatedIssue = await issue.populate([
-		{ path: 'student', select: 'fullname email' },
-		{ path: 'exam', select: 'title' },
-	]);
+	const populatedIssue = await Issue.findById(issue._id)
+		.populate('student', 'fullname email')
+		.populate('exam', 'title')
+		.populate('assignedTo', 'fullname')
+		.lean();
 
-	// EMIT REAL-TIME EVENT for the specific student
-	req.io.to(issue.student._id.toString()).emit('issue-update', populatedIssue);
-	// ALSO EMIT to all teachers so their UIs update
-	req.io.to('teachers').emit('issue-update', populatedIssue);
+	const io = req.io || req.app?.get('io');
+	if (io) {
+		io.to(String(issue.student)).emit('issue-update', populatedIssue);
+		io.to('teachers').emit('issue-update', populatedIssue);
+	}
 
 	return ApiResponse.success(res, populatedIssue, 'Issue resolved');
 });
@@ -177,13 +177,11 @@ const getIssueById = asyncHandler(async (req, res) => {
 		.populate('student', 'username fullname email')
 		.populate('exam', 'title')
 		.populate('submission')
-		.populate('assignedTo', 'fullname') // Populate assignee
-		.populate('activityLog.user', 'fullname') // Populate user in activity log
+		.populate('assignedTo', 'fullname')
+		.populate('activityLog.user', 'fullname')
 		.lean();
 
-	if (!issue) {
-		throw ApiError.NotFound('Issue not found');
-	}
+	if (!issue) throw ApiError.NotFound('Issue not found');
 
 	return ApiResponse.success(res, issue, 'Issue details fetched');
 });
