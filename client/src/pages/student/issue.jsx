@@ -215,7 +215,6 @@ const StudentIssues = () => {
 	const [submissions, setSubmissions] = React.useState([]);
 	const toast = useToast();
 	const { user } = useAuth();
-	const formNodeRef = React.useRef(null);
 
 	const [form, setForm] = React.useState({
 		submissionId: '',
@@ -233,8 +232,7 @@ const StudentIssues = () => {
 			]);
 			setIssues(Array.isArray(issuesData) ? issuesData : []);
 			setSubmissions(Array.isArray(submissionsData) ? submissionsData : []);
-			// Default to the most recent submission if available
-			if (submissionsData?.length > 0 && !form.submissionId) {
+			if (submissionsData?.length > 0) {
 				setForm(f => ({ ...f, submissionId: submissionsData[0].id }));
 			}
 		} catch (e) {
@@ -248,7 +246,6 @@ const StudentIssues = () => {
 		loadData();
 	}, [loadData]);
 
-	// --- Real-time updates via Socket.IO ---
 	React.useEffect(() => {
 		if (!user?.id) return;
 
@@ -264,9 +261,7 @@ const StudentIssues = () => {
 			toast.info(`Status for "${updatedIssue.examTitle}" is now ${updatedIssue.status}.`);
 		});
 
-		// Add new issue to the top of the list in real-time
 		socket.on('new-issue', newIssue => {
-			// Only add if it's from the current user but created on another device/tab
 			if (newIssue.student?._id === user.id) {
 				setIssues(prevIssues => [newIssue, ...prevIssues]);
 			}
@@ -288,7 +283,6 @@ const StudentIssues = () => {
 		setError('');
 		try {
 			const newIssue = await safeApiCall(createIssue, form);
-			// Optimistic UI update: add new issue to the top of the list
 			setIssues(prevIssues => [newIssue, ...prevIssues]);
 			setForm({
 				submissionId: submissions[0]?.id || '',
@@ -304,36 +298,10 @@ const StudentIssues = () => {
 		}
 	};
 
+	const hasSubmissions = submissions.length > 0;
+
 	return (
 		<section style={{ maxWidth: 1000, margin: '0 auto' }}>
-			<style>{`
-        .form-transition-enter {
-          opacity: 0;
-          transform: translateY(-10px);
-          max-height: 0;
-        }
-        .form-transition-enter-active {
-          opacity: 1;
-          transform: translateY(0);
-          max-height: 500px; /* Adjust as needed */
-          transition: all 300ms ease-in-out;
-        }
-        .form-transition-exit {
-          opacity: 1;
-          transform: translateY(0);
-          max-height: 500px;
-        }
-        .form-transition-exit-active {
-          opacity: 0;
-          transform: translateY(-10px);
-          max-height: 0;
-          transition: all 300ms ease-in-out;
-          margin-bottom: 0 !important;
-          padding-top: 0 !important;
-          padding-bottom: 0 !important;
-          overflow: hidden;
-        }
-      `}</style>
 			<header
 				style={{
 					background: 'var(--surface)',
@@ -358,8 +326,13 @@ const StudentIssues = () => {
 					</p>
 				</div>
 				<button
-					onClick={() => setShowForm(s => !s)}
-					disabled={showForm}
+					onClick={() => setShowForm(true)}
+					disabled={!hasSubmissions || loading}
+					title={
+						!hasSubmissions
+							? 'You must have at least one submitted exam to create an issue.'
+							: 'Create a new support issue'
+					}
 					style={{
 						padding: '10px 16px',
 						borderRadius: 12,
@@ -367,13 +340,13 @@ const StudentIssues = () => {
 						background: 'var(--primary-gradient)',
 						color: 'var(--primary-contrast)',
 						fontWeight: 700,
-						cursor: 'pointer',
+						cursor: !hasSubmissions || loading ? 'not-allowed' : 'pointer',
 						boxShadow: 'var(--shadow-lg)',
-						opacity: showForm ? 0.6 : 1,
-						transition: 'opacity 0.2s ease',
+						opacity: !hasSubmissions || loading ? 0.6 : 1,
+						transition: 'opacity 0.2s ease, transform 0.2s ease',
 					}}
 				>
-					{showForm ? 'Fill the form below' : '➕ Create New Issue'}
+					➕ Create New Issue
 				</button>
 			</header>
 
@@ -393,154 +366,17 @@ const StudentIssues = () => {
 				</div>
 			)}
 
-			<CSSTransition
-				in={showForm}
-				nodeRef={formNodeRef}
-				timeout={300}
-				classNames="form-transition"
-				unmountOnExit
-			>
-				<form
-					ref={formNodeRef}
+			{showForm && (
+				<IssueFormModal
+					isOpen={showForm}
+					onClose={() => setShowForm(false)}
 					onSubmit={handleSubmit}
-					style={{
-						background: 'var(--surface)',
-						borderRadius: 16,
-						border: '1px solid var(--border)',
-						boxShadow: 'var(--shadow-lg)',
-						padding: '24px',
-						marginBottom: '24px',
-						display: 'grid',
-						gap: '16px',
-					}}
-				>
-					<div style={{ display: 'grid', gap: 8 }}>
-						<label
-							htmlFor="issue-submission"
-							style={{ fontWeight: 700, color: 'var(--text)' }}
-						>
-							Related Exam
-						</label>
-						<select
-							id="issue-submission"
-							value={form.submissionId}
-							onChange={e => setForm(s => ({ ...s, submissionId: e.target.value }))}
-							style={{
-								padding: '10px 12px',
-								borderRadius: 10,
-								border: '1px solid var(--border)',
-								background: 'var(--bg)',
-								color: 'var(--text)',
-								outline: 'none',
-							}}
-							required
-						>
-							<option value="">Select an exam submission</option>
-							{submissions.map(s => (
-								<option key={s.id} value={s.id}>
-									{s.label}
-								</option>
-							))}
-						</select>
-					</div>
-
-					<div style={{ display: 'grid', gap: 8 }}>
-						<label
-							htmlFor="issue-type"
-							style={{ fontWeight: 700, color: 'var(--text)' }}
-						>
-							Issue Type
-						</label>
-						<select
-							id="issue-type"
-							value={form.issueType}
-							onChange={e => setForm(s => ({ ...s, issueType: e.target.value }))}
-							style={{
-								padding: '10px 12px',
-								borderRadius: 10,
-								border: '1px solid var(--border)',
-								background: 'var(--bg)',
-								color: 'var(--text)',
-								outline: 'none',
-							}}
-							required
-						>
-							<option value="evaluation">Evaluation/Grading Issue</option>
-							<option value="question">Problem with a Question</option>
-							<option value="technical">Technical Problem</option>
-							<option value="other">Other</option>
-						</select>
-					</div>
-
-					<div style={{ display: 'grid', gap: 8 }}>
-						<label
-							htmlFor="issue-desc"
-							style={{ fontWeight: 700, color: 'var(--text)' }}
-						>
-							Description
-						</label>
-						<textarea
-							id="issue-desc"
-							value={form.description}
-							onChange={e => setForm(s => ({ ...s, description: e.target.value }))}
-							placeholder="Please describe the problem in detail."
-							rows={5}
-							style={{
-								padding: '10px 12px',
-								borderRadius: 10,
-								border: '1px solid var(--border)',
-								background: 'var(--bg)',
-								color: 'var(--text)',
-								outline: 'none',
-								resize: 'vertical',
-							}}
-							required
-						/>
-					</div>
-
-					<div
-						style={{
-							display: 'flex',
-							justifyContent: 'flex-end',
-							gap: 10,
-							marginTop: '8px',
-						}}
-					>
-						<button
-							type="button"
-							onClick={() => setShowForm(false)}
-							style={{
-								padding: '10px 14px',
-								borderRadius: 10,
-								border: '1px solid var(--border)',
-								background: 'var(--surface)',
-								color: 'var(--text)',
-								cursor: 'pointer',
-								fontWeight: 700,
-							}}
-						>
-							Cancel
-						</button>
-						<button
-							type="submit"
-							disabled={saving}
-							style={{
-								padding: '10px 14px',
-								borderRadius: 10,
-								border: 'none',
-								background: 'var(--primary-gradient)',
-								color: 'var(--primary-contrast)',
-								cursor: 'pointer',
-								fontWeight: 700,
-								boxShadow: 'var(--shadow-lg)',
-								opacity: saving ? 0.7 : 1,
-							}}
-						>
-							{saving ? 'Submitting…' : 'Submit Issue'}
-						</button>
-					</div>
-				</form>
-			</CSSTransition>
+					form={form}
+					setForm={setForm}
+					submissions={submissions}
+					saving={saving}
+				/>
+			)}
 
 			{loading && (
 				<div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '40px' }}>
@@ -580,6 +416,177 @@ const StudentIssues = () => {
 				</div>
 			)}
 		</section>
+	);
+};
+
+// New Modal Component for the Form
+const IssueFormModal = ({ isOpen, onClose, onSubmit, form, setForm, submissions, saving }) => {
+	const modalRef = React.useRef();
+
+	React.useEffect(() => {
+		const handleEsc = e => {
+			if (e.key === 'Escape') onClose();
+		};
+		document.addEventListener('keydown', handleEsc);
+		return () => document.removeEventListener('keydown', handleEsc);
+	}, [onClose]);
+
+	if (!isOpen) return null;
+
+	return (
+		<div
+			ref={modalRef}
+			onClick={e => {
+				if (modalRef.current === e.target) onClose();
+			}}
+			style={{
+				position: 'fixed',
+				inset: 0,
+				background: 'rgba(0,0,0,0.5)',
+				backdropFilter: 'blur(4px)',
+				display: 'flex',
+				alignItems: 'center',
+				justifyContent: 'center',
+				zIndex: 1000,
+				padding: 16,
+			}}
+		>
+			<form
+				onSubmit={onSubmit}
+				style={{
+					background: 'var(--surface)',
+					borderRadius: 16,
+					border: '1px solid var(--border)',
+					boxShadow: 'var(--shadow-xl)',
+					padding: '24px',
+					width: '100%',
+					maxWidth: '500px',
+					display: 'grid',
+					gap: '16px',
+				}}
+			>
+				<h2 style={{ margin: 0, color: 'var(--text)' }}>Create New Issue</h2>
+				<div style={{ display: 'grid', gap: 8 }}>
+					<label
+						htmlFor="issue-submission"
+						style={{ fontWeight: 700, color: 'var(--text)' }}
+					>
+						Related Exam
+					</label>
+					<select
+						id="issue-submission"
+						value={form.submissionId}
+						onChange={e => setForm(s => ({ ...s, submissionId: e.target.value }))}
+						style={{
+							padding: '10px 12px',
+							borderRadius: 10,
+							border: '1px solid var(--border)',
+							background: 'var(--bg)',
+							color: 'var(--text)',
+							outline: 'none',
+						}}
+						required
+					>
+						<option value="">Select an exam submission</option>
+						{submissions.map(s => (
+							<option key={s.id} value={s.id}>
+								{s.label}
+							</option>
+						))}
+					</select>
+				</div>
+
+				<div style={{ display: 'grid', gap: 8 }}>
+					<label htmlFor="issue-type" style={{ fontWeight: 700, color: 'var(--text)' }}>
+						Issue Type
+					</label>
+					<select
+						id="issue-type"
+						value={form.issueType}
+						onChange={e => setForm(s => ({ ...s, issueType: e.target.value }))}
+						style={{
+							padding: '10px 12px',
+							borderRadius: 10,
+							border: '1px solid var(--border)',
+							background: 'var(--bg)',
+							color: 'var(--text)',
+							outline: 'none',
+						}}
+						required
+					>
+						<option value="evaluation">Evaluation/Grading Issue</option>
+						<option value="question">Problem with a Question</option>
+						<option value="technical">Technical Problem</option>
+						<option value="other">Other</option>
+					</select>
+				</div>
+
+				<div style={{ display: 'grid', gap: 8 }}>
+					<label htmlFor="issue-desc" style={{ fontWeight: 700, color: 'var(--text)' }}>
+						Description
+					</label>
+					<textarea
+						id="issue-desc"
+						value={form.description}
+						onChange={e => setForm(s => ({ ...s, description: e.target.value }))}
+						placeholder="Please describe the problem in detail."
+						rows={5}
+						style={{
+							padding: '10px 12px',
+							borderRadius: 10,
+							border: '1px solid var(--border)',
+							background: 'var(--bg)',
+							color: 'var(--text)',
+							outline: 'none',
+							resize: 'vertical',
+						}}
+						required
+					/>
+				</div>
+
+				<div
+					style={{
+						display: 'flex',
+						justifyContent: 'flex-end',
+						gap: 10,
+						marginTop: '8px',
+					}}
+				>
+					<button
+						type="button"
+						onClick={onClose}
+						style={{
+							padding: '10px 14px',
+							borderRadius: 10,
+							border: '1px solid var(--border)',
+							background: 'var(--surface)',
+							color: 'var(--text)',
+							cursor: 'pointer',
+							fontWeight: 700,
+						}}
+					>
+						Cancel
+					</button>
+					<button
+						type="submit"
+						disabled={saving}
+						style={{
+							padding: '10px 14px',
+							borderRadius: 10,
+							border: 'none',
+							background: 'var(--primary-gradient)',
+							color: 'var(--primary-contrast)',
+							cursor: 'pointer',
+							fontWeight: 700,
+							boxShadow: 'var(--shadow-lg)',
+							opacity: saving ? 0.7 : 1,
+						}}
+					>
+						{saving ? 'Submitting…' : 'Submit Issue'}
+					</button>
+				</div>
+			</form>
+		</div>
 	);
 };
 
