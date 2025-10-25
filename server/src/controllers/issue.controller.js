@@ -50,14 +50,31 @@ const getStudentIssues = asyncHandler(async (req, res) => {
 
 // Get all issues for a teacher (assigned or all)
 const getAllIssues = asyncHandler(async (req, res) => {
-	const { status, exam } = req.query;
+	const { status, exam, search } = req.query;
 	const filter = {};
 	if (status) filter.status = String(status).toLowerCase();
 	if (exam) filter.exam = exam;
 
+	// Add search functionality
+	if (search) {
+		const searchRegex = { $regex: search, $options: 'i' };
+		const studentIds = await mongoose
+			.model('Student')
+			.find({ fullname: searchRegex })
+			.select('_id');
+		const examIds = await mongoose.model('Exam').find({ title: searchRegex }).select('_id');
+
+		filter.$or = [
+			{ description: searchRegex },
+			{ student: { $in: studentIds.map(s => s._id) } },
+			{ exam: { $in: examIds.map(e => e._id) } },
+		];
+	}
+
 	const issues = await Issue.find(filter)
 		.populate('student', 'username fullname email')
 		.populate('exam', 'title')
+		.populate('assignedTo', 'fullname') // Populate assignee name
 		.sort({ createdAt: -1 })
 		.lean();
 
@@ -68,6 +85,7 @@ const getAllIssues = asyncHandler(async (req, res) => {
 const updateIssueStatus = asyncHandler(async (req, res) => {
 	const { id } = req.params;
 	const { status } = req.body;
+	const teacherId = req.teacher._id;
 
 	const issue = await Issue.findById(id);
 	if (!issue) {
@@ -77,11 +95,32 @@ const updateIssueStatus = asyncHandler(async (req, res) => {
 		throw ApiError.Conflict('Cannot change status of a resolved issue.');
 	}
 	issue.status = String(status).toLowerCase();
+
+	// Assign/unassign the issue based on status
+	if (issue.status === 'in-progress') {
+		issue.assignedTo = teacherId;
+		issue.activityLog.push({
+			action: 'assigned',
+			user: teacherId,
+			userModel: 'Teacher',
+			details: 'Issue assigned and moved to In Progress.',
+		});
+	} else if (issue.status === 'open') {
+		issue.assignedTo = null; // Unassign if moved back to open
+		issue.activityLog.push({
+			action: 'unassigned',
+			user: teacherId,
+			userModel: 'Teacher',
+			details: 'Issue unassigned and moved back to Open.',
+		});
+	}
+
 	await issue.save();
 
 	const populatedIssue = await issue.populate([
 		{ path: 'student', select: 'fullname email' },
 		{ path: 'exam', select: 'title' },
+		{ path: 'assignedTo', select: 'fullname' }, // Populate assignee name
 	]);
 
 	// EMIT REAL-TIME EVENT for the specific student
@@ -128,6 +167,8 @@ const getIssueById = asyncHandler(async (req, res) => {
 		.populate('student', 'username fullname email')
 		.populate('exam', 'title')
 		.populate('submission')
+		.populate('assignedTo', 'fullname') // Populate assignee
+		.populate('activityLog.user', 'fullname') // Populate user in activity log
 		.lean();
 
 	if (!issue) {

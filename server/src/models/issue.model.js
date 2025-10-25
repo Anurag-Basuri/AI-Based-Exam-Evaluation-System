@@ -5,24 +5,24 @@ const activityLogSchema = new mongoose.Schema(
 		action: {
 			type: String,
 			enum: ['created', 'resolved', 'commented'],
-			required: true
+			required: true,
 		},
 		user: {
 			type: mongoose.Schema.Types.ObjectId,
-			refPath: 'userModel'
+			refPath: 'userModel',
 		},
 		userModel: {
 			type: String,
-			enum: ['Student', 'Teacher']
+			enum: ['Student', 'Teacher'],
 		},
 		details: {
-			type: String
-		}
+			type: String,
+		},
 	},
 	{
 		timestamps: true,
-		_id: false
-	}
+		_id: false,
+	},
 );
 
 const issueSchema = new mongoose.Schema(
