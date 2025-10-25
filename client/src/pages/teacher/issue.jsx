@@ -3,9 +3,9 @@ import { io } from 'socket.io-client';
 import { useToast } from '../../components/ui/Toaster.jsx';
 import {
 	safeApiCall,
-	getAllIssues,
-	updateIssueStatus,
-	resolveIssue,
+	getTeacherIssues,
+	updateTeacherIssueStatus,
+	resolveTeacherIssue,
 } from '../../services/teacherServices.js';
 import { API_BASE_URL } from '../../services/api.js';
 
@@ -44,7 +44,7 @@ const ReplyModal = ({ issue, onClose, onUpdate }) => {
 		}
 		setIsSaving(true);
 		try {
-			const updatedIssue = await safeApiCall(resolveIssue, issue.id, { reply });
+			const updatedIssue = await safeApiCall(resolveTeacherIssue, issue.id, reply);
 			onUpdate(updatedIssue);
 			toast({ variant: 'success', title: 'Issue Resolved!' });
 			onClose();
@@ -108,7 +108,7 @@ const IssueRow = ({ issue, onUpdate, onSelect }) => {
 
 	const handleStatusChange = async newStatus => {
 		try {
-			const updatedIssue = await safeApiCall(updateIssueStatus, issue.id, newStatus);
+			const updatedIssue = await safeApiCall(updateTeacherIssueStatus, issue.id, newStatus);
 			onUpdate(updatedIssue);
 			// BUGFIX: Use the new status to get the correct label for the toast.
 			const newConfig = statusStyles[newStatus] || statusStyles.open;
@@ -156,7 +156,7 @@ const TeacherIssues = () => {
 	const loadIssues = useCallback(async () => {
 		setLoading(true);
 		try {
-			const data = await safeApiCall(getAllIssues);
+			const data = await safeApiCall(getTeacherIssues);
 			setIssues(Array.isArray(data) ? data : []);
 		} catch (e) {
 			setError(e.message || 'Failed to load issues');
