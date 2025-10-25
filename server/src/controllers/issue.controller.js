@@ -114,7 +114,7 @@ const updateIssueStatus = asyncHandler(async (req, res) => {
 	} else if (issue.status === 'open') {
 		issue.assignedTo = null;
 		issue.activityLog.push({
-			action: 'commented',
+			action: 'status-changed',
 			user: teacherId,
 			userModel: 'Teacher',
 			details: 'Issue moved back to Open.',

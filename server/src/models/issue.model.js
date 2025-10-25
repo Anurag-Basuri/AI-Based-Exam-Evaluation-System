@@ -4,7 +4,7 @@ const activityLogSchema = new mongoose.Schema(
 	{
 		action: {
 			type: String,
-			enum: ['created', 'resolved', 'commented'],
+			enum: ['created', 'resolved', 'assigned', 'status-changed'],
 			required: true,
 		},
 		user: {
@@ -78,7 +78,7 @@ const issueSchema = new mongoose.Schema(
 		resolvedAt: {
 			type: Date,
 		},
-		// NEW: Keep a log of all actions taken on the issue
+		// Keep a log of all actions taken on the issue
 		activityLog: [activityLogSchema],
 	},
 	{ timestamps: true },
