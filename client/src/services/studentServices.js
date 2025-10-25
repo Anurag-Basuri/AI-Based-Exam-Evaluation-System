@@ -357,10 +357,14 @@ export const replyToIssue = (issueId, message) => tryPost(EP.issueReply(issueId)
 
 // Convenience for issue form dropdown
 export const getMySubmissionsForIssues = async () => {
-	const submissions = await getMySubmissions();
+	// Use the main getMySubmissions function to leverage caching and normalization
+	const submissions = await getMySubmissions({ status: 'submitted' });
+
+	// Create a user-friendly label for the dropdown
 	return submissions.map(s => ({
 		id: s.id,
-		label: `${s.examTitle} (Submitted: ${s.submittedAt || new Date(s.startedAt).toLocaleString()})`,
+		// Use the already-formatted `submittedAt` string from the normalized object
+		label: `${s.examTitle} (Submitted: ${s.submittedAt || 'N/A'})`,
 	}));
 };
 

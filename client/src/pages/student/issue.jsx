@@ -1,7 +1,7 @@
 import React from 'react';
 import { CSSTransition } from 'react-transition-group';
 import { io } from 'socket.io-client';
-import { useToast } from '../../components/ui/Toaster.jsx';
+import { useToast, toast } from '../../components/ui/Toaster.jsx';
 import { useAuth } from '../../hooks/useAuth.js';
 import { API_BASE_URL } from '../../services/api.js';
 import {
@@ -248,7 +248,7 @@ const StudentIssues = () => {
 		loadData();
 	}, [loadData]);
 
-	// --- NEW: Real-time updates via Socket.IO ---
+	// --- Real-time updates via Socket.IO ---
 	React.useEffect(() => {
 		if (!user?.id) return;
 
