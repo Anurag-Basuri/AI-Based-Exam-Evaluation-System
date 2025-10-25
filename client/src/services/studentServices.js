@@ -351,11 +351,11 @@ export const replyToIssue = (issueId, message) => tryPost(EP.issueReply(issueId)
 
 // Convenience for issue form dropdown
 export const getMySubmissionsForIssues = async () => {
-    const submissions = await getMySubmissions();
-    return submissions.map(s => ({
-        id: s.id,
-        label: `${s.examTitle} (Submitted: ${s.submittedAt || new Date(s.startedAt).toLocaleString()})`,
-    }));
+	const submissions = await getMySubmissions();
+	return submissions.map(s => ({
+		id: s.id,
+		label: `${s.examTitle} (Submitted: ${s.submittedAt || new Date(s.startedAt).toLocaleString()})`,
+	}));
 };
 
 // Ensure cookies

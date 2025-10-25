@@ -1,9 +1,11 @@
 import React from 'react';
+import { CSSTransition } from 'react-transition-group';
+import { useToast } from '../../components/ui/Toaster.jsx';
 import {
-	safeApiCall,
-	getMyIssues,
-	createIssue,
-	getMySubmissionsForIssues,
+    safeApiCall,
+    getMyIssues,
+    createIssue,
+    getMySubmissionsForIssues,
 } from '../../services/studentServices.js';
 
 const statusStyles = {
@@ -202,302 +204,330 @@ const IssueCard = ({ issue }) => {
 };
 
 const StudentIssues = () => {
-	const [loading, setLoading] = React.useState(true);
-	const [error, setError] = React.useState('');
-	const [issues, setIssues] = React.useState([]);
-	const [showForm, setShowForm] = React.useState(false);
-	const [saving, setSaving] = React.useState(false);
-	const [message, setMessage] = React.useState('');
-	const [submissions, setSubmissions] = React.useState([]);
-	const [form, setForm] = React.useState({
-		submissionId: '',
-		issueType: 'evaluation',
-		description: '',
-	});
+    const [loading, setLoading] = React.useState(true);
+    const [error, setError] = React.useState('');
+    const [issues, setIssues] = React.useState([]);
+    const [showForm, setShowForm] = React.useState(false);
+    const [saving, setSaving] = React.useState(false);
+    const [submissions, setSubmissions] = React.useState([]);
+    const { toast } = useToast();
+    const formNodeRef = React.useRef(null);
 
-	const loadData = React.useCallback(async () => {
-		setLoading(true);
-		setError('');
-		try {
-			const [issuesData, submissionsData] = await Promise.all([
-				safeApiCall(getMyIssues),
-				safeApiCall(getMySubmissionsForIssues),
-			]);
-			setIssues(Array.isArray(issuesData) ? issuesData : []);
-			setSubmissions(Array.isArray(submissionsData) ? submissionsData : []);
-		} catch (e) {
-			setError(e?.message || 'Failed to load data');
-		} finally {
-			setLoading(false);
-		}
-	}, []);
+    const [form, setForm] = React.useState({
+        submissionId: '',
+        issueType: 'evaluation',
+        description: '',
+    });
 
-	React.useEffect(() => {
-		loadData();
-	}, [loadData]);
+    const loadData = React.useCallback(async () => {
+        setLoading(true);
+        setError('');
+        try {
+            const [issuesData, submissionsData] = await Promise.all([
+                safeApiCall(getMyIssues),
+                safeApiCall(getMySubmissionsForIssues),
+            ]);
+            setIssues(Array.isArray(issuesData) ? issuesData : []);
+            setSubmissions(Array.isArray(submissionsData) ? submissionsData : []);
+            // Default to the most recent submission if available
+            if (submissionsData?.length > 0 && !form.submissionId) {
+                setForm(f => ({ ...f, submissionId: submissionsData[0].id }));
+            }
+        } catch (e) {
+            setError(e?.message || 'Failed to load data');
+        } finally {
+            setLoading(false);
+        }
+    }, []);
 
-	const handleSubmit = async e => {
-		e.preventDefault();
-		if (!form.submissionId || !form.issueType || !form.description) return;
+    React.useEffect(() => {
+        loadData();
+    }, [loadData]);
 
-		setSaving(true);
-		setError('');
-		setMessage('');
-		try {
-			await safeApiCall(createIssue, form);
-			await loadData(); // Reload everything
-			setForm({ submissionId: '', issueType: 'evaluation', description: '' });
-			setShowForm(false);
-			setMessage('Your issue has been submitted successfully!');
-		} catch (e) {
-			setError(e.message || 'Could not submit issue');
-		} finally {
-			setSaving(false);
-		}
-	};
+    const handleSubmit = async e => {
+        e.preventDefault();
+        if (!form.submissionId || !form.issueType || !form.description) {
+            toast({ variant: 'destructive', title: 'Please fill all required fields.' });
+            return;
+        }
 
-	return (
-		<section style={{ maxWidth: 1000, margin: '0 auto' }}>
-			<header
-				style={{
-					background: 'var(--surface)',
-					padding: '24px',
-					borderRadius: 16,
-					border: '1px solid var(--border)',
-					boxShadow: 'var(--shadow-md)',
-					marginBottom: '24px',
-					display: 'flex',
-					flexWrap: 'wrap',
-					gap: 12,
-					justifyContent: 'space-between',
-					alignItems: 'center',
-				}}
-			>
-				<div>
-					<h1 style={{ margin: 0, fontSize: '24px', color: 'var(--text)' }}>
-						Support & Issues
-					</h1>
-					<p style={{ margin: '6px 0 0', color: 'var(--text-muted)' }}>
-						Raise concerns about exam sessions or evaluations.
-					</p>
-				</div>
-				<button
-					onClick={() => setShowForm(s => !s)}
-					disabled={showForm}
-					style={{
-						padding: '10px 16px',
-						borderRadius: 12,
-						border: 'none',
-						background: 'var(--primary-gradient)',
-						color: 'var(--primary-contrast)',
-						fontWeight: 700,
-						cursor: 'pointer',
-						boxShadow: 'var(--shadow-lg)',
-						opacity: showForm ? 0.6 : 1,
-						transition: 'opacity 0.2s ease',
-					}}
-				>
-					{showForm ? 'Fill the form below' : '➕ Create New Issue'}
-				</button>
-			</header>
+        setSaving(true);
+        setError('');
+        try {
+            await safeApiCall(createIssue, form);
+            await loadData(); // Reload everything
+            setForm({ submissionId: submissions[0]?.id || '', issueType: 'evaluation', description: '' });
+            setShowForm(false);
+            toast({ variant: 'success', title: 'Your issue has been submitted successfully!' });
+        } catch (e) {
+            setError(e.message || 'Could not submit issue');
+        } finally {
+            setSaving(false);
+        }
+    };
 
-			{message && (
-				<div
-					style={{
-						padding: '14px',
-						borderRadius: 12,
-						background: statusStyles.resolved.bg,
-						border: `1px solid ${statusStyles.resolved.border}`,
-						color: statusStyles.resolved.color,
-						fontWeight: 600,
-						marginBottom: '16px',
-					}}
-				>
-					{message}
-				</div>
-			)}
-			{error && (
-				<div
-					style={{
-						padding: '14px',
-						borderRadius: 12,
-						background: 'var(--danger-bg)',
-						border: '1px solid var(--danger-border)',
-						color: 'var(--danger-text)',
-						fontWeight: 600,
-						marginBottom: '16px',
-					}}
-				>
-					❌ {error}
-				</div>
-			)}
+    return (
+        <section style={{ maxWidth: 1000, margin: '0 auto' }}>
+            <style>{`
+        .form-transition-enter {
+          opacity: 0;
+          transform: translateY(-10px);
+          max-height: 0;
+        }
+        .form-transition-enter-active {
+          opacity: 1;
+          transform: translateY(0);
+          max-height: 500px; /* Adjust as needed */
+          transition: all 300ms ease-in-out;
+        }
+        .form-transition-exit {
+          opacity: 1;
+          transform: translateY(0);
+          max-height: 500px;
+        }
+        .form-transition-exit-active {
+          opacity: 0;
+          transform: translateY(-10px);
+          max-height: 0;
+          transition: all 300ms ease-in-out;
+          margin-bottom: 0 !important;
+          padding-top: 0 !important;
+          padding-bottom: 0 !important;
+          overflow: hidden;
+        }
+      `}</style>
+            <header
+                style={{
+                    background: 'var(--surface)',
+                    padding: '24px',
+                    borderRadius: 16,
+                    border: '1px solid var(--border)',
+                    boxShadow: 'var(--shadow-md)',
+                    marginBottom: '24px',
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: 12,
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                }}
+            >
+                <div>
+                    <h1 style={{ margin: 0, fontSize: '24px', color: 'var(--text)' }}>
+                        Support & Issues
+                    </h1>
+                    <p style={{ margin: '6px 0 0', color: 'var(--text-muted)' }}>
+                        Raise concerns about exam sessions or evaluations.
+                    </p>
+                </div>
+                <button
+                    onClick={() => setShowForm(s => !s)}
+                    disabled={showForm}
+                    style={{
+                        padding: '10px 16px',
+                        borderRadius: 12,
+                        border: 'none',
+                        background: 'var(--primary-gradient)',
+                        color: 'var(--primary-contrast)',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        boxShadow: 'var(--shadow-lg)',
+                        opacity: showForm ? 0.6 : 1,
+                        transition: 'opacity 0.2s ease',
+                    }}
+                >
+                    {showForm ? 'Fill the form below' : '➕ Create New Issue'}
+                </button>
+            </header>
 
-			{showForm && (
-				<form
-					onSubmit={handleSubmit}
-					style={{
-						background: 'var(--surface)',
-						borderRadius: 16,
-						border: '1px solid var(--border)',
-						boxShadow: 'var(--shadow-lg)',
-						padding: '24px',
-						marginBottom: '24px',
-						display: 'grid',
-						gap: '16px',
-					}}
-				>
-					<div style={{ display: 'grid', gap: 8 }}>
-						<label htmlFor="issue-submission" style={{ fontWeight: 700, color: 'var(--text)' }}>
-							Related Exam
-						</label>
-						<select
-							id="issue-submission"
-							value={form.submissionId}
-							onChange={e => setForm(s => ({ ...s, submissionId: e.target.value }))}
-							style={{
-								padding: '10px 12px',
-								borderRadius: 10,
-								border: '1px solid var(--border)',
-								background: 'var(--bg)',
-								color: 'var(--text)',
-								outline: 'none',
-							}}
-							required
-						>
-							<option value="">Select an exam submission</option>
-							{submissions.map(s => (
-								<option key={s.id} value={s.id}>
-									{s.label}
-								</option>
-							))}
-						</select>
-					</div>
+            {error && (
+                <div
+                    style={{
+                        padding: '14px',
+                        borderRadius: 12,
+                        background: 'var(--danger-bg)',
+                        border: '1px solid var(--danger-border)',
+                        color: 'var(--danger-text)',
+                        fontWeight: 600,
+                        marginBottom: '16px',
+                    }}
+                >
+                    ❌ {error}
+                </div>
+            )}
 
-					<div style={{ display: 'grid', gap: 8 }}>
-						<label htmlFor="issue-type" style={{ fontWeight: 700, color: 'var(--text)' }}>
-							Issue Type
-						</label>
-						<select
-							id="issue-type"
-							value={form.issueType}
-							onChange={e => setForm(s => ({ ...s, issueType: e.target.value }))}
-							style={{
-								padding: '10px 12px',
-								borderRadius: 10,
-								border: '1px solid var(--border)',
-								background: 'var(--bg)',
-								color: 'var(--text)',
-								outline: 'none',
-							}}
-							required
-						>
-							<option value="evaluation">Evaluation/Grading Issue</option>
-							<option value="question">Problem with a Question</option>
-							<option value="technical">Technical Problem</option>
-							<option value="other">Other</option>
-						</select>
-					</div>
+            <CSSTransition
+                in={showForm}
+                nodeRef={formNodeRef}
+                timeout={300}
+                classNames="form-transition"
+                unmountOnExit
+            >
+                <form
+                    ref={formNodeRef}
+                    onSubmit={handleSubmit}
+                    style={{
+                        background: 'var(--surface)',
+                        borderRadius: 16,
+                        border: '1px solid var(--border)',
+                        boxShadow: 'var(--shadow-lg)',
+                        padding: '24px',
+                        marginBottom: '24px',
+                        display: 'grid',
+                        gap: '16px',
+                    }}
+                >
+                    <div style={{ display: 'grid', gap: 8 }}>
+                        <label htmlFor="issue-submission" style={{ fontWeight: 700, color: 'var(--text)' }}>
+                            Related Exam
+                        </label>
+                        <select
+                            id="issue-submission"
+                            value={form.submissionId}
+                            onChange={e => setForm(s => ({ ...s, submissionId: e.target.value }))}
+                            style={{
+                                padding: '10px 12px',
+                                borderRadius: 10,
+                                border: '1px solid var(--border)',
+                                background: 'var(--bg)',
+                                color: 'var(--text)',
+                                outline: 'none',
+                            }}
+                            required
+                        >
+                            <option value="">Select an exam submission</option>
+                            {submissions.map(s => (
+                                <option key={s.id} value={s.id}>
+                                    {s.label}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
 
-					<div style={{ display: 'grid', gap: 8 }}>
-						<label htmlFor="issue-desc" style={{ fontWeight: 700, color: 'var(--text)' }}>
-							Description
-						</label>
-						<textarea
-							id="issue-desc"
-							value={form.description}
-							onChange={e => setForm(s => ({ ...s, description: e.target.value }))}
-							placeholder="Please describe the problem in detail."
-							rows={5}
-							style={{
-								padding: '10px 12px',
-								borderRadius: 10,
-								border: '1px solid var(--border)',
-								background: 'var(--bg)',
-								color: 'var(--text)',
-								outline: 'none',
-								resize: 'vertical',
-							}}
-							required
-						/>
-					</div>
+                    <div style={{ display: 'grid', gap: 8 }}>
+                        <label htmlFor="issue-type" style={{ fontWeight: 700, color: 'var(--text)' }}>
+                            Issue Type
+                        </label>
+                        <select
+                            id="issue-type"
+                            value={form.issueType}
+                            onChange={e => setForm(s => ({ ...s, issueType: e.target.value }))}
+                            style={{
+                                padding: '10px 12px',
+                                borderRadius: 10,
+                                border: '1px solid var(--border)',
+                                background: 'var(--bg)',
+                                color: 'var(--text)',
+                                outline: 'none',
+                            }}
+                            required
+                        >
+                            <option value="evaluation">Evaluation/Grading Issue</option>
+                            <option value="question">Problem with a Question</option>
+                            <option value="technical">Technical Problem</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
 
-					<div
-						style={{
-							display: 'flex',
-							justifyContent: 'flex-end',
-							gap: 10,
-							marginTop: '8px',
-						}}
-					>
-						<button
-							type="button"
-							onClick={() => setShowForm(false)}
-							style={{
-								padding: '10px 14px',
-								borderRadius: 10,
-								border: '1px solid var(--border)',
-								background: 'var(--surface)',
-							 color: 'var(--text)',
-								cursor: 'pointer',
-								fontWeight: 700,
-							}}
-						>
-							Cancel
-						</button>
-						<button
-							type="submit"
-							disabled={saving}
-							style={{
-								padding: '10px 14px',
-								borderRadius: 10,
-								border: 'none',
-								background: 'var(--primary-gradient)',
-								color: 'var(--primary-contrast)',
-								cursor: 'pointer',
-								fontWeight: 700,
-								boxShadow: 'var(--shadow-lg)',
-								opacity: saving ? 0.7 : 1,
-							}}
-						>
-							{saving ? 'Submitting…' : 'Submit Issue'}
-						</button>
-					</div>
-				</form>
-			)}
+                    <div style={{ display: 'grid', gap: 8 }}>
+                        <label htmlFor="issue-desc" style={{ fontWeight: 700, color: 'var(--text)' }}>
+                            Description
+                        </label>
+                        <textarea
+                            id="issue-desc"
+                            value={form.description}
+                            onChange={e => setForm(s => ({ ...s, description: e.target.value }))}
+                            placeholder="Please describe the problem in detail."
+                            rows={5}
+                            style={{
+                                padding: '10px 12px',
+                                borderRadius: 10,
+                                border: '1px solid var(--border)',
+                                background: 'var(--bg)',
+                                color: 'var(--text)',
+                                outline: 'none',
+                                resize: 'vertical',
+                            }}
+                            required
+                        />
+                    </div>
 
-			{loading && (
-				<div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '40px' }}>
-					Loading your issues…
-				</div>
-			)}
+                    <div
+                        style={{
+                            display: 'flex',
+                            justifyContent: 'flex-end',
+                            gap: 10,
+                            marginTop: '8px',
+                        }}
+                    >
+                        <button
+                            type="button"
+                            onClick={() => setShowForm(false)}
+                            style={{
+                                padding: '10px 14px',
+                                borderRadius: 10,
+                                border: '1px solid var(--border)',
+                                background: 'var(--surface)',
+                                color: 'var(--text)',
+                                cursor: 'pointer',
+                                fontWeight: 700,
+                            }}
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={saving}
+                            style={{
+                                padding: '10px 14px',
+                                borderRadius: 10,
+                                border: 'none',
+                                background: 'var(--primary-gradient)',
+                                color: 'var(--primary-contrast)',
+                                cursor: 'pointer',
+                                fontWeight: 700,
+                                boxShadow: 'var(--shadow-lg)',
+                                opacity: saving ? 0.7 : 1,
+                            }}
+                        >
+                            {saving ? 'Submitting…' : 'Submit Issue'}
+                        </button>
+                    </div>
+                </form>
+            </CSSTransition>
 
-			{!loading && !issues.length && (
-				<div
-					style={{
-						padding: '40px',
-						borderRadius: 16,
-						border: '2px dashed var(--border)',
-						textAlign: 'center',
-						color: 'var(--text-muted)',
-					}}
-				>
-					<div style={{ fontSize: '48px', marginBottom: '16px' }}>📭</div>
-					<h3 style={{ margin: '0 0 8px 0', color: 'var(--text)' }}>No Issues Found</h3>
-					<p style={{ margin: 0 }}>
-						You haven't created any issues yet. Use the button above to create one.
-					</p>
-				</div>
-			)}
+            {loading && (
+                <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '40px' }}>
+                    Loading your issues…
+                </div>
+            )}
 
-			{!loading && issues.length > 0 && (
-				<div style={{ display: 'grid', gap: '20px', gridTemplateColumns: '1fr' }}>
-					{issues.map(issue => (
-						<IssueCard key={issue.id} issue={issue} />
-					))}
-				</div>
-			)}
-		</section>
-	);
+            {!loading && !issues.length && (
+                <div
+                    style={{
+                        padding: '40px',
+                        borderRadius: 16,
+                        border: '2px dashed var(--border)',
+                        textAlign: 'center',
+                        color: 'var(--text-muted)',
+                    }}
+                >
+                    <div style={{ fontSize: '48px', marginBottom: '16px' }}>📭</div>
+                    <h3 style={{ margin: '0 0 8px 0', color: 'var(--text)' }}>No Issues Found</h3>
+                    <p style={{ margin: 0 }}>
+                        You haven't created any issues yet. Use the button above to create one.
+                    </p>
+                </div>
+            )}
+
+            {!loading && issues.length > 0 && (
+                <div style={{ display: 'grid', gap: '20px', gridTemplateColumns: '1fr' }}>
+                    {issues.map(issue => (
+                        <IssueCard key={issue.id} issue={issue} />
+                    ))}
+                </div>
+            )}
+        </section>
+    );
 };
 
 export default StudentIssues;
