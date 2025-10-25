@@ -302,7 +302,14 @@ const StudentDash = () => {
 							</div>
 						)}
 
-						<div style={{ padding: 16, flexGrow: 1, overflowY: 'auto' }}>
+						<div
+							style={{
+								padding: 16,
+								flexGrow: 1,
+								overflowY: 'auto',
+								height: isMobile ? 'calc(100vh - 85px)' : 'auto', // Fix mobile scroll
+							}}
+						>
 							<ErrorBoundary>
 								<Suspense fallback={<RouteFallback message="Loading page" />}>
 									<Outlet />

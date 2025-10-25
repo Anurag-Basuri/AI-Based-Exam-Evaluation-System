@@ -36,7 +36,8 @@ export const safeApiCall = async (fn, ...args) => {
 // ---------- Helpers for endpoint fallbacks ----------
 const tryGet = async (urls, config) => {
 	let lastErr;
-	for (const url of urls) {
+	const urlArray = Array.isArray(urls) ? urls : [urls];
+	for (const url of urlArray) {
 		try {
 			const res = await apiClient.get(typeof url === 'function' ? url() : url, config);
 			return res;
@@ -49,7 +50,8 @@ const tryGet = async (urls, config) => {
 
 const tryPost = async (urls, body, config) => {
 	let lastErr;
-	for (const url of urls) {
+	const urlArray = Array.isArray(urls) ? urls : [urls];
+	for (const url of urlArray) {
 		try {
 			const res = await apiClient.post(typeof url === 'function' ? url() : url, body, config);
 			return res;
@@ -62,7 +64,8 @@ const tryPost = async (urls, body, config) => {
 
 const tryPatch = async (urls, body, config) => {
 	let lastErr;
-	for (const url of urls) {
+	const urlArray = Array.isArray(urls) ? urls : [urls];
+	for (const url of urlArray) {
 		try {
 			const res = await apiClient.patch(
 				typeof url === 'function' ? url() : url,
@@ -79,7 +82,8 @@ const tryPatch = async (urls, body, config) => {
 
 const tryPut = async (urls, body, config) => {
 	let lastErr;
-	for (const url of urls) {
+	const urlArray = Array.isArray(urls) ? urls : [urls];
+	for (const url of urlArray) {
 		try {
 			const res = await apiClient.put(typeof url === 'function' ? url() : url, body, config);
 			return res;
