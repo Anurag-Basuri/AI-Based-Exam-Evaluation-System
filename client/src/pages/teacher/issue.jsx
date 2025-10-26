@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { useToast } from '../../components/ui/Toaster.jsx';
 import {
@@ -12,29 +13,37 @@ import {
 import { API_BASE_URL } from '../../services/api.js';
 import { useAuth } from '../../hooks/useAuth.js';
 
-// (Re-using student status styles for consistency)
+// --- UI Enhancements ---
 const statusStyles = {
 	open: {
-		bg: 'var(--warning-bg)',
-		border: 'var(--warning-border)',
-		color: 'var(--warning-text)',
 		label: 'Open',
+		icon: '⚪',
+		color: 'var(--warning-text)',
+		bg: 'var(--warning-bg)',
 	},
 	'in-progress': {
-		bg: 'var(--info-bg)',
-		border: 'var(--info-border)',
-		color: 'var(--info-text)',
 		label: 'In Progress',
+		icon: '🟡',
+		color: 'var(--info-text)',
+		bg: 'var(--info-bg)',
 	},
 	resolved: {
-		bg: 'var(--success-bg)',
-		border: 'var(--success-border)',
-		color: 'var(--success-text)',
 		label: 'Resolved',
+		icon: '🟢',
+		color: 'var(--success-text)',
+		bg: 'var(--success-bg)',
 	},
 };
 
-// Detail Panel for a selected issue
+const activityIcons = {
+	created: '📝',
+	assigned: '👤',
+	resolved: '✅',
+	'status-changed': '🔄',
+};
+
+// --- Components ---
+
 const IssueDetailPanel = ({ issueId, onClose, onUpdate }) => {
 	const [issue, setIssue] = useState(null);
 	const [loading, setLoading] = useState(true);
@@ -56,10 +65,10 @@ const IssueDetailPanel = ({ issueId, onClose, onUpdate }) => {
 		if (!reply.trim()) return toast.error('Reply cannot be empty.');
 		setIsSaving(true);
 		try {
-			const updated = await safeApiCall(resolveTeacherIssue, issue.id, reply);
-			onUpdate(updated); // Update list
+			const updated = await safeApiCall(resolveTeacherIssue, issueId, reply); // Use issueId prop
+			onUpdate(updated);
 			toast.success('Issue has been resolved!');
-			onClose(); // Close panel
+			onClose();
 		} catch (err) {
 			toast.error('Failed to resolve', { description: err.message });
 		} finally {
@@ -94,6 +103,15 @@ const IssueDetailPanel = ({ issueId, onClose, onUpdate }) => {
 					<div style={styles.detailBox}>
 						<strong>Description:</strong> {issue.description}
 					</div>
+
+					{issue.submission?.id && (
+						<Link
+							to={`/teacher/grade/${issue.submission.id}`}
+							style={styles.linkButton}
+						>
+							View Submission
+						</Link>
+					)}
 
 					{issue.status !== 'resolved' && (
 						<form onSubmit={handleResolve} style={{ marginTop: 24 }}>
@@ -136,16 +154,16 @@ const IssueDetailPanel = ({ issueId, onClose, onUpdate }) => {
 						<ul style={styles.activityLog}>
 							{(issue.activityLog || []).map((log, i) => (
 								<li key={i}>
-									<strong>{log.user?.fullname || 'System'}</strong>: {log.details}
-									<span
-										style={{
-											fontSize: 12,
-											color: 'var(--text-muted)',
-											marginLeft: 8,
-										}}
-									>
-										{new Date(log.createdAt).toLocaleString()}
+									<span style={styles.activityIcon}>
+										{activityIcons[log.action] || '•'}
 									</span>
+									<div style={styles.activityText}>
+										<strong>{log.user?.fullname || 'System'}</strong>:{' '}
+										{log.details}
+										<span style={styles.activityTime}>
+											{new Date(log.createdAt).toLocaleString()}
+										</span>
+									</div>
 								</li>
 							))}
 						</ul>
@@ -156,21 +174,17 @@ const IssueDetailPanel = ({ issueId, onClose, onUpdate }) => {
 	);
 };
 
-const IssueRow = ({ issue, onUpdate, onSelect, isSelected }) => {
+const IssueRow = ({ issue, onUpdate, onSelect, isSelected, currentUser }) => {
 	const config = statusStyles[issue.status] || statusStyles.open;
 	const { toast } = useToast();
 
-	const handleClaim = async () => {
+	const handleStatusChange = async newStatus => {
 		try {
-			const updatedIssue = await safeApiCall(
-				updateTeacherIssueStatus,
-				issue.id,
-				'in-progress',
-			);
+			const updatedIssue = await safeApiCall(updateTeacherIssueStatus, issue.id, newStatus);
 			onUpdate(updatedIssue);
-			toast.success('Issue claimed and moved to "In Progress"');
+			toast.success(`Issue status updated to "${newStatus}"`);
 		} catch (err) {
-			toast.error('Failed to claim issue', { description: err.message });
+			toast.error('Failed to update status', { description: err.message });
 		}
 	};
 
@@ -185,7 +199,9 @@ const IssueRow = ({ issue, onUpdate, onSelect, isSelected }) => {
 			<td style={styles.tableCell}>{issue.studentName || 'N/A'}</td>
 			<td style={styles.tableCell}>{issue.examTitle}</td>
 			<td style={styles.tableCell}>
-				<div style={{ ...styles.statusPill, ...config }}>{config.label}</div>
+				<div style={{ ...styles.statusPill, color: config.color, background: config.bg }}>
+					{config.icon} {config.label}
+				</div>
 			</td>
 			<td style={styles.tableCell}>{issue.assignedTo || 'Unassigned'}</td>
 			<td style={styles.tableCell}>{issue.createdAt}</td>
@@ -194,19 +210,24 @@ const IssueRow = ({ issue, onUpdate, onSelect, isSelected }) => {
 					<button
 						onClick={e => {
 							e.stopPropagation();
-							handleClaim();
+							handleStatusChange('in-progress');
 						}}
 						style={styles.actionButton}
 					>
 						Claim
 					</button>
 				)}
-				<button
-					onClick={() => onSelect(issue)}
-					style={{ ...styles.actionButton, marginLeft: 8 }}
-				>
-					Details
-				</button>
+				{issue.status === 'in-progress' && issue.assignedToId === currentUser?.id && (
+					<button
+						onClick={e => {
+							e.stopPropagation();
+							handleStatusChange('open');
+						}}
+						style={{ ...styles.actionButton, borderColor: 'var(--warning-border)' }}
+					>
+						Unassign
+					</button>
+				)}
 			</td>
 		</tr>
 	);
@@ -216,12 +237,11 @@ const TeacherIssues = () => {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState('');
 	const [issues, setIssues] = useState([]);
-	// IMPROVEMENT: Default filter is now 'my-issues' for a better workflow
 	const [filter, setFilter] = useState('my-issues');
 	const [searchQuery, setSearchQuery] = useState('');
 	const [selectedIssueId, setSelectedIssueId] = useState(null);
 	const { toast } = useToast();
-	const { user } = useAuth(); // Get current teacher user
+	const { user } = useAuth();
 
 	const loadIssues = useCallback(async () => {
 		setLoading(true);
@@ -237,36 +257,37 @@ const TeacherIssues = () => {
 
 	useEffect(() => {
 		loadIssues();
+		if (!user?.id) return; // Don't connect socket if user is not loaded
+
 		const socket = io(API_BASE_URL, {
 			withCredentials: true,
-			query: { role: 'teacher', userId: user?.id }, // Pass both role and userId
+			query: { role: 'teacher', userId: user.id },
 		});
 
-		socket.on('connect_error', err => {
-			toast.error('Real-time updates unavailable', { description: err?.message || '' });
-		});
+		socket.on('connect_error', err =>
+			toast.error('Real-time updates unavailable', { description: err?.message || '' }),
+		);
 
 		socket.on('new-issue', newIssueData => {
-			const normalizedNewIssue = normalizeIssue(newIssueData);
-			setIssues(prev => [normalizedNewIssue, ...prev]);
-			toast.info('New Issue Submitted!', {
-				description: `From ${normalizedNewIssue.studentName}`,
-			});
+			const normalized = normalizeIssue(newIssueData);
+			setIssues(prev =>
+				prev.some(i => i.id === normalized.id) ? prev : [normalized, ...prev],
+			);
+			toast.info('New Issue Submitted!', { description: `From ${normalized.studentName}` });
 		});
 
 		socket.on('issue-update', updatedIssueData => {
-			const normalizedUpdatedIssue = normalizeIssue(updatedIssueData);
-			setIssues(prev =>
-				prev.map(i => (i.id === normalizedUpdatedIssue.id ? normalizedUpdatedIssue : i)),
-			);
-			if (selectedIssueId === normalizedUpdatedIssue.id) {
-				setSelectedIssueId(null);
-				setTimeout(() => setSelectedIssueId(normalizedUpdatedIssue.id), 0);
-			}
+			const normalized = normalizeIssue(updatedIssueData);
+			setIssues(prev => prev.map(i => (i.id === normalized.id ? normalized : i)));
+		});
+
+		socket.on('issue-deleted', ({ id }) => {
+			setIssues(prev => prev.filter(i => i.id !== id));
+			if (selectedIssueId === id) setSelectedIssueId(null); // Close detail panel if open
 		});
 
 		return () => socket.disconnect();
-	}, [loadIssues, toast, selectedIssueId, user]); // Add user dependency
+	}, [loadIssues, toast, user]);
 
 	const handleUpdate = updatedIssue => {
 		setIssues(prev => prev.map(i => (i.id === updatedIssue.id ? updatedIssue : i)));
@@ -276,7 +297,6 @@ const TeacherIssues = () => {
 		let filtered = issues;
 		if (filter !== 'all') {
 			if (filter === 'my-issues') {
-				// BUGFIX: Filter by the reliable user ID instead of the fullname string
 				filtered = filtered.filter(i => i.assignedToId === user?.id);
 			} else {
 				filtered = filtered.filter(i => i.status === filter);
@@ -292,7 +312,7 @@ const TeacherIssues = () => {
 			);
 		}
 		return filtered;
-	}, [issues, filter, searchQuery, user?.id]); // Use user.id dependency
+	}, [issues, filter, searchQuery, user?.id]);
 
 	return (
 		<div style={styles.pageLayout}>
@@ -346,14 +366,15 @@ const TeacherIssues = () => {
 								<th style={styles.tableHeader}>Status</th>
 								<th style={styles.tableHeader}>Assigned To</th>
 								<th style={styles.tableHeader}>Date</th>
-								<th style={styles.tableHeader}></th>
+								<th style={styles.tableHeader}>Actions</th>
 							</tr>
 						</thead>
 						<tbody>
 							{!loading && filteredIssues.length === 0 && (
 								<tr>
 									<td colSpan="6" style={styles.emptyState}>
-										No issues match the current filters.
+										<div style={{ fontSize: 48 }}>🎉</div>
+										No issues match the current filters. All clear!
 									</td>
 								</tr>
 							)}
@@ -364,6 +385,7 @@ const TeacherIssues = () => {
 									onUpdate={handleUpdate}
 									onSelect={() => setSelectedIssueId(issue.id)}
 									isSelected={selectedIssueId === issue.id}
+									currentUser={user}
 								/>
 							))}
 						</tbody>
@@ -381,7 +403,7 @@ const TeacherIssues = () => {
 	);
 };
 
-// Abridged styles for brevity
+// --- Styles ---
 const styles = {
 	header: {
 		background: 'var(--surface)',
@@ -439,7 +461,9 @@ const styles = {
 		borderRadius: 20,
 		fontWeight: 700,
 		fontSize: 12,
-		display: 'inline-block',
+		display: 'inline-flex',
+		alignItems: 'center',
+		gap: 6,
 	},
 	actionButton: {
 		padding: '6px 10px',
@@ -530,25 +554,37 @@ const styles = {
 		color: 'var(--text-muted)',
 		marginBottom: 16,
 	},
-	activityLog: {
-		listStyle: 'none',
-		padding: 0,
-		margin: 0,
-		display: 'grid',
-		gap: 12,
-		fontSize: 14,
-	},
-	searchInput: {
-		padding: '8px 12px',
-		borderRadius: 8,
-		border: '1px solid var(--border)',
+	activityLog: { listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 16 },
+	activityIcon: {
+		fontSize: 16,
+		marginRight: 12,
 		background: 'var(--bg)',
-		minWidth: '200px',
+		padding: '6px',
+		borderRadius: '50%',
+		width: 32,
+		height: 32,
+		display: 'inline-flex',
+		alignItems: 'center',
+		justifyContent: 'center',
+	},
+	activityText: { flex: 1 },
+	activityTime: { fontSize: 12, color: 'var(--text-muted)', display: 'block', marginTop: 2 },
+	linkButton: {
+		display: 'inline-block',
+		textDecoration: 'none',
+		padding: '8px 14px',
+		background: 'var(--primary-bg)',
+		color: 'var(--primary)',
+		border: '1px solid var(--primary-border)',
+		borderRadius: 8,
+		fontWeight: 600,
+		marginBottom: 24,
 	},
 	emptyState: {
 		textAlign: 'center',
 		padding: '48px',
 		color: 'var(--text-muted)',
+		fontSize: 16,
 	},
 	detailLoading: {
 		textAlign: 'center',
