@@ -60,7 +60,9 @@ const BulkActionToolbar = ({ selectedIds, onBulkResolve, onClear }) => {
 
 	return (
 		<div style={styles.bulkToolbar}>
-			<span>{selectedIds.length} selected</span>
+			<span>
+				<strong>{selectedIds.length}</strong> selected
+			</span>
 			<div style={{ display: 'flex', gap: 12 }}>
 				<button onClick={handleResolveClick} style={styles.buttonPrimary}>
 					Resolve Selected
@@ -99,7 +101,7 @@ const IssueDetailPanel = ({ issueId, onClose, onUpdate }) => {
 		if (!reply.trim()) return toast.error('Reply cannot be empty.');
 		setIsSaving(true);
 		try {
-			const updated = await safeApiCall(resolveTeacherIssue, issueId, reply); // Use issueId prop
+			const updated = await safeApiCall(resolveTeacherIssue, issueId, reply);
 			onUpdate(updated);
 			toast.success('Issue has been resolved!');
 			onClose();
@@ -116,7 +118,7 @@ const IssueDetailPanel = ({ issueId, onClose, onUpdate }) => {
 		setIsAddingNote(true);
 		try {
 			await safeApiCall(addInternalNote, issueId, note);
-			setNote('');
+			setNote(''); // Optimistically clear the input
 		} catch (err) {
 			toast.error('Failed to add note', { description: err.message });
 		} finally {
@@ -198,10 +200,47 @@ const IssueDetailPanel = ({ issueId, onClose, onUpdate }) => {
 					)}
 
 					<div style={{ marginTop: 24 }}>
+						<h4>Internal Notes</h4>
+						<div style={styles.internalNotesContainer}>
+							{(issue.internalNotes || []).length === 0 && (
+								<p style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
+									No internal notes yet.
+								</p>
+							)}
+							{(issue.internalNotes || []).map((n, i) => (
+								<div key={i} style={styles.internalNote}>
+									<strong>{n.user?.fullname || 'User'}:</strong> {n.note}
+									<span style={styles.activityTime}>
+										{new Date(n.createdAt).toLocaleString()}
+									</span>
+								</div>
+							))}
+						</div>
+						<form
+							onSubmit={handleAddNote}
+							style={{ marginTop: 10, display: 'flex', gap: 8 }}
+						>
+							<input
+								value={note}
+								onChange={e => setNote(e.target.value)}
+								placeholder="Add a private note..."
+								style={{ ...styles.searchInput, flex: 1 }}
+							/>
+							<button
+								type="submit"
+								disabled={isAddingNote}
+								style={styles.actionButton}
+							>
+								{isAddingNote ? '...' : 'Add'}
+							</button>
+						</form>
+					</div>
+
+					<div style={{ marginTop: 24 }}>
 						<h4>Activity Log</h4>
 						<ul style={styles.activityLog}>
 							{(issue.activityLog || []).map((log, i) => (
-								<li key={i}>
+								<li key={i} style={{ display: 'flex' }}>
 									<span style={styles.activityIcon}>
 										{activityIcons[log.action] || '•'}
 									</span>
@@ -215,35 +254,6 @@ const IssueDetailPanel = ({ issueId, onClose, onUpdate }) => {
 								</li>
 							))}
 						</ul>
-					</div>
-
-					<div style={{ marginTop: 24 }}>
-						<h4>Internal Notes</h4>
-						<div style={styles.internalNotesContainer}>
-							{(issue.internalNotes || []).map((n, i) => (
-								<div key={i} style={styles.internalNote}>
-									<strong>{n.user?.fullname || 'User'}:</strong> {n.note}
-									<span style={styles.activityTime}>
-										{new Date(n.createdAt).toLocaleString()}
-									</span>
-								</div>
-							))}
-						</div>
-						<form onSubmit={handleAddNote} style={{ marginTop: 10 }}>
-							<input
-								value={note}
-								onChange={e => setNote(e.target.value)}
-								placeholder="Add a private note..."
-								style={styles.searchInput}
-							/>
-							<button
-								type="submit"
-								disabled={isAddingNote}
-								style={{ ...styles.actionButton, marginLeft: 8 }}
-							>
-								Add Note
-							</button>
-						</form>
 					</div>
 				</>
 			)}
@@ -278,6 +288,7 @@ const IssueRow = ({
 			style={{
 				...styles.tableRow,
 				background: isSelected ? 'var(--primary-bg)' : 'transparent',
+				cursor: 'pointer',
 			}}
 			onClick={() => onSelect(issue)}
 		>
@@ -286,6 +297,7 @@ const IssueRow = ({
 					type="checkbox"
 					checked={isChecked}
 					onChange={() => onToggleSelect(issue.id)}
+					disabled={issue.status === 'resolved'}
 				/>
 			</td>
 			<td style={styles.tableCell}>{issue.studentName || 'N/A'}</td>
@@ -339,7 +351,7 @@ const TeacherIssues = () => {
 
 	useEffect(() => {
 		loadIssues();
-		if (!user?.id) return; // Don't connect socket if user is not loaded
+		if (!user?.id) return;
 
 		const socket = io(API_BASE_URL, {
 			withCredentials: true,
@@ -363,27 +375,28 @@ const TeacherIssues = () => {
 			setIssues(prev => prev.map(i => (i.id === normalized.id ? normalized : i)));
 		});
 
+		socket.on('issues-updated', updatedIssues => {
+			const updatedMap = new Map(
+				updatedIssues.map(i => [normalizeIssue(i).id, normalizeIssue(i)]),
+			);
+			setIssues(prev => prev.map(i => updatedMap.get(i.id) || i));
+		});
+
 		socket.on('issue-deleted', ({ id }) => {
 			setIssues(prev => prev.filter(i => i.id !== id));
-			if (selectedIssueId === id) setSelectedIssueId(null); // Close detail panel if open
+			if (selectedIssueId === id) setSelectedIssueId(null);
 		});
 
 		return () => socket.disconnect();
 	}, [loadIssues, toast, user]);
-
-	// Add handler for bulk updates
-	/*
-	socket.on('issues-updated', (updatedIssues) => {
-		const updatedMap = new Map(updatedIssues.map(i => [i.id, i]));
-		setIssues(prev => prev.map(i => updatedMap.get(i.id) || i));
-	});
-	*/
 
 	const handleUpdate = updatedIssue => {
 		setIssues(prev => prev.map(i => (i.id === updatedIssue.id ? updatedIssue : i)));
 	};
 
 	const handleToggleSelect = issueId => {
+		// UX Improvement: When selecting multiple, close the detail panel
+		if (selectedIssueId) setSelectedIssueId(null);
 		setSelectedIssueIds(prev =>
 			prev.includes(issueId) ? prev.filter(id => id !== issueId) : [...prev, issueId],
 		);
@@ -393,7 +406,7 @@ const TeacherIssues = () => {
 		try {
 			const { updatedCount } = await safeApiCall(bulkResolveIssues, selectedIssueIds, reply);
 			toast.success(`${updatedCount} issues resolved!`);
-			setSelectedIssueIds([]); // Clear selection
+			setSelectedIssueIds([]);
 		} catch (err) {
 			toast.error('Bulk resolve failed', { description: err.message });
 		}
@@ -421,14 +434,30 @@ const TeacherIssues = () => {
 	}, [issues, filter, searchQuery, user?.id]);
 
 	const handleSelectAll = () => {
-		const visibleIds = filteredIssues.map(i => i.id);
-		setSelectedIssueIds(prev => {
-			const allSelected = visibleIds.every(id => prev.includes(id));
-			return allSelected
-				? prev.filter(id => !visibleIds.includes(id))
-				: [...prev, ...visibleIds.filter(id => !prev.includes(id))];
-		});
+		const visibleUnresolvedIds = filteredIssues
+			.filter(i => i.status !== 'resolved')
+			.map(i => i.id);
+
+		const allVisibleSelected =
+			visibleUnresolvedIds.length > 0 &&
+			visibleUnresolvedIds.every(id => selectedIssueIds.includes(id));
+
+		if (allVisibleSelected) {
+			setSelectedIssueIds(prev => prev.filter(id => !visibleUnresolvedIds.includes(id)));
+		} else {
+			setSelectedIssueIds(prev => [...new Set([...prev, ...visibleUnresolvedIds])]);
+		}
 	};
+
+	const isAllVisibleSelected = useMemo(() => {
+		const visibleUnresolvedIds = filteredIssues
+			.filter(i => i.status !== 'resolved')
+			.map(i => i.id);
+		return (
+			visibleUnresolvedIds.length > 0 &&
+			visibleUnresolvedIds.every(id => selectedIssueIds.includes(id))
+		);
+	}, [filteredIssues, selectedIssueIds]);
 
 	return (
 		<div style={styles.pageLayout}>
@@ -466,12 +495,20 @@ const TeacherIssues = () => {
 					</div>
 				</header>
 
+				<BulkActionToolbar
+					selectedIds={selectedIssueIds}
+					onBulkResolve={handleBulkResolve}
+					onClear={() => setSelectedIssueIds([])}
+				/>
+
 				{error && <p style={{ color: 'var(--danger-text)', padding: '0 16px' }}>{error}</p>}
 				{loading && (
 					<p style={{ color: 'var(--text-muted)', padding: '0 16px' }}>
 						Loading issues...
 					</p>
 				)}
+
+				<div style={styles.tableContainer}>
 					<table style={styles.table}>
 						<thead>
 							<tr>
@@ -479,7 +516,7 @@ const TeacherIssues = () => {
 									<input
 										type="checkbox"
 										onChange={handleSelectAll}
-										checked={selectedIssueIds.length === filteredIssues.length}
+										checked={isAllVisibleSelected}
 									/>
 								</th>
 								<th style={styles.tableHeader}>Student</th>
@@ -518,29 +555,31 @@ const TeacherIssues = () => {
 			{selectedIssueId && (
 				<IssueDetailPanel
 					issueId={selectedIssueId}
-						</tbody>
-					</table>
-				</div>
-				{selectedIssueId && (
-					<IssueDetailPanel
-						issueId={selectedIssueId}
-						onClose={() => setSelectedIssueId(null)}
-						onUpdate={handleUpdate}
-					/>
-				)}
-			</div>
+					onClose={() => setSelectedIssueId(null)}
+					onUpdate={handleUpdate}
+				/>
+			)}
+		</div>
 	);
 };
-		border: '1px solid var(--border)',
+
+const styles = {
+	pageLayout: { display: 'flex' },
+	mainContent: { flex: 1, minWidth: 0, padding: 24 },
+	header: {
+		borderBottom: '1px solid var(--border)',
+		paddingBottom: 24,
 		marginBottom: 24,
-		display: 'flex',
-		justifyContent: 'space-between',
-		alignItems: 'center',
-		flexWrap: 'wrap',
-		gap: 16,
 	},
-	title: { margin: 0, fontSize: 24, color: 'var(--text)' },
+	title: { margin: 0, fontSize: 28, color: 'var(--text)' },
 	subtitle: { margin: '4px 0 0', color: 'var(--text-muted)' },
+	searchInput: {
+		padding: '10px 14px',
+		borderRadius: 8,
+		border: '1px solid var(--border)',
+		background: 'var(--surface)',
+		minWidth: 250,
+	},
 	filterGroup: { display: 'flex', gap: 8, background: 'var(--bg)', padding: 4, borderRadius: 10 },
 	filterButton: {
 		padding: '8px 12px',
@@ -575,8 +614,10 @@ const TeacherIssues = () => {
 		color: 'var(--text-muted)',
 		fontSize: 12,
 		textTransform: 'uppercase',
+		background: 'var(--bg)',
 	},
-	tableRow: { '&:not(:last-child)': { borderBottom: '1px solid var(--border)' } },
+	tableRow: { borderBottom: '1px solid var(--border)' },
+	'tableRow:last-child': { borderBottom: 'none' },
 	tableCell: { padding: '16px', verticalAlign: 'middle', fontSize: 14 },
 	statusPill: {
 		padding: '4px 10px',
@@ -594,24 +635,6 @@ const TeacherIssues = () => {
 		background: 'var(--surface)',
 		fontWeight: 600,
 		cursor: 'pointer',
-	},
-	modalBackdrop: {
-		position: 'fixed',
-		inset: 0,
-		background: 'rgba(0,0,0,0.6)',
-		display: 'flex',
-		alignItems: 'center',
-		justifyContent: 'center',
-		zIndex: 1000,
-		padding: 16,
-	},
-	modalContent: {
-		background: 'var(--surface)',
-		borderRadius: 16,
-		padding: '24px 32px',
-		width: '100%',
-		maxWidth: '600px',
-		position: 'relative',
 	},
 	modalCloseButton: {
 		position: 'absolute',
@@ -658,15 +681,15 @@ const TeacherIssues = () => {
 		fontWeight: 700,
 		cursor: 'pointer',
 	},
-	pageLayout: { display: 'flex', gap: 24 },
-	mainContent: { flex: 1, minWidth: 0 },
 	detailPanel: {
 		width: '450px',
-		maxWidth: '40vw',
+		flexShrink: 0,
 		background: 'var(--surface)',
 		borderLeft: '1px solid var(--border)',
 		padding: 24,
 		position: 'relative',
+		overflowY: 'auto',
+		height: '100vh',
 	},
 	detailMeta: {
 		display: 'flex',
@@ -679,17 +702,15 @@ const TeacherIssues = () => {
 	activityLog: { listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 16 },
 	activityIcon: {
 		fontSize: 16,
-		marginRight: 12,
 		background: 'var(--bg)',
-		padding: '6px',
 		borderRadius: '50%',
 		width: 32,
 		height: 32,
-		display: 'inline-flex',
+		display: 'flex',
 		alignItems: 'center',
 		justifyContent: 'center',
 	},
-	activityText: { flex: 1 },
+	activityText: { flex: 1, paddingLeft: 12 },
 	activityTime: { fontSize: 12, color: 'var(--text-muted)', display: 'block', marginTop: 2 },
 	linkButton: {
 		display: 'inline-block',
@@ -704,7 +725,7 @@ const TeacherIssues = () => {
 	},
 	emptyState: {
 		textAlign: 'center',
-		padding: '48px',
+		padding: '64px 48px',
 		color: 'var(--text-muted)',
 		fontSize: 16,
 	},
@@ -730,12 +751,14 @@ const TeacherIssues = () => {
 		border: '1px solid var(--border)',
 		borderRadius: 8,
 		padding: 8,
+		display: 'flex',
+		flexDirection: 'column',
+		gap: 8,
 	},
 	internalNote: {
 		padding: '8px 12px',
 		background: 'var(--surface)',
 		borderRadius: 6,
-		marginBottom: 8,
 	},
 };
 
