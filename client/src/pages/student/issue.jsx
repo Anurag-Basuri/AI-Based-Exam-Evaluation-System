@@ -9,6 +9,7 @@ import {
 	getMyIssues,
 	createIssue,
 	getMySubmissionsForIssues,
+	deleteIssue,
 } from '../../services/studentServices.js';
 
 const statusStyles = {
@@ -35,7 +36,7 @@ const statusStyles = {
 	},
 };
 
-const IssueCard = ({ issue }) => {
+const IssueCard = ({ issue, onDelete }) => {
 	const config = statusStyles[issue.status] || statusStyles.open;
 
 	return (
@@ -202,6 +203,37 @@ const IssueCard = ({ issue }) => {
 						: '⏳ Awaiting teacher response.'}
 				</div>
 			)}
+
+			{issue.status !== 'resolved' && (
+				<div
+					style={{
+						marginTop: '16px',
+						borderTop: '1px solid var(--border)',
+						paddingTop: '12px',
+						textAlign: 'right',
+					}}
+				>
+					<button
+						onClick={() => onDelete(issue.id)}
+						title="Withdraw this issue"
+						style={{
+							background: 'transparent',
+							border: 'none',
+							color: 'var(--danger-text)',
+							cursor: 'pointer',
+							fontSize: '13px',
+							fontWeight: 600,
+							display: 'inline-flex',
+							alignItems: 'center',
+							gap: '6px',
+							padding: '6px 8px',
+							borderRadius: 8,
+						}}
+					>
+						🗑️ Withdraw Issue
+					</button>
+				</div>
+			)}
 		</article>
 	);
 };
@@ -279,6 +311,26 @@ const StudentIssues = () => {
 		return () => socket.disconnect();
 	}, [user, toast]);
 
+	const handleDelete = async issueId => {
+		// Safety check: Confirm with the user before this destructive action
+		const isConfirmed = window.confirm(
+			'Are you sure you want to withdraw this issue? This action cannot be undone.',
+		);
+
+		if (!isConfirmed) {
+			return;
+		}
+
+		try {
+			await safeApiCall(deleteIssue, issueId);
+			// Optimistically remove the issue from the UI
+			setIssues(prevIssues => prevIssues.filter(issue => issue.id !== issueId));
+			toast.success('Issue withdrawn successfully.');
+		} catch (e) {
+			toast.error('Deletion Failed', { description: e.message });
+		}
+	};
+
 	const handleSubmit = async e => {
 		e.preventDefault();
 		if (!form.submissionId || !form.issueType || !form.description) {
@@ -300,14 +352,14 @@ const StudentIssues = () => {
 			toast.success('Your issue has been submitted successfully!');
 		} catch (e) {
 			// IMPROVEMENT: Display the specific error message from the backend.
-            setError(e.message || 'An unexpected error occurred while submitting your issue.');
-            toast.error('Submission Failed', { description: e.message });
-        } finally {
-            setSaving(false);
-        }
-    };
+			setError(e.message || 'An unexpected error occurred while submitting your issue.');
+			toast.error('Submission Failed', { description: e.message });
+		} finally {
+			setSaving(false);
+		}
+	};
 
-    const hasSubmissions = submissions.length > 0;
+	const hasSubmissions = submissions.length > 0;
 
 	return (
 		<section style={{ maxWidth: 1000, margin: '0 auto' }}>
@@ -421,7 +473,7 @@ const StudentIssues = () => {
 					}}
 				>
 					{issues.map(issue => (
-						<IssueCard key={issue.id} issue={issue} />
+						<IssueCard key={issue.id} issue={issue} onDelete={handleDelete} />
 					))}
 				</div>
 			)}
