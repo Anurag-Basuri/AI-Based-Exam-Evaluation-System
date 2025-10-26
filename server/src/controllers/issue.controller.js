@@ -222,6 +222,38 @@ const getIssueById = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, issue, 'Issue details fetched');
 });
 
+// Student deletes their own issue
+const deleteIssue = asyncHandler(async (req, res) => {
+	const { id } = req.params;
+	const studentId = req.student?._id;
+
+	const issue = await Issue.findById(id);
+
+	if (!issue) {
+		throw new ApiError(404, 'Issue not found.');
+	}
+
+	// Security check: Ensure the student owns this issue
+	if (String(issue.student) !== String(studentId)) {
+		throw new ApiError(403, 'You are not authorized to delete this issue.');
+	}
+
+	// Business logic: Prevent deletion of resolved issues
+	if (issue.status === 'resolved') {
+		throw new ApiError(409, 'Cannot delete an issue that has already been resolved.');
+	}
+
+	await Issue.findByIdAndDelete(id);
+
+	// Notify teachers in real-time to remove it from their UI
+	const io = req.io || req.app?.get('io');
+	if (io) {
+		io.to('teachers').emit('issue-deleted', { id });
+	}
+
+	return ApiResponse.success(res, null, 'Issue withdrawn successfully.');
+});
+
 export {
 	createIssue,
 	getStudentIssues,
@@ -229,4 +261,5 @@ export {
 	updateIssueStatus,
 	resolveIssue,
 	getIssueById,
+	deleteIssue, // Export the new function
 };
