@@ -52,13 +52,14 @@ const createIssue = asyncHandler(async (req, res) => {
 		.populate('assignedTo', 'fullname')
 		.lean();
 
-	// Emit to teachers
+	// Emit to teachers room
 	const io = req.io || req.app?.get('io');
-	if (io) io.to('teachers').emit('new-issue', populatedIssue);
-
-	// Also notify the specific teacher if they were auto-assigned and are online
-	if (issueData.assignedTo && io) {
-		io.to(String(issueData.assignedTo)).emit('issue-update', populatedIssue);
+	if (io) {
+		io.to('teachers').emit('new-issue', populatedIssue);
+		// Also notify the specific teacher if they were auto-assigned and are online
+		if (issueData.assignedTo) {
+			io.to(String(issueData.assignedTo)).emit('new-issue', populatedIssue);
+		}
 	}
 
 	return ApiResponse.success(res, populatedIssue, 'Issue raised successfully', 201);
