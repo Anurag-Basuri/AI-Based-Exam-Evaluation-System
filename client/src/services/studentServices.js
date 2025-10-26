@@ -113,9 +113,11 @@ const EP = {
 	submissionSubmitById: id => `/api/submissions/${encodeURIComponent(id)}/submit`,
 
 	// Issues (student-facing)
-	issuesMine: ['/api/issues/student', '/api/issues/me'], // Corrected to match backend
-	issueCreate: ['/api/issues/create'], // FIX: Corrected endpoint to match backend
+	issuesMine: ['/api/issues/student', '/api/issues/me'],
+	issueCreate: ['/api/issues/create'],
 	issueById: id => `/api/issues/${encodeURIComponent(id)}`,
+	// New endpoint for deleting an issue
+	issueDelete: id => `/api/issues/${encodeURIComponent(id)}`,
 	issueReply: id => [
 		`/api/issues/${encodeURIComponent(id)}/reply`,
 		`/api/issues/${encodeURIComponent(id)}`,
@@ -374,6 +376,12 @@ export const createIssue = async payload => {
 	const res = await tryPost(EP.issueCreate, payload);
 	const data = res?.data?.data ?? res?.data ?? {};
 	return normalizeIssue(data);
+};
+
+export const deleteIssue = async issueId => {
+	// Use apiClient.delete for the new endpoint
+	const res = await apiClient.delete(EP.issueDelete(issueId));
+	return res?.data; // Return the success message
 };
 
 export const getIssueById = async issueId => {
