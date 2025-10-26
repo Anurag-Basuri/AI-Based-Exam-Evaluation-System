@@ -36,29 +36,27 @@ const TeacherDash = () => {
 		};
 		fetchOpenIssues();
 
-		// Use socket for real-time updates instead of polling
+		// Use socket for real-time updates
 		const socket = io(API_BASE_URL, {
 			withCredentials: true,
-			query: { role: 'teacher' }, // BUGFIX: Add role to auto-join room
+			query: { role: 'teacher', userId: user?.id }, // Pass both role and userId
 		});
-		socket.emit('join', 'teachers'); // Keep fallback join
 
 		socket.on('new-issue', newIssue => {
-			// Only increment if the new issue is 'open'
-			if (newIssue.status === 'open') {
-				setOpenIssuesCount(prev => prev + 1);
-			}
+			// A new issue was created. If it's open or assigned to me, it might affect my count.
+			// The safest and simplest way to stay in sync is a quick refetch.
+			fetchOpenIssues();
 		});
 
 		socket.on('issue-update', updatedIssue => {
-			// More efficient count update without re-fetching
-			fetchOpenIssues(); // Keep for simplicity, but could be optimized
+			// An issue was claimed, resolved, or moved. Refetch to get the correct count.
+			fetchOpenIssues();
 		});
 
 		return () => {
 			socket.disconnect();
 		};
-	}, []);
+	}, [user]); // Add user dependency
 
 	const headerEl = React.useMemo(
 		() => (
