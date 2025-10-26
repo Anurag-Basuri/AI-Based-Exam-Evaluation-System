@@ -7,6 +7,8 @@ import {
 	getIssueById,
 	updateIssueStatus,
 	deleteIssue,
+	addInternalNote,
+	bulkResolveIssues,
 } from '../controllers/issue.controller.js';
 import { checkAuth, verifyStudent, verifyTeacher } from '../middlewares/auth.middleware.js';
 import { body, param, query } from 'express-validator';
@@ -49,6 +51,19 @@ router.patch(
 	body('status').isIn(['open', 'in-progress']).withMessage('Only open or in-progress allowed'),
 	updateIssueStatus,
 );
+
+// Add an internal note
+router.post(
+	'/:id/notes',
+	checkAuth,
+	verifyTeacher,
+	param('id').isMongoId(),
+	body('note').isString().notEmpty(),
+	addInternalNote,
+);
+
+// Bulk resolve issues
+router.post('/bulk-resolve', checkAuth, verifyTeacher, bulkResolveIssues);
 
 // Resolve with reply
 router.patch(
