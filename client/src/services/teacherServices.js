@@ -223,6 +223,7 @@ export const normalizeIssue = i => ({
 	reply: i?.reply ?? '',
 	studentId: String(i?.student?._id ?? i?.student ?? ''),
 	studentName: i?.student?.fullname ?? i?.studentName ?? 'Student',
+	assignedToId: i?.assignedTo?._id ? String(i.assignedTo._id) : null,
 	assignedTo: i?.assignedTo?.fullname ?? null,
 	createdAt: i?.createdAt ? new Date(i.createdAt).toLocaleString() : (i?.created_at ?? ''),
 	resolvedAt: i?.resolvedAt ? new Date(i.resolvedAt).toLocaleString() : (i?.resolved_at ?? ''),

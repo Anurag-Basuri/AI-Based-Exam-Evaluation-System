@@ -216,7 +216,8 @@ const TeacherIssues = () => {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState('');
 	const [issues, setIssues] = useState([]);
-	const [filter, setFilter] = useState('open');
+	// IMPROVEMENT: Default filter is now 'my-issues' for a better workflow
+	const [filter, setFilter] = useState('my-issues');
 	const [searchQuery, setSearchQuery] = useState('');
 	const [selectedIssueId, setSelectedIssueId] = useState(null);
 	const { toast } = useToast();
@@ -275,8 +276,8 @@ const TeacherIssues = () => {
 		let filtered = issues;
 		if (filter !== 'all') {
 			if (filter === 'my-issues') {
-				// NEW: Filter for issues assigned to the current user
-				filtered = filtered.filter(i => i.assignedTo === user?.fullname);
+				// BUGFIX: Filter by the reliable user ID instead of the fullname string
+				filtered = filtered.filter(i => i.assignedToId === user?.id);
 			} else {
 				filtered = filtered.filter(i => i.status === filter);
 			}
@@ -291,7 +292,7 @@ const TeacherIssues = () => {
 			);
 		}
 		return filtered;
-	}, [issues, filter, searchQuery, user?.fullname]);
+	}, [issues, filter, searchQuery, user?.id]); // Use user.id dependency
 
 	return (
 		<div style={styles.pageLayout}>
@@ -310,7 +311,7 @@ const TeacherIssues = () => {
 							style={styles.searchInput}
 						/>
 						<div style={styles.filterGroup}>
-							{['open', 'in-progress', 'my-issues', 'resolved', 'all'].map(f => (
+							{['my-issues', 'open', 'in-progress', 'resolved', 'all'].map(f => (
 								<button
 									key={f}
 									onClick={() => setFilter(f)}
