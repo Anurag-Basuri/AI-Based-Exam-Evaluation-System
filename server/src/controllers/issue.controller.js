@@ -52,6 +52,11 @@ const createIssue = asyncHandler(async (req, res) => {
 		.populate('assignedTo', 'fullname')
 		.lean();
 
+	// If for any reason population fails, throw an error before responding.
+	if (!populatedIssue || !populatedIssue.exam || !populatedIssue.student) {
+		throw new ApiError(500, 'Failed to retrieve complete issue details after creation.');
+	}
+
 	// Emit to teachers room
 	const io = req.io || req.app?.get('io');
 	if (io) {

@@ -331,19 +331,38 @@ export const getSubmissionById = async submissionId => {
 };
 
 // ---------- Issues (Student) ----------
-const normalizeIssue = i => ({
-	id: String(i._id ?? i.id ?? ''),
-	examId: String(i.exam?._id ?? i.exam ?? ''),
-	examTitle: i.exam?.title ?? i.examTitle ?? 'Exam',
-	// Handle populated student from createIssue response
-	student: i.student?._id ? { _id: i.student._id } : i.student,
-	issueType: i.issueType ?? i.type ?? 'General',
-	description: i.description ?? '',
-	status: String(i.status || 'open').toLowerCase(),
-	reply: i.reply ?? '',
-	createdAt: i.createdAt ? new Date(i.createdAt).toLocaleString() : (i.created_at ?? ''),
-	resolvedAt: i.resolvedAt ? new Date(i.resolvedAt).toLocaleString() : (i.resolved_at ?? ''),
-});
+const normalizeIssue = i => {
+	// CRITICAL FIX: Ensure 'i' itself is not null or undefined.
+	if (!i) {
+		return {
+			id: '',
+			examId: '',
+			examTitle: 'Unknown Exam',
+			student: null,
+			issueType: 'other',
+			description: 'Error: Could not load issue details.',
+			status: 'open',
+			reply: '',
+			createdAt: '',
+			resolvedAt: '',
+		};
+	}
+
+	return {
+		id: String(i._id ?? i.id ?? ''),
+		// BUGFIX: Safely access nested properties to prevent the crash.
+		examId: String(i.exam?._id ?? i.exam ?? ''),
+		examTitle: i.exam?.title ?? i.examTitle ?? 'Exam',
+		// Handle populated student from createIssue response
+		student: i.student?._id ? { _id: i.student._id } : i.student,
+		issueType: i.issueType ?? i.type ?? 'General',
+		description: i.description ?? '',
+		status: String(i.status || 'open').toLowerCase(),
+		reply: i.reply ?? '',
+		createdAt: i.createdAt ? new Date(i.createdAt).toLocaleString() : (i.created_at ?? ''),
+		resolvedAt: i.resolvedAt ? new Date(i.resolvedAt).toLocaleString() : (i.resolved_at ?? ''),
+	};
+};
 
 export const getMyIssues = async (params = {}) => {
 	const res = await tryGet(EP.issuesMine, { params });
