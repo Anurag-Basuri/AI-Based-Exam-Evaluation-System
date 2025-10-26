@@ -133,6 +133,8 @@ const EP = {
 	issueById: id => `/api/issues/${id}`,
 	issueResolve: id => `/api/issues/${id}/resolve`,
 	issueStatus: id => `/api/issues/${id}/status`,
+	issueAddNote: id => `/api/issues/${id}/notes`,
+	issueBulkResolve: '/api/issues/bulk-resolve',
 
 	// Profile
 	teacherUpdate: '/api/teachers/update',
@@ -228,6 +230,8 @@ export const normalizeIssue = i => ({
 	createdAt: i?.createdAt ? new Date(i.createdAt).toLocaleString() : (i?.created_at ?? ''),
 	resolvedAt: i?.resolvedAt ? new Date(i.resolvedAt).toLocaleString() : (i?.resolved_at ?? ''),
 	activityLog: Array.isArray(i.activityLog) ? i.activityLog : [],
+	internalNotes: Array.isArray(i.internalNotes) ? i.internalNotes : [],
+	submission: i.submission ? { id: String(i.submission?._id ?? i.submission) } : null,
 });
 
 const normalizeTeacher = t => ({
@@ -469,6 +473,21 @@ export const updateTeacherIssueStatus = async (issueId, status) => {
 	const res = await tryPatch(EP.issueStatus(issueId), { status });
 	const data = res?.data?.data ?? res?.data ?? {};
 	return normalizeIssue(data);
+};
+
+// Service function to add an internal note
+export const addInternalNote = async (issueId, note) => {
+	const res = await tryPost(EP.issueAddNote(issueId), { note });
+	// The backend returns the new list of notes, but the socket event handles the UI update.
+	// We can just return a success indicator.
+	return res?.data;
+};
+
+// Service function to resolve issues in bulk
+export const bulkResolveIssues = async (issueIds, reply) => {
+	const res = await tryPost(EP.issueBulkResolve, { issueIds, reply });
+	// The backend returns { updatedCount }, which is useful for the UI.
+	return res?.data?.data ?? { updatedCount: 0 };
 };
 
 // ---------- Profile & Settings (Teacher) ----------
