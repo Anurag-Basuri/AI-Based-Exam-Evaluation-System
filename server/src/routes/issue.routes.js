@@ -6,6 +6,7 @@ import {
 	resolveIssue,
 	getIssueById,
 	updateIssueStatus,
+	deleteIssue,
 } from '../controllers/issue.controller.js';
 import { checkAuth, verifyStudent, verifyTeacher } from '../middlewares/auth.middleware.js';
 import { body, param, query } from 'express-validator';
@@ -65,6 +66,15 @@ router.get(
 	checkAuth,
 	param('id').isMongoId().withMessage('Issue ID is required'),
 	getIssueById,
+);
+
+// Student deletes their own issue
+router.delete(
+	'/:id',
+	checkAuth,
+	verifyStudent,
+	param('id').isMongoId().withMessage('A valid Issue ID is required'),
+	deleteIssue,
 );
 
 export default router;
