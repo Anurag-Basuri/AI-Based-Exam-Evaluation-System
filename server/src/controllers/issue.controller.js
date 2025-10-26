@@ -132,6 +132,10 @@ const updateIssueStatus = asyncHandler(async (req, res) => {
 	if (issue.status === 'resolved') {
 		throw ApiError.Conflict('Cannot change status of a resolved issue.');
 	}
+	// RULE CHANGE: Once an issue is 'in-progress', it cannot be unassigned (moved back to 'open').
+	if (issue.status === 'in-progress' && status === 'open') {
+		throw new ApiError(409, 'Cannot unassign an issue that is already in progress.');
+	}
 
 	issue.status = String(status).toLowerCase();
 
@@ -203,6 +207,96 @@ const resolveIssue = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, populatedIssue, 'Issue resolved');
 });
 
+// Teacher adds an internal note to an issue
+const addInternalNote = asyncHandler(async (req, res) => {
+	const { id } = req.params;
+	const { note } = req.body;
+	const teacherId = req.teacher?._id;
+
+	if (!note?.trim()) {
+		throw new ApiError(400, 'Note cannot be empty.');
+	}
+
+	const issue = await Issue.findByIdAndUpdate(
+		id,
+		{ $push: { internalNotes: { user: teacherId, note: note.trim() } } },
+		{ new: true },
+	)
+		.populate('internalNotes.user', 'fullname')
+		.lean();
+
+	if (!issue) {
+		throw new ApiError(404, 'Issue not found.');
+	}
+
+	// Emit an update so all teachers see the new note in real-time
+	const io = req.io || req.app?.get('io');
+	if (io) {
+		io.to('teachers').emit('issue-update', issue);
+	}
+
+	return ApiResponse.success(res, issue.internalNotes, 'Note added successfully.');
+});
+
+// Teacher resolves multiple issues at once
+const bulkResolveIssues = asyncHandler(async (req, res) => {
+	const { issueIds, reply } = req.body;
+	const teacherId = req.teacher?._id;
+
+	if (!Array.isArray(issueIds) || issueIds.length === 0) {
+		throw new ApiError(400, 'An array of issueIds is required.');
+	}
+	if (!reply?.trim()) {
+		throw new ApiError(400, 'A reply is required for bulk resolution.');
+	}
+
+	const updateResult = await Issue.updateMany(
+		{ _id: { $in: issueIds }, status: { $ne: 'resolved' } },
+		{
+			$set: {
+				status: 'resolved',
+				resolvedBy: teacherId,
+				resolvedAt: new Date(),
+				reply: reply.trim(),
+			},
+			$push: {
+				activityLog: {
+					action: 'resolved',
+					user: teacherId,
+					userModel: 'Teacher',
+					details: 'Issue marked as resolved via bulk action.',
+				},
+			},
+		},
+	);
+
+	if (updateResult.matchedCount === 0) {
+		throw new ApiError(404, 'No matching unresolved issues found.');
+	}
+
+	// Fetch and emit all updated issues
+	const updatedIssues = await Issue.find({ _id: { $in: issueIds } })
+		.populate('student', 'fullname email')
+		.populate('exam', 'title')
+		.populate('assignedTo', 'fullname')
+		.lean();
+
+	const io = req.io || req.app?.get('io');
+	if (io) {
+		// Send a single event with all updated issues for efficiency
+		io.to('teachers').emit('issues-updated', updatedIssues);
+		updatedIssues.forEach(issue => {
+			io.to(String(issue.student)).emit('issue-update', issue);
+		});
+	}
+
+	return ApiResponse.success(
+		res,
+		{ updatedCount: updateResult.modifiedCount },
+		`${updateResult.modifiedCount} issues resolved.`,
+	);
+});
+
 // Get a single issue (for details)
 const getIssueById = asyncHandler(async (req, res) => {
 	const issueId = req.params.id;
@@ -258,5 +352,7 @@ export {
 	updateIssueStatus,
 	resolveIssue,
 	getIssueById,
-	deleteIssue, // Export the new function
+	deleteIssue,
+	addInternalNote,
+	bulkResolveIssues,
 };
