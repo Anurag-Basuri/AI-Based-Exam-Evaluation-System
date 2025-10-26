@@ -267,7 +267,12 @@ const StudentIssues = () => {
 
 		socket.on('new-issue', newIssue => {
 			if (newIssue.student?._id === user.id) {
-				setIssues(prev => [newIssue, ...prev]);
+				setIssues(prev => {
+					if (prev.some(issue => issue.id === newIssue.id)) {
+						return prev;
+					}
+					return [newIssue, ...prev];
+				});
 			}
 		});
 
