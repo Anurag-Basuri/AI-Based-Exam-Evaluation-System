@@ -25,6 +25,22 @@ const activityLogSchema = new mongoose.Schema(
 	},
 );
 
+const internalNoteSchema = new mongoose.Schema(
+	{
+		user: {
+			type: mongoose.Schema.Types.ObjectId,
+			ref: 'Teacher',
+			required: true
+		},
+		note: {
+			type: String,
+			required: true,
+			trim: true
+		},
+	},
+	{ timestamps: true },
+);
+
 const issueSchema = new mongoose.Schema(
 	{
 		student: {
@@ -80,6 +96,8 @@ const issueSchema = new mongoose.Schema(
 		},
 		// Keep a log of all actions taken on the issue
 		activityLog: [activityLogSchema],
+		// Add a new field for private teacher notes
+		internalNotes: [internalNoteSchema],
 	},
 	{ timestamps: true },
 );
