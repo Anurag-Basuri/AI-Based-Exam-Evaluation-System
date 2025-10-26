@@ -9,6 +9,8 @@ import {
 	resolveTeacherIssue,
 	getTeacherIssueById,
 	normalizeIssue,
+	addInternalNote,
+	bulkResolveIssues,
 } from '../../services/teacherServices.js';
 import { API_BASE_URL } from '../../services/api.js';
 import { useAuth } from '../../hooks/useAuth.js';
@@ -44,11 +46,43 @@ const activityIcons = {
 
 // --- Components ---
 
+const BulkActionToolbar = ({ selectedIds, onBulkResolve, onClear }) => {
+	if (selectedIds.length === 0) return null;
+
+	const handleResolveClick = () => {
+		const reply = window.prompt(
+			`Enter a single reply to resolve all ${selectedIds.length} selected issues:`,
+		);
+		if (reply && reply.trim()) {
+			onBulkResolve(reply);
+		}
+	};
+
+	return (
+		<div style={styles.bulkToolbar}>
+			<span>{selectedIds.length} selected</span>
+			<div style={{ display: 'flex', gap: 12 }}>
+				<button onClick={handleResolveClick} style={styles.buttonPrimary}>
+					Resolve Selected
+				</button>
+				<button
+					onClick={onClear}
+					style={{ ...styles.buttonSecondary, background: 'transparent' }}
+				>
+					Clear Selection
+				</button>
+			</div>
+		</div>
+	);
+};
+
 const IssueDetailPanel = ({ issueId, onClose, onUpdate }) => {
 	const [issue, setIssue] = useState(null);
 	const [loading, setLoading] = useState(true);
 	const [reply, setReply] = useState('');
+	const [note, setNote] = useState('');
 	const [isSaving, setIsSaving] = useState(false);
+	const [isAddingNote, setIsAddingNote] = useState(false);
 	const { toast } = useToast();
 
 	useEffect(() => {
@@ -73,6 +107,20 @@ const IssueDetailPanel = ({ issueId, onClose, onUpdate }) => {
 			toast.error('Failed to resolve', { description: err.message });
 		} finally {
 			setIsSaving(false);
+		}
+	};
+
+	const handleAddNote = async e => {
+		e.preventDefault();
+		if (!note.trim()) return;
+		setIsAddingNote(true);
+		try {
+			await safeApiCall(addInternalNote, issueId, note);
+			setNote('');
+		} catch (err) {
+			toast.error('Failed to add note', { description: err.message });
+		} finally {
+			setIsAddingNote(false);
 		}
 	};
 
@@ -168,13 +216,50 @@ const IssueDetailPanel = ({ issueId, onClose, onUpdate }) => {
 							))}
 						</ul>
 					</div>
+
+					<div style={{ marginTop: 24 }}>
+						<h4>Internal Notes</h4>
+						<div style={styles.internalNotesContainer}>
+							{(issue.internalNotes || []).map((n, i) => (
+								<div key={i} style={styles.internalNote}>
+									<strong>{n.user?.fullname || 'User'}:</strong> {n.note}
+									<span style={styles.activityTime}>
+										{new Date(n.createdAt).toLocaleString()}
+									</span>
+								</div>
+							))}
+						</div>
+						<form onSubmit={handleAddNote} style={{ marginTop: 10 }}>
+							<input
+								value={note}
+								onChange={e => setNote(e.target.value)}
+								placeholder="Add a private note..."
+								style={styles.searchInput}
+							/>
+							<button
+								type="submit"
+								disabled={isAddingNote}
+								style={{ ...styles.actionButton, marginLeft: 8 }}
+							>
+								Add Note
+							</button>
+						</form>
+					</div>
 				</>
 			)}
 		</div>
 	);
 };
 
-const IssueRow = ({ issue, onUpdate, onSelect, isSelected, currentUser }) => {
+const IssueRow = ({
+	issue,
+	onUpdate,
+	onSelect,
+	isSelected,
+	currentUser,
+	onToggleSelect,
+	isChecked,
+}) => {
 	const config = statusStyles[issue.status] || statusStyles.open;
 	const { toast } = useToast();
 
@@ -196,6 +281,13 @@ const IssueRow = ({ issue, onUpdate, onSelect, isSelected, currentUser }) => {
 			}}
 			onClick={() => onSelect(issue)}
 		>
+			<td style={styles.tableCell} onClick={e => e.stopPropagation()}>
+				<input
+					type="checkbox"
+					checked={isChecked}
+					onChange={() => onToggleSelect(issue.id)}
+				/>
+			</td>
 			<td style={styles.tableCell}>{issue.studentName || 'N/A'}</td>
 			<td style={styles.tableCell}>{issue.examTitle}</td>
 			<td style={styles.tableCell}>
@@ -212,20 +304,9 @@ const IssueRow = ({ issue, onUpdate, onSelect, isSelected, currentUser }) => {
 							e.stopPropagation();
 							handleStatusChange('in-progress');
 						}}
-						style={styles.actionButton}
+						style={styles.buttonPrimary}
 					>
 						Claim
-					</button>
-				)}
-				{issue.status === 'in-progress' && issue.assignedToId === currentUser?.id && (
-					<button
-						onClick={e => {
-							e.stopPropagation();
-							handleStatusChange('open');
-						}}
-						style={{ ...styles.actionButton, borderColor: 'var(--warning-border)' }}
-					>
-						Unassign
 					</button>
 				)}
 			</td>
@@ -240,6 +321,7 @@ const TeacherIssues = () => {
 	const [filter, setFilter] = useState('my-issues');
 	const [searchQuery, setSearchQuery] = useState('');
 	const [selectedIssueId, setSelectedIssueId] = useState(null);
+	const [selectedIssueIds, setSelectedIssueIds] = useState([]);
 	const { toast } = useToast();
 	const { user } = useAuth();
 
@@ -289,8 +371,32 @@ const TeacherIssues = () => {
 		return () => socket.disconnect();
 	}, [loadIssues, toast, user]);
 
+	// Add handler for bulk updates
+	/*
+	socket.on('issues-updated', (updatedIssues) => {
+		const updatedMap = new Map(updatedIssues.map(i => [i.id, i]));
+		setIssues(prev => prev.map(i => updatedMap.get(i.id) || i));
+	});
+	*/
+
 	const handleUpdate = updatedIssue => {
 		setIssues(prev => prev.map(i => (i.id === updatedIssue.id ? updatedIssue : i)));
+	};
+
+	const handleToggleSelect = issueId => {
+		setSelectedIssueIds(prev =>
+			prev.includes(issueId) ? prev.filter(id => id !== issueId) : [...prev, issueId],
+		);
+	};
+
+	const handleBulkResolve = async reply => {
+		try {
+			const { updatedCount } = await safeApiCall(bulkResolveIssues, selectedIssueIds, reply);
+			toast.success(`${updatedCount} issues resolved!`);
+			setSelectedIssueIds([]); // Clear selection
+		} catch (err) {
+			toast.error('Bulk resolve failed', { description: err.message });
+		}
 	};
 
 	const filteredIssues = useMemo(() => {
@@ -313,6 +419,16 @@ const TeacherIssues = () => {
 		}
 		return filtered;
 	}, [issues, filter, searchQuery, user?.id]);
+
+	const handleSelectAll = () => {
+		const visibleIds = filteredIssues.map(i => i.id);
+		setSelectedIssueIds(prev => {
+			const allSelected = visibleIds.every(id => prev.includes(id));
+			return allSelected
+				? prev.filter(id => !visibleIds.includes(id))
+				: [...prev, ...visibleIds.filter(id => !prev.includes(id))];
+		});
+	};
 
 	return (
 		<div style={styles.pageLayout}>
@@ -356,11 +472,16 @@ const TeacherIssues = () => {
 						Loading issues...
 					</p>
 				)}
-
-				<div style={styles.tableContainer}>
 					<table style={styles.table}>
 						<thead>
 							<tr>
+								<th style={{ ...styles.tableHeader, width: 50 }}>
+									<input
+										type="checkbox"
+										onChange={handleSelectAll}
+										checked={selectedIssueIds.length === filteredIssues.length}
+									/>
+								</th>
 								<th style={styles.tableHeader}>Student</th>
 								<th style={styles.tableHeader}>Exam</th>
 								<th style={styles.tableHeader}>Status</th>
@@ -372,7 +493,7 @@ const TeacherIssues = () => {
 						<tbody>
 							{!loading && filteredIssues.length === 0 && (
 								<tr>
-									<td colSpan="6" style={styles.emptyState}>
+									<td colSpan="7" style={styles.emptyState}>
 										<div style={{ fontSize: 48 }}>🎉</div>
 										No issues match the current filters. All clear!
 									</td>
@@ -386,6 +507,8 @@ const TeacherIssues = () => {
 									onSelect={() => setSelectedIssueId(issue.id)}
 									isSelected={selectedIssueId === issue.id}
 									currentUser={user}
+									onToggleSelect={handleToggleSelect}
+									isChecked={selectedIssueIds.includes(issue.id)}
 								/>
 							))}
 						</tbody>
@@ -395,20 +518,19 @@ const TeacherIssues = () => {
 			{selectedIssueId && (
 				<IssueDetailPanel
 					issueId={selectedIssueId}
-					onClose={() => setSelectedIssueId(null)}
-					onUpdate={handleUpdate}
-				/>
-			)}
-		</div>
+						</tbody>
+					</table>
+				</div>
+				{selectedIssueId && (
+					<IssueDetailPanel
+						issueId={selectedIssueId}
+						onClose={() => setSelectedIssueId(null)}
+						onUpdate={handleUpdate}
+					/>
+				)}
+			</div>
 	);
 };
-
-// --- Styles ---
-const styles = {
-	header: {
-		background: 'var(--surface)',
-		padding: '24px',
-		borderRadius: 16,
 		border: '1px solid var(--border)',
 		marginBottom: 24,
 		display: 'flex',
@@ -590,6 +712,30 @@ const styles = {
 		textAlign: 'center',
 		padding: '48px',
 		color: 'var(--text-muted)',
+	},
+	bulkToolbar: {
+		padding: '12px 16px',
+		background: 'var(--primary-bg)',
+		border: '1px solid var(--primary-border)',
+		borderRadius: 12,
+		marginBottom: 16,
+		display: 'flex',
+		justifyContent: 'space-between',
+		alignItems: 'center',
+	},
+	internalNotesContainer: {
+		maxHeight: 200,
+		overflowY: 'auto',
+		background: 'var(--bg)',
+		border: '1px solid var(--border)',
+		borderRadius: 8,
+		padding: 8,
+	},
+	internalNote: {
+		padding: '8px 12px',
+		background: 'var(--surface)',
+		borderRadius: 6,
+		marginBottom: 8,
 	},
 };
 
