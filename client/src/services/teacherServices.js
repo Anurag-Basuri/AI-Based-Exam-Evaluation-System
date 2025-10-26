@@ -448,7 +448,8 @@ export const publishAllResults = async examId => {
 // ---------- Issues (Teacher) ----------
 export const getTeacherIssues = async (params = {}) => {
 	const res = await tryGet(EP.issues, { params });
-	const list = res?.data?.data?.items || res?.data?.items || res?.data || [];
+	// This now correctly extracts the array of issues from the response data.
+	const list = res?.data?.data || [];
 	return Array.isArray(list) ? list.map(normalizeIssue) : [];
 };
 
