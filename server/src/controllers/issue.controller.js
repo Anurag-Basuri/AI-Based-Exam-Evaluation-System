@@ -20,6 +20,14 @@ const createIssue = asyncHandler(async (req, res) => {
 		.lean();
 
 	if (!submission) throw ApiError.NotFound('The specified submission does not exist.');
+
+	// Check if the exam associated with the submission actually exists.
+	if (!submission.exam) {
+		throw ApiError.NotFound(
+			'The exam associated with this submission could not be found. It may have been deleted.',
+		);
+	}
+
 	if (String(submission.student) !== String(studentId)) {
 		throw ApiError.Forbidden('You can only raise issues for your own submissions.');
 	}

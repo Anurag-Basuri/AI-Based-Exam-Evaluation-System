@@ -299,13 +299,15 @@ const StudentIssues = () => {
 			setShowForm(false);
 			toast.success('Your issue has been submitted successfully!');
 		} catch (e) {
-			setError(e.message || 'Could not submit issue');
-		} finally {
-			setSaving(false);
-		}
-	};
+			// IMPROVEMENT: Display the specific error message from the backend.
+            setError(e.message || 'An unexpected error occurred while submitting your issue.');
+            toast.error('Submission Failed', { description: e.message });
+        } finally {
+            setSaving(false);
+        }
+    };
 
-	const hasSubmissions = submissions.length > 0;
+    const hasSubmissions = submissions.length > 0;
 
 	return (
 		<section style={{ maxWidth: 1000, margin: '0 auto' }}>
@@ -468,7 +470,6 @@ const IssueFormModal = ({ isOpen, onClose, onSubmit, form, setForm, submissions,
 					boxShadow: 'var(--shadow-xl)',
 					padding: '24px',
 					width: '100%',
-					// Ensure modal does not exceed screen width on mobile
 					maxWidth: 'min(500px, 95vw)',
 					display: 'grid',
 					gap: '16px',
