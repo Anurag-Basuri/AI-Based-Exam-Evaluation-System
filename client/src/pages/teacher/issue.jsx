@@ -10,6 +10,7 @@ import {
 	normalizeIssue,
 } from '../../services/teacherServices.js';
 import { API_BASE_URL } from '../../services/api.js';
+import { useAuth } from '../../hooks/useAuth.js';
 
 // (Re-using student status styles for consistency)
 const statusStyles = {
@@ -219,6 +220,7 @@ const TeacherIssues = () => {
 	const [searchQuery, setSearchQuery] = useState('');
 	const [selectedIssueId, setSelectedIssueId] = useState(null);
 	const { toast } = useToast();
+	const { user } = useAuth(); // Get current teacher user
 
 	const loadIssues = useCallback(async () => {
 		setLoading(true);
@@ -236,9 +238,8 @@ const TeacherIssues = () => {
 		loadIssues();
 		const socket = io(API_BASE_URL, {
 			withCredentials: true,
-			query: { role: 'teacher' }, // auto-join on server
+			query: { role: 'teacher', userId: user?.id }, // Pass both role and userId
 		});
-		socket.emit('join', 'teachers'); // fallback
 
 		socket.on('connect_error', err => {
 			toast.error('Real-time updates unavailable', { description: err?.message || '' });
@@ -264,7 +265,7 @@ const TeacherIssues = () => {
 		});
 
 		return () => socket.disconnect();
-	}, [loadIssues, toast, selectedIssueId]);
+	}, [loadIssues, toast, selectedIssueId, user]); // Add user dependency
 
 	const handleUpdate = updatedIssue => {
 		setIssues(prev => prev.map(i => (i.id === updatedIssue.id ? updatedIssue : i)));
@@ -273,7 +274,12 @@ const TeacherIssues = () => {
 	const filteredIssues = useMemo(() => {
 		let filtered = issues;
 		if (filter !== 'all') {
-			filtered = filtered.filter(i => i.status === filter);
+			if (filter === 'my-issues') {
+				// NEW: Filter for issues assigned to the current user
+				filtered = filtered.filter(i => i.assignedTo === user?.fullname);
+			} else {
+				filtered = filtered.filter(i => i.status === filter);
+			}
 		}
 		if (searchQuery) {
 			const q = searchQuery.toLowerCase();
@@ -285,7 +291,7 @@ const TeacherIssues = () => {
 			);
 		}
 		return filtered;
-	}, [issues, filter, searchQuery]);
+	}, [issues, filter, searchQuery, user?.fullname]);
 
 	return (
 		<div style={styles.pageLayout}>
@@ -304,7 +310,7 @@ const TeacherIssues = () => {
 							style={styles.searchInput}
 						/>
 						<div style={styles.filterGroup}>
-							{['open', 'in-progress', 'resolved', 'all'].map(f => (
+							{['open', 'in-progress', 'my-issues', 'resolved', 'all'].map(f => (
 								<button
 									key={f}
 									onClick={() => setFilter(f)}
@@ -314,15 +320,21 @@ const TeacherIssues = () => {
 											: styles.filterButton
 									}
 								>
-									{f.charAt(0).toUpperCase() + f.slice(1)}
+									{f === 'my-issues'
+										? 'My Issues'
+										: f.charAt(0).toUpperCase() + f.slice(1)}
 								</button>
 							))}
 						</div>
 					</div>
 				</header>
 
-				{error && <p style={{ color: 'var(--danger-text)' }}>{error}</p>}
-				{loading && <p>Loading issues...</p>}
+				{error && <p style={{ color: 'var(--danger-text)', padding: '0 16px' }}>{error}</p>}
+				{loading && (
+					<p style={{ color: 'var(--text-muted)', padding: '0 16px' }}>
+						Loading issues...
+					</p>
+				)}
 
 				<div style={styles.tableContainer}>
 					<table style={styles.table}>
@@ -340,7 +352,7 @@ const TeacherIssues = () => {
 							{!loading && filteredIssues.length === 0 && (
 								<tr>
 									<td colSpan="6" style={styles.emptyState}>
-									 No issues match the current filters.
+										No issues match the current filters.
 									</td>
 								</tr>
 							)}
