@@ -1,11 +1,11 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { io } from 'socket.io-client';
 import { useAuth } from '../../hooks/useAuth.js';
-import { safeApiCall } from '../../services/teacherServices.js';
-import { api } from '../../services/api.js'; // Import api for direct authenticated requests
+import { getTeacherDashboardStats, safeApiCall } from '../../services/teacherServices.js';
+import { API_BASE_URL } from '../../services/api.js';
 
 // --- Reusable Components ---
-
 const StatCard = ({ icon, label, value, loading, color = '#6366f1' }) => (
 	<div style={styles.statCard.container}>
 		<div style={{ ...styles.statCard.iconContainer, background: `${color}20`, color }}>
@@ -48,7 +48,7 @@ const Skeleton = ({ height = '100%', width = '100%', borderRadius = 8 }) => (
 	<div style={{ ...styles.skeleton, height, width, borderRadius }} />
 );
 
-// --- New Components for Richer UI ---
+// --- UI Components ---
 
 const ExamsToReview = ({ exams, loading, navigate }) => (
 	<div style={styles.listCard.container}>
@@ -69,6 +69,7 @@ const ExamsToReview = ({ exams, loading, navigate }) => (
 				<div
 					key={exam._id}
 					style={styles.reviewItem.container}
+					className="hover-effect"
 					onClick={() => navigate(`/teacher/results/${exam._id}`)}
 				>
 					<div style={styles.reviewItem.textContainer}>
@@ -108,6 +109,7 @@ const RecentSubmissions = ({ submissions, loading, navigate }) => (
 				<div
 					key={sub._id}
 					style={styles.activityItem.container}
+					className="hover-effect"
 					onClick={() => navigate(`/teacher/grade/${sub._id}`)}
 				>
 					<div style={styles.activityItem.icon}>📝</div>
@@ -142,8 +144,7 @@ const TeacherHome = () => {
 		setLoading(true);
 		setError('');
 		try {
-			// Single, efficient API call to the new endpoint
-			const response = await safeApiCall(() => api.get('/teacher/dashboard-stats'));
+			const response = await safeApiCall(getTeacherDashboardStats);
 			setData(response);
 		} catch (e) {
 			setError(e.message || 'Failed to load dashboard data');
@@ -155,6 +156,60 @@ const TeacherHome = () => {
 	React.useEffect(() => {
 		loadData();
 	}, [loadData]);
+
+	// --- REAL-TIME UPDATES ---
+	React.useEffect(() => {
+		if (!user?.id) return;
+
+		const socket = io(API_BASE_URL, {
+			withCredentials: true,
+			query: { role: 'teacher', userId: user.id },
+		});
+
+		socket.on('new-submission', newSubmission => {
+			setData(currentData => {
+				if (!currentData) return null;
+
+				// 1. Add to recent submissions
+				const updatedSubmissions = [newSubmission, ...currentData.recentSubmissions].slice(
+					0,
+					5,
+				);
+
+				// 2. Update pending count
+				const updatedPending = (currentData.submissions.pending || 0) + 1;
+
+				// 3. Update or add to examsToReview
+				const examId = newSubmission.exam?._id;
+				let needsReviewUpdated = false;
+				const updatedExamsToReview = currentData.examsToReview.map(exam => {
+					if (exam._id === examId) {
+						needsReviewUpdated = true;
+						return { ...exam, submissionsCount: (exam.submissionsCount || 0) + 1 };
+					}
+					return exam;
+				});
+
+				if (!needsReviewUpdated) {
+					updatedExamsToReview.unshift({
+						_id: examId,
+						title: newSubmission.exam?.title || 'New Exam',
+						submissionsCount: 1,
+						evaluatedCount: 0,
+					});
+				}
+
+				return {
+					...currentData,
+					recentSubmissions: updatedSubmissions,
+					submissions: { ...currentData.submissions, pending: updatedPending },
+					examsToReview: updatedExamsToReview.slice(0, 5),
+				};
+			});
+		});
+
+		return () => socket.disconnect();
+	}, [user]);
 
 	const quickActions = [
 		{
@@ -185,6 +240,7 @@ const TeacherHome = () => {
 
 	return (
 		<div style={styles.pageContainer}>
+			<style>{`.hover-effect:hover { background: var(--bg); }`}</style>
 			<header style={styles.header.container}>
 				<h1 style={styles.header.title}>Welcome back, {name}! 👋</h1>
 				<p style={styles.header.subtitle}>
@@ -194,16 +250,14 @@ const TeacherHome = () => {
 
 			{error && <div style={{ color: '#ef4444', marginBottom: 16 }}>Error: {error}</div>}
 
-			{/* Stat Cards Grid */}
 			<div style={styles.statsGrid}>
 				{statCards.map(card => (
 					<StatCard key={card.label} {...card} loading={loading} />
 				))}
 			</div>
 
-			{/* Main Content Grid (2 columns) */}
 			<div style={styles.mainGrid.container}>
-				<div style={styles.mainGrid.leftColumn}>
+				<div style={styles.mainGrid.column}>
 					<div style={styles.listCard.container}>
 						<h2 style={styles.listCard.title}>Quick Actions</h2>
 						<div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
@@ -218,7 +272,7 @@ const TeacherHome = () => {
 						navigate={navigate}
 					/>
 				</div>
-				<div style={styles.mainGrid.rightColumn}>
+				<div style={styles.mainGrid.column}>
 					<ExamsToReview
 						exams={data?.examsToReview}
 						loading={loading}
@@ -245,9 +299,15 @@ const styles = {
 		marginBottom: 32,
 	},
 	mainGrid: {
-		container: { display: 'grid', gap: 32, gridTemplateColumns: '2fr 1fr' },
-		leftColumn: { display: 'flex', flexDirection: 'column', gap: 32 },
-		rightColumn: { display: 'flex', flexDirection: 'column', gap: 32 },
+		container: {
+			display: 'grid',
+			gap: 32,
+			gridTemplateColumns: '1fr', // Mobile-first: single column
+			'@media (min-width: 1024px)': {
+				gridTemplateColumns: '2fr 1fr', // Desktop: two columns
+			},
+		},
+		column: { display: 'flex', flexDirection: 'column', gap: 32 },
 	},
 	statCard: {
 		container: {
