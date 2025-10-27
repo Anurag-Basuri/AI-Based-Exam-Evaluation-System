@@ -1,5 +1,5 @@
 import React, { Suspense, useState, useEffect, useMemo, useCallback } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import Sidebar from '../components/Sidebar.jsx';
 import ErrorBoundary from '../components/ErrorBoundary.jsx';
@@ -12,8 +12,9 @@ import { API_BASE_URL } from '../services/api.js';
 const TeacherDash = () => {
 	const { theme } = useTheme();
 	const { user, logout } = useAuth();
+	const location = useLocation();
 	const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
-	const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
+	const [sidebarOpen, setSidebarOpen] = useState(false); // Default to closed on mobile
 	const [loggingOutFooter, setLoggingOutFooter] = useState(false);
 	const [openIssuesCount, setOpenIssuesCount] = useState(0);
 
@@ -22,20 +23,27 @@ const TeacherDash = () => {
 		const handleResize = () => {
 			const mobile = window.innerWidth < 1024;
 			setIsMobile(mobile);
-			setSidebarOpen(!mobile); // Automatically open on desktop, close on mobile
+			if (!mobile) {
+				setSidebarOpen(false); // Ensure sidebar overlay is closed on desktop
+			}
 		};
 		window.addEventListener('resize', handleResize);
 		return () => window.removeEventListener('resize', handleResize);
 	}, []);
 
+	// Close mobile sidebar on route change
+	useEffect(() => {
+		if (isMobile) {
+			setSidebarOpen(false);
+		}
+	}, [location.pathname, isMobile]);
+
 	// EFFICIENT Real-time count updates
 	useEffect(() => {
 		if (!user?.id) return;
 
-		// Fetch initial count
 		const fetchOpenIssues = async () => {
 			try {
-				// NOTE: StudentDash doesn't have this, but it's a good practice for robustness.
 				const issues = await safeApiCall(getTeacherIssues, { status: 'open' });
 				setOpenIssuesCount(Array.isArray(issues) ? issues.length : 0);
 			} catch (error) {
@@ -146,17 +154,10 @@ const TeacherDash = () => {
 				<div style={styles.backdrop} onClick={() => setSidebarOpen(false)} />
 			)}
 
-			<div style={styles.layout(theme)}>
+			<div style={styles.layout(theme, isMobile)}>
 				<aside style={styles.sidebarContainer(isMobile, sidebarOpen)}>
 					<ErrorBoundary>
-						<Sidebar
-							header={headerEl}
-							footer={footerEl}
-							items={items}
-							expanded={sidebarOpen}
-							onToggle={setSidebarOpen}
-							isMobile={isMobile}
-						/>
+						<Sidebar header={headerEl} footer={footerEl} items={items} />
 					</ErrorBoundary>
 				</aside>
 
@@ -191,9 +192,9 @@ const TeacherDash = () => {
 
 // --- Styles ---
 const styles = {
-	layout: theme => ({
+	layout: (theme, isMobile) => ({
 		display: 'grid',
-		gridTemplateColumns: 'auto 1fr',
+		gridTemplateColumns: isMobile ? '1fr' : '280px 1fr',
 		minHeight: '100dvh',
 		background:
 			theme === 'dark'
@@ -210,10 +211,12 @@ const styles = {
 		transition: 'transform 0.3s ease-in-out',
 		padding: isMobile ? 0 : 16,
 		paddingRight: isMobile ? 0 : 8,
+		width: 280,
 	}),
 	mainContent: isMobile => ({
 		padding: isMobile ? 16 : '16px 16px 16px 8px',
 		minWidth: 0,
+		gridColumn: isMobile ? '1 / -1' : '2 / 3',
 	}),
 	contentSection: {
 		background: 'var(--surface)',
