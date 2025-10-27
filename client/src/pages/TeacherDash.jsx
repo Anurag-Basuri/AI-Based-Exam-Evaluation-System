@@ -35,6 +35,7 @@ const TeacherDash = () => {
 		// Fetch initial count
 		const fetchOpenIssues = async () => {
 			try {
+				// NOTE: StudentDash doesn't have this, but it's a good practice for robustness.
 				const issues = await safeApiCall(getTeacherIssues, { status: 'open' });
 				setOpenIssuesCount(Array.isArray(issues) ? issues.length : 0);
 			} catch (error) {
@@ -141,12 +142,11 @@ const TeacherDash = () => {
 
 	return (
 		<>
-			<div style={styles.layout(theme, sidebarOpen && !isMobile)}>
-				{/* Mobile Backdrop */}
-				{isMobile && sidebarOpen && (
-					<div style={styles.backdrop} onClick={() => setSidebarOpen(false)} />
-				)}
+			{isMobile && sidebarOpen && (
+				<div style={styles.backdrop} onClick={() => setSidebarOpen(false)} />
+			)}
 
+			<div style={styles.layout(theme)}>
 				<aside style={styles.sidebarContainer(isMobile, sidebarOpen)}>
 					<ErrorBoundary>
 						<Sidebar
@@ -160,23 +160,29 @@ const TeacherDash = () => {
 					</ErrorBoundary>
 				</aside>
 
-				<main style={styles.mainContent}>
-					{/* Mobile Header */}
-					{isMobile && (
-						<header style={styles.mobileHeader}>
-							<button onClick={() => setSidebarOpen(true)} style={styles.menuButton}>
-								☰ Menu
-							</button>
-							<div style={{ color: 'var(--text-muted)', fontSize: 12 }}>
-								{new Date().toLocaleDateString()}
-							</div>
-						</header>
-					)}
-					<ErrorBoundary>
-						<Suspense fallback={<RouteFallback message="Loading page" />}>
-							<Outlet />
-						</Suspense>
-					</ErrorBoundary>
+				<main style={styles.mainContent(isMobile)}>
+					<section style={styles.contentSection}>
+						{isMobile && (
+							<header style={styles.mobileHeader}>
+								<button
+									onClick={() => setSidebarOpen(true)}
+									style={styles.menuButton}
+								>
+									☰ Menu
+								</button>
+								<div style={{ color: 'var(--text-muted)', fontSize: 12 }}>
+									{new Date().toLocaleDateString()}
+								</div>
+							</header>
+						)}
+						<div style={styles.outletContainer(isMobile)}>
+							<ErrorBoundary>
+								<Suspense fallback={<RouteFallback message="Loading page" />}>
+									<Outlet />
+								</Suspense>
+							</ErrorBoundary>
+						</div>
+					</section>
 				</main>
 			</div>
 		</>
@@ -185,46 +191,57 @@ const TeacherDash = () => {
 
 // --- Styles ---
 const styles = {
-	layout: (theme, isSidebarDesktopOpen) => ({
+	layout: theme => ({
 		display: 'grid',
-		gridTemplateColumns: isSidebarDesktopOpen ? '280px 1fr' : '80px 1fr',
+		gridTemplateColumns: 'auto 1fr',
 		minHeight: '100dvh',
 		background:
 			theme === 'dark'
 				? 'radial-gradient(ellipse at top left, rgba(59,130,246,0.05) 0%, transparent 50%), var(--bg)'
 				: 'radial-gradient(ellipse at top left, rgba(59,130,246,0.06) 0%, transparent 50%), var(--bg)',
-		transition: 'grid-template-columns 0.3s ease-in-out',
-		'@media (max-width: 1023px)': {
-			gridTemplateColumns: '1fr',
-		},
 	}),
 	sidebarContainer: (isMobile, isOpen) => ({
-		position: isMobile ? 'fixed' : 'relative',
+		position: isMobile ? 'fixed' : 'sticky',
 		top: 0,
 		left: 0,
-		bottom: 0,
+		height: '100dvh',
 		zIndex: 100,
 		transform: isMobile ? (isOpen ? 'translateX(0)' : 'translateX(-100%)') : 'none',
 		transition: 'transform 0.3s ease-in-out',
-		background: 'var(--surface)',
-		borderRight: isMobile ? 'none' : '1px solid var(--border)',
+		padding: isMobile ? 0 : 16,
+		paddingRight: isMobile ? 0 : 8,
 	}),
-	mainContent: {
-		padding: 'clamp(1rem, 2vw, 1.5rem)',
+	mainContent: isMobile => ({
+		padding: isMobile ? 16 : '16px 16px 16px 8px',
 		minWidth: 0,
+	}),
+	contentSection: {
+		background: 'var(--surface)',
+		border: '1px solid var(--border)',
+		borderRadius: 14,
+		minHeight: 'calc(100vh - 32px)',
+		boxShadow: 'var(--shadow-md)',
+		display: 'flex',
+		flexDirection: 'column',
 	},
 	mobileHeader: {
 		display: 'flex',
 		alignItems: 'center',
 		justifyContent: 'space-between',
-		paddingBottom: '1rem',
-		marginBottom: '1rem',
+		padding: '10px 16px',
 		borderBottom: '1px solid var(--border)',
+		flexShrink: 0,
 	},
+	outletContainer: isMobile => ({
+		padding: 16,
+		flexGrow: 1,
+		overflowY: 'auto',
+		minHeight: isMobile ? '0' : 'auto',
+	}),
 	menuButton: {
 		padding: '8px 12px',
 		borderRadius: 10,
-		background: 'var(--surface)',
+		background: 'var(--bg)',
 		color: 'var(--text)',
 		border: '1px solid var(--border)',
 		fontWeight: 800,
