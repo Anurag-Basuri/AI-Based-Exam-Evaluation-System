@@ -4,8 +4,8 @@ import {
     loginTeacher,
     logoutTeacher,
     updateTeacher,
-    changePassword
-} from '../controllers/teacherController.js';
+    getDashboardStats
+} from '../controllers/teacher.controller.js';
 import { checkAuth, verifyTeacher } from '../middlewares/auth.middleware.js';
 import { body } from 'express-validator';
 
@@ -60,6 +60,14 @@ router.put(
     body('currentPassword').notEmpty().withMessage('Current password is required'),
     body('newPassword').notEmpty().withMessage('New password is required'),
     changePassword
+);
+
+// Get dashboard statistics for teacher
+router.get(
+    '/dashboard-stats',
+    checkAuth,
+    verifyTeacher,
+    getDashboardStats
 );
 
 export default router;
