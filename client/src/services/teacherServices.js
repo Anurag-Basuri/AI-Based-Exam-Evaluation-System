@@ -139,6 +139,7 @@ const EP = {
 	// Profile
 	teacherUpdate: '/api/teachers/update',
 	teacherChangePassword: '/api/teachers/change-password',
+	teacherDashboardStats: '/api/teachers/dashboard-stats',
 };
 
 // ---------- Normalizers ----------
@@ -509,6 +510,13 @@ export const changeTeacherPassword = async ({ currentPassword, newPassword }) =>
 	const res = await tryPut(EP.teacherChangePassword, { currentPassword, newPassword });
 	const data = res?.data?.data ?? res?.data ?? { success: true };
 	return { success: !!(data?.success ?? true) };
+};
+
+// ---------- Dashboard (Teacher) ----------
+export const getTeacherDashboardStats = async () => {
+    const res = await tryGet(EP.teacherDashboardStats);
+    // The data from this endpoint is already well-structured, so we can return it directly.
+    return res?.data?.data ?? res?.data ?? {};
 };
 
 // Ensure cookies if server uses cookie sessions
