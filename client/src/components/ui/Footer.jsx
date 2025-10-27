@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { useTheme } from '../../hooks/useTheme.js';
 
 const Footer = () => {
@@ -33,17 +34,17 @@ const Footer = () => {
 					aria-label="Footer navigation"
 					style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}
 				>
-					<a href="/" style={linkStyle(theme)}>
+					<Link to="/" style={linkStyle(theme)}>
 						Home
-					</a>
-					<a href="/student/exams" style={linkStyle(theme)}>
+					</Link>
+					<Link to="/student/exams" style={linkStyle(theme)}>
 						Student
-					</a>
-					<a href="/teacher/exams" style={linkStyle(theme)}>
+					</Link>
+					<Link to="/teacher/exams" style={linkStyle(theme)}>
 						Teacher
-					</a>
+					</Link>
 					<a
-						href="https://reactjs.org/"
+						href="https://react.dev/"
 						target="_blank"
 						rel="noreferrer"
 						style={linkStyle(theme)}
