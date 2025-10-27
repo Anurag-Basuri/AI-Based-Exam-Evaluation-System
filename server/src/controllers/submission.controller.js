@@ -329,26 +329,26 @@ const getSubmission = asyncHandler(async (req, res) => {
 
 // Get all submissions for an exam (for teacher)
 const getExamSubmissions = asyncHandler(async (req, res) => {
-    const examId = req.params.id;
-    if (!examId) throw ApiError.BadRequest('Exam ID required');
-    const submissions = await Submission.find({ exam: examId })
-        .populate('student', 'username fullname email')
-        .select('student status evaluations startedAt submittedAt violations') // Select violations
-        .lean();
+	const examId = req.params.id;
+	if (!examId) throw ApiError.BadRequest('Exam ID required');
+	const submissions = await Submission.find({ exam: examId })
+		.populate('student', 'username fullname email')
+		.select('student status evaluations startedAt submittedAt violations') // Select violations
+		.lean();
 
-    // Manually calculate totalMarks for the lean object
-    const results = submissions.map(sub => {
-        const totalMarks = (sub.evaluations || []).reduce(
-            (sum, ev) => sum + (ev?.evaluation?.marks || 0),
-            0,
-        );
-        return {
-            ...sub,
-            totalMarks, // Add totalMarks field
-        };
-    });
+	// Manually calculate totalMarks for the lean object
+	const results = submissions.map(sub => {
+		const totalMarks = (sub.evaluations || []).reduce(
+			(sum, ev) => sum + (ev?.evaluation?.marks || 0),
+			0,
+		);
+		return {
+			...sub,
+			totalMarks, // Add totalMarks field
+		};
+	});
 
-    return ApiResponse.success(res, results, 'Exam submissions fetched');
+	return ApiResponse.success(res, results, 'Exam submissions fetched');
 });
 
 // --- Get a single submission with full details for a teacher to grade ---
@@ -633,6 +633,92 @@ const publishAllExamResults = asyncHandler(async (req, res) => {
 	);
 });
 
+// Create a new submission (student)
+const createSubmission = asyncHandler(async (req, res) => {
+	const studentId = req.student?._id || req.user?.id;
+	const { examId } = req.body;
+
+	if (!examId) throw ApiError.BadRequest('Exam ID is required');
+
+	const exam = await Exam.findById(examId).select('status startTime endTime duration questions');
+	if (!exam) throw ApiError.NotFound('Exam not found');
+	if (exam.status !== 'active') throw ApiError.Forbidden('Exam is not active');
+
+	const now = new Date();
+	if (exam.startTime && now < new Date(exam.startTime))
+		throw ApiError.Forbidden('Exam has not started yet');
+	if (exam.endTime && now > new Date(exam.endTime)) throw ApiError.Forbidden('Exam has ended');
+
+	// Check if there is an existing submission
+	const existingSubmission = await Submission.findOne({ exam: examId, student: studentId });
+	if (existingSubmission) {
+		// If the existing submission is in-progress, return it
+		if (existingSubmission.status === 'in-progress') {
+			return ApiResponse.success(res, existingSubmission, 'Submission already in progress');
+		}
+
+		// If the existing submission is submitted but the exam is still active, reopen it
+		if (existingSubmission.status === 'submitted' && exam.endTime > now) {
+			existingSubmission.status = 'in-progress';
+			existingSubmission.startedAt = new Date();
+			existingSubmission.submittedAt = null; // Clear submittedAt to reopen
+			await existingSubmission.save();
+
+			// Return the reopened submission
+			return ApiResponse.success(res, existingSubmission, 'Submission reopened');
+		}
+
+		// If the existing submission is evaluated, return it with a note
+		if (existingSubmission.status === 'evaluated') {
+			return ApiResponse.success(
+				res,
+				existingSubmission,
+				'Submission already evaluated. You can view the results.',
+			);
+		}
+
+		// For any other status, fall back to the existing submission
+		return ApiResponse.success(res, existingSubmission, 'Submission found');
+	}
+
+	// --- Pre-populate answer slots ---
+	const initialAnswers = (exam.questions || []).map(questionId => ({
+		question: questionId,
+		responseText: '',
+		responseOption: null,
+	}));
+
+	// Create a new submission
+	const newSubmission = new Submission({
+		exam: examId,
+		student: studentId,
+		startedAt: new Date(),
+		duration: exam.duration,
+		status: 'in-progress',
+		answers: initialAnswers,
+	});
+
+	await newSubmission.save();
+
+	// Populate the new submission with details needed for the dashboard feed
+	const populatedSubmission = await newSubmission.populate([
+		{ path: 'student', select: 'fullname username' },
+		{ path: 'exam', select: 'title' },
+	]);
+
+	// Notify all teachers in real-time about the new submission
+	const io = req.app.get('io');
+	if (io) {
+		io.to('teachers').emit('new-submission', populatedSubmission);
+	}
+
+	return ApiResponse.created(
+		res,
+		{ submissionId: newSubmission._id },
+		'Exam submitted successfully',
+	);
+});
+
 export {
 	startSubmission,
 	submitSubmission,
@@ -650,4 +736,5 @@ export {
 	publishSingleSubmissionResult,
 	publishAllExamResults,
 	getSubmissionForGrading,
+	createSubmission,
 };
