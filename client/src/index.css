@@ -204,6 +204,37 @@ a {
   box-shadow: var(--shadow-md);
 }
 
+/* Landing page polish: consistent hover, focus, and subtle motion */
+.card-hover {
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+  will-change: transform;
+}
+.card-hover:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 14px 32px rgba(2, 6, 23, 0.12);
+  border-color: color-mix(in srgb, var(--primary-strong), transparent 70%);
+}
+.card-hover:active {
+  transform: translateY(-2px);
+}
+
+button.focus-ring:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 10px;
+}
+
+/* Improve grid wrapping on very narrow screens */
+@media (max-width: 380px) {
+  .stack-sm {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 0.6rem !important;
+  }
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .sidebar-fixed {
@@ -221,6 +252,12 @@ a {
 
 @media (prefers-reduced-motion: no-preference) {
   .tap:hover { transform: translateY(-1px); transition: transform .15s ease; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-hover {
+    transition: none !important;
+  }
 }
 
 /* Animation Keyframes */
