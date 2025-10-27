@@ -122,6 +122,41 @@ const updateTeacher = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, updatedTeacher, 'Profile updated successfully');
 });
 
+// Change password
+const changePassword = asyncHandler(async (req, res) => {
+	const teacherId = req.teacher?._id || req.user?.id;
+	const { currentPassword, newPassword, confirmNewPassword } = req.body;
+
+	if (!currentPassword || !newPassword) {
+		throw ApiError.BadRequest('Current password and new password are required');
+	}
+
+	if (confirmNewPassword !== undefined && newPassword !== confirmNewPassword) {
+		throw ApiError.BadRequest('New password and confirmation do not match');
+	}
+
+	if (newPassword === currentPassword) {
+		throw ApiError.BadRequest('New password must be different from current password');
+	}
+
+	const teacher = await Teacher.findById(teacherId).select('+password');
+	if (!teacher) {
+		throw ApiError.NotFound('Teacher not found');
+	}
+
+	const isMatch = await teacher.comparePassword(currentPassword);
+	if (!isMatch) {
+		throw ApiError.Unauthorized('Current password is incorrect');
+	}
+
+	teacher.password = newPassword;
+	// Invalidate refresh token(s) to force re-login
+	teacher.refreshToken = null;
+	await teacher.save();
+
+	return ApiResponse.success(res, { message: 'Password changed successfully. Please log in again.' });
+});
+
 // Get dashboard statistics for teacher
 const getDashboardStats = asyncHandler(async (req, res) => {
 	const teacherId = req.teacher._id;
@@ -194,5 +229,6 @@ export {
     loginTeacher,
     logoutTeacher,
     updateTeacher,
+	changePassword,
     getDashboardStats
 };

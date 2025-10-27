@@ -4,6 +4,7 @@ import {
     loginTeacher,
     logoutTeacher,
     updateTeacher,
+    changePassword,
     getDashboardStats
 } from '../controllers/teacher.controller.js';
 import { checkAuth, verifyTeacher } from '../middlewares/auth.middleware.js';
