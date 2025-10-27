@@ -1,4 +1,4 @@
-import React, { Suspense } from 'react';
+import React, { Suspense, useState, useEffect, useMemo, useCallback } from 'react';
 import { Outlet } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import Sidebar from '../components/Sidebar.jsx';
@@ -12,20 +12,27 @@ import { API_BASE_URL } from '../services/api.js';
 const TeacherDash = () => {
 	const { theme } = useTheme();
 	const { user, logout } = useAuth();
-	const [sidebarOpen, setSidebarOpen] = React.useState(window.innerWidth >= 1024);
-	const [loggingOutFooter, setLoggingOutFooter] = React.useState(false);
-	const [openIssuesCount, setOpenIssuesCount] = React.useState(0);
+	const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+	const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
+	const [loggingOutFooter, setLoggingOutFooter] = useState(false);
+	const [openIssuesCount, setOpenIssuesCount] = useState(0);
 
-	React.useEffect(() => {
-		const onResize = () => {
-			setSidebarOpen(window.innerWidth >= 1024);
+	// Responsive state management
+	useEffect(() => {
+		const handleResize = () => {
+			const mobile = window.innerWidth < 1024;
+			setIsMobile(mobile);
+			setSidebarOpen(!mobile); // Automatically open on desktop, close on mobile
 		};
-		window.addEventListener('resize', onResize);
-		return () => window.removeEventListener('resize', onResize);
+		window.addEventListener('resize', handleResize);
+		return () => window.removeEventListener('resize', handleResize);
 	}, []);
 
-	// Fetch initial count and set up real-time listeners
-	React.useEffect(() => {
+	// EFFICIENT Real-time count updates
+	useEffect(() => {
+		if (!user?.id) return;
+
+		// Fetch initial count
 		const fetchOpenIssues = async () => {
 			try {
 				const issues = await safeApiCall(getTeacherIssues, { status: 'open' });
@@ -36,161 +43,86 @@ const TeacherDash = () => {
 		};
 		fetchOpenIssues();
 
-		// Use socket for real-time updates
 		const socket = io(API_BASE_URL, {
 			withCredentials: true,
-			query: { role: 'teacher', userId: user?.id }, // Pass both role and userId
+			query: { role: 'teacher', userId: user.id },
 		});
 
 		socket.on('new-issue', newIssue => {
-			// A new issue was created. If it's open or assigned to me, it might affect my count.
-			// The safest and simplest way to stay in sync is a quick refetch.
-			fetchOpenIssues();
+			if (newIssue.status === 'open') {
+				setOpenIssuesCount(c => c + 1);
+			}
 		});
 
-		socket.on('issue-update', updatedIssue => {
-			// An issue was claimed, resolved, or moved. Refetch to get the correct count.
-			fetchOpenIssues();
+		socket.on('issue-update', ({ issue, oldStatus }) => {
+			const newStatus = issue.status;
+			if (oldStatus === 'open' && newStatus !== 'open') {
+				setOpenIssuesCount(c => Math.max(0, c - 1));
+			} else if (oldStatus !== 'open' && newStatus === 'open') {
+				setOpenIssuesCount(c => c + 1);
+			}
 		});
 
-		return () => {
-			socket.disconnect();
-		};
-	}, [user]); // Add user dependency
+		socket.on('issue-deleted', ({ status }) => {
+			if (status === 'open') {
+				setOpenIssuesCount(c => Math.max(0, c - 1));
+			}
+		});
 
-	const headerEl = React.useMemo(
+		return () => socket.disconnect();
+	}, [user]);
+
+	const handleLogout = useCallback(async () => {
+		if (loggingOutFooter) return;
+		setLoggingOutFooter(true);
+		try {
+			await Promise.resolve(logout?.());
+		} finally {
+			setLoggingOutFooter(false);
+		}
+	}, [logout, loggingOutFooter]);
+
+	const headerEl = useMemo(
 		() => (
 			<div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-				<div
-					style={{
-						width: 32,
-						height: 32,
-						borderRadius: 10,
-						background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
-						display: 'flex',
-						alignItems: 'center',
-						justifyContent: 'center',
-						border: '2px solid rgba(59,130,246,0.25)',
-						boxShadow: '0 4px 10px rgba(59,130,246,0.25)',
-					}}
-				>
+				<div style={styles.portalIcon}>
 					<span style={{ fontSize: 16 }}>👨‍🏫</span>
 				</div>
 				<div style={{ display: 'grid', lineHeight: 1.15, minWidth: 0 }}>
-					<strong
-						style={{
-							letterSpacing: 0.3,
-							fontSize: 13,
-							background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
-							WebkitBackgroundClip: 'text',
-							WebkitTextFillColor: 'transparent',
-							backgroundClip: 'text',
-						}}
-					>
-						Teacher Portal
-					</strong>
-					<span
-						style={{
-							fontSize: 11,
-							color: 'var(--text-muted)',
-							opacity: 0.9,
-							whiteSpace: 'nowrap',
-							overflow: 'hidden',
-							textOverflow: 'ellipsis',
-						}}
-					>
-						Create • Manage • Evaluate
-					</span>
+					<strong style={styles.portalTitle}>Teacher Portal</strong>
+					<span style={styles.portalSubtitle}>Create • Manage • Evaluate</span>
 				</div>
 			</div>
 		),
 		[],
 	);
 
-	const footerEl = React.useMemo(
+	const footerEl = useMemo(
 		() => (
 			<div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-				<div
-					style={{
-						padding: '10px 12px',
-						borderRadius: 12,
-						background: 'var(--surface)',
-						border: '1px solid var(--border)',
-						display: 'flex',
-						alignItems: 'center',
-						gap: 10,
-					}}
-				>
-					<div
-						style={{
-							width: 32,
-							height: 32,
-							borderRadius: 8,
-							background: 'linear-gradient(135deg, #10b981, #059669)',
-							display: 'flex',
-							alignItems: 'center',
-							justifyContent: 'center',
-							fontSize: 16,
-							color: '#fff',
-							fontWeight: 800,
-						}}
-					>
+				<div style={styles.userCard}>
+					<div style={styles.userAvatar}>
 						{user?.fullname?.charAt(0) || user?.username?.charAt(0) || 'T'}
 					</div>
 					<div style={{ flex: 1, minWidth: 0 }}>
 						<div
-							style={{
-								fontWeight: 700,
-								fontSize: 12,
-								color: 'var(--text)',
-								overflow: 'hidden',
-								textOverflow: 'ellipsis',
-								whiteSpace: 'nowrap',
-							}}
+							style={styles.userName}
 							title={user?.fullname || user?.username || 'Teacher'}
 						>
 							{user?.fullname || user?.username || 'Teacher'}
 						</div>
-						<div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-							{user?.department || 'Department'}
-						</div>
+						<div style={styles.userDept}>{user?.department || 'Department'}</div>
 					</div>
 				</div>
-
-				<button
-					onClick={async () => {
-						if (loggingOutFooter) return;
-						setLoggingOutFooter(true);
-						try {
-							await Promise.resolve(logout?.());
-						} finally {
-							setLoggingOutFooter(false);
-						}
-					}}
-					style={{
-						width: '100%',
-						padding: '10px 14px',
-						borderRadius: 10,
-						border: '1px solid color-mix(in srgb, #dc2626 85%, transparent)',
-						background: 'linear-gradient(135deg, #ef4444, #dc2626)',
-						color: '#ffffff',
-						fontSize: 13,
-						fontWeight: 800,
-						cursor: 'pointer',
-						transition: 'transform 0.15s ease, filter 0.15s ease',
-						opacity: loggingOutFooter ? 0.8 : 1,
-					}}
-					onMouseEnter={e => (e.currentTarget.style.transform = 'translateY(-1px)')}
-					onMouseLeave={e => (e.currentTarget.style.transform = 'translateY(0)')}
-				>
+				<button onClick={handleLogout} style={styles.logoutButton(loggingOutFooter)}>
 					{loggingOutFooter ? 'Logging out…' : '🚪 Logout'}
 				</button>
 			</div>
 		),
-		[user, logout, loggingOutFooter],
+		[user, handleLogout, loggingOutFooter],
 	);
 
-	const items = React.useMemo(
+	const items = useMemo(
 		() => [
 			{ key: 'home', label: 'Overview', icon: '📊', to: '/teacher', end: true },
 			{ key: 'exams', label: 'Exams', icon: '📝', to: '/teacher/exams' },
@@ -209,99 +141,37 @@ const TeacherDash = () => {
 
 	return (
 		<>
-			<style>{`
-        :root {
-          --sidebar-width: 280px;
-          --sidebar-width-collapsed: 0px;
-          --page-padding: 16px;
-        }
-        .teacher-dash-layout {
-          display: grid;
-          grid-template-columns: var(--sidebar-width-collapsed) 1fr;
-          gap: var(--page-padding);
-          padding: var(--page-padding);
-          align-items: start;
-          min-height: calc(100dvh - var(--header-h, 64px));
-          background: ${
-				theme === 'dark'
-					? 'radial-gradient(ellipse at top left, rgba(59,130,246,0.05) 0%, transparent 50%), var(--bg)'
-					: 'radial-gradient(ellipse at top left, rgba(59,130,246,0.06) 0%, transparent 50%), var(--bg)'
-			};
-          transition: grid-template-columns 0.3s ease-in-out;
-        }
-        @media (min-width: 1024px) {
-          .teacher-dash-layout {
-            grid-template-columns: var(--sidebar-width) 1fr;
-          }
-        }
-      `}</style>
+			<div style={styles.layout(theme, sidebarOpen && !isMobile)}>
+				{/* Mobile Backdrop */}
+				{isMobile && sidebarOpen && (
+					<div style={styles.backdrop} onClick={() => setSidebarOpen(false)} />
+				)}
 
-			<div className="teacher-dash-layout">
-				<aside>
+				<aside style={styles.sidebarContainer(isMobile, sidebarOpen)}>
 					<ErrorBoundary>
 						<Sidebar
 							header={headerEl}
 							footer={footerEl}
-							width={280}
-							collapsedWidth={80}
-							theme={theme}
 							items={items}
-							collapsible={true}
 							expanded={sidebarOpen}
 							onToggle={setSidebarOpen}
-							mobileBreakpoint={1024}
+							isMobile={isMobile}
 						/>
 					</ErrorBoundary>
 				</aside>
 
-				<main
-					style={{
-						background: 'var(--surface)',
-						border: '1px solid var(--border)',
-						borderRadius: 14,
-						padding: 'clamp(12px, 3vw, 24px)',
-						minHeight: '60vh',
-						boxShadow: 'var(--shadow-md)',
-					}}
-				>
-					{/* Mobile toolbar */}
-					<div className="mobile-toolbar" style={{ display: 'none' }}>
-						<button
-							onClick={() => setSidebarOpen(true)}
-							style={{
-								padding: '8px 12px',
-								borderRadius: 10,
-								background: 'var(--bg)',
-								color: 'var(--text)',
-								border: '1px solid var(--border)',
-								fontWeight: 800,
-							}}
-						>
-							☰ Menu
-						</button>
-						<div
-							style={{
-								marginLeft: 'auto',
-								color: 'var(--text-muted)',
-								fontSize: 12,
-							}}
-						>
-							{new Date().toLocaleDateString()}
-						</div>
-					</div>
-					<style>{`
-            @media (max-width: 1023px) {
-              .mobile-toolbar {
-                display: flex;
-                align-items: center;
-                gap: 10px;
-                margin-bottom: 12px;
-                border-bottom: 1px solid var(--border);
-                padding-bottom: 10px;
-              }
-            }
-          `}</style>
-
+				<main style={styles.mainContent}>
+					{/* Mobile Header */}
+					{isMobile && (
+						<header style={styles.mobileHeader}>
+							<button onClick={() => setSidebarOpen(true)} style={styles.menuButton}>
+								☰ Menu
+							</button>
+							<div style={{ color: 'var(--text-muted)', fontSize: 12 }}>
+								{new Date().toLocaleDateString()}
+							</div>
+						</header>
+					)}
 					<ErrorBoundary>
 						<Suspense fallback={<RouteFallback message="Loading page" />}>
 							<Outlet />
@@ -311,6 +181,131 @@ const TeacherDash = () => {
 			</div>
 		</>
 	);
+};
+
+// --- Styles ---
+const styles = {
+	layout: (theme, isSidebarDesktopOpen) => ({
+		display: 'grid',
+		gridTemplateColumns: isSidebarDesktopOpen ? '280px 1fr' : '80px 1fr',
+		minHeight: '100dvh',
+		background:
+			theme === 'dark'
+				? 'radial-gradient(ellipse at top left, rgba(59,130,246,0.05) 0%, transparent 50%), var(--bg)'
+				: 'radial-gradient(ellipse at top left, rgba(59,130,246,0.06) 0%, transparent 50%), var(--bg)',
+		transition: 'grid-template-columns 0.3s ease-in-out',
+		'@media (max-width: 1023px)': {
+			gridTemplateColumns: '1fr',
+		},
+	}),
+	sidebarContainer: (isMobile, isOpen) => ({
+		position: isMobile ? 'fixed' : 'relative',
+		top: 0,
+		left: 0,
+		bottom: 0,
+		zIndex: 100,
+		transform: isMobile ? (isOpen ? 'translateX(0)' : 'translateX(-100%)') : 'none',
+		transition: 'transform 0.3s ease-in-out',
+		background: 'var(--surface)',
+		borderRight: isMobile ? 'none' : '1px solid var(--border)',
+	}),
+	mainContent: {
+		padding: 'clamp(1rem, 2vw, 1.5rem)',
+		minWidth: 0,
+	},
+	mobileHeader: {
+		display: 'flex',
+		alignItems: 'center',
+		justifyContent: 'space-between',
+		paddingBottom: '1rem',
+		marginBottom: '1rem',
+		borderBottom: '1px solid var(--border)',
+	},
+	menuButton: {
+		padding: '8px 12px',
+		borderRadius: 10,
+		background: 'var(--surface)',
+		color: 'var(--text)',
+		border: '1px solid var(--border)',
+		fontWeight: 800,
+	},
+	backdrop: {
+		position: 'fixed',
+		inset: 0,
+		background: 'rgba(0,0,0,0.5)',
+		backdropFilter: 'blur(4px)',
+		zIndex: 99,
+	},
+	portalIcon: {
+		width: 32,
+		height: 32,
+		borderRadius: 10,
+		background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+		display: 'flex',
+		alignItems: 'center',
+		justifyContent: 'center',
+		border: '2px solid rgba(59,130,246,0.25)',
+		boxShadow: '0 4px 10px rgba(59,130,246,0.25)',
+	},
+	portalTitle: {
+		letterSpacing: 0.3,
+		fontSize: 13,
+		background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+		WebkitBackgroundClip: 'text',
+		WebkitTextFillColor: 'transparent',
+		backgroundClip: 'text',
+	},
+	portalSubtitle: {
+		fontSize: 11,
+		color: 'var(--text-muted)',
+		opacity: 0.9,
+		whiteSpace: 'nowrap',
+		overflow: 'hidden',
+		textOverflow: 'ellipsis',
+	},
+	userCard: {
+		padding: '10px 12px',
+		borderRadius: 12,
+		background: 'var(--surface)',
+		border: '1px solid var(--border)',
+		display: 'flex',
+		alignItems: 'center',
+		gap: 10,
+	},
+	userAvatar: {
+		width: 32,
+		height: 32,
+		borderRadius: 8,
+		background: 'linear-gradient(135deg, #10b981, #059669)',
+		display: 'flex',
+		alignItems: 'center',
+		justifyContent: 'center',
+		fontSize: 16,
+		color: '#fff',
+		fontWeight: 800,
+	},
+	userName: {
+		fontWeight: 700,
+		fontSize: 12,
+		color: 'var(--text)',
+		overflow: 'hidden',
+		textOverflow: 'ellipsis',
+		whiteSpace: 'nowrap',
+	},
+	userDept: { fontSize: 11, color: 'var(--text-muted)' },
+	logoutButton: loggingOut => ({
+		width: '100%',
+		padding: '10px 14px',
+		borderRadius: 10,
+		border: '1px solid color-mix(in srgb, #dc2626 85%, transparent)',
+		background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+		color: '#ffffff',
+		fontSize: 13,
+		fontWeight: 800,
+		cursor: 'pointer',
+		transition: 'opacity 0.15s ease',
+		opacity: loggingOut ? 0.8 : 1,
+	}),
 };
 
 export default TeacherDash;
