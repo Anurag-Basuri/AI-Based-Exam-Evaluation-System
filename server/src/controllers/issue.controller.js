@@ -123,16 +123,14 @@ const updateIssueStatus = asyncHandler(async (req, res) => {
 	const { status } = req.body;
 	const teacherId = req.teacher?._id;
 
-	if (!['open', 'in-progress'].includes(String(status))) {
-		throw ApiError.BadRequest('Only open or in-progress are allowed here.');
-	}
-
 	const issue = await Issue.findById(id);
 	if (!issue) throw ApiError.NotFound('Issue not found');
+
+	const oldStatus = issue.status; // Capture the status before the update
+
 	if (issue.status === 'resolved') {
 		throw ApiError.Conflict('Cannot change status of a resolved issue.');
 	}
-	// RULE CHANGE: Once an issue is 'in-progress', it cannot be unassigned (moved back to 'open').
 	if (issue.status === 'in-progress' && status === 'open') {
 		throw new ApiError(409, 'Cannot unassign an issue that is already in progress.');
 	}
@@ -168,8 +166,10 @@ const updateIssueStatus = asyncHandler(async (req, res) => {
 
 	const io = req.io || req.app?.get('io');
 	if (io) {
-		io.to(String(issue.student)).emit('issue-update', populatedIssue);
-		io.to('teachers').emit('issue-update', populatedIssue);
+		io.to('teachers').emit('issue-update', { issue: populatedIssue, oldStatus });
+		if (populatedIssue.student) {
+			io.to(String(populatedIssue.student._id)).emit('issue-update', populatedIssue);
+		}
 	}
 
 	return ApiResponse.success(res, populatedIssue, 'Issue status updated');
