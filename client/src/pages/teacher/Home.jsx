@@ -7,281 +7,292 @@ import { API_BASE_URL } from '../../services/api.js';
 
 // --- Reusable Components ---
 const StatCard = ({ icon, label, value, loading, color = '#6366f1' }) => (
-	<div style={styles.statCard.container}>
-		<div style={{ ...styles.statCard.iconContainer, background: `${color}20`, color }}>
-			{icon}
-		</div>
-		<div>
-			<div style={styles.statCard.label}>{label}</div>
-			<div style={styles.statCard.value}>{loading ? '⋯' : value}</div>
-		</div>
-	</div>
+    <div style={styles.statCard.container}>
+        <div style={{ ...styles.statCard.iconContainer, background: `${color}20`, color }}>
+            {icon}
+        </div>
+        <div>
+            <div style={styles.statCard.label}>{label}</div>
+            <div style={styles.statCard.value}>{loading ? '⋯' : value}</div>
+        </div>
+    </div>
 );
 
 const ActionButton = ({ icon, label, onClick, variant = 'primary' }) => {
-	const variantStyles = {
-		primary: {
-			background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
-			color: '#ffffff',
-			border: 'none',
-			boxShadow: '0 8px 20px rgba(59,130,246,0.3)',
-		},
-		secondary: {
-			background: 'var(--surface)',
-			color: 'var(--text)',
-			border: '1px solid var(--border)',
-			boxShadow: 'var(--shadow-sm)',
-		},
-	};
-	return (
-		<button
-			onClick={onClick}
-			style={{ ...styles.actionButton.base, ...variantStyles[variant] }}
-		>
-			<span style={{ fontSize: '18px' }}>{icon}</span>
-			{label}
-		</button>
-	);
+    const variantStyles = {
+        primary: {
+            background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+            color: '#ffffff',
+            border: 'none',
+            boxShadow: '0 8px 20px rgba(59,130,246,0.3)',
+        },
+        secondary: {
+            background: 'var(--surface)',
+            color: 'var(--text)',
+            border: '1px solid var(--border)',
+            boxShadow: 'var(--shadow-sm)',
+        },
+    };
+    return (
+        <button
+            onClick={onClick}
+            style={{ ...styles.actionButton.base, ...variantStyles[variant] }}
+        >
+            <span style={{ fontSize: '18px' }}>{icon}</span>
+            {label}
+        </button>
+    );
 };
 
 const Skeleton = ({ height = '100%', width = '100%', borderRadius = 8 }) => (
-	<div style={{ ...styles.skeleton, height, width, borderRadius }} />
+    <div style={{ ...styles.skeleton, height, width, borderRadius }} />
 );
 
 // --- UI Components ---
 
 const ExamsToReview = ({ exams, loading, navigate }) => (
-	<div style={styles.listCard.container}>
-		<h3 style={styles.listCard.title}>Needs Review</h3>
-		<div style={styles.listCard.list}>
-			{loading &&
-				[...Array(3)].map((_, i) => (
-					<div key={i} style={{ padding: '10px 0' }}>
-						<Skeleton height={40} />
-					</div>
-				))}
-			{!loading && exams?.length === 0 && (
-				<p style={styles.listCard.emptyText}>
-					No submissions are pending review. Great job!
-				</p>
-			)}
-			{exams?.map(exam => (
-				<div
-					key={exam._id}
-					style={styles.reviewItem.container}
-					className="hover-effect"
-					onClick={() => navigate(`/teacher/results/${exam._id}`)}
-				>
-					<div style={styles.reviewItem.textContainer}>
-						<span style={styles.reviewItem.title}>{exam.title}</span>
-						<span style={styles.reviewItem.progressText}>
-							{exam.evaluatedCount} / {exam.submissionsCount} Evaluated
-						</span>
-					</div>
-					<div style={styles.reviewItem.progressBarBg}>
-						<div
-							style={{
-								...styles.reviewItem.progressBarFg,
-								width: `${(exam.evaluatedCount / exam.submissionsCount) * 100}%`,
-							}}
-						/>
-					</div>
-				</div>
-			))}
-		</div>
-	</div>
+    <div style={styles.listCard.container}>
+        <h3 style={styles.listCard.title}>Needs Review</h3>
+        <div style={styles.listCard.list}>
+            {loading &&
+                [...Array(3)].map((_, i) => (
+                    <div key={i} style={{ padding: '10px 0' }}>
+                        <Skeleton height={40} />
+                    </div>
+                ))}
+            {!loading && exams?.length === 0 && (
+                <p style={styles.listCard.emptyText}>
+                    No submissions are pending review. Great job!
+                </p>
+            )}
+            {exams?.map(exam => (
+                <div
+                    key={exam._id}
+                    style={styles.reviewItem.container}
+                    className="hover-effect"
+                    onClick={() => navigate(`/teacher/results/${exam._id}`)}
+                >
+                    <div style={styles.reviewItem.textContainer}>
+                        <span style={styles.reviewItem.title}>{exam.title}</span>
+                        <span style={styles.reviewItem.progressText}>
+                            {exam.evaluatedCount} / {exam.submissionsCount} Evaluated
+                        </span>
+                    </div>
+                    <div style={styles.reviewItem.progressBarBg}>
+                        <div
+                            style={{
+                                ...styles.reviewItem.progressBarFg,
+                                width: `${(exam.evaluatedCount / exam.submissionsCount) * 100}%`,
+                            }}
+                        />
+                    </div>
+                </div>
+            ))}
+        </div>
+    </div>
 );
 
 const RecentSubmissions = ({ submissions, loading, navigate }) => (
-	<div style={styles.listCard.container}>
-		<h3 style={styles.listCard.title}>Recent Submissions</h3>
-		<div style={styles.listCard.list}>
-			{loading &&
-				[...Array(4)].map((_, i) => (
-					<div key={i} style={{ padding: '10px 0' }}>
-						<Skeleton height={30} />
-					</div>
-				))}
-			{!loading && submissions?.length === 0 && (
-				<p style={styles.listCard.emptyText}>No recent submissions found.</p>
-			)}
-			{submissions?.map(sub => (
-				<div
-					key={sub._id}
-					style={styles.activityItem.container}
-					className="hover-effect"
-					onClick={() => navigate(`/teacher/grade/${sub._id}`)}
-				>
-					<div style={styles.activityItem.icon}>📝</div>
-					<div style={styles.activityItem.details}>
-						<span style={styles.activityItem.mainText}>
-							<strong>{sub.student?.fullname || 'A student'}</strong> submitted to{' '}
-							<strong>{sub.exam?.title || 'an exam'}</strong>.
-						</span>
-						<span style={styles.activityItem.subText}>
-							{new Date(sub.createdAt).toLocaleString()}
-						</span>
-					</div>
-					<div style={styles.activityItem.cta}>&rarr;</div>
-				</div>
-			))}
-		</div>
-	</div>
+    <div style={styles.listCard.container}>
+        <h3 style={styles.listCard.title}>Recent Submissions</h3>
+        <div style={styles.listCard.list}>
+            {loading &&
+                [...Array(4)].map((_, i) => (
+                    <div key={i} style={{ padding: '10px 0' }}>
+                        <Skeleton height={30} />
+                    </div>
+                ))}
+            {!loading && submissions?.length === 0 && (
+                <p style={styles.listCard.emptyText}>No recent submissions found.</p>
+            )}
+            {submissions?.map(sub => (
+                <div
+                    key={sub._id}
+                    style={styles.activityItem.container}
+                    className="hover-effect"
+                    onClick={() => navigate(`/teacher/grade/${sub._id}`)}
+                >
+                    <div style={styles.activityItem.icon}>📝</div>
+                    <div style={styles.activityItem.details}>
+                        <span style={styles.activityItem.mainText}>
+                            <strong>{sub.student?.fullname || 'A student'}</strong> submitted to{' '}
+                            <strong>{sub.exam?.title || 'an exam'}</strong>.
+                        </span>
+                        <span style={styles.activityItem.subText}>
+                            {new Date(sub.createdAt).toLocaleString()}
+                        </span>
+                    </div>
+                    <div style={styles.activityItem.cta}>&rarr;</div>
+                </div>
+            ))}
+        </div>
+    </div>
 );
 
 // --- Main TeacherHome Component ---
 
+const MOBILE_BREAKPOINT = 1024;
+
 const TeacherHome = () => {
-	const navigate = useNavigate();
-	const { user } = useAuth();
-	const name = user?.fullname || user?.username || 'Teacher';
+    const navigate = useNavigate();
+    const { user } = useAuth();
+    const name = user?.fullname || user?.username || 'Teacher';
 
-	const [data, setData] = React.useState(null);
-	const [loading, setLoading] = React.useState(true);
-	const [error, setError] = React.useState('');
+    const [data, setData] = React.useState(null);
+    const [loading, setLoading] = React.useState(true);
+    const [error, setError] = React.useState('');
+    const [isMobile, setIsMobile] = React.useState(window.innerWidth < MOBILE_BREAKPOINT);
 
-	const loadData = React.useCallback(async () => {
-		setLoading(true);
-		setError('');
-		try {
-			const response = await safeApiCall(getTeacherDashboardStats);
-			setData(response);
-		} catch (e) {
-			setError(e.message || 'Failed to load dashboard data');
-		} finally {
-			setLoading(false);
-		}
-	}, []);
+    React.useEffect(() => {
+        const handleResize = () => {
+            setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
+        };
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
-	React.useEffect(() => {
-		loadData();
-	}, [loadData]);
+    const loadData = React.useCallback(async () => {
+        setLoading(true);
+        setError('');
+        try {
+            const response = await safeApiCall(getTeacherDashboardStats);
+            setData(response);
+        } catch (e) {
+            setError(e.message || 'Failed to load dashboard data');
+        } finally {
+            setLoading(false);
+        }
+    }, []);
 
-	// --- REAL-TIME UPDATES ---
-	React.useEffect(() => {
-		if (!user?.id) return;
+    React.useEffect(() => {
+        loadData();
+    }, [loadData]);
 
-		const socket = io(API_BASE_URL, {
-			withCredentials: true,
-			query: { role: 'teacher', userId: user.id },
-		});
+    // --- REAL-TIME UPDATES ---
+    React.useEffect(() => {
+        if (!user?.id) return;
 
-		socket.on('new-submission', newSubmission => {
-			setData(currentData => {
-				if (!currentData) return null;
+        const socket = io(API_BASE_URL, {
+            withCredentials: true,
+            query: { role: 'teacher', userId: user.id },
+        });
 
-				// 1. Add to recent submissions
-				const updatedSubmissions = [newSubmission, ...currentData.recentSubmissions].slice(
-					0,
-					5,
-				);
+        socket.on('new-submission', newSubmission => {
+            setData(currentData => {
+                if (!currentData) return null;
 
-				// 2. Update pending count
-				const updatedPending = (currentData.submissions.pending || 0) + 1;
+                // 1. Add to recent submissions
+                const updatedSubmissions = [newSubmission, ...currentData.recentSubmissions].slice(
+                    0,
+                    5,
+                );
 
-				// 3. Update or add to examsToReview
-				const examId = newSubmission.exam?._id;
-				let needsReviewUpdated = false;
-				const updatedExamsToReview = currentData.examsToReview.map(exam => {
-					if (exam._id === examId) {
-						needsReviewUpdated = true;
-						return { ...exam, submissionsCount: (exam.submissionsCount || 0) + 1 };
-					}
-					return exam;
-				});
+                // 2. Update pending count
+                const updatedPending = (currentData.submissions.pending || 0) + 1;
 
-				if (!needsReviewUpdated) {
-					updatedExamsToReview.unshift({
-						_id: examId,
-						title: newSubmission.exam?.title || 'New Exam',
-						submissionsCount: 1,
-						evaluatedCount: 0,
-					});
-				}
+                // 3. Update or add to examsToReview
+                const examId = newSubmission.exam?._id;
+                let needsReviewUpdated = false;
+                const updatedExamsToReview = currentData.examsToReview.map(exam => {
+                    if (exam._id === examId) {
+                        needsReviewUpdated = true;
+                        return { ...exam, submissionsCount: (exam.submissionsCount || 0) + 1 };
+                    }
+                    return exam;
+                });
 
-				return {
-					...currentData,
-					recentSubmissions: updatedSubmissions,
-					submissions: { ...currentData.submissions, pending: updatedPending },
-					examsToReview: updatedExamsToReview.slice(0, 5),
-				};
-			});
-		});
+                if (!needsReviewUpdated) {
+                    updatedExamsToReview.unshift({
+                        _id: examId,
+                        title: newSubmission.exam?.title || 'New Exam',
+                        submissionsCount: 1,
+                        evaluatedCount: 0,
+                    });
+                }
 
-		return () => socket.disconnect();
-	}, [user]);
+                return {
+                    ...currentData,
+                    recentSubmissions: updatedSubmissions,
+                    submissions: { ...currentData.submissions, pending: updatedPending },
+                    examsToReview: updatedExamsToReview.slice(0, 5),
+                };
+            });
+        });
 
-	const quickActions = [
-		{
-			label: 'Create Exam',
-			icon: '➕',
-			onClick: () => navigate('exams/create'),
-			variant: 'primary',
-		},
-		{
-			label: 'View All Submissions',
-			icon: '📋',
-			onClick: () => navigate('results'),
-			variant: 'secondary',
-		},
-	];
+        return () => socket.disconnect();
+    }, [user]);
 
-	const statCards = [
-		{ icon: '🟢', label: 'Live Exams', value: data?.exams?.live ?? 0, color: '#10b981' },
-		{ icon: '🗓️', label: 'Scheduled', value: data?.exams?.scheduled ?? 0, color: '#3b82f6' },
-		{
-			icon: '⏳',
-			label: 'Pending Reviews',
-			value: data?.submissions?.pending ?? 0,
-			color: '#f59e0b',
-		},
-		{ icon: '🚨', label: 'Open Issues', value: data?.issues?.open ?? 0, color: '#ef4444' },
-	];
+    const quickActions = [
+        {
+            label: 'Create Exam',
+            icon: '➕',
+            onClick: () => navigate('exams/create'),
+            variant: 'primary',
+        },
+        {
+            label: 'View All Submissions',
+            icon: '📋',
+            onClick: () => navigate('results'),
+            variant: 'secondary',
+        },
+    ];
 
-	return (
-		<div style={styles.pageContainer}>
-			<style>{`.hover-effect:hover { background: var(--bg); }`}</style>
-			<header style={styles.header.container}>
-				<h1 style={styles.header.title}>Welcome back, {name}! 👋</h1>
-				<p style={styles.header.subtitle}>
-					Here's a summary of your teaching activities. Let's get to work.
-				</p>
-			</header>
+    const statCards = [
+        { icon: '🟢', label: 'Live Exams', value: data?.exams?.live ?? 0, color: '#10b981' },
+        { icon: '🗓️', label: 'Scheduled', value: data?.exams?.scheduled ?? 0, color: '#3b82f6' },
+        {
+            icon: '⏳',
+            label: 'Pending Reviews',
+            value: data?.submissions?.pending ?? 0,
+            color: '#f59e0b',
+        },
+        { icon: '🚨', label: 'Open Issues', value: data?.issues?.open ?? 0, color: '#ef4444' },
+    ];
 
-			{error && <div style={{ color: '#ef4444', marginBottom: 16 }}>Error: {error}</div>}
+    return (
+        <div style={styles.pageContainer}>
+            <style>{`.hover-effect:hover { background: var(--bg); }`}</style>
+            <header style={styles.header.container}>
+                <h1 style={styles.header.title}>Welcome back, {name}! 👋</h1>
+                <p style={styles.header.subtitle}>
+                    Here's a summary of your teaching activities. Let's get to work.
+                </p>
+            </header>
 
-			<div style={styles.statsGrid}>
-				{statCards.map(card => (
-					<StatCard key={card.label} {...card} loading={loading} />
-				))}
-			</div>
+            {error && <div style={{ color: '#ef4444', marginBottom: 16 }}>Error: {error}</div>}
 
-			<div style={styles.mainGrid.container}>
-				<div style={styles.mainGrid.column}>
-					<div style={styles.listCard.container}>
-						<h2 style={styles.listCard.title}>Quick Actions</h2>
-						<div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-							{quickActions.map(action => (
-								<ActionButton key={action.label} {...action} />
-							))}
-						</div>
-					</div>
-					<RecentSubmissions
-						submissions={data?.recentSubmissions}
-						loading={loading}
-						navigate={navigate}
-					/>
-				</div>
-				<div style={styles.mainGrid.column}>
-					<ExamsToReview
-						exams={data?.examsToReview}
-						loading={loading}
-						navigate={navigate}
-					/>
-				</div>
-			</div>
-		</div>
-	);
+            <div style={styles.statsGrid}>
+                {statCards.map(card => (
+                    <StatCard key={card.label} {...card} loading={loading} />
+                ))}
+            </div>
+
+            <div style={styles.mainGrid.container(isMobile)}>
+                <div style={styles.mainGrid.column}>
+                    <div style={styles.listCard.container}>
+                        <h2 style={styles.listCard.title}>Quick Actions</h2>
+                        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                            {quickActions.map(action => (
+                                <ActionButton key={action.label} {...action} />
+                            ))}
+                        </div>
+                    </div>
+                    <RecentSubmissions
+                        submissions={data?.recentSubmissions}
+                        loading={loading}
+                        navigate={navigate}
+                    />
+                </div>
+                <div style={styles.mainGrid.column}>
+                    <ExamsToReview
+                        exams={data?.examsToReview}
+                        loading={loading}
+                        navigate={navigate}
+                    />
+                </div>
+            </div>
+        </div>
+    );
 };
 
 // --- Styles ---
@@ -299,14 +310,11 @@ const styles = {
 		marginBottom: 32,
 	},
 	mainGrid: {
-		container: {
+		container: isMobile => ({
 			display: 'grid',
 			gap: 32,
-			gridTemplateColumns: '1fr', // Mobile-first: single column
-			'@media (min-width: 1024px)': {
-				gridTemplateColumns: '2fr 1fr', // Desktop: two columns
-			},
-		},
+			gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr',
+		}),
 		column: { display: 'flex', flexDirection: 'column', gap: 32 },
 	},
 	statCard: {
