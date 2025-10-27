@@ -58,12 +58,23 @@ const features = [
 
 // --- Reusable Hooks ---
 const useResponsive = () => {
-	const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+	const isBrowser = typeof window !== 'undefined';
+	const [windowWidth, setWindowWidth] = useState(isBrowser ? window.innerWidth : 1024);
+
 	useEffect(() => {
-		const handleResize = () => setWindowWidth(window.innerWidth);
+		if (!isBrowser) return;
+		let raf = 0;
+		const handleResize = () => {
+			cancelAnimationFrame(raf);
+			raf = requestAnimationFrame(() => setWindowWidth(window.innerWidth));
+		};
 		window.addEventListener('resize', handleResize, { passive: true });
-		return () => window.removeEventListener('resize', handleResize);
-	}, []);
+		return () => {
+			cancelAnimationFrame(raf);
+			window.removeEventListener('resize', handleResize);
+		};
+	}, [isBrowser]);
+
 	return {
 		isMobile: windowWidth < 640,
 		isTablet: windowWidth >= 640 && windowWidth < 1024,
@@ -468,76 +479,80 @@ const FeaturesSection = ({ isMobile, isTablet }) => (
 	</section>
 );
 
-const RoleSelectionSection = React.forwardRef(({ isMobile, isTablet, isDark, onGoToAuth }, ref) => (
-	<section
-		ref={ref}
-		aria-label="Choose Your Role"
-		style={{
-			padding: isMobile ? '3rem 1rem' : isTablet ? '4rem 2rem' : '5rem 3rem',
-			background: isDark
-				? 'linear-gradient(135deg, #1e293b, #020617)'
-				: 'linear-gradient(135deg, #f8fafc, #eef2ff)',
-			textAlign: 'center',
-			position: 'relative',
-			overflow: 'hidden',
-			scrollMarginTop: 20,
-		}}
-	>
-		<div
-			aria-hidden
+const RoleSelectionSection = React.forwardRef(
+	({ isMobile, isTablet, isDark, onGoToAuth, onHowItWorks }, ref) => (
+		<section
+			ref={ref}
+			aria-label="Choose Your Role"
 			style={{
-				position: 'absolute',
-				width: '100%',
-				height: '100%',
-				top: 0,
-				left: 0,
-				background: `url(${image8})`,
-				backgroundSize: 'cover',
-				opacity: 0.03,
-				zIndex: 0,
+				padding: isMobile ? '3rem 1rem' : isTablet ? '4rem 2rem' : '5rem 3rem',
+				background: isDark
+					? 'linear-gradient(135deg, #1e293b, #020617)'
+					: 'linear-gradient(135deg, #f8fafc, #eef2ff)',
+				textAlign: 'center',
+				position: 'relative',
+				overflow: 'hidden',
+				scrollMarginTop: 20,
 			}}
-		/>
-		<div style={{ position: 'relative', zIndex: 1 }}>
-			<h2 style={styles.sectionTitle}>Choose your role</h2>
-			<p style={styles.sectionSubtitle}>
-				Sign in to continue. Your institution may provision or invite your account.
-			</p>
+		>
 			<div
+				aria-hidden
 				style={{
-					display: 'flex',
-					gap: isMobile ? '1.4rem' : '2rem',
-					justifyContent: 'center',
-					flexWrap: 'wrap',
+					position: 'absolute',
+					width: '100%',
+					height: '100%',
+					top: 0,
+					left: 0,
+					background: `url(${image8})`,
+					backgroundSize: 'cover',
+					opacity: 0.03,
+					zIndex: 0,
 				}}
-			>
-				<RoleCard
-					role="Student"
-					description="Join exams with a share code and view your results."
-					image={studentImg}
-					color="#6366f1"
-					gradient="linear-gradient(135deg, #4f46e5, #6366f1)"
-					borderColor="#c7d2fe"
-					textColor="#3730a3"
-					onAuth={() => onGoToAuth('student', 'login')}
-					isMobile={isMobile}
-					isTablet={isTablet}
-				/>
-				<RoleCard
-					role="Teacher"
-					description="Create, schedule, publish, and evaluate—end to end."
-					image={teacherImg}
-					color="#f97316"
-					gradient="linear-gradient(135deg, #f97316, #fb923c)"
-					borderColor="#fed7aa"
-					textColor="#9a3412"
-					onAuth={() => onGoToAuth('teacher', 'login')}
-					isMobile={isMobile}
-					isTablet={isTablet}
-				/>
+			/>
+			<div style={{ position: 'relative', zIndex: 1 }}>
+				<h2 style={styles.sectionTitle}>Choose your role</h2>
+				<p style={styles.sectionSubtitle}>
+					Sign in to continue. Your institution may provision or invite your account.
+				</p>
+				<div
+					style={{
+						display: 'flex',
+						gap: isMobile ? '1.4rem' : '2rem',
+						justifyContent: 'center',
+						flexWrap: 'wrap',
+					}}
+				>
+					<RoleCard
+						role="Student"
+						description="Join exams with a share code and view your results."
+						image={studentImg}
+						color="#6366f1"
+						gradient="linear-gradient(135deg, #4f46e5, #6366f1)"
+						borderColor="#c7d2fe"
+						textColor="#3730a3"
+						onAuth={() => onGoToAuth('student', 'login')}
+						onHowItWorks={onHowItWorks}
+						isMobile={isMobile}
+						isTablet={isTablet}
+					/>
+					<RoleCard
+						role="Teacher"
+						description="Create, schedule, publish, and evaluate—end to end."
+						image={teacherImg}
+						color="#f97316"
+						gradient="linear-gradient(135deg, #f97316, #fb923c)"
+						borderColor="#fed7aa"
+						textColor="#9a3412"
+						onAuth={() => onGoToAuth('teacher', 'login')}
+						onHowItWorks={onHowItWorks}
+						isMobile={isMobile}
+						isTablet={isTablet}
+					/>
+				</div>
 			</div>
-		</div>
-	</section>
-));
+		</section>
+	),
+);
 
 const RoleCard = ({
 	role,
@@ -548,10 +563,12 @@ const RoleCard = ({
 	borderColor,
 	textColor,
 	onAuth,
+	onHowItWorks,
 	isMobile,
 	isTablet,
 }) => (
 	<div
+		className="card-hover"
 		style={{
 			background: 'var(--surface)',
 			borderRadius: '1.25rem',
@@ -569,6 +586,8 @@ const RoleCard = ({
 			alt={role}
 			loading="lazy"
 			decoding="async"
+			width={112}
+			height={112}
 			style={{
 				width: isMobile ? 96 : 112,
 				height: isMobile ? 96 : 112,
@@ -582,16 +601,21 @@ const RoleCard = ({
 		/>
 		<h3 style={{ ...styles.roleTitle, color: textColor }}>{role}</h3>
 		<p style={styles.roleDescription}>{description}</p>
-		<div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
+		<div
+			style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}
+		>
 			<button
 				aria-label={`${role} Sign in`}
 				onClick={onAuth}
+				className="focus-ring"
 				style={{ ...styles.roleButtonPrimary, background: gradient }}
 			>
 				Sign in
 			</button>
 			<button
 				aria-label={`Learn how it works for ${role}s`}
+				onClick={onHowItWorks}
+				className="focus-ring"
 				style={{ ...styles.roleButtonSecondary, color, borderColor }}
 			>
 				How it works
@@ -628,12 +652,14 @@ const WhatWeDoSection = ({ isMobile, isTablet, isDark }) => (
 					gap: isMobile ? '1rem' : '1.4rem',
 				}}
 			>
-				<div style={styles.featureCard}>
+				<div className="card-hover" style={styles.featureCard}>
 					<img
 						src={image2}
 						alt="Exam building"
 						style={styles.featureIcon}
 						loading="lazy"
+						width={320}
+						height={240}
 					/>
 					<h3 style={styles.featureTitle}>End‑to‑end exam management</h3>
 					<p style={styles.featureDescription}>
@@ -641,12 +667,14 @@ const WhatWeDoSection = ({ isMobile, isTablet, isDark }) => (
 						in one place.
 					</p>
 				</div>
-				<div style={styles.featureCard}>
+				<div className="card-hover" style={styles.featureCard}>
 					<img
 						src={image3}
 						alt="Students join"
 						style={styles.featureIcon}
 						loading="lazy"
+						width={320}
+						height={240}
 					/>
 					<h3 style={styles.featureTitle}>Frictionless student access</h3>
 					<p style={styles.featureDescription}>
@@ -654,12 +682,14 @@ const WhatWeDoSection = ({ isMobile, isTablet, isDark }) => (
 						experience.
 					</p>
 				</div>
-				<div style={styles.featureCard}>
+				<div className="card-hover" style={styles.featureCard}>
 					<img
 						src={image1}
 						alt="Sync answers"
 						style={styles.featureIcon}
 						loading="lazy"
+						width={320}
+						height={240}
 					/>
 					<h3 style={styles.featureTitle}>Autosave and sync</h3>
 					<p style={styles.featureDescription}>
@@ -667,12 +697,14 @@ const WhatWeDoSection = ({ isMobile, isTablet, isDark }) => (
 						anxiety.
 					</p>
 				</div>
-				<div style={styles.featureCard}>
+				<div className="card-hover" style={styles.featureCard}>
 					<img
 						src={image4}
 						alt="Evaluate and review"
 						style={styles.featureIcon}
 						loading="lazy"
+						width={320}
+						height={240}
 					/>
 					<h3 style={styles.featureTitle}>AI‑assisted evaluation</h3>
 					<p style={styles.featureDescription}>
@@ -856,6 +888,7 @@ const LandingPage = () => {
 					isTablet={isTablet}
 					isDark={theme === 'dark'}
 					onGoToAuth={goToAuth}
+					onHowItWorks={() => scrollToSection(detailsRef)}
 				/>
 			)}
 
