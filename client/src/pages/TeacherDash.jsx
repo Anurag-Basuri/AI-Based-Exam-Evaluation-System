@@ -149,52 +149,50 @@ const TeacherDash = () => {
 	);
 
 	return (
-		<>
+		<div style={styles.layout(theme)}>
 			{isMobile && sidebarOpen && (
 				<div style={styles.backdrop} onClick={() => setSidebarOpen(false)} />
 			)}
 
-			<div style={styles.layout(theme, isMobile)}>
-				<aside style={styles.sidebarContainer(isMobile, sidebarOpen)}>
-					<ErrorBoundary>
-						<Sidebar header={headerEl} footer={footerEl} items={items} />
-					</ErrorBoundary>
-				</aside>
+			<aside style={styles.sidebarContainer(isMobile, sidebarOpen)}>
+				<ErrorBoundary>
+					<Sidebar header={headerEl} footer={footerEl} items={items} />
+				</ErrorBoundary>
+			</aside>
 
-				<main style={styles.mainContent(isMobile)}>
-					<section style={styles.contentSection}>
-						{isMobile && (
-							<header style={styles.mobileHeader}>
-								<button
-									onClick={() => setSidebarOpen(true)}
-									style={styles.menuButton}
-								>
-									☰ Menu
-								</button>
-								<div style={{ color: 'var(--text-muted)', fontSize: 12 }}>
-									{new Date().toLocaleDateString()}
-								</div>
-							</header>
-						)}
-						<div style={styles.outletContainer(isMobile)}>
-							<ErrorBoundary>
-								<Suspense fallback={<RouteFallback message="Loading page" />}>
-									<Outlet />
-								</Suspense>
-							</ErrorBoundary>
-						</div>
-					</section>
-				</main>
-			</div>
-		</>
+			<main style={styles.mainContent(isMobile)}>
+				<section style={styles.contentSection}>
+					{isMobile && (
+						<header style={styles.mobileHeader}>
+							<button onClick={() => setSidebarOpen(true)} style={styles.menuButton}>
+								☰ Menu
+							</button>
+							<div style={{ color: 'var(--text-muted)', fontSize: 12 }}>
+								{new Date().toLocaleDateString()}
+							</div>
+						</header>
+					)}
+					<div style={styles.outletContainer(isMobile)}>
+						<ErrorBoundary>
+							<Suspense fallback={<RouteFallback message="Loading page" />}>
+								<Outlet />
+							</Suspense>
+						</ErrorBoundary>
+					</div>
+				</section>
+			</main>
+		</div>
 	);
 };
 
 // --- Styles ---
 const styles = {
-	layout: (theme, isMobile) => ({
+	layout: theme => ({
 		display: 'grid',
-		gridTemplateColumns: isMobile ? '1fr' : '280px 1fr',
+		gridTemplateColumns: '1fr', // Mobile-first: single column
+		'@media (min-width: 1024px)': {
+			gridTemplateColumns: '280px 1fr', // Desktop: two columns
+		},
 		minHeight: '100dvh',
 		background:
 			theme === 'dark'
@@ -206,17 +204,15 @@ const styles = {
 		top: 0,
 		left: 0,
 		height: '100dvh',
+		width: 280,
 		zIndex: 100,
 		transform: isMobile ? (isOpen ? 'translateX(0)' : 'translateX(-100%)') : 'none',
 		transition: 'transform 0.3s ease-in-out',
-		padding: isMobile ? 0 : 16,
-		paddingRight: isMobile ? 0 : 8,
-		width: 280,
+		boxShadow: isMobile ? '0 0 40px rgba(0,0,0,0.2)' : 'none',
 	}),
 	mainContent: isMobile => ({
 		padding: isMobile ? 16 : '16px 16px 16px 8px',
 		minWidth: 0,
-		gridColumn: isMobile ? '1 / -1' : '2 / 3',
 	}),
 	contentSection: {
 		background: 'var(--surface)',
@@ -286,7 +282,7 @@ const styles = {
 	userCard: {
 		padding: '10px 12px',
 		borderRadius: 12,
-		background: 'var(--surface)',
+		background: 'var(--bg)',
 		border: '1px solid var(--border)',
 		display: 'flex',
 		alignItems: 'center',
