@@ -1,61 +1,25 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth.js';
-import {
-	safeApiCall,
-	getTeacherExams,
-	getTeacherIssues,
-	getTeacherSubmissions,
-} from '../../services/teacherServices.js';
+import { safeApiCall } from '../../services/teacherServices.js';
+import { api } from '../../services/api.js'; // Import api for direct authenticated requests
+
+// --- Reusable Components ---
 
 const StatCard = ({ icon, label, value, loading, color = '#6366f1' }) => (
-	<div
-		style={{
-			background: 'var(--surface)',
-			borderRadius: 16,
-			padding: '24px 20px',
-			border: '1px solid var(--border)',
-			boxShadow: 'var(--shadow-md)',
-			display: 'flex',
-			alignItems: 'center',
-			gap: 16,
-		}}
-	>
-		<div
-			style={{
-				width: 48,
-				height: 48,
-				borderRadius: 12,
-				background: `${color}20`,
-				color: color,
-				display: 'flex',
-				alignItems: 'center',
-				justifyContent: 'center',
-				fontSize: '20px',
-			}}
-		>
+	<div style={styles.statCard.container}>
+		<div style={{ ...styles.statCard.iconContainer, background: `${color}20`, color }}>
 			{icon}
 		</div>
 		<div>
-			<div
-				style={{
-					fontSize: '14px',
-					color: 'var(--text-muted)',
-					fontWeight: 500,
-					marginBottom: 4,
-				}}
-			>
-				{label}
-			</div>
-			<div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--text)', lineHeight: 1 }}>
-				{loading ? '⋯' : value}
-			</div>
+			<div style={styles.statCard.label}>{label}</div>
+			<div style={styles.statCard.value}>{loading ? '⋯' : value}</div>
 		</div>
 	</div>
 );
 
 const ActionButton = ({ icon, label, onClick, variant = 'primary' }) => {
-	const styles = {
+	const variantStyles = {
 		primary: {
 			background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
 			color: '#ffffff',
@@ -72,19 +36,7 @@ const ActionButton = ({ icon, label, onClick, variant = 'primary' }) => {
 	return (
 		<button
 			onClick={onClick}
-			style={{
-				flex: '1 1 200px',
-				display: 'flex',
-				alignItems: 'center',
-				justifyContent: 'center',
-				gap: 12,
-				padding: '16px 20px',
-				borderRadius: 12,
-				cursor: 'pointer',
-				fontWeight: 700,
-				fontSize: '14px',
-				...styles[variant],
-			}}
+			style={{ ...styles.actionButton.base, ...variantStyles[variant] }}
 		>
 			<span style={{ fontSize: '18px' }}>{icon}</span>
 			{label}
@@ -92,167 +44,316 @@ const ActionButton = ({ icon, label, onClick, variant = 'primary' }) => {
 	);
 };
 
+const Skeleton = ({ height = '100%', width = '100%', borderRadius = 8 }) => (
+	<div style={{ ...styles.skeleton, height, width, borderRadius }} />
+);
+
+// --- New Components for Richer UI ---
+
+const ExamsToReview = ({ exams, loading, navigate }) => (
+	<div style={styles.listCard.container}>
+		<h3 style={styles.listCard.title}>Needs Review</h3>
+		<div style={styles.listCard.list}>
+			{loading &&
+				[...Array(3)].map((_, i) => (
+					<div key={i} style={{ padding: '10px 0' }}>
+						<Skeleton height={40} />
+					</div>
+				))}
+			{!loading && exams?.length === 0 && (
+				<p style={styles.listCard.emptyText}>
+					No submissions are pending review. Great job!
+				</p>
+			)}
+			{exams?.map(exam => (
+				<div
+					key={exam._id}
+					style={styles.reviewItem.container}
+					onClick={() => navigate(`/teacher/results/${exam._id}`)}
+				>
+					<div style={styles.reviewItem.textContainer}>
+						<span style={styles.reviewItem.title}>{exam.title}</span>
+						<span style={styles.reviewItem.progressText}>
+							{exam.evaluatedCount} / {exam.submissionsCount} Evaluated
+						</span>
+					</div>
+					<div style={styles.reviewItem.progressBarBg}>
+						<div
+							style={{
+								...styles.reviewItem.progressBarFg,
+								width: `${(exam.evaluatedCount / exam.submissionsCount) * 100}%`,
+							}}
+						/>
+					</div>
+				</div>
+			))}
+		</div>
+	</div>
+);
+
+const RecentSubmissions = ({ submissions, loading, navigate }) => (
+	<div style={styles.listCard.container}>
+		<h3 style={styles.listCard.title}>Recent Submissions</h3>
+		<div style={styles.listCard.list}>
+			{loading &&
+				[...Array(4)].map((_, i) => (
+					<div key={i} style={{ padding: '10px 0' }}>
+						<Skeleton height={30} />
+					</div>
+				))}
+			{!loading && submissions?.length === 0 && (
+				<p style={styles.listCard.emptyText}>No recent submissions found.</p>
+			)}
+			{submissions?.map(sub => (
+				<div
+					key={sub._id}
+					style={styles.activityItem.container}
+					onClick={() => navigate(`/teacher/grade/${sub._id}`)}
+				>
+					<div style={styles.activityItem.icon}>📝</div>
+					<div style={styles.activityItem.details}>
+						<span style={styles.activityItem.mainText}>
+							<strong>{sub.student?.fullname || 'A student'}</strong> submitted to{' '}
+							<strong>{sub.exam?.title || 'an exam'}</strong>.
+						</span>
+						<span style={styles.activityItem.subText}>
+							{new Date(sub.createdAt).toLocaleString()}
+						</span>
+					</div>
+					<div style={styles.activityItem.cta}>&rarr;</div>
+				</div>
+			))}
+		</div>
+	</div>
+);
+
+// --- Main TeacherHome Component ---
+
 const TeacherHome = () => {
 	const navigate = useNavigate();
 	const { user } = useAuth();
 	const name = user?.fullname || user?.username || 'Teacher';
 
-	const [stats, setStats] = React.useState({
-		live: 0,
-		scheduled: 0,
-		draft: 0,
-		pendingSubs: 0,
-		openIssues: 0,
-	});
-	const [loading, setLoading] = React.useState(false);
+	const [data, setData] = React.useState(null);
+	const [loading, setLoading] = React.useState(true);
 	const [error, setError] = React.useState('');
 
 	const loadData = React.useCallback(async () => {
 		setLoading(true);
 		setError('');
 		try {
-			// FIX: Corrected API calls to fetch all necessary data
-			const [allExamsResponse, issues, examsWithSubsResponse] = await Promise.all([
-				safeApiCall(getTeacherExams),
-				safeApiCall(getTeacherIssues, { status: 'open' }),
-				safeApiCall(getTeacherExams, { hasSubmissions: true }),
-			]);
-
-			const allExams = allExamsResponse?.items || [];
-			const examsWithSubs = examsWithSubsResponse?.items || [];
-
-			// Calculate pending submissions from the exams that have them
-			const pendingSubsCount = examsWithSubs.reduce(
-				(acc, exam) => acc + (exam.evaluatedCount || 0),
-				0,
-			);
-
-			setStats({
-				live: allExams.filter(e => e.derivedStatus === 'live').length,
-				scheduled: allExams.filter(e => e.derivedStatus === 'scheduled').length,
-				draft: allExams.filter(e => e.derivedStatus === 'draft').length,
-				pendingSubs: pendingSubsCount,
-				openIssues: Array.isArray(issues) ? issues.length : 0,
-			});
+			// Single, efficient API call to the new endpoint
+			const response = await safeApiCall(() => api.get('/teacher/dashboard-stats'));
+			setData(response);
 		} catch (e) {
 			setError(e.message || 'Failed to load dashboard data');
 		} finally {
 			setLoading(false);
 		}
 	}, []);
+
 	React.useEffect(() => {
 		loadData();
 	}, [loadData]);
 
 	const quickActions = [
-		{ label: 'Create Exam', icon: '➕', onClick: () => navigate('exams'), variant: 'primary' },
 		{
-			label: 'Review Submissions',
-			icon: '📋',
-			onClick: () => navigate('results'),
-			variant: 'secondary',
+			label: 'Create Exam',
+			icon: '➕',
+			onClick: () => navigate('exams/create'),
+			variant: 'primary',
 		},
 		{
-			label: 'Handle Issues',
-			icon: '🛠️',
-			onClick: () => navigate('issues'),
+			label: 'View All Submissions',
+			icon: '📋',
+			onClick: () => navigate('results'),
 			variant: 'secondary',
 		},
 	];
 
 	const statCards = [
-		{
-			icon: '🟢',
-			label: 'Live Exams',
-			value: stats.live,
-			color: '#10b981',
-		},
-		{
-			icon: '🗓️',
-			label: 'Scheduled',
-			value: stats.scheduled,
-			color: '#3b82f6',
-		},
-		{
-			icon: '📄',
-			label: 'Drafts',
-			value: stats.draft,
-			color: 'var(--text-muted)',
-		},
+		{ icon: '🟢', label: 'Live Exams', value: data?.exams?.live ?? 0, color: '#10b981' },
+		{ icon: '🗓️', label: 'Scheduled', value: data?.exams?.scheduled ?? 0, color: '#3b82f6' },
 		{
 			icon: '⏳',
 			label: 'Pending Reviews',
-			value: stats.pendingSubs,
+			value: data?.submissions?.pending ?? 0,
 			color: '#f59e0b',
 		},
-		{
-			icon: '🚨',
-			label: 'Open Issues',
-			value: stats.openIssues,
-			color: '#ef4444',
-		},
+		{ icon: '🚨', label: 'Open Issues', value: data?.issues?.open ?? 0, color: '#ef4444' },
 	];
 
 	return (
-		<div style={{ maxWidth: '1200px' }}>
-			<header style={{ padding: '20px 0', marginBottom: 24 }}>
-				<h1
-					style={{
-						margin: '0 0 8px 0',
-						fontSize: '32px',
-						fontWeight: 800,
-						color: 'var(--text)',
-					}}
-				>
-					Welcome back, {name}! 👋
-				</h1>
-				<p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '16px' }}>
-					Review, evaluate, and provide feedback on student submissions.
+		<div style={styles.pageContainer}>
+			<header style={styles.header.container}>
+				<h1 style={styles.header.title}>Welcome back, {name}! 👋</h1>
+				<p style={styles.header.subtitle}>
+					Here's a summary of your teaching activities. Let's get to work.
 				</p>
 			</header>
 
 			{error && <div style={{ color: '#ef4444', marginBottom: 16 }}>Error: {error}</div>}
 
-			<div
-				style={{
-					display: 'grid',
-					gap: 20,
-					gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-					marginBottom: 32,
-				}}
-			>
+			{/* Stat Cards Grid */}
+			<div style={styles.statsGrid}>
 				{statCards.map(card => (
 					<StatCard key={card.label} {...card} loading={loading} />
 				))}
 			</div>
 
-			<div
-				style={{
-					background: 'var(--surface)',
-					borderRadius: 16,
-					padding: 28,
-					border: '1px solid var(--border)',
-					boxShadow: 'var(--shadow-md)',
-				}}
-			>
-				<h2
-					style={{
-						margin: '0 0 20px 0',
-						fontSize: '20px',
-						fontWeight: 700,
-						color: 'var(--text)',
-					}}
-				>
-					Quick Actions
-				</h2>
-				<div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-					{quickActions.map(action => (
-						<ActionButton key={action.label} {...action} />
-					))}
+			{/* Main Content Grid (2 columns) */}
+			<div style={styles.mainGrid.container}>
+				<div style={styles.mainGrid.leftColumn}>
+					<div style={styles.listCard.container}>
+						<h2 style={styles.listCard.title}>Quick Actions</h2>
+						<div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+							{quickActions.map(action => (
+								<ActionButton key={action.label} {...action} />
+							))}
+						</div>
+					</div>
+					<RecentSubmissions
+						submissions={data?.recentSubmissions}
+						loading={loading}
+						navigate={navigate}
+					/>
+				</div>
+				<div style={styles.mainGrid.rightColumn}>
+					<ExamsToReview
+						exams={data?.examsToReview}
+						loading={loading}
+						navigate={navigate}
+					/>
 				</div>
 			</div>
 		</div>
 	);
+};
+
+// --- Styles ---
+const styles = {
+	pageContainer: { maxWidth: 1200, margin: '0 auto' },
+	header: {
+		container: { padding: '20px 0', marginBottom: 24 },
+		title: { margin: '0 0 8px 0', fontSize: 32, fontWeight: 800, color: 'var(--text)' },
+		subtitle: { margin: 0, color: 'var(--text-muted)', fontSize: 16 },
+	},
+	statsGrid: {
+		display: 'grid',
+		gap: 20,
+		gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+		marginBottom: 32,
+	},
+	mainGrid: {
+		container: { display: 'grid', gap: 32, gridTemplateColumns: '2fr 1fr' },
+		leftColumn: { display: 'flex', flexDirection: 'column', gap: 32 },
+		rightColumn: { display: 'flex', flexDirection: 'column', gap: 32 },
+	},
+	statCard: {
+		container: {
+			background: 'var(--surface)',
+			borderRadius: 16,
+			padding: '24px 20px',
+			border: '1px solid var(--border)',
+			boxShadow: 'var(--shadow-md)',
+			display: 'flex',
+			alignItems: 'center',
+			gap: 16,
+		},
+		iconContainer: {
+			width: 48,
+			height: 48,
+			borderRadius: 12,
+			display: 'flex',
+			alignItems: 'center',
+			justifyContent: 'center',
+			fontSize: 20,
+			flexShrink: 0,
+		},
+		label: { fontSize: 14, color: 'var(--text-muted)', fontWeight: 500, marginBottom: 4 },
+		value: { fontSize: 28, fontWeight: 800, color: 'var(--text)', lineHeight: 1 },
+	},
+	actionButton: {
+		base: {
+			flex: '1 1 200px',
+			display: 'flex',
+			alignItems: 'center',
+			justifyContent: 'center',
+			gap: 12,
+			padding: '16px 20px',
+			borderRadius: 12,
+			cursor: 'pointer',
+			fontWeight: 700,
+			fontSize: 14,
+		},
+	},
+	listCard: {
+		container: {
+			background: 'var(--surface)',
+			borderRadius: 16,
+			padding: 28,
+			border: '1px solid var(--border)',
+			boxShadow: 'var(--shadow-md)',
+			display: 'flex',
+			flexDirection: 'column',
+		},
+		title: { margin: '0 0 20px 0', fontSize: 20, fontWeight: 700, color: 'var(--text)' },
+		list: { display: 'flex', flexDirection: 'column', gap: 8 },
+		emptyText: {
+			fontSize: 14,
+			color: 'var(--text-muted)',
+			textAlign: 'center',
+			padding: '20px 0',
+		},
+	},
+	reviewItem: {
+		container: {
+			padding: '12px 16px',
+			borderRadius: 10,
+			border: '1px solid var(--border)',
+			cursor: 'pointer',
+			transition: 'background 0.2s, border-color 0.2s',
+		},
+		textContainer: {
+			display: 'flex',
+			justifyContent: 'space-between',
+			alignItems: 'baseline',
+			marginBottom: 8,
+		},
+		title: { fontWeight: 600, color: 'var(--text)', fontSize: 14 },
+		progressText: { fontSize: 12, color: 'var(--text-muted)' },
+		progressBarBg: { height: 6, background: 'var(--bg)', borderRadius: 3, overflow: 'hidden' },
+		progressBarFg: { height: '100%', background: 'var(--primary-gradient)', borderRadius: 3 },
+	},
+	activityItem: {
+		container: {
+			display: 'flex',
+			alignItems: 'center',
+			gap: 16,
+			padding: '12px',
+			borderRadius: 10,
+			cursor: 'pointer',
+			transition: 'background 0.2s',
+		},
+		icon: {
+			width: 36,
+			height: 36,
+			borderRadius: '50%',
+			background: 'var(--bg)',
+			display: 'flex',
+			alignItems: 'center',
+			justifyContent: 'center',
+			fontSize: 16,
+		},
+		details: { flex: 1, display: 'grid', gap: 2 },
+		mainText: { fontSize: 14, color: 'var(--text)' },
+		subText: { fontSize: 12, color: 'var(--text-muted)' },
+		cta: { fontSize: 20, color: 'var(--text-muted)', transition: 'transform 0.2s' },
+	},
+	skeleton: {
+		background: 'var(--skeleton-bg)',
+		animation: 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+	},
 };
 
 export default TeacherHome;
