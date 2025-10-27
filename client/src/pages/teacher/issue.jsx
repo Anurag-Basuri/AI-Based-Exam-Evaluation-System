@@ -3,17 +3,19 @@ import { Link } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { useToast } from '../../components/ui/Toaster.jsx';
 import {
-	safeApiCall,
-	getTeacherIssues,
-	updateTeacherIssueStatus,
-	resolveTeacherIssue,
-	getTeacherIssueById,
-	normalizeIssue,
-	addInternalNote,
-	bulkResolveIssues,
+    safeApiCall,
+    getTeacherIssues,
+    updateTeacherIssueStatus,
+    resolveTeacherIssue,
+    getTeacherIssueById,
+    normalizeIssue,
+    addInternalNote,
+    bulkResolveIssues,
 } from '../../services/teacherServices.js';
 import { API_BASE_URL } from '../../services/api.js';
 import { useAuth } from '../../hooks/useAuth.js';
+
+const MOBILE_BREAKPOINT = 1024;
 
 // --- UI Enhancements ---
 const statusStyles = {
@@ -78,7 +80,7 @@ const BulkActionToolbar = ({ selectedIds, onBulkResolve, onClear }) => {
 	);
 };
 
-const IssueDetailPanel = ({ issueId, onClose, onUpdate }) => {
+const IssueDetailPanel = ({ issueId, onClose, onUpdate, isMobile }) => {
 	const [issue, setIssue] = useState(null);
 	const [loading, setLoading] = useState(true);
 	const [reply, setReply] = useState('');
@@ -129,149 +131,143 @@ const IssueDetailPanel = ({ issueId, onClose, onUpdate }) => {
 	if (!issueId) return null;
 
 	return (
-		<div style={styles.detailPanel}>
-			<button onClick={onClose} style={styles.modalCloseButton}>
-				&times;
-			</button>
-			{loading && <div style={styles.detailLoading}>Loading details...</div>}
-			{!loading && issue && (
-				<>
-					<h3 style={{ marginTop: 0 }}>{issue.examTitle}</h3>
-					<div style={styles.detailMeta}>
-						<span>
-							<strong>Student:</strong> {issue.studentName}
-						</span>
-						<span>
-							<strong>Status:</strong> {issue.status}
-						</span>
-						{issue.assignedTo && (
+		<>
+			{isMobile && <div style={styles.modalBackdrop} onClick={onClose} />}
+			<div style={styles.detailPanel(isMobile)}>
+				<button onClick={onClose} style={styles.modalCloseButton}>
+					&times;
+				</button>
+				{loading && <div style={styles.detailLoading}>Loading details...</div>}
+				{!loading && issue && (
+					<>
+						<h3 style={{ marginTop: 0 }}>{issue.examTitle}</h3>
+						<div style={styles.detailMeta}>
 							<span>
-								<strong>Assigned To:</strong> {issue.assignedTo}
+								<strong>Student:</strong> {issue.studentName}
 							</span>
-						)}
-					</div>
-					<div style={styles.detailBox}>
-						<strong>Description:</strong> {issue.description}
-					</div>
-
-					{issue.submission?.id && (
-						<Link
-							to={`/teacher/grade/${issue.submission.id}`}
-							style={styles.linkButton}
-						>
-							View Submission
-						</Link>
-					)}
-
-					{issue.status !== 'resolved' && (
-						<form onSubmit={handleResolve} style={{ marginTop: 24 }}>
-							<h4>Resolve Issue</h4>
-							<textarea
-								value={reply}
-								onChange={e => setReply(e.target.value)}
-								placeholder="Type your reply to the student..."
-								rows={4}
-								style={styles.textarea}
-								required
-							/>
-							<div
-								style={{
-									display: 'flex',
-									justifyContent: 'flex-end',
-									marginTop: 10,
-								}}
-							>
-								<button
-									type="submit"
-									disabled={isSaving}
-									style={styles.buttonPrimary}
-								>
-									{isSaving ? 'Saving...' : 'Save & Resolve'}
-								</button>
-							</div>
-						</form>
-					)}
-
-					{issue.reply && (
-						<div style={{ marginTop: 24 }}>
-							<h4>Resolution Reply</h4>
-							<div style={styles.detailBox}>{issue.reply}</div>
-						</div>
-					)}
-
-					<div style={{ marginTop: 24 }}>
-						<h4>Internal Notes</h4>
-						<div style={styles.internalNotesContainer}>
-							{(issue.internalNotes || []).length === 0 && (
-								<p style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
-									No internal notes yet.
-								</p>
+							<span>
+								<strong>Status:</strong> {issue.status}
+							</span>
+							{issue.assignedTo && (
+								<span>
+									<strong>Assigned To:</strong> {issue.assignedTo}
+								</span>
 							)}
-							{(issue.internalNotes || []).map((n, i) => (
-								<div key={i} style={styles.internalNote}>
-									<strong>{n.user?.fullname || 'User'}:</strong> {n.note}
-									<span style={styles.activityTime}>
-										{new Date(n.createdAt).toLocaleString()}
-									</span>
-								</div>
-							))}
 						</div>
-						<form
-							onSubmit={handleAddNote}
-							style={{ marginTop: 10, display: 'flex', gap: 8 }}
-						>
-							<input
-								value={note}
-								onChange={e => setNote(e.target.value)}
-								placeholder="Add a private note..."
-								style={{ ...styles.searchInput, flex: 1 }}
-							/>
-							<button
-								type="submit"
-								disabled={isAddingNote}
-								style={styles.actionButton}
-							>
-								{isAddingNote ? '...' : 'Add'}
-							</button>
-						</form>
-					</div>
+						<div style={styles.detailBox}>
+							<strong>Description:</strong> {issue.description}
+						</div>
 
-					<div style={{ marginTop: 24 }}>
-						<h4>Activity Log</h4>
-						<ul style={styles.activityLog}>
-							{(issue.activityLog || []).map((log, i) => (
-								<li key={i} style={{ display: 'flex' }}>
-									<span style={styles.activityIcon}>
-										{activityIcons[log.action] || '•'}
-									</span>
-									<div style={styles.activityText}>
-										<strong>{log.user?.fullname || 'System'}</strong>:{' '}
-										{log.details}
+						{issue.submission?.id && (
+							<Link
+								to={`/teacher/grade/${issue.submission.id}`}
+								style={styles.linkButton}
+							>
+								View Submission
+							</Link>
+						)}
+
+						{issue.status !== 'resolved' && (
+							<form onSubmit={handleResolve} style={{ marginTop: 24 }}>
+								<h4>Resolve Issue</h4>
+								<textarea
+									value={reply}
+									onChange={e => setReply(e.target.value)}
+									placeholder="Type your reply to the student..."
+									rows={4}
+									style={styles.textarea}
+									required
+								/>
+								<div
+									style={{
+										display: 'flex',
+										justifyContent: 'flex-end',
+										marginTop: 10,
+									}}
+								>
+									<button
+										type="submit"
+										disabled={isSaving}
+										style={styles.buttonPrimary}
+									>
+										{isSaving ? 'Saving...' : 'Save & Resolve'}
+									</button>
+								</div>
+							</form>
+						)}
+
+						{issue.reply && (
+							<div style={{ marginTop: 24 }}>
+								<h4>Resolution Reply</h4>
+								<div style={styles.detailBox}>{issue.reply}</div>
+							</div>
+						)}
+
+						<div style={{ marginTop: 24 }}>
+							<h4>Internal Notes</h4>
+							<div style={styles.internalNotesContainer}>
+								{(issue.internalNotes || []).length === 0 && (
+									<p style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
+										No internal notes yet.
+									</p>
+								)}
+								{(issue.internalNotes || []).map((n, i) => (
+									<div key={i} style={styles.internalNote}>
+										<strong>{n.user?.fullname || 'User'}:</strong> {n.note}
 										<span style={styles.activityTime}>
-											{new Date(log.createdAt).toLocaleString()}
+											{new Date(n.createdAt).toLocaleString()}
 										</span>
 									</div>
-								</li>
-							))}
-						</ul>
-					</div>
-				</>
-			)}
-		</div>
+								))}
+							</div>
+							<form
+								onSubmit={handleAddNote}
+								style={{ marginTop: 10, display: 'flex', gap: 8 }}
+							>
+								<input
+									value={note}
+									onChange={e => setNote(e.target.value)}
+									placeholder="Add a private note..."
+									style={{ ...styles.searchInput, flex: 1 }}
+								/>
+								<button
+									type="submit"
+									disabled={isAddingNote}
+									style={styles.actionButton}
+								>
+									{isAddingNote ? '...' : 'Add'}
+								</button>
+							</form>
+						</div>
+
+						<div style={{ marginTop: 24 }}>
+							<h4>Activity Log</h4>
+							<ul style={styles.activityLog}>
+								{(issue.activityLog || []).map((log, i) => (
+									<li key={i} style={{ display: 'flex' }}>
+										<span style={styles.activityIcon}>
+											{activityIcons[log.action] || '•'}
+										</span>
+										<div style={styles.activityText}>
+											<strong>{log.user?.fullname || 'System'}</strong>:{' '}
+											{log.details}
+											<span style={styles.activityTime}>
+												{new Date(log.createdAt).toLocaleString()}
+											</span>
+										</div>
+									</li>
+								))}
+							</ul>
+						</div>
+					</>
+				)}
+			</div>
+		</>
 	);
 };
 
-const IssueRow = ({
-	issue,
-	onUpdate,
-	onSelect,
-	isSelected,
-	currentUser,
-	onToggleSelect,
-	isChecked,
-}) => {
+const IssueRow = ({ issue, onSelect, onToggleSelect, isChecked }) => {
 	const config = statusStyles[issue.status] || statusStyles.open;
-	const { toast } = useToast();
 
 	const handleStatusChange = async newStatus => {
 		try {
@@ -309,20 +305,44 @@ const IssueRow = ({
 			</td>
 			<td style={styles.tableCell}>{issue.assignedTo || 'Unassigned'}</td>
 			<td style={styles.tableCell}>{issue.createdAt}</td>
-			<td style={{ ...styles.tableCell, textAlign: 'right' }}>
-				{issue.status === 'open' && (
-					<button
-						onClick={e => {
-							e.stopPropagation();
-							handleStatusChange('in-progress');
-						}}
-						style={styles.buttonPrimary}
-					>
-						Claim
-					</button>
-				)}
-			</td>
 		</tr>
+	);
+};
+
+const IssueCard = ({ issue, onSelect, onToggleSelect, isChecked }) => {
+	const config = statusStyles[issue.status] || statusStyles.open;
+	return (
+		<div style={styles.card.container} onClick={() => onSelect(issue)}>
+			<div style={styles.card.header}>
+				<input
+					type="checkbox"
+					checked={isChecked}
+					onChange={e => {
+						e.stopPropagation();
+						onToggleSelect(issue.id);
+					}}
+					disabled={issue.status === 'resolved'}
+					style={{ marginRight: 12 }}
+				/>
+				<span style={styles.card.title}>{issue.examTitle}</span>
+				<div
+					style={{ ...styles.statusPill, color: config.color, background: config.bg }}
+				>
+					{config.label}
+				</div>
+			</div>
+			<div style={styles.card.body}>
+				<p>
+					<strong>Student:</strong> {issue.studentName || 'N/A'}
+				</p>
+				<p>
+					<strong>Assigned:</strong> {issue.assignedTo || 'Unassigned'}
+				</p>
+				<p style={{ color: 'var(--text-muted)', fontSize: 12 }}>
+					Reported on {issue.createdAt}
+				</p>
+			</div>
+		</div>
 	);
 };
 
@@ -334,8 +354,15 @@ const TeacherIssues = () => {
 	const [searchQuery, setSearchQuery] = useState('');
 	const [selectedIssueId, setSelectedIssueId] = useState(null);
 	const [selectedIssueIds, setSelectedIssueIds] = useState([]);
+	const [isMobile, setIsMobile] = useState(window.innerWidth < MOBILE_BREAKPOINT);
 	const { toast } = useToast();
 	const { user } = useAuth();
+
+	useEffect(() => {
+		const handleResize = () => setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
+		window.addEventListener('resize', handleResize);
+		return () => window.removeEventListener('resize', handleResize);
+	}, []);
 
 	const loadIssues = useCallback(async () => {
 		setLoading(true);
@@ -371,7 +398,7 @@ const TeacherIssues = () => {
 		});
 
 		socket.on('issue-update', updatedIssueData => {
-			const normalized = normalizeIssue(updatedIssueData);
+			const normalized = normalizeIssue(updatedIssueData.issue || updatedIssueData);
 			setIssues(prev => prev.map(i => (i.id === normalized.id ? normalized : i)));
 		});
 
@@ -461,13 +488,13 @@ const TeacherIssues = () => {
 
 	return (
 		<div style={styles.pageLayout}>
-			<div style={styles.mainContent}>
-				<header style={styles.header}>
+			<div style={styles.mainContent(isMobile)}>
+				<header style={styles.header(isMobile)}>
 					<div>
 						<h1 style={styles.title}>Manage Issues</h1>
 						<p style={styles.subtitle}>Review and resolve student-submitted issues.</p>
 					</div>
-					<div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+					<div style={styles.controlsContainer(isMobile)}>
 						<input
 							type="search"
 							placeholder="Search by student, exam..."
@@ -508,55 +535,72 @@ const TeacherIssues = () => {
 					</p>
 				)}
 
-				<div style={styles.tableContainer}>
-					<table style={styles.table}>
-						<thead>
-							<tr>
-								<th style={{ ...styles.tableHeader, width: 50 }}>
-									<input
-										type="checkbox"
-										onChange={handleSelectAll}
-										checked={isAllVisibleSelected}
-									/>
-								</th>
-								<th style={styles.tableHeader}>Student</th>
-								<th style={styles.tableHeader}>Exam</th>
-								<th style={styles.tableHeader}>Status</th>
-								<th style={styles.tableHeader}>Assigned To</th>
-								<th style={styles.tableHeader}>Date</th>
-								<th style={styles.tableHeader}>Actions</th>
-							</tr>
-						</thead>
-						<tbody>
-							{!loading && filteredIssues.length === 0 && (
+				{!isMobile ? (
+					<div style={styles.tableContainer}>
+						<table style={styles.table}>
+							<thead>
 								<tr>
-									<td colSpan="7" style={styles.emptyState}>
-										<div style={{ fontSize: 48 }}>🎉</div>
-										No issues match the current filters. All clear!
-									</td>
+									<th style={{ ...styles.tableHeader, width: 50 }}>
+										<input
+											type="checkbox"
+											onChange={handleSelectAll}
+											checked={isAllVisibleSelected}
+										/>
+									</th>
+									<th style={styles.tableHeader}>Student</th>
+									<th style={styles.tableHeader}>Exam</th>
+									<th style={styles.tableHeader}>Status</th>
+									<th style={styles.tableHeader}>Assigned To</th>
+									<th style={styles.tableHeader}>Date</th>
 								</tr>
-							)}
-							{filteredIssues.map(issue => (
-								<IssueRow
-									key={issue.id}
-									issue={issue}
-									onUpdate={handleUpdate}
-									onSelect={() => setSelectedIssueId(issue.id)}
-									isSelected={selectedIssueId === issue.id}
-									currentUser={user}
-									onToggleSelect={handleToggleSelect}
-									isChecked={selectedIssueIds.includes(issue.id)}
-								/>
-							))}
-						</tbody>
-					</table>
-				</div>
+							</thead>
+							<tbody>
+								{!loading && filteredIssues.length === 0 && (
+									<tr>
+										<td colSpan="6" style={styles.emptyState}>
+											<div style={{ fontSize: 48 }}>🎉</div>
+											No issues match the current filters. All clear!
+										</td>
+									</tr>
+								)}
+								{filteredIssues.map(issue => (
+									<IssueRow
+										key={issue.id}
+										issue={issue}
+										onSelect={() => setSelectedIssueId(issue.id)}
+										onToggleSelect={handleToggleSelect}
+										isChecked={selectedIssueIds.includes(issue.id)}
+									/>
+								))}
+							</tbody>
+						</table>
+					</div>
+				) : (
+					<div style={styles.cardList}>
+						{!loading && filteredIssues.length === 0 && (
+							<div style={styles.emptyState}>
+								<div style={{ fontSize: 48 }}>🎉</div>
+								No issues match the current filters. All clear!
+							</div>
+						)}
+						{filteredIssues.map(issue => (
+							<IssueCard
+								key={issue.id}
+								issue={issue}
+								onSelect={() => setSelectedIssueId(issue.id)}
+								onToggleSelect={handleToggleSelect}
+								isChecked={selectedIssueIds.includes(issue.id)}
+							/>
+						))}
+					</div>
+				)}
 			</div>
 			{selectedIssueId && (
 				<IssueDetailPanel
 					issueId={selectedIssueId}
 					onClose={() => setSelectedIssueId(null)}
 					onUpdate={handleUpdate}
+					isMobile={isMobile}
 				/>
 			)}
 		</div>
@@ -564,13 +608,30 @@ const TeacherIssues = () => {
 };
 
 const styles = {
-	pageLayout: { display: 'flex' },
-	mainContent: { flex: 1, minWidth: 0, padding: 24 },
-	header: {
+	pageLayout: { display: 'flex', position: 'relative', height: '100vh', overflow: 'hidden' },
+	mainContent: isMobile => ({
+		flex: 1,
+		minWidth: 0,
+		padding: isMobile ? 16 : 24,
+		display: 'flex',
+		flexDirection: 'column',
+		overflowY: 'auto',
+	}),
+	header: isMobile => ({
 		borderBottom: '1px solid var(--border)',
 		paddingBottom: 24,
 		marginBottom: 24,
-	},
+		display: 'flex',
+		flexDirection: isMobile ? 'column' : 'row',
+		justifyContent: 'space-between',
+		gap: 16,
+	}),
+	controlsContainer: isMobile => ({
+		display: 'flex',
+		flexDirection: isMobile ? 'column' : 'row',
+		gap: 16,
+		alignItems: isMobile ? 'stretch' : 'center',
+	}),
 	title: { margin: 0, fontSize: 28, color: 'var(--text)' },
 	subtitle: { margin: '4px 0 0', color: 'var(--text-muted)' },
 	searchInput: {
@@ -578,9 +639,17 @@ const styles = {
 		borderRadius: 8,
 		border: '1px solid var(--border)',
 		background: 'var(--surface)',
+		width: '100%',
 		minWidth: 250,
 	},
-	filterGroup: { display: 'flex', gap: 8, background: 'var(--bg)', padding: 4, borderRadius: 10 },
+	filterGroup: {
+		display: 'flex',
+		gap: 4,
+		background: 'var(--bg)',
+		padding: 4,
+		borderRadius: 10,
+		overflowX: 'auto',
+	},
 	filterButton: {
 		padding: '8px 12px',
 		borderRadius: 8,
@@ -589,6 +658,7 @@ const styles = {
 		color: 'var(--text-muted)',
 		fontWeight: 600,
 		cursor: 'pointer',
+		whiteSpace: 'nowrap',
 	},
 	filterButtonActive: {
 		padding: '8px 12px',
@@ -599,12 +669,14 @@ const styles = {
 		fontWeight: 600,
 		cursor: 'pointer',
 		boxShadow: 'var(--shadow-sm)',
+		whiteSpace: 'nowrap',
 	},
 	tableContainer: {
 		background: 'var(--surface)',
 		borderRadius: 16,
 		border: '1px solid var(--border)',
 		overflowX: 'auto',
+		flex: '1 1 auto',
 	},
 	table: { width: '100%', borderCollapse: 'collapse' },
 	tableHeader: {
@@ -615,8 +687,13 @@ const styles = {
 		fontSize: 12,
 		textTransform: 'uppercase',
 		background: 'var(--bg)',
+		whiteSpace: 'nowrap',
 	},
-	tableRow: { borderBottom: '1px solid var(--border)' },
+	tableRow: {
+		borderBottom: '1px solid var(--border)',
+		cursor: 'pointer',
+		transition: 'background 0.2s',
+	},
 	'tableRow:last-child': { borderBottom: 'none' },
 	tableCell: { padding: '16px', verticalAlign: 'middle', fontSize: 14 },
 	statusPill: {
@@ -636,15 +713,32 @@ const styles = {
 		fontWeight: 600,
 		cursor: 'pointer',
 	},
+	modalBackdrop: {
+		position: 'fixed',
+		top: 0,
+		left: 0,
+		width: '100%',
+		height: '100%',
+		background: 'rgba(0,0,0,0.5)',
+		backdropFilter: 'blur(4px)',
+		zIndex: 100,
+	},
 	modalCloseButton: {
 		position: 'absolute',
 		top: 12,
 		right: 12,
-		background: 'none',
-		border: 'none',
+		background: 'var(--bg)',
+		border: '1px solid var(--border)',
+		borderRadius: '50%',
+		width: 36,
+		height: 36,
 		fontSize: 24,
 		cursor: 'pointer',
 		color: 'var(--text-muted)',
+		display: 'flex',
+		alignItems: 'center',
+		justifyContent: 'center',
+		zIndex: 10,
 	},
 	detailBox: {
 		background: 'var(--bg)',
@@ -681,16 +775,22 @@ const styles = {
 		fontWeight: 700,
 		cursor: 'pointer',
 	},
-	detailPanel: {
-		width: '450px',
+	detailPanel: isMobile => ({
+		width: isMobile ? '100%' : '450px',
+		height: isMobile ? '100%' : '100vh',
 		flexShrink: 0,
 		background: 'var(--surface)',
-		borderLeft: '1px solid var(--border)',
+		borderLeft: isMobile ? 'none' : '1px solid var(--border)',
 		padding: 24,
-		position: 'relative',
+		position: isMobile ? 'fixed' : 'relative',
+		top: 0,
+		right: 0,
 		overflowY: 'auto',
-		height: '100vh',
-	},
+		zIndex: 101,
+		boxShadow: isMobile ? '-10px 0 30px rgba(0,0,0,0.1)' : 'none',
+		transform: isMobile ? 'translateX(0)' : 'none',
+		transition: 'transform 0.3s ease-in-out',
+	}),
 	detailMeta: {
 		display: 'flex',
 		flexWrap: 'wrap',
@@ -728,6 +828,11 @@ const styles = {
 		padding: '64px 48px',
 		color: 'var(--text-muted)',
 		fontSize: 16,
+		flex: 1,
+		display: 'flex',
+		flexDirection: 'column',
+		alignItems: 'center',
+		justifyContent: 'center',
 	},
 	detailLoading: {
 		textAlign: 'center',
@@ -759,6 +864,41 @@ const styles = {
 		padding: '8px 12px',
 		background: 'var(--surface)',
 		borderRadius: 6,
+	},
+	cardList: {
+		display: 'flex',
+		flexDirection: 'column',
+		gap: 12,
+		flex: '1 1 auto',
+	},
+	card: {
+		container: {
+			background: 'var(--surface)',
+			border: '1px solid var(--border)',
+			borderRadius: 12,
+			padding: 16,
+			cursor: 'pointer',
+			transition: 'border-color 0.2s, box-shadow 0.2s',
+		},
+		header: {
+			display: 'flex',
+			alignItems: 'center',
+			gap: 8,
+			borderBottom: '1px solid var(--border)',
+			paddingBottom: 12,
+			marginBottom: 12,
+		},
+		title: {
+			fontWeight: 600,
+			color: 'var(--text)',
+			flex: 1,
+		},
+		body: {
+			fontSize: 14,
+			'& p': {
+				margin: '0 0 8px 0',
+			},
+		},
 	},
 };
 
