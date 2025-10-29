@@ -1,7 +1,14 @@
 import mongoose from 'mongoose';
+import { nanoid } from 'nanoid'; // add dependency if not present
 
 const questionSchema = new mongoose.Schema(
 	{
+		// add slug so DB index conflict won't happen when it's missing
+		slug: {
+			type: String,
+			trim: true,
+			default: null,
+		},
 		type: {
 			type: String,
 			enum: ['multiple-choice', 'subjective'],
@@ -81,8 +88,26 @@ const questionSchema = new mongoose.Schema(
 // Add index for tags for faster searching
 questionSchema.index({ tags: 1 });
 
+// Replace the single-field slug index with a composite index scoped to the creator
+questionSchema.index(
+	{ slug: 1, createdBy: 1 },
+	{ unique: true, partialFilterExpression: { slug: { $type: 'string' } } },
+);
+
 // Validation
 questionSchema.pre('validate', function (next) {
+	// Ensure slug exists; make deterministic (no nanoid) so different teachers can have the same base slug
+	if (!this.slug && this.text) {
+		const base = String(this.text || '')
+			.toLowerCase()
+			.replace(/[^a-z0-9\s-]/g, '')
+			.trim()
+			.replace(/\s+/g, '-')
+			.slice(0, 60);
+		// use deterministic slug (no random suffix). uniqueness is enforced with createdBy
+		this.slug = base || 'q';
+	}
+
 	// MCQ validations
 	if (this.type === 'multiple-choice') {
 		if (!this.options || this.options.length < 2) {
