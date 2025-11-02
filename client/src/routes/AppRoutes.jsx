@@ -72,8 +72,8 @@ const AppRoutes = () => (
 					<Route path="results" element={withBoundary(<StudentResults />)} />
 					<Route path="issues" element={withBoundary(<StudentIssues />)} />
 					<Route path="settings" element={withBoundary(<StudentSettings />)} />
-					{/* CONSOLIDATED: Use a single, clear, and canonical route for taking an exam */}
-					<Route path="take-exam/:submissionId" element={withBoundary(<TakeExam />)} />
+					{/* FIX: The path should be 'take/:submissionId' to match the navigation URL */}
+					<Route path="take/:submissionId" element={withBoundary(<TakeExam />)} />
 					{/* REMOVED redundant and confusing routes that pointed to the same component */}
 					<Route path="*" element={<Navigate to="/student" replace />} />
 				</Route>

@@ -202,7 +202,10 @@ const StudentExams = () => {
 			// The TakeExam page will handle redirection if it's submitted/evaluated.
 			success('Exam session initiated. Redirecting...');
 			console.log(`[Exams.jsx] handleStart: Navigating to /student/take/${submissionId}`);
-			navigate(`/student/take/${encodeURIComponent(submissionId)}`);
+			// --- FIX: Pass the fetched submission data in the navigation state ---
+			navigate(`/student/take/${encodeURIComponent(submissionId)}`, {
+				state: { submission },
+			});
 		} catch (e) {
 			console.error('[Exams.jsx] handleStart: CATCH -', e);
 			setErrorBanner(e?.message || 'Unable to start exam');
@@ -217,6 +220,7 @@ const StudentExams = () => {
 		try {
 			// Just navigate; TakeExam page will fetch the latest state.
 			console.log(`[Exams.jsx] handleContinue: Navigating to /student/take/${sub.id}`);
+			// For "Continue", we don't pass state, forcing a fresh fetch of the latest data.
 			navigate(`/student/take/${encodeURIComponent(sub.id)}`);
 		} catch (e) {
 			console.error('[Exams.jsx] handleContinue: CATCH -', e);
