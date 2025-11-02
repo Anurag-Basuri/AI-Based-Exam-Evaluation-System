@@ -1,5 +1,24 @@
 import mongoose from 'mongoose';
 
+const answerSchema = new mongoose.Schema(
+	{
+		question: {
+			type: mongoose.Schema.Types.ObjectId,
+			ref: 'Question',
+			required: true,
+		},
+		responseText: {
+			type: String,
+			trim: true,
+			maxlength: 3000,
+		},
+		responseOption: {
+			type: mongoose.Schema.Types.ObjectId, // For MCQ option reference
+		},
+	},
+	{ _id: false },
+);
+
 const EvaluationMetaSchema = new mongoose.Schema(
 	{
 		rubric_breakdown: {
@@ -82,32 +101,13 @@ const EvaluationSchema = new mongoose.Schema(
 	{ _id: false },
 );
 
-// Answer sub-schema
-const answerSubSchema = new mongoose.Schema(
-	{
-		question: {
-			type: mongoose.Schema.Types.ObjectId,
-			ref: 'Question',
-			required: true,
-		},
-		responseText: {
-			type: String,
-			trim: true,
-			maxlength: 3000,
-		},
-		responseOption: {
-			type: mongoose.Schema.Types.ObjectId, // For MCQ option reference
-		},
-	},
-	{ _id: false },
-);
-
 const submissionSchema = new mongoose.Schema(
 	{
 		exam: {
 			type: mongoose.Schema.Types.ObjectId,
 			ref: 'Exam',
 			required: true,
+			index: true,
 		},
 		student: {
 			type: mongoose.Schema.Types.ObjectId,
@@ -115,16 +115,16 @@ const submissionSchema = new mongoose.Schema(
 			required: true,
 		},
 
-		// Student answers
-		answers: {
-			type: [answerSubSchema],
-			default: [],
-		},
-
+		questions: [
+			{
+				type: mongoose.Schema.Types.ObjectId,
+				ref: 'Question',
+			},
+		],
+		answers: [answerSchema],
 		// Evaluations: one per question, matches answers
 		evaluations: { type: [EvaluationSchema], default: [] },
 
-		// --- NEW & IMPROVED FIELDS ---
 		markedForReview: {
 			type: [mongoose.Schema.Types.ObjectId],
 			ref: 'Question',
