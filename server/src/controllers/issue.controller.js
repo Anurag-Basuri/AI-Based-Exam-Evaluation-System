@@ -166,7 +166,8 @@ const updateIssueStatus = asyncHandler(async (req, res) => {
 
 	const io = req.io || req.app?.get('io');
 	if (io) {
-		io.to('teachers').emit('issue-update', { issue: populatedIssue, oldStatus });
+		// The frontend `issue-update` listener expects the normalized issue object directly.
+		io.to('teachers').emit('issue-update', populatedIssue);
 		if (populatedIssue.student) {
 			io.to(String(populatedIssue.student._id)).emit('issue-update', populatedIssue);
 		}
@@ -306,6 +307,7 @@ const getIssueById = asyncHandler(async (req, res) => {
 		.populate('submission')
 		.populate('assignedTo', 'fullname')
 		.populate('activityLog.user', 'fullname')
+		.populate('internalNotes.user', 'fullname')
 		.lean();
 
 	if (!issue) throw ApiError.NotFound('Issue not found');
