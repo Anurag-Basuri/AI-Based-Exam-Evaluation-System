@@ -23,15 +23,16 @@ import {
 const router = Router();
 
 // Directly test the AI evaluation service with a sample question/answer
-router.post(
-	'/test-evaluation',
-	testEvaluationService
-);
+router.post('/test-evaluation', testEvaluationService);
+router.get('/my-submissions', checkAuth, verifyStudent, getMySubmissions);
+
+// Student gets their own submission by ID (for taking the exam)
 router.get(
-	'/my-submissions',
+	'/:id',
 	checkAuth,
 	verifyStudent,
-	getMySubmissions
+	param('id').notEmpty().withMessage('Submission ID is required'),
+	getSubmissionByIdParam,
 );
 
 // Student starts a submission (enters the exam)
@@ -90,54 +91,19 @@ router.post(
 );
 
 // --- Teacher-facing routes ---
-router.get(
-	'/exam/:id',
-	checkAuth,
-	verifyTeacher,
-	getExamSubmissions
-);
-router.put(
-	'/:id/evaluate',
-	checkAuth,
-	verifyTeacher,
-	updateEvaluation
-);
-router.post(
-	'/:id/evaluate-auto',
-	checkAuth,
-	verifyTeacher,
-	evaluateSubmission
-);
+router.get('/exam/:id', checkAuth, verifyTeacher, getExamSubmissions);
+router.put('/:id/evaluate', checkAuth, verifyTeacher, updateEvaluation);
+router.post('/:id/evaluate-auto', checkAuth, verifyTeacher, evaluateSubmission);
 
 // --- Get a single submission for grading (Teacher Only) ---
-router.get(
-	'/teacher/:id',
-	checkAuth,
-	verifyTeacher,
-	getSubmissionForGrading
-);
+router.get('/teacher/:id', checkAuth, verifyTeacher, getSubmissionForGrading);
 
 // --- Result Publishing Routes (Teacher Only) ---
-router.post(
-	'/:id/publish',
-	checkAuth,
-	verifyTeacher,
-	publishSingleSubmissionResult
-);
-router.post(
-	'/exam/:examId/publish-all',
-	checkAuth,
-	verifyTeacher,
-	publishAllExamResults
-);
+router.post('/:id/publish', checkAuth, verifyTeacher, publishSingleSubmissionResult);
+router.post('/exam/:examId/publish-all', checkAuth, verifyTeacher, publishAllExamResults);
 
 // --- Testing ---
-router.post(
-	'/test-eval',
-	checkAuth,
-	verifyTeacher,
-	testEvaluationService
-);
+router.post('/test-eval', checkAuth, verifyTeacher, testEvaluationService);
 
 // Get a student's submission for an exam (query)
 router.get(
