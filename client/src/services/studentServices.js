@@ -163,6 +163,8 @@ const normalizeExam = e => {
 };
 
 const normalizeSubmission = s => {
+	if (!s) return null; // Return null if submission is null
+
 	const questions = (
 		s.questions && s.questions.length > 0 ? s.questions : s.exam?.questions || []
 	).map(q => ({
@@ -220,11 +222,11 @@ const normalizeSubmission = s => {
 
 	// Robust date handling: format only if it's not already a string
 	const formatDt = dt => {
-		if (!dt || typeof dt === 'string') return dt || '';
+		if (!dt || typeof dt === 'string') return dt || null; // Return null instead of empty string
 		try {
 			return new Date(dt).toLocaleString();
 		} catch {
-			return '';
+			return null;
 		}
 	};
 
@@ -233,6 +235,7 @@ const normalizeSubmission = s => {
 		examId: String(s.exam?._id ?? s.examId ?? s.exam ?? ''),
 		examTitle: s.exam?.title ?? s.examTitle ?? 'Exam',
 		examPolicy: s.exam?.aiPolicy,
+		instructions: s.instructions ?? s.exam?.instructions, // Add instructions
 		duration: Number(s.duration ?? s.exam?.duration ?? 0),
 		answers: normalizedAnswers,
 		questions: questions,
@@ -243,7 +246,7 @@ const normalizeSubmission = s => {
 		maxScore,
 		percentage, // Centralized percentage calculation
 		status: s.status ?? 'pending',
-		startedAt: formatDt(s.startedAt),
+		startedAt: s.startedAt, // Keep original date object for timer
 		submittedAt: formatDt(s.submittedAt),
 		remarks: s.remarks || '', // Ensure remarks field is present
 	};
