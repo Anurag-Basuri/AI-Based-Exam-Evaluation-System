@@ -132,9 +132,7 @@ const startSubmission = asyncHandler(async (req, res) => {
 
 	if (!examId) throw ApiError.BadRequest('Exam ID is required');
 
-	const exam = await Exam.findById(examId)
-		.select('status startTime endTime duration questions')
-		.populate('questions');
+	const exam = await Exam.findById(examId).select('status startTime endTime duration questions');
 	if (!exam) throw ApiError.NotFound('Exam not found');
 	if (exam.status !== 'active') throw ApiError.Forbidden('Exam is not active');
 
@@ -143,17 +141,7 @@ const startSubmission = asyncHandler(async (req, res) => {
 		throw ApiError.Forbidden('Exam has not started yet');
 	if (exam.endTime && now > new Date(exam.endTime)) throw ApiError.Forbidden('Exam has ended');
 
-	const existing = await Submission.findOne({ exam: examId, student: studentId })
-		.populate({
-			path: 'exam',
-			select: 'title duration startTime endTime questions aiPolicy',
-			populate: {
-				path: 'questions',
-				model: 'Question',
-				select: 'text type options max_marks aiPolicy',
-			},
-		})
-		.populate({ path: 'answers.question', model: 'Question' });
+	const existing = await Submission.findOne({ exam: examId, student: studentId });
 
 	if (existing) {
 		// If expired while away, auto-submit and return final
@@ -161,6 +149,7 @@ const startSubmission = asyncHandler(async (req, res) => {
 			const finalized = await finalizeAsSubmitted(existing, exam);
 			return ApiResponse.success(res, finalized, 'Time over. Submission finalized');
 		}
+		// If not expired, just return the existing submission to be resumed.
 		return ApiResponse.success(res, existing, 'Submission already started');
 	}
 
@@ -178,22 +167,12 @@ const startSubmission = asyncHandler(async (req, res) => {
 		duration: exam.duration,
 		status: 'in-progress',
 		answers: initialAnswers,
+		questions: exam.questions, // Also store the question list on the submission
 	});
 
 	await submission.save();
 
-	// Populate before returning
-	await submission.populate({
-		path: 'exam',
-		select: 'title duration startTime endTime questions aiPolicy',
-		populate: {
-			path: 'questions',
-			model: 'Question',
-			select: 'text type options max_marks aiPolicy',
-		},
-	});
-	await submission.populate({ path: 'answers.question', model: 'Question' });
-
+	// Return the newly created submission. The TakeExam page will fetch the full details.
 	return ApiResponse.success(res, submission, 'Submission started', 201);
 });
 
