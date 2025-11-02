@@ -198,23 +198,35 @@ const TakeExam = () => {
 
 	// --- Load submission ---
 	useEffect(() => {
+		console.log('[TakeExam.jsx] Mount: Component is mounting.');
 		if (!submissionId) {
+			console.error(
+				'[TakeExam.jsx] Load: ERROR - No submissionId found in URL params. Redirecting.',
+			);
 			navigate('/student/exams', { replace: true });
 			return;
 		}
 
+		console.log('[TakeExam.jsx] Load: Attempting to fetch submission with id:', submissionId);
+
 		(async () => {
 			try {
 				const s = await safeApiCall(getSubmissionById, submissionId);
+				console.log('[TakeExam.jsx] Load: Fetched submission data:', s);
 
 				if (s.status === 'submitted' || s.status === 'evaluated') {
+					console.warn(
+						`[TakeExam.jsx] Load: Submission status is '${s.status}'. Redirecting to results.`,
+					);
 					navigate('/student/results', { replace: true });
 					return;
 				}
 
+				console.log('[TakeExam.jsx] Load: Submission status is OK. Setting state.');
 				setSubmission(s);
 				setMarkedForReview(s.markedForReview || []);
 			} catch (e) {
+				console.error('[TakeExam.jsx] Load: CATCH - Failed to load submission.', e);
 				setError(e?.message || 'Failed to load submission');
 			} finally {
 				setLoading(false);
