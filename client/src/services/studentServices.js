@@ -131,8 +131,8 @@ const EP = {
 
 // ---------- Normalizers ----------
 const normalizeExam = e => {
-	const startMs = e.startTime ? new Date(e.startTime).getTime() : (e.start_ms ?? null);
-	const endMs = e.endTime ? new Date(e.endTime).getTime() : (e.end_ms ?? null);
+	const startMs = e.startTime ? new Date(e.startTime).getTime() : e.start_ms ?? null;
+	const endMs = e.endTime ? new Date(e.endTime).getTime() : e.end_ms ?? null;
 	const now = Date.now();
 	const isActive = String(e.status || '').toLowerCase() === 'active';
 	const inWindow =
@@ -146,11 +146,11 @@ const normalizeExam = e => {
 		description: e.description ?? '',
 		status: e.status ?? 'draft',
 		duration: e.duration ?? 0,
-		startAt: e.startTime ? new Date(e.startTime).toLocaleString() : (e.startAt ?? '—'),
-		endAt: e.endTime ? new Date(e.endTime).toLocaleString() : (e.endAt ?? '—'),
+		startAt: e.startTime ? new Date(e.startTime).toLocaleString() : e.startAt ?? '—',
+		endAt: e.endTime ? new Date(e.endTime).toLocaleString() : e.endAt ?? '—',
 		startMs: startMs ?? null,
 		endMs: endMs ?? null,
-		totalQuestions: Array.isArray(e.questions) ? e.questions.length : (e.totalQuestions ?? 0),
+		totalQuestions: Array.isArray(e.questions) ? e.questions.length : e.totalQuestions ?? 0,
 		maxScore:
 			e.maxScore ??
 			(Array.isArray(e.questions)
@@ -163,7 +163,9 @@ const normalizeExam = e => {
 };
 
 const normalizeSubmission = s => {
-	const questions = (s.exam?.questions || []).map(q => ({
+	const questions = (
+		s.questions && s.questions.length > 0 ? s.questions : s.exam?.questions || []
+	).map(q => ({
 		id: String(q._id ?? q.id),
 		text: q.text,
 		type: q.type,
@@ -205,13 +207,13 @@ const normalizeSubmission = s => {
 		s.totalScore ??
 		(Array.isArray(s.evaluations)
 			? s.evaluations.reduce((acc, ev) => acc + (ev?.evaluation?.marks || 0), 0)
-			: (s.score ?? null));
+			: s.score ?? null);
 
 	const maxScore =
 		s.maxScore ??
 		(questions.length > 0
 			? questions.reduce((acc, q) => acc + (q.max_marks || 0), 0)
-			: (s.totalMax ?? 0));
+			: s.totalMax ?? 0);
 
 	const hasScore = typeof score === 'number' && Number.isFinite(score);
 	const percentage = hasScore && maxScore > 0 ? Math.round((score / maxScore) * 100) : null;
@@ -361,8 +363,8 @@ const normalizeIssue = i => {
 		description: i.description ?? '',
 		status: String(i.status || 'open').toLowerCase(),
 		reply: i.reply ?? '',
-		createdAt: i.createdAt ? new Date(i.createdAt).toLocaleString() : (i.created_at ?? ''),
-		resolvedAt: i.resolvedAt ? new Date(i.resolvedAt).toLocaleString() : (i.resolved_at ?? ''),
+		createdAt: i.createdAt ? new Date(i.createdAt).toLocaleString() : i.created_at ?? '',
+		resolvedAt: i.resolvedAt ? new Date(i.resolvedAt).toLocaleString() : i.resolved_at ?? '',
 	};
 };
 
