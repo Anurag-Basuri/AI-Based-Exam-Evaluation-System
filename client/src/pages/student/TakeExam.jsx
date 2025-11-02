@@ -87,7 +87,7 @@ const TakeExam = () => {
 	const questionPanelRef = useRef(null);
 
 	// --- Timer Hook ---
-	const { remainingMs, remaining } = useTimer(submission);
+	const { remainingMs, remaining } = useTimer(submission?.startedAt, submission?.duration);
 
 	// --- Submit Handler ---
 	const finalSubmit = useCallback(
@@ -218,23 +218,25 @@ const TakeExam = () => {
 		const load = async () => {
 			setLoading(true);
 			try {
-				let subData;
-				if (navState?.submission) {
-					subData = navState.submission;
-				} else if (submissionId) {
-					subData = await safeApiCall(getSubmissionById, submissionId);
+				// --- FIX: Always fetch data from the API to ensure it's fresh ---
+				if (submissionId) {
+					const subData = await safeApiCall(getSubmissionById, submissionId);
+
+					if (
+						subData.status === 'submitted' ||
+						subData.status === 'evaluated' ||
+						subData.status === 'published'
+					) {
+						navigate('/student/results', { replace: true });
+						return;
+					}
+
+					setSubmission(subData);
+					setMarkedForReview(subData.markedForReview || []);
 				} else {
 					navigate('/student/exams', { replace: true });
 					return;
 				}
-
-				if (subData.status === 'submitted' || subData.status === 'evaluated') {
-					navigate('/student/results', { replace: true });
-					return;
-				}
-
-				setSubmission(subData);
-				setMarkedForReview(subData.markedForReview || []);
 			} catch (e) {
 				setError(e?.message || 'Failed to load submission');
 				toastError(e?.message || 'Failed to load submission');
@@ -244,7 +246,8 @@ const TakeExam = () => {
 		};
 
 		load();
-	}, [submissionId, navigate]); // navState is removed to prevent re-fetches on navigation
+		// navState is removed to prevent re-fetches. We only depend on submissionId.
+	}, [submissionId, navigate, toastError]);
 
 	// --- Start exam ---
 	const handleStartExam = async () => {
@@ -583,17 +586,17 @@ const SidebarContent = ({
 	</>
 );
 
-const useTimer = submission => {
+const useTimer = (startedAt, duration) => {
 	const [now, setNow] = useState(() => Date.now());
 	useEffect(() => {
 		const timerId = setInterval(() => setNow(Date.now()), 1000);
 		return () => clearInterval(timerId);
 	}, []);
 	return useMemo(() => {
-		if (!submission?.startedAt || !submission?.duration)
+		if (!startedAt || !duration)
 			return { remainingMs: null, remaining: { mm: '--', ss: '--' } };
-		const started = new Date(submission.startedAt).getTime();
-		const end = started + Number(submission.duration) * 60 * 1000;
+		const started = new Date(startedAt).getTime();
+		const end = started + Number(duration) * 60 * 1000;
 		const remMs = Math.max(0, end - now);
 		const totalS = Math.floor(remMs / 1000);
 		return {
@@ -603,7 +606,7 @@ const useTimer = submission => {
 				ss: String(totalS % 60).padStart(2, '0'),
 			},
 		};
-	}, [submission, now]);
+	}, [startedAt, duration, now]);
 };
 
 const StartScreen = ({ submission, onStart }) => (
