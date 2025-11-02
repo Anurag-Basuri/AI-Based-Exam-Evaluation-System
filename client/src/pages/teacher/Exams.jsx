@@ -663,7 +663,7 @@ const TeacherExams = () => {
 	}, [exams]);
 
 	const handlePublish = async exam => {
-		if (!exam?.questions?.length) {
+		if (!exam?.questionCount) {
 			setErrorBanner('Add at least one question before publishing this exam.');
 			return;
 		}
@@ -674,8 +674,8 @@ const TeacherExams = () => {
 		const warn = endsInPast
 			? 'End time appears to be in the past. Continue publishing?'
 			: startsInFuture
-				? 'Exam will be scheduled (not live yet). Publish now?'
-				: 'Publish this exam now?';
+			? 'Exam will be scheduled (not live yet). Publish now?'
+			: 'Publish this exam now?';
 		if (!window.confirm(warn)) return;
 
 		setPublishingIds(prev => new Set([...prev, exam.id]));

@@ -71,8 +71,8 @@ const Stepper = ({ step }) => {
 										background: done
 											? '#10b981'
 											: active
-												? '#3b82f6'
-												: 'var(--surface)',
+											? '#3b82f6'
+											: 'var(--surface)',
 										color: done || active ? '#fff' : 'var(--text)',
 										boxShadow: active
 											? '0 0 0 3px rgba(59,130,246,.15)'
@@ -703,7 +703,9 @@ const ExamCreate = () => {
 											style={{
 												userSelect: 'none',
 												background: 'var(--surface)',
-												border: `2px solid ${selected ? '#3b82f6' : 'var(--border)'}`,
+												border: `2px solid ${
+													selected ? '#3b82f6' : 'var(--border)'
+												}`,
 												borderRadius: 12,
 												padding: 14,
 												boxShadow: selected
@@ -732,7 +734,9 @@ const ExamCreate = () => {
 														type="checkbox"
 														checked={selected}
 														onChange={() => toggleSelected(q.id)}
-														aria-label={`Select question ${q.text?.slice(0, 40) || ''}`}
+														aria-label={`Select question ${
+															q.text?.slice(0, 40) || ''
+														}`}
 													/>
 													<strong style={{ color: 'var(--text)' }}>
 														{q.type === 'multiple-choice'
