@@ -102,14 +102,14 @@ const TakeExam = () => {
 			try {
 				// Final save before submitting
 				if (hasUnsavedChanges.current) {
-					await safeApiCall(saveSubmissionAnswers, submission.id, {
+					await safeApiCall(saveSubmissionAnswers, submission._id, {
 						answers: submission.answers || [],
 						markedForReview: markedForReview,
 					});
 				}
 
 				// Submit
-				await safeApiCall(submitSubmission, submission.id, {
+				await safeApiCall(submitSubmission, submission._id, {
 					submissionType: isAuto ? 'auto' : 'manual',
 				});
 
@@ -201,39 +201,36 @@ const TakeExam = () => {
 
 	// --- Load submission ---
 	useEffect(() => {
-		if (navState?.submission) {
-			const s = navState.submission;
-			if (s.status === 'submitted' || s.status === 'evaluated') {
-				navigate('/student/results', { replace: true });
-				return;
-			}
-			setSubmission(s);
-			setMarkedForReview(s.markedForReview || []);
-			setLoading(false);
-			return;
-		}
-
-		if (!submissionId) {
-			navigate('/student/exams', { replace: true });
-			return;
-		}
-
-		(async () => {
+		const load = async () => {
+			setLoading(true);
 			try {
-				const s = await safeApiCall(getSubmissionById, submissionId);
-				if (s.status === 'submitted' || s.status === 'evaluated') {
+				let subData;
+				if (navState?.submission) {
+					subData = navState.submission;
+				} else if (submissionId) {
+					subData = await safeApiCall(getSubmissionById, submissionId);
+				} else {
+					navigate('/student/exams', { replace: true });
+					return;
+				}
+
+				if (subData.status === 'submitted' || subData.status === 'evaluated') {
 					navigate('/student/results', { replace: true });
 					return;
 				}
-				setSubmission(s);
-				setMarkedForReview(s.markedForReview || []);
+
+				setSubmission(subData);
+				setMarkedForReview(subData.markedForReview || []);
 			} catch (e) {
 				setError(e?.message || 'Failed to load submission');
+				toastError(e?.message || 'Failed to load submission');
 			} finally {
 				setLoading(false);
 			}
-		})();
-	}, [submissionId, navigate, navState]);
+		};
+
+		load();
+	}, [submissionId, navigate]); // navState is removed to prevent re-fetches on navigation
 
 	// --- Start exam ---
 	const handleStartExam = async () => {
@@ -269,7 +266,7 @@ const TakeExam = () => {
 					answers: answersToSave || submission.answers,
 					markedForReview: reviewState || markedForReview,
 				};
-				await safeApiCall(saveSubmissionAnswers, submission.id, payload);
+				await safeApiCall(saveSubmissionAnswers, submission._id, payload);
 				setLastSaved(new Date());
 			} catch (e) {
 				hasUnsavedChanges.current = true;
@@ -294,7 +291,7 @@ const TakeExam = () => {
 
 	// --- Toggle review ---
 	const handleToggleReview = useCallback(() => {
-		const currentQuestionId = submission?.questions?.[currentQuestionIndex]?.id;
+		const currentQuestionId = submission?.questions?.[currentQuestionIndex]?._id;
 		if (!currentQuestionId) return;
 
 		const newMarkedForReview = markedForReview.includes(currentQuestionId)
@@ -316,7 +313,6 @@ const TakeExam = () => {
 			);
 
 			if (answerIndex === -1) {
-				// This should not happen if answers are pre-populated
 				console.error('Could not find answer slot for question:', questionId);
 				return prev;
 			}
@@ -331,7 +327,6 @@ const TakeExam = () => {
 			updatedAnswers = newAnswers;
 			return { ...prev, answers: newAnswers };
 		});
-		// Debounce the save with the entire updated answers array
 		if (updatedAnswers) debouncedSave(updatedAnswers, null);
 	};
 
@@ -1235,26 +1230,25 @@ const mediaQuery = `
     .hide-on-mobile { display: none !important; }
     .show-on-mobile { display: inline-flex !important; }
     
-    ${/* Style overrides for mobile */ ''}
-    .styles.questionPanel { border-radius: 0; border-left: 0; border-right: 0; }
-    .styles.questionPanelHeader { display: none; }
-    .styles.bottomNav {
+    .questionPanel { border-radius: 0; border-left: 0; border-right: 0; }
+    .questionPanelHeader { display: none; }
+    .bottomNav {
       padding: 8px;
       gap: 8px;
     }
-    .styles.mobileCenterNav {
+    .mobileCenterNav {
       display: flex !important;
       flex-direction: column;
       gap: 4px;
       text-align: center;
     }
-    .styles.mobileTimer {
+    .mobileTimer {
       font-size: 14px;
       font-weight: 700;
       background: transparent; border: 0; color: var(--text);
       padding: 0;
     }
-    .styles.mobilePaletteBtn {
+    .mobilePaletteBtn {
       font-size: 12px;
       font-weight: 600;
       background: var(--bg-alt);
