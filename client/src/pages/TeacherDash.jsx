@@ -74,17 +74,16 @@ const TeacherDash = () => {
 
 		socket.on('issue-update', ({ issue, oldStatus }) => {
 			const newStatus = issue.status;
-			if (oldStatus === 'open' && newStatus !== 'open') {
-				setOpenIssuesCount(c => Math.max(0, c - 1));
-			} else if (oldStatus !== 'open' && newStatus === 'open') {
+			// For now, let's assume the issue object is the updated one.
+			if (issue.status === 'open' && oldStatus !== 'open') {
 				setOpenIssuesCount(c => c + 1);
+			} else if (issue.status !== 'open' && oldStatus === 'open') {
+				setOpenIssuesCount(c => Math.max(0, c - 1));
 			}
 		});
 
-		socket.on('issue-deleted', ({ status }) => {
-			if (status === 'open') {
-				setOpenIssuesCount(c => Math.max(0, c - 1));
-			}
+		socket.on('issue-deleted', ({ id, status }) => {
+			fetchOpenIssues();
 		});
 
 		return () => socket.disconnect();
