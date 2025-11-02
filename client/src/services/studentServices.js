@@ -303,30 +303,15 @@ export const getMySubmissions = async (params = {}, forceRefresh = false) => {
 	return normalizedList;
 };
 
-export const startExam = async examId => {
-	const payload = { examId };
-	// The backend now returns a fully populated and normalized object, so we can use it directly.
-	const res = await tryPost(EP.submissionStart(examId), payload);
-	return res?.data?.data ?? res?.data ?? {};
-};
-
-// Save answers (and markedForReview) for a given submission ID
-export const saveSubmissionAnswers = async (submissionId, payload) => {
-	const res = await tryPost([EP.submissionSyncById(submissionId)], payload);
-	// The backend returns the updated submission, which we can normalize and use.
-	const data = res?.data?.data ?? res?.data ?? {};
-	return normalizeSubmission(data);
-};
-
-// Submit by submission ID
-export const submitSubmission = async (submissionId, payload) => {
-	const res = await tryPost([EP.submissionSubmitById(submissionId)], payload);
-	const data = res?.data?.data ?? res?.data ?? {};
-	return normalizeSubmission(data);
+// FIX: This function now uses the new dedicated endpoint for result details.
+export const getSubmissionForResults = async submissionId => {
+	const res = await tryGet(EP.submissionForResults(submissionId));
+	// No normalization needed; the backend sends exactly what the modal needs.
+	return res?.data?.data ?? res?.data ?? null;
 };
 
 export const getSubmissionById = async submissionId => {
-	const res = await apiClient.get(EP.submissionById(submissionId));
+	const res = await tryGet(EP.submissionById(submissionId));
 	const data = res?.data?.data ?? res?.data ?? {};
 	return normalizeSubmission(data);
 };
