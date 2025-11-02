@@ -3,6 +3,7 @@ import { ApiError } from '../utils/ApiError.js';
 
 const api = process.env.HF_API_URL;
 const apiKey = process.env.HF_API_KEY;
+const model = 'mistralai/Mistral-7B-Instruct-v0.2:featherless-ai';
 
 const EVAL_TIMEOUT_MS = Number(process.env.EVAL_TIMEOUT_MS || 15000);
 const EVAL_MAX_RETRIES = Number(process.env.EVAL_MAX_RETRIES || 1);
@@ -13,8 +14,6 @@ const EVAL_DO_SAMPLE = String(process.env.EVAL_DO_SAMPLE ?? 'false') === 'true';
 const EVAL_MAX_NEW_TOKENS = Number(process.env.EVAL_MAX_NEW_TOKENS || 150);
 const MAX_ANSWER_CHARS = Number(process.env.EVAL_MAX_ANSWER_CHARS || 1500);
 
-// --- Lightweight keyword extraction helpers (no external deps) ---
-// NOTE: These helpers are no longer used for the prompt but can be kept for future analytics.
 const STOP_WORDS = new Set([
 	'a',
 	'an',
@@ -262,12 +261,6 @@ function extractJson(rawOutput) {
 }
 
 /**
- * Deterministic fallback: score by keyword coverage if policy provides keywords.
- * This is removed as `keywords` are not in the model's AI Policy.
- */
-// function keywordFallback(...) { ... }
-
-/**
  * Heuristic fallback when no reliable AI signal is available.
  * Gives minimal but fair points for non-empty answers and flags for review.
  */
@@ -348,13 +341,12 @@ export async function evaluateAnswer(
 			const response = await axios.post(
 				api,
 				{
-					inputs: prompt,
-					parameters: {
-						max_new_tokens: EVAL_MAX_NEW_TOKENS,
-						temperature: EVAL_TEMPERATURE,
-						top_p: EVAL_TOP_P,
-						do_sample: EVAL_DO_SAMPLE,
-					},
+					model,
+					messages: [{ role: 'user', content: prompt }],
+					temperature: EVAL_TEMPERATURE,
+					top_p: EVAL_TOP_P,
+					max_tokens: EVAL_MAX_NEW_TOKENS,
+					stream: false,
 				},
 				{
 					headers: { Authorization: `Bearer ${apiKey}` },
@@ -366,12 +358,18 @@ export async function evaluateAnswer(
 			let rawOutput = '';
 			const data = response.data;
 
-			if (typeof data === 'string') rawOutput = data;
-			else if (Array.isArray(data) && data.length > 0)
+			// Handle new chat completions response structure
+			if (data?.choices?.[0]?.message?.content) {
+				rawOutput = data.choices[0].message.content;
+			} else if (typeof data === 'string') {
+				rawOutput = data;
+			} else if (Array.isArray(data) && data.length > 0) {
+				// Fallback for older text-generation-inference format
 				rawOutput = data[0]?.generated_text || JSON.stringify(data[0]);
-			else if (typeof data === 'object' && data)
+			} else if (typeof data === 'object' && data) {
+				// Fallback for older text-generation-inference format
 				rawOutput = data.generated_text || JSON.stringify(data);
-			else {
+			} else {
 				console.error(`[EVAL_SERVICE ${evalId}] Unexpected response format:`, data);
 				throw new ApiError(500, 'Unexpected evaluation service response');
 			}
