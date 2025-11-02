@@ -80,10 +80,11 @@ const TakeExam = () => {
 	const [isOnline, setIsOnline] = useState(() =>
 		typeof navigator !== 'undefined' ? navigator.onLine : true,
 	);
-	const [isHubOpen, setIsHubOpen] = useState(false);
+	const [isPaletteOpen, setIsPaletteOpen] = useState(false);
 
 	const hasUnsavedChanges = useRef(false);
 	const saveTimeoutRef = useRef(null);
+	const questionPanelRef = useRef(null);
 
 	// --- Timer Hook ---
 	const { remainingMs, remaining } = useTimer(submission);
@@ -200,54 +201,33 @@ const TakeExam = () => {
 
 	// --- Load submission ---
 	useEffect(() => {
-		console.log('[TakeExam.jsx] Mount: Component is mounting.');
-
-		// --- OPTIMIZATION: Check if submission data was passed via navigation state ---
 		if (navState?.submission) {
-			console.log('[TakeExam.jsx] Load: Received submission data from navigation state.');
 			const s = navState.submission;
 			if (s.status === 'submitted' || s.status === 'evaluated') {
-				console.warn(
-					`[TakeExam.jsx] Load: Submission status is '${s.status}'. Redirecting to results.`,
-				);
 				navigate('/student/results', { replace: true });
 				return;
 			}
 			setSubmission(s);
 			setMarkedForReview(s.markedForReview || []);
 			setLoading(false);
-			return; // Exit early
+			return;
 		}
 
-		// --- Fallback to fetching if no state is passed ---
 		if (!submissionId) {
-			console.error(
-				'[TakeExam.jsx] Load: ERROR - No submissionId found in URL params. Redirecting.',
-			);
 			navigate('/student/exams', { replace: true });
 			return;
 		}
 
-		console.log('[TakeExam.jsx] Load: Attempting to fetch submission with id:', submissionId);
-
 		(async () => {
 			try {
 				const s = await safeApiCall(getSubmissionById, submissionId);
-				console.log('[TakeExam.jsx] Load: Fetched submission data:', s);
-
 				if (s.status === 'submitted' || s.status === 'evaluated') {
-					console.warn(
-						`[TakeExam.jsx] Load: Submission status is '${s.status}'. Redirecting to results.`,
-					);
 					navigate('/student/results', { replace: true });
 					return;
 				}
-
-				console.log('[TakeExam.jsx] Load: Submission status is OK. Setting state.');
 				setSubmission(s);
 				setMarkedForReview(s.markedForReview || []);
 			} catch (e) {
-				console.error('[TakeExam.jsx] Load: CATCH - Failed to load submission.', e);
 				setError(e?.message || 'Failed to load submission');
 			} finally {
 				setLoading(false);
@@ -279,41 +259,35 @@ const TakeExam = () => {
 	const handleQuickSave = useCallback(
 		async (answersToSave, reviewState) => {
 			if (!submission || saving || !isOnline) return;
-
-			// If no specific data is passed, and there are no general unsaved changes, exit.
 			if (!answersToSave && !reviewState && !hasUnsavedChanges.current) return;
 
 			setSaving(true);
-			// Reset general flag; specific changes are handled by the payload.
 			hasUnsavedChanges.current = false;
 
 			try {
-				const payload = {};
-				if (answersToSave) payload.answers = answersToSave;
-				if (reviewState) payload.markedForReview = reviewState;
-
+				const payload = {
+					answers: answersToSave || submission.answers,
+					markedForReview: reviewState || markedForReview,
+				};
 				await safeApiCall(saveSubmissionAnswers, submission.id, payload);
 				setLastSaved(new Date());
 			} catch (e) {
-				hasUnsavedChanges.current = true; // Re-flag on failure
+				hasUnsavedChanges.current = true;
 				console.error('Auto-save failed:', e);
 			} finally {
 				setSaving(false);
 			}
 		},
-		[submission, saving, isOnline],
+		[submission, saving, isOnline, markedForReview],
 	);
 
 	// --- Debounced save ---
 	const debouncedSave = useCallback(
 		(answers, review) => {
-			if (saveTimeoutRef.current) {
-				clearTimeout(saveTimeoutRef.current);
-			}
-
+			if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
 			saveTimeoutRef.current = setTimeout(() => {
 				handleQuickSave(answers, review);
-			}, 2000); // Save 2 seconds after last change
+			}, 2000);
 		},
 		[handleQuickSave],
 	);
@@ -333,49 +307,47 @@ const TakeExam = () => {
 
 	// --- Answer change ---
 	const handleAnswerChange = (questionId, value, type) => {
-		// Set a flag indicating there are unsaved changes.
 		hasUnsavedChanges.current = true;
-
-		let updatedAnswer;
+		let updatedAnswers;
 		setSubmission(prev => {
 			const newAnswers = [...prev.answers];
-			const answerIndex = newAnswers.findIndex(a => a.question === questionId);
+			const answerIndex = newAnswers.findIndex(
+				a => String(a.question) === String(questionId),
+			);
 
 			if (answerIndex === -1) {
-				console.warn(
-					'Attempted to update a non-existent answer slot for question:',
-					questionId,
-				);
+				// This should not happen if answers are pre-populated
+				console.error('Could not find answer slot for question:', questionId);
 				return prev;
 			}
 
 			const answerToUpdate = { ...newAnswers[answerIndex] };
-
 			if (type === 'multiple-choice') {
 				answerToUpdate.responseOption = value;
 			} else {
 				answerToUpdate.responseText = value;
 			}
-
 			newAnswers[answerIndex] = answerToUpdate;
-			updatedAnswer = answerToUpdate; // Capture the single updated answer
-
+			updatedAnswers = newAnswers;
 			return { ...prev, answers: newAnswers };
 		});
+		// Debounce the save with the entire updated answers array
+		if (updatedAnswers) debouncedSave(updatedAnswers, null);
+	};
 
-		// OPTIMIZATION: Only send the single changed answer to the backend.
-		if (updatedAnswer) {
-			debouncedSave([updatedAnswer], null);
+	// --- Navigation ---
+	const changeQuestion = newIndex => {
+		if (newIndex >= 0 && newIndex < submission.questions.length) {
+			setCurrentQuestionIndex(newIndex);
+			if (questionPanelRef.current) {
+				questionPanelRef.current.scrollTop = 0;
+			}
 		}
 	};
 
-	// --- Save and next ---
 	const handleSaveAndNext = async () => {
-		// FIX: Await the save operation before moving to the next question.
-		await handleQuickSave();
-		if (currentQuestionIndex < submission.questions.length - 1) {
-			setCurrentQuestionIndex(i => i + 1);
-		}
+		if (hasUnsavedChanges.current) await handleQuickSave();
+		changeQuestion(currentQuestionIndex + 1);
 	};
 
 	// --- Auto-submit on time expiry ---
@@ -388,12 +360,9 @@ const TakeExam = () => {
 	// --- Periodic auto-save ---
 	useEffect(() => {
 		if (!isStarted) return;
-
 		const id = setInterval(() => {
-			// This periodic save is a fallback. It will only run if there are changes.
 			handleQuickSave(null, markedForReview);
 		}, AUTO_SAVE_INTERVAL);
-
 		return () => clearInterval(id);
 	}, [isStarted, handleQuickSave, markedForReview]);
 
@@ -401,22 +370,18 @@ const TakeExam = () => {
 	const questionStats = useMemo(() => {
 		const questions = submission?.questions || [];
 		const answers = submission?.answers || [];
-
 		let answeredCount = 0;
 		const statusMap = questions.map(q => {
-			const ans = answers.find(a => a.question === q.id);
+			const ans = answers.find(a => String(a.question) === String(q._id));
 			const isAnswered =
-				(ans?.responseText && ans.responseText.trim()) || ans?.responseOption;
-			const isMarked = markedForReview.includes(q.id);
-
+				(ans?.responseText && ans.responseText.trim().length > 0) || ans?.responseOption;
+			const isMarked = markedForReview.includes(q._id);
 			if (isAnswered) answeredCount++;
-
 			if (isMarked && isAnswered) return 'answered-review';
 			if (isMarked) return 'review';
 			if (isAnswered) return 'answered';
 			return 'unanswered';
 		});
-
 		return {
 			statusMap,
 			total: questions.length,
@@ -429,17 +394,13 @@ const TakeExam = () => {
 	// --- Cleanup on unmount ---
 	useEffect(() => {
 		return () => {
-			if (saveTimeoutRef.current) {
-				clearTimeout(saveTimeoutRef.current);
-			}
+			if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
 		};
 	}, []);
 
 	// --- UI Rendering ---
 	if (loading) return <TakeExamSkeleton />;
-
 	if (error) return <div style={{ ...styles.centeredMessage, color: 'red' }}>Error: {error}</div>;
-
 	if (!submission) return <div style={styles.centeredMessage}>Submission not found.</div>;
 
 	if (!isStarted) {
@@ -453,7 +414,6 @@ const TakeExam = () => {
 			{violationOverlay && (
 				<ViolationOverlay type={violationOverlay} onAcknowledge={acknowledgeViolation} />
 			)}
-
 			{showSubmitConfirm && (
 				<SubmitConfirmation
 					stats={questionStats}
@@ -464,186 +424,109 @@ const TakeExam = () => {
 					onCancel={() => setShowSubmitConfirm(false)}
 				/>
 			)}
-
-			{/* --- Mobile-only Exam Hub Drawer --- */}
-			<div
-				className="examHubDrawer"
-				style={{
-					...styles.examHubDrawer,
-					transform: isHubOpen ? 'translateX(0)' : 'translateX(100%)',
-				}}
-			>
-				<div
-					style={{
-						padding: 16,
-						display: 'flex',
-						flexDirection: 'column',
-						height: '100%',
+			{isPaletteOpen && (
+				<QuestionPaletteModal
+					stats={questionStats}
+					currentIndex={currentQuestionIndex}
+					onSelect={async i => {
+						await handleQuickSave();
+						changeQuestion(i);
+						setIsPaletteOpen(false);
 					}}
-				>
-					<button onClick={() => setIsHubOpen(false)} style={styles.closeHubButton}>
-						× Close
-					</button>
-					<StatusBarContent
-						submission={submission}
-						stats={questionStats}
-						currentIndex={currentQuestionIndex}
-						onSelect={async i => {
-							await handleQuickSave();
-							setCurrentQuestionIndex(i);
-							setIsHubOpen(false);
-						}}
-						remaining={remaining}
-						lastSaved={lastSaved}
-						saving={saving}
-						violations={violations}
-						onFinalSubmit={() => {
-							setIsHubOpen(false);
-							setShowSubmitConfirm(true);
-						}}
-						autoSubmitting={autoSubmitting}
-					/>
-				</div>
-			</div>
-			{isHubOpen && <div style={styles.drawerBackdrop} onClick={() => setIsHubOpen(false)} />}
+					onClose={() => setIsPaletteOpen(false)}
+				/>
+			)}
 
 			{/* --- Main Content: Current Question --- */}
-			<div style={styles.questionPanel}>
-				{/* Sticky in-panel toolbar */}
-				<div style={styles.toolbar}>
-					<div
-						style={{
-							display: 'flex',
-							gap: 12,
-							alignItems: 'center',
-							flexWrap: 'wrap',
-						}}
-					>
-						<strong style={{ color: 'var(--text)' }}>
-							Q {currentQuestionIndex + 1} / {questionStats.total}
-						</strong>
-						<span style={styles.toolbarPill}>Answered: {questionStats.answered}</span>
-						<span style={styles.toolbarPillMuted}>Review: {questionStats.review}</span>
-						<span
-							style={{
-								marginLeft: 'auto',
-								display: 'inline-flex',
-								gap: 8,
-								alignItems: 'center',
-							}}
-						>
-							<small
-								style={{
-									color: isOnline ? '#10b981' : '#ef4444',
-									fontWeight: 700,
-								}}
-								className="hide-on-mobile"
-							>
-								{isOnline ? '🟢 Connected' : '🔴 Offline'}
-							</small>
-							<small
-								style={{ color: 'var(--text-muted)' }}
-								className="hide-on-mobile"
-							>
-								{saving
-									? 'Saving…'
-									: lastSaved
-									? `Saved ${lastSaved.toLocaleTimeString()}`
-									: 'Not saved yet'}
-							</small>
-							<span style={styles.toolbarTimer}>
-								⏳ {remaining.mm}:{remaining.ss}
-							</span>
-							<button
-								className="show-on-mobile tap"
-								style={styles.hubButton}
-								onClick={() => setIsHubOpen(true)}
-							>
-								☰ Hub
-							</button>
-						</span>
+			<div ref={questionPanelRef} style={styles.questionPanel}>
+				<div style={styles.questionPanelHeader}>
+					<h1 style={styles.examTitle}>{submission.examTitle}</h1>
+					<div style={styles.desktopTimer}>
+						⏳ {remaining.mm}:{remaining.ss}
 					</div>
 				</div>
 
 				{currentQuestion && (
 					<QuestionCard
-						key={currentQuestion.id}
+						key={currentQuestion._id}
 						question={currentQuestion}
 						index={currentQuestionIndex}
-						answer={submission.answers?.find(a => a.question === currentQuestion.id)}
+						answer={submission.answers?.find(
+							a => String(a.question) === String(currentQuestion._id),
+						)}
 						onAnswerChange={handleAnswerChange}
 						disabled={autoSubmitting}
 					/>
 				)}
-
-				<div style={styles.navigationControls}>
-					<button
-						id="prev-btn"
-						onClick={() => {
-							// No need to save, just navigate. Debounce handles saving.
-							setCurrentQuestionIndex(i => Math.max(0, i - 1));
-						}}
-						disabled={currentQuestionIndex === 0 || autoSubmitting}
-						style={styles.navButton}
-					>
-						← Previous
-					</button>
-
-					<button
-						id="mark-review-btn"
-						onClick={handleToggleReview}
-						disabled={autoSubmitting}
-						style={{
-							...styles.navButton,
-							background: markedForReview.includes(currentQuestion?.id)
-								? '#8b5cf6'
-								: 'var(--bg)',
-							color: markedForReview.includes(currentQuestion?.id)
-								? 'white'
-								: 'var(--text)',
-						}}
-					>
-						{markedForReview.includes(currentQuestion?.id)
-							? '✓ Marked'
-							: '⭐ Mark for Review'}
-					</button>
-
-					<button
-						id="save-next-btn"
-						onClick={handleSaveAndNext}
-						disabled={
-							currentQuestionIndex === submission.questions.length - 1 ||
-							autoSubmitting
-						}
-						style={{
-							...styles.navButton,
-							background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
-							color: 'white',
-						}}
-					>
-						Save & Next →
-					</button>
-				</div>
 			</div>
 
 			{/* --- Sidebar: Status & Navigation --- */}
 			<div style={styles.statusBar} className="statusBar">
-				<StatusBarContent
-					submission={submission}
+				<SidebarContent
 					stats={questionStats}
 					currentIndex={currentQuestionIndex}
 					onSelect={async i => {
-						// FIX: Await save before changing index
 						await handleQuickSave();
-						setCurrentQuestionIndex(i);
+						changeQuestion(i);
 					}}
-					remaining={remaining}
 					lastSaved={lastSaved}
 					saving={saving}
 					violations={violations}
 					onFinalSubmit={() => setShowSubmitConfirm(true)}
 					autoSubmitting={autoSubmitting}
+					isOnline={isOnline}
 				/>
+			</div>
+
+			{/* --- Bottom Navigation (Mobile & Desktop) --- */}
+			<div style={styles.bottomNav}>
+				<button
+					id="prev-btn"
+					onClick={() => changeQuestion(currentQuestionIndex - 1)}
+					disabled={currentQuestionIndex === 0 || autoSubmitting}
+					style={styles.navButton}
+				>
+					<span style={styles.arrow}>←</span>
+					<span className="hide-on-mobile">Previous</span>
+				</button>
+
+				<div style={styles.mobileCenterNav}>
+					<button style={styles.mobileTimer} onClick={() => setIsPaletteOpen(true)}>
+						⏳ {remaining.mm}:{remaining.ss}
+					</button>
+					<button style={styles.mobilePaletteBtn} onClick={() => setIsPaletteOpen(true)}>
+						☰ {currentQuestionIndex + 1}/{questionStats.total}
+					</button>
+				</div>
+
+				<button
+					id="mark-review-btn"
+					onClick={handleToggleReview}
+					disabled={autoSubmitting}
+					style={{
+						...styles.navButton,
+						...(markedForReview.includes(currentQuestion?._id)
+							? styles.reviewBtnActive
+							: {}),
+					}}
+				>
+					⭐
+					<span className="hide-on-mobile">
+						{markedForReview.includes(currentQuestion?._id) ? 'Marked' : 'Review'}
+					</span>
+				</button>
+
+				<button
+					id="save-next-btn"
+					onClick={handleSaveAndNext}
+					disabled={
+						currentQuestionIndex === submission.questions.length - 1 || autoSubmitting
+					}
+					style={{ ...styles.navButton, ...styles.nextBtn }}
+				>
+					<span className="hide-on-mobile">Save & Next</span>
+					<span style={styles.arrow}>→</span>
+				</button>
 			</div>
 		</div>
 	);
@@ -651,38 +534,34 @@ const TakeExam = () => {
 
 // --- Helper Components ---
 
-const StatusBarContent = ({
-	submission,
+const SidebarContent = ({
 	stats,
 	currentIndex,
 	onSelect,
-	remaining,
 	lastSaved,
 	saving,
 	violations,
 	onFinalSubmit,
 	autoSubmitting,
+	isOnline,
 }) => (
 	<>
-		<h3 style={{ margin: 0, fontSize: 18 }}>{submission.examTitle}</h3>
-		<div style={styles.timer}>
-			⏳ {remaining.mm}:{remaining.ss}
-		</div>
 		<QuestionPalette stats={stats} currentIndex={currentIndex} onSelect={onSelect} />
 		<div style={styles.statusInfo}>
-			<p style={{ margin: '4px 0', fontSize: 13 }}>
-				<strong>Last saved:</strong>{' '}
-				{lastSaved ? lastSaved.toLocaleTimeString() : 'Not yet'}
-				{saving && ' (Saving...)'}
+			<p style={styles.statusText}>
+				<span style={{ color: isOnline ? '#10b981' : '#ef4444' }}>
+					{isOnline ? '●' : '●'}
+				</span>{' '}
+				{isOnline ? 'Connected' : 'Offline'}
 			</p>
-			<p
-				style={{
-					margin: '4px 0',
-					fontSize: 13,
-					color: violations.count > MAX_VIOLATIONS / 2 ? '#ef4444' : '#f59e0b',
-					fontWeight: 'bold',
-				}}
-			>
+			<p style={styles.statusText}>
+				{saving
+					? 'Saving...'
+					: lastSaved
+					? `Saved ${lastSaved.toLocaleTimeString()}`
+					: 'No changes saved'}
+			</p>
+			<p style={{ ...styles.statusText, color: '#f59e0b' }}>
 				⚠️ Violations: {violations.count} / {MAX_VIOLATIONS}
 			</p>
 		</div>
@@ -699,21 +578,17 @@ const StatusBarContent = ({
 
 const useTimer = submission => {
 	const [now, setNow] = useState(() => Date.now());
-
 	useEffect(() => {
 		const timerId = setInterval(() => setNow(Date.now()), 1000);
 		return () => clearInterval(timerId);
 	}, []);
-
 	return useMemo(() => {
 		if (!submission?.startedAt || !submission?.duration)
 			return { remainingMs: null, remaining: { mm: '--', ss: '--' } };
-
 		const started = new Date(submission.startedAt).getTime();
 		const end = started + Number(submission.duration) * 60 * 1000;
 		const remMs = Math.max(0, end - now);
 		const totalS = Math.floor(remMs / 1000);
-
 		return {
 			remainingMs: remMs,
 			remaining: {
@@ -724,117 +599,42 @@ const useTimer = submission => {
 	}, [submission, now]);
 };
 
-const EvaluationCriteria = ({ submission }) => {
-	const examPolicy = submission?.examPolicy;
-	const questionsWithPolicy =
-		submission?.questions?.filter(
-			q => q.aiPolicy && (q.aiPolicy.rubric?.length > 0 || q.aiPolicy.keywords?.length > 0),
-		) || [];
-
-	const hasExamPolicy =
-		examPolicy && (examPolicy.rubric?.length > 0 || examPolicy.keywords?.length > 0);
-
-	if (!hasExamPolicy && questionsWithPolicy.length === 0) {
-		return null; // Don't render if no policies are defined
-	}
-
-	return (
-		<div style={styles.criteriaContainer}>
-			<h3 style={{ margin: '0 0 8px 0', fontSize: 16 }}>Evaluation Criteria</h3>
-			<p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 12px 0' }}>
-				The AI will use these rules to grade your descriptive answers.
-			</p>
-
-			{hasExamPolicy && (
-				<div style={styles.criteriaSection}>
-					<strong style={{ fontSize: 14 }}>General Exam Policy</strong>
-					{examPolicy.rubric?.length > 0 && (
-						<div>
-							<h4 style={styles.criteriaHeader}>Rubric:</h4>
-							<ul style={styles.criteriaList}>
-								{examPolicy.rubric.map((item, i) => (
-									<li key={`exam-rubric-${i}`}>
-										{item.criterion} (Weight:{' '}
-										{Math.round((item.weight || 0) * 100)}%)
-									</li>
-								))}
-							</ul>
-						</div>
-					)}
-					{examPolicy.keywords?.length > 0 && (
-						<div>
-							<h4 style={styles.criteriaHeader}>Keywords:</h4>
-							<div style={styles.keywordContainer}>
-								{examPolicy.keywords.map((item, i) => (
-									<span key={`exam-kw-${i}`} style={styles.keywordPill}>
-										{item.term}
-									</span>
-								))}
-							</div>
-						</div>
-					)}
-				</div>
-			)}
-
-			{questionsWithPolicy.map((q, index) => (
-				<div key={q.id} style={styles.criteriaSection}>
-					<strong style={{ fontSize: 14 }}>
-						Policy for Question: "{q.text.substring(0, 50)}..."
-					</strong>
-					{q.aiPolicy.rubric?.length > 0 && (
-						<div>
-							<h4 style={styles.criteriaHeader}>Rubric:</h4>
-							<ul style={styles.criteriaList}>
-								{q.aiPolicy.rubric.map((item, i) => (
-									<li key={`q-${index}-rubric-${i}`}>
-										{item.criterion} (Weight:{' '}
-										{Math.round((item.weight || 0) * 100)}%)
-									</li>
-								))}
-							</ul>
-						</div>
-					)}
-					{q.aiPolicy.keywords?.length > 0 && (
-						<div>
-							<h4 style={styles.criteriaHeader}>Keywords:</h4>
-							<div style={styles.keywordContainer}>
-								{q.aiPolicy.keywords.map((item, i) => (
-									<span key={`q-${index}-kw-${i}`} style={styles.keywordPill}>
-										{item.term}
-									</span>
-								))}
-							</div>
-						</div>
-					)}
-				</div>
-			))}
-		</div>
-	);
-};
-
 const StartScreen = ({ submission, onStart }) => (
 	<div style={styles.centeredMessage}>
 		<div style={styles.startCard}>
-			<h2 style={{ margin: '0 0 16px 0' }}>{submission.examTitle}</h2>
-			<div style={styles.startInfo}>
-				<p>
-					<strong>Duration:</strong> {submission.duration} minutes
-				</p>
-				<p>
-					<strong>Total Questions:</strong> {submission.questions?.length || 0}
+			<div style={{ textAlign: 'center', marginBottom: 24 }}>
+				<h1 style={{ margin: 0, fontSize: 'clamp(1.5rem, 4vw, 2rem)' }}>
+					{submission.examTitle}
+				</h1>
+				<p style={{ color: 'var(--text-muted)', marginTop: 8 }}>
+					You are about to begin the exam.
 				</p>
 			</div>
-
-			<EvaluationCriteria submission={submission} />
-
+			<div style={styles.startInfoGrid}>
+				<div>
+					<span style={styles.startInfoLabel}>Duration</span>
+					<strong style={styles.startInfoValue}>{submission.duration} mins</strong>
+				</div>
+				<div>
+					<span style={styles.startInfoLabel}>Questions</span>
+					<strong style={styles.startInfoValue}>
+						{submission.questions?.length || 0}
+					</strong>
+				</div>
+				<div>
+					<span style={styles.startInfoLabel}>Total Marks</span>
+					<strong style={styles.startInfoValue}>
+						{(submission.questions || []).reduce((sum, q) => sum + q.max_marks, 0)}
+					</strong>
+				</div>
+			</div>
 			<div style={styles.startWarning}>
-				<h3 style={{ margin: '0 0 8px 0' }}>Important Instructions:</h3>
-				<ul style={{ margin: 0, paddingLeft: 20, textAlign: 'left', fontSize: 14 }}>
-					<li>This exam will be conducted in fullscreen mode.</li>
-					<li>Do not switch tabs, minimize the window, or use other applications.</li>
-					<li>Violations will be logged and may result in auto-submission.</li>
-					<li>Ensure you have a stable internet connection.</li>
-					<li>Your answers will be auto-saved periodically.</li>
+				<h3 style={{ margin: '0 0 8px 0', fontSize: 16 }}>Please Note:</h3>
+				<ul style={styles.startWarningList}>
+					<li>The exam must be taken in fullscreen mode.</li>
+					<li>Do not switch tabs, minimize, or navigate away.</li>
+					<li>Violations will be logged and may lead to auto-submission.</li>
+					<li>Your answers are auto-saved periodically.</li>
 				</ul>
 			</div>
 			<button onClick={onStart} style={styles.startButton}>
@@ -846,24 +646,24 @@ const StartScreen = ({ submission, onStart }) => (
 
 const paletteStatusStyles = {
 	answered: {
-		background: 'rgba(16,185,129,0.15)',
-		color: '#10b981',
-		borderColor: 'rgba(16,185,129,0.35)',
+		background: 'var(--success-bg)',
+		color: 'var(--success)',
+		borderColor: 'var(--success-border)',
 	},
 	unanswered: {
-		background: 'rgba(239,68,68,0.1)',
-		color: '#ef4444',
-		borderColor: 'rgba(239,68,68,0.35)',
+		background: 'var(--bg)',
+		color: 'var(--text-muted)',
+		borderColor: 'var(--border)',
 	},
 	review: {
-		background: 'rgba(245,158,11,0.1)',
-		color: '#f59e0b',
-		borderColor: 'rgba(245,158,11,0.35)',
+		background: 'var(--warning-bg)',
+		color: 'var(--warning)',
+		borderColor: 'var(--warning-border)',
 	},
 	'answered-review': {
-		background: 'rgba(139,92,246,0.15)',
-		color: '#8b5cf6',
-		borderColor: 'rgba(139,92,246,0.35)',
+		background: 'var(--review-bg)',
+		color: 'var(--review)',
+		borderColor: 'var(--review-border)',
 	},
 };
 
@@ -891,15 +691,32 @@ const QuestionPalette = ({ stats, currentIndex, onSelect }) => (
 				Answered
 			</div>
 			<div style={styles.legendItem}>
-				<span style={{ ...styles.legendColor, ...paletteStatusStyles.unanswered }}></span>
-				Not Answered
+				<span style={{ ...styles.legendColor, ...paletteStatusStyles.review }}></span>
+				Review
 			</div>
 			<div style={styles.legendItem}>
-				<span style={{ ...styles.legendColor, ...paletteStatusStyles.review }}></span>
-				For Review
+				<span
+					style={{ ...styles.legendColor, ...paletteStatusStyles['answered-review'] }}
+				></span>
+				Answered & Review
 			</div>
 		</div>
 	</div>
+);
+
+const QuestionPaletteModal = ({ stats, currentIndex, onSelect, onClose }) => (
+	<>
+		<div style={styles.modalBackdrop} onClick={onClose} />
+		<div style={styles.modalContent}>
+			<div style={styles.modalHeader}>
+				<h3 style={{ margin: 0 }}>Question Palette</h3>
+				<button onClick={onClose} style={styles.modalCloseBtn}>
+					×
+				</button>
+			</div>
+			<QuestionPalette stats={stats} currentIndex={currentIndex} onSelect={onSelect} />
+		</div>
+	</>
 );
 
 const ViolationOverlay = ({ type, onAcknowledge }) => {
@@ -909,9 +726,8 @@ const ViolationOverlay = ({ type, onAcknowledge }) => {
 			'You have switched to another tab or window. This is not allowed during the exam.',
 		navigation: 'Navigating away from the exam is not allowed.',
 	};
-
 	return (
-		<div style={styles.violationOverlay}>
+		<div style={styles.modalBackdrop}>
 			<div style={styles.violationBox}>
 				<h2 style={{ margin: '0 0 16px 0', color: '#ef4444' }}>⚠️ Warning</h2>
 				<p style={{ margin: '0 0 24px 0' }}>
@@ -926,7 +742,7 @@ const ViolationOverlay = ({ type, onAcknowledge }) => {
 };
 
 const SubmitConfirmation = ({ stats, onConfirm, onCancel }) => (
-	<div style={styles.violationOverlay}>
+	<div style={styles.modalBackdrop}>
 		<div style={styles.violationBox}>
 			<h2 style={{ margin: '0 0 16px 0' }}>Confirm Submission</h2>
 			<p style={{ margin: '0 0 16px 0' }}>
@@ -968,277 +784,228 @@ const QuestionCard = ({ question, index, answer, onAnswerChange, disabled }) => 
 		() => (answer?.responseText || '').trim().split(/\s+/).filter(Boolean).length,
 		[answer?.responseText],
 	);
-
 	return (
 		<div style={styles.questionCard}>
 			<div style={styles.questionHeader}>
-				<strong style={{ fontSize: 16 }}>
-					{index + 1}. {question.text}
-				</strong>
+				<p style={styles.questionNumber}>Question {index + 1}</p>
+				<p style={styles.questionText}>{question.text}</p>
 				<span style={styles.marksBadge}>{question.max_marks} Marks</span>
 			</div>
-
-			{isMCQ ? (
-				<div style={{ display: 'grid', gap: 12 }}>
-					{(question.options || []).map(opt => {
-						const isChecked = answer?.responseOption === opt.id;
-						return (
-							<label
-								key={opt.id}
-								style={{
-									...styles.mcqOption,
-									...(isChecked ? styles.mcqOptionChecked : {}),
-								}}
-							>
-								<input
-									type="radio"
-									name={`q_${question.id}`}
-									value={opt.id}
-									checked={isChecked}
-									onChange={e =>
-										onAnswerChange(
-											question.id,
-											e.target.value,
-											'multiple-choice',
-										)
-									}
-									disabled={disabled}
+			<div style={styles.answerArea}>
+				{isMCQ ? (
+					<div style={{ display: 'grid', gap: 12 }}>
+						{(question.options || []).map(opt => {
+							const isChecked = String(answer?.responseOption) === String(opt._id);
+							return (
+								<label
+									key={opt._id}
 									style={{
-										cursor: disabled ? 'not-allowed' : 'pointer',
-										opacity: 0,
-										position: 'absolute',
+										...styles.mcqOption,
+										...(isChecked ? styles.mcqOptionChecked : {}),
 									}}
-								/>
-								<span
-									style={{
-										...styles.mcqRadioBubble,
-										...(isChecked ? styles.mcqRadioBubbleChecked : {}),
-									}}
-								/>
-								<span style={{ flex: 1 }}>{opt.text}</span>
-							</label>
-						);
-					})}
-				</div>
-			) : (
-				<div style={{ position: 'relative' }}>
-					<textarea
-						value={answer?.responseText || ''}
-						onChange={e => onAnswerChange(question.id, e.target.value, 'descriptive')}
-						disabled={disabled}
-						rows={8}
-						placeholder="Type your answer here..."
-						style={styles.textarea}
-					/>
-					<span style={styles.wordCount}>{wordCount} words</span>
-				</div>
-			)}
+								>
+									<input
+										type="radio"
+										name={`q_${question._id}`}
+										value={opt._id}
+										checked={isChecked}
+										onChange={e =>
+											onAnswerChange(
+												question._id,
+												e.target.value,
+												'multiple-choice',
+											)
+										}
+										disabled={disabled}
+										style={{ opacity: 0, position: 'absolute' }}
+									/>
+									<span
+										style={{
+											...styles.mcqRadioBubble,
+											...(isChecked ? styles.mcqRadioBubbleChecked : {}),
+										}}
+									/>
+									<span style={{ flex: 1 }}>{opt.text}</span>
+								</label>
+							);
+						})}
+					</div>
+				) : (
+					<div style={{ position: 'relative' }}>
+						<textarea
+							value={answer?.responseText || ''}
+							onChange={e =>
+								onAnswerChange(question._id, e.target.value, 'descriptive')
+							}
+							disabled={disabled}
+							rows={10}
+							placeholder="Type your answer here..."
+							style={styles.textarea}
+						/>
+						<span style={styles.wordCount}>{wordCount} words</span>
+					</div>
+				)}
+			</div>
 		</div>
 	);
 };
 
 // --- Styles ---
 const styles = {
+	// Layouts
 	centeredMessage: {
 		display: 'grid',
 		placeContent: 'center',
 		textAlign: 'center',
 		minHeight: '100vh',
-		gap: '1rem',
 		padding: 16,
 		background: 'var(--bg)',
-	},
-	startCard: {
-		background: 'var(--surface)',
-		border: '1px solid var(--border)',
-		borderRadius: 16,
-		padding: '24px',
-		maxWidth: 700,
-		boxShadow: 'var(--shadow-lg)',
-	},
-	startInfo: {
-		background: 'var(--bg)',
-		border: '1px solid var(--border)',
-		borderRadius: 12,
-		padding: '12px 16px',
-		marginBottom: 16,
-		textAlign: 'left',
-	},
-	startWarning: {
-		background: 'rgba(239, 68, 68, 0.1)',
-		border: '1px solid rgba(239, 68, 68, 0.3)',
-		borderRadius: 12,
-		padding: '12px 16px',
-		marginBottom: 24,
-		color: 'var(--text)',
-	},
-	startButton: {
-		padding: '14px 28px',
-		fontSize: '16px',
-		fontWeight: 800,
-		cursor: 'pointer',
-		background: 'linear-gradient(135deg, #10b981, #059669)',
-		color: 'white',
-		border: 'none',
-		borderRadius: '10px',
-		width: '100%',
-		transition: 'transform 0.2s',
 	},
 	examLayout: {
 		display: 'grid',
 		gridTemplateColumns: '1fr 320px',
-		gap: '16px',
+		gap: '1.5rem',
 		height: '100vh',
-		background: 'var(--bg)',
-		padding: '16px',
+		padding: '1.5rem',
+		background: 'var(--bg-alt)',
 	},
 	questionPanel: {
 		display: 'flex',
 		flexDirection: 'column',
-		overflowY: 'auto',
-		padding: '16px',
 		background: 'var(--surface)',
-		borderRadius: '12px',
+		borderRadius: '16px',
 		border: '1px solid var(--border)',
+		overflow: 'hidden',
 	},
 	statusBar: {
-		position: 'sticky',
-		top: '16px',
-		height: 'calc(100vh - 32px)',
-		background: 'var(--surface)',
-		border: '1px solid var(--border)',
-		borderRadius: '12px',
-		padding: '16px',
 		display: 'flex',
 		flexDirection: 'column',
 		gap: '1rem',
 	},
-	timer: {
-		fontSize: '2rem',
-		fontWeight: 'bold',
-		textAlign: 'center',
-		background: 'var(--bg)',
-		padding: '12px',
-		borderRadius: '10px',
-		border: '2px solid var(--border)',
-		fontVariantNumeric: 'tabular-nums',
-	},
-	paletteContainer: {
-		border: '1px solid var(--border)',
-		borderRadius: '8px',
-		padding: '8px',
-		background: 'var(--bg)',
-		overflowY: 'auto',
-		flex: 1,
-		minHeight: 100,
-	},
-	paletteGrid: {
-		display: 'grid',
-		gridTemplateColumns: 'repeat(5, 1fr)',
-		gap: '8px',
-	},
-	paletteButton: {
-		aspectRatio: '1',
-		border: '1px solid var(--border)',
-		borderRadius: '6px',
-		cursor: 'pointer',
-		fontSize: 13,
-		fontWeight: 700,
-		transition: 'all 0.2s',
-	},
-	paletteCurrent: {
-		outline: '3px solid var(--primary)',
-		outlineOffset: '2px',
-	},
-	legend: {
-		display: 'flex',
-		gap: '0.5rem',
-		fontSize: '11px',
-		marginTop: '12px',
-		flexWrap: 'wrap',
-	},
-	legendItem: {
-		display: 'flex',
-		alignItems: 'center',
-		gap: '4px',
-	},
-	legendColor: {
-		width: '14px',
-		height: '14px',
-		borderRadius: '3px',
-		border: '1px solid var(--border)',
-	},
-	statusInfo: {
-		marginTop: '0',
-		fontSize: '14px',
-		color: 'var(--text-muted)',
-	},
-	navigationControls: {
-		display: 'grid',
-		gridTemplateColumns: 'repeat(3, 1fr)',
-		gap: '10px',
-		marginTop: 'auto',
-		paddingTop: '16px',
-		borderTop: '1px solid var(--border)',
-	},
-	navButton: {
-		padding: '12px',
-		fontSize: '14px',
-		fontWeight: 700,
-		cursor: 'pointer',
-		background: 'var(--bg)',
-		color: 'var(--text)',
-		border: '1px solid var(--border)',
-		borderRadius: '8px',
-		transition: 'all 0.2s',
-	},
-	submitButton: {
-		padding: '14px',
-		fontSize: '16px',
-		fontWeight: 'bold',
-		cursor: 'pointer',
-		background: 'linear-gradient(135deg, #dc2626, #b91c1c)',
-		color: 'white',
-		border: 'none',
-		borderRadius: '10px',
-		marginTop: 'auto', // Pushes to bottom
-	},
-	questionCard: {
-		flexGrow: 1,
-		color: 'var(--text)',
-		marginBottom: '16px',
-	},
-	questionHeader: {
+	bottomNav: {
+		position: 'fixed',
+		bottom: 0,
+		left: 0,
+		right: 0,
 		display: 'flex',
 		justifyContent: 'space-between',
 		alignItems: 'center',
-		marginBottom: 16,
-		gap: 12,
+		padding: '12px 16px',
+		background: 'var(--surface)',
+		borderTop: '1px solid var(--border)',
+		zIndex: 50,
+	},
+	// Start Screen
+	startCard: {
+		background: 'var(--surface)',
+		border: '1px solid var(--border)',
+		borderRadius: 24,
+		padding: 'clamp(1.5rem, 5vw, 3rem)',
+		maxWidth: 600,
+		width: '100%',
+		boxShadow: 'var(--shadow-lg)',
+	},
+	startInfoGrid: {
+		display: 'grid',
+		gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+		gap: '1rem',
+		background: 'var(--bg-alt)',
+		border: '1px solid var(--border)',
+		borderRadius: 16,
+		padding: '1.5rem',
+		marginBottom: '1.5rem',
+		textAlign: 'center',
+	},
+	startInfoLabel: {
+		display: 'block',
+		fontSize: 13,
+		color: 'var(--text-muted)',
+		marginBottom: 4,
+	},
+	startInfoValue: { fontSize: '1.25rem', color: 'var(--text)' },
+	startWarning: {
+		background: 'var(--warning-bg)',
+		border: '1px solid var(--warning-border)',
+		borderRadius: 12,
+		padding: '1rem',
+		marginBottom: '1.5rem',
+	},
+	startWarningList: { margin: 0, paddingLeft: 20, fontSize: 14, color: 'var(--warning)' },
+	startButton: {
+		padding: '16px 28px',
+		fontSize: '1rem',
+		fontWeight: 700,
+		cursor: 'pointer',
+		background: 'var(--primary)',
+		color: 'white',
+		border: 'none',
+		borderRadius: '12px',
+		width: '100%',
+		transition: 'transform 0.2s, box-shadow 0.2s',
+		boxShadow: 'var(--shadow-md)',
+	},
+	// Question Panel
+	questionPanelHeader: {
+		padding: '1rem 1.5rem',
+		borderBottom: '1px solid var(--border)',
+		display: 'flex',
+		justifyContent: 'space-between',
+		alignItems: 'center',
+	},
+	examTitle: { margin: 0, fontSize: '1.25rem' },
+	desktopTimer: {
+		fontSize: '1.25rem',
+		fontWeight: 700,
+		fontVariantNumeric: 'tabular-nums',
+	},
+	questionCard: {
+		flex: 1,
+		padding: '1.5rem',
+		overflowY: 'auto',
+	},
+	questionHeader: {
+		marginBottom: '1.5rem',
+		borderBottom: '1px solid var(--border)',
+		paddingBottom: '1rem',
+	},
+	questionNumber: {
+		fontSize: 13,
+		fontWeight: 600,
+		color: 'var(--text-muted)',
+		margin: '0 0 8px 0',
+	},
+	questionText: {
+		fontSize: '1.1rem',
+		lineHeight: 1.6,
+		margin: 0,
+		color: 'var(--text)',
 	},
 	marksBadge: {
-		padding: '6px 12px',
-		background: 'rgba(59, 130, 246, 0.1)',
-		color: '#3b82f6',
+		float: 'right',
+		background: 'var(--bg-alt)',
+		color: 'var(--primary)',
 		borderRadius: 20,
-		fontSize: 13,
-		fontWeight: 800,
-		whiteSpace: 'nowrap',
+		padding: '4px 10px',
+		fontSize: 12,
+		fontWeight: 700,
 	},
+	answerArea: { paddingTop: '1rem' },
+	// MCQ
 	mcqOption: {
 		display: 'flex',
 		alignItems: 'center',
 		gap: 12,
-		padding: '12px 16px',
+		padding: '14px 16px',
 		cursor: 'pointer',
-		background: 'var(--bg)',
+		background: 'var(--bg-alt)',
 		border: '1px solid var(--border)',
-		borderRadius: '8px',
+		borderRadius: '12px',
 		transition: 'all 0.2s',
-		position: 'relative',
 	},
 	mcqOptionChecked: {
-		background: 'color-mix(in srgb, var(--primary) 10%, transparent)',
-		borderColor: 'var(--primary)',
+		background: 'var(--primary-bg)',
+		borderColor: 'var(--primary-border)',
+		boxShadow: '0 0 0 1px var(--primary)',
 	},
 	mcqRadioBubble: {
 		width: 20,
@@ -1247,84 +1014,188 @@ const styles = {
 		border: '2px solid var(--border)',
 		background: 'var(--surface)',
 		transition: 'all 0.2s',
+		flexShrink: 0,
 	},
 	mcqRadioBubbleChecked: {
 		borderColor: 'var(--primary)',
 		background: 'var(--primary)',
 		boxShadow: '0 0 0 3px var(--surface) inset',
 	},
+	// Subjective
 	textarea: {
 		width: '100%',
 		padding: '12px',
-		background: 'var(--bg)',
+		background: 'var(--bg-alt)',
 		color: 'var(--text)',
 		border: '1px solid var(--border)',
 		borderRadius: '8px',
 		fontFamily: 'inherit',
-		fontSize: '14px',
-		lineHeight: 1.5,
+		fontSize: '1rem',
+		lineHeight: 1.7,
 		resize: 'vertical',
+		minHeight: '200px',
 	},
 	wordCount: {
-		position: 'absolute',
-		bottom: 10,
-		right: 10,
-		fontSize: 11,
+		textAlign: 'right',
+		fontSize: 12,
 		fontWeight: 600,
 		color: 'var(--text-muted)',
-		background: 'var(--bg)',
-		padding: '2px 6px',
-		borderRadius: 4,
+		padding: '4px 0',
 	},
-	violationOverlay: {
+	// Sidebar
+	paletteContainer: {
+		border: '1px solid var(--border)',
+		borderRadius: '12px',
+		padding: '1rem',
+		background: 'var(--surface)',
+		overflowY: 'auto',
+		flex: 1,
+	},
+	paletteGrid: {
+		display: 'grid',
+		gridTemplateColumns: 'repeat(auto-fill, minmax(42px, 1fr))',
+		gap: '10px',
+	},
+	paletteButton: {
+		aspectRatio: '1',
+		border: '1px solid var(--border)',
+		borderRadius: '8px',
+		cursor: 'pointer',
+		fontSize: 14,
+		fontWeight: 700,
+		transition: 'all 0.2s',
+	},
+	paletteCurrent: {
+		outline: '3px solid var(--primary)',
+		outlineOffset: '2px',
+		transform: 'scale(1.05)',
+	},
+	legend: {
+		display: 'grid',
+		gridTemplateColumns: '1fr 1fr',
+		gap: '0.5rem',
+		fontSize: '12px',
+		marginTop: '1rem',
+		color: 'var(--text-muted)',
+	},
+	legendItem: { display: 'flex', alignItems: 'center', gap: '6px' },
+	legendColor: {
+		width: '12px',
+		height: '12px',
+		borderRadius: '3px',
+		border: '1px solid var(--border)',
+	},
+	statusInfo: {
+		background: 'var(--surface)',
+		border: '1px solid var(--border)',
+		borderRadius: '12px',
+		padding: '1rem',
+	},
+	statusText: { margin: '4px 0', fontSize: 13, color: 'var(--text-muted)' },
+	submitButton: {
+		padding: '16px',
+		fontSize: '1rem',
+		fontWeight: 'bold',
+		cursor: 'pointer',
+		background: 'var(--danger)',
+		color: 'white',
+		border: 'none',
+		borderRadius: '12px',
+		boxShadow: 'var(--shadow-md)',
+	},
+	// Bottom Nav
+	navButton: {
+		padding: '10px 16px',
+		fontSize: '14px',
+		fontWeight: 700,
+		cursor: 'pointer',
+		background: 'var(--bg-alt)',
+		color: 'var(--text)',
+		border: '1px solid var(--border)',
+		borderRadius: '10px',
+		display: 'flex',
+		alignItems: 'center',
+		justifyContent: 'center',
+		gap: '8px',
+	},
+	arrow: { fontSize: '1.2rem', lineHeight: 1 },
+	nextBtn: { background: 'var(--primary)', color: 'white' },
+	reviewBtnActive: { background: 'var(--review)', color: 'white' },
+	mobileCenterNav: { display: 'none' },
+	// Modals & Overlays
+	modalBackdrop: {
 		position: 'fixed',
 		inset: 0,
-		background: 'rgba(0,0,0,0.9)',
+		background: 'rgba(0,0,0,0.6)',
+		backdropFilter: 'blur(8px)',
 		zIndex: 100,
 		display: 'grid',
 		placeItems: 'center',
 		padding: 16,
 	},
+	modalContent: {
+		background: 'var(--surface)',
+		borderRadius: '16px',
+		padding: '1rem',
+		width: 'min(90vw, 480px)',
+		boxShadow: 'var(--shadow-xl)',
+	},
+	modalHeader: {
+		display: 'flex',
+		justifyContent: 'space-between',
+		alignItems: 'center',
+		padding: '0 0.5rem 1rem 0.5rem',
+		borderBottom: '1px solid var(--border)',
+	},
+	modalCloseBtn: {
+		background: 'transparent',
+		border: 0,
+		fontSize: '1.5rem',
+		cursor: 'pointer',
+		color: 'var(--text-muted)',
+	},
 	violationBox: {
 		background: 'var(--surface)',
-		padding: '32px',
+		padding: 'clamp(1.5rem, 5vw, 2.5rem)',
 		borderRadius: '16px',
 		textAlign: 'center',
 		maxWidth: '500px',
 		width: '100%',
-		border: '2px solid #ef4444',
-		boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
+		border: '1px solid var(--border)',
+		boxShadow: 'var(--shadow-xl)',
 	},
 	violationButton: {
 		padding: '12px 24px',
-		fontSize: '16px',
-		fontWeight: 800,
+		fontSize: '1rem',
+		fontWeight: 700,
 		cursor: 'pointer',
-		background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+		background: 'var(--danger)',
 		color: 'white',
 		border: 'none',
 		borderRadius: '8px',
 		width: '100%',
 	},
 	submitSummary: {
-		background: 'var(--bg)',
+		background: 'var(--bg-alt)',
 		border: '1px solid var(--border)',
 		borderRadius: '12px',
-		padding: '16px',
+		padding: '1rem',
 		display: 'grid',
 		gap: '12px',
+		textAlign: 'left',
 	},
 	summaryItem: {
 		display: 'flex',
 		justifyContent: 'space-between',
 		alignItems: 'center',
+		fontSize: 14,
 	},
 	cancelButton: {
 		padding: '12px 24px',
-		fontSize: '16px',
+		fontSize: '1rem',
 		fontWeight: 700,
 		cursor: 'pointer',
-		background: 'var(--bg)',
+		background: 'var(--bg-alt)',
 		color: 'var(--text)',
 		border: '1px solid var(--border)',
 		borderRadius: '8px',
@@ -1332,102 +1203,66 @@ const styles = {
 	},
 	confirmButton: {
 		padding: '12px 24px',
-		fontSize: '16px',
+		fontSize: '1rem',
 		fontWeight: 700,
 		cursor: 'pointer',
-		background: 'linear-gradient(135deg, #dc2626, #b91c1c)',
+		background: 'var(--danger)',
 		color: 'white',
 		border: 'none',
 		borderRadius: '8px',
 		flex: 1,
 	},
-	toolbar: {
-		position: 'sticky',
-		top: 0,
-		zIndex: 1,
-		background: 'var(--surface)',
-		borderBottom: '1px solid var(--border)',
-		margin: '-16px -16px 16px',
-		padding: '12px 16px',
-	},
-	toolbarPill: {
-		fontSize: 12,
-		fontWeight: 800,
-		padding: '4px 10px',
-		borderRadius: 999,
-		background: 'rgba(16,185,129,0.15)',
-		color: '#10b981',
-		border: '1px solid rgba(16,185,129,0.35)',
-	},
-	toolbarPillMuted: {
-		fontSize: 12,
-		fontWeight: 800,
-		padding: '4px 10px',
-		borderRadius: 999,
-		background: 'var(--bg)',
-		color: 'var(--text-muted)',
-		border: '1px solid var(--border)',
-	},
-	toolbarTimer: {
-		fontWeight: 800,
-		padding: '6px 12px',
-		borderRadius: 8,
-		border: '1px solid var(--border)',
-		background: 'var(--bg)',
-		fontVariantNumeric: 'tabular-nums',
-	},
-	criteriaContainer: {
-		background: 'var(--bg)',
-		border: '1px solid var(--border)',
-		borderRadius: 12,
-		padding: '12px 16px',
-		marginBottom: 16,
-		textAlign: 'left',
-	},
-	criteriaSection: {
-		borderTop: '1px solid var(--border)',
-		paddingTop: '8px',
-		marginTop: '8px',
-	},
-	criteriaHeader: {
-		margin: '8px 0 4px 0',
-		fontSize: 13,
-		color: 'var(--text-muted)',
-		fontWeight: 600,
-	},
-	criteriaList: {
-		margin: 0,
-		paddingLeft: 20,
-		fontSize: 13,
-		color: 'var(--text)',
-	},
-	keywordContainer: {
-		display: 'flex',
-		flexWrap: 'wrap',
-		gap: '6px',
-	},
-	keywordPill: {
-		background: 'rgba(59, 130, 246, 0.1)',
-		color: '#3b82f6',
-		padding: '3px 8px',
-		borderRadius: 999,
-		fontSize: 12,
-		fontWeight: 700,
-	},
 };
 
 // Media query for responsive design
 const mediaQuery = `
+  :root {
+    --success: #10b981; --success-bg: rgba(16,185,129,0.1); --success-border: rgba(16,185,129,0.2);
+    --warning: #f59e0b; --warning-bg: rgba(245,158,11,0.1); --warning-border: rgba(245,158,11,0.2);
+    --danger: #ef4444;
+    --review: #8b5cf6; --review-bg: rgba(139,92,246,0.1); --review-border: rgba(139,92,246,0.2);
+    --bg-alt: var(--theme-elevation-1);
+  }
+  .hide-on-mobile { display: inline-block; }
   .show-on-mobile { display: none !important; }
   @media (max-width: 900px) {
     .examLayout { 
       grid-template-columns: 1fr !important; 
-      height: auto !important; 
-      padding: 8px !important;
+      padding: 0 !important;
+      padding-bottom: 70px !important; /* Space for bottom nav */
     }
     .statusBar { display: none !important; }
     .hide-on-mobile { display: none !important; }
     .show-on-mobile { display: inline-flex !important; }
+    
+    ${/* Style overrides for mobile */ ''}
+    .styles.questionPanel { border-radius: 0; border-left: 0; border-right: 0; }
+    .styles.questionPanelHeader { display: none; }
+    .styles.bottomNav {
+      padding: 8px;
+      gap: 8px;
+    }
+    .styles.mobileCenterNav {
+      display: flex !important;
+      flex-direction: column;
+      gap: 4px;
+      text-align: center;
+    }
+    .styles.mobileTimer {
+      font-size: 14px;
+      font-weight: 700;
+      background: transparent; border: 0; color: var(--text);
+      padding: 0;
+    }
+    .styles.mobilePaletteBtn {
+      font-size: 12px;
+      font-weight: 600;
+      background: var(--bg-alt);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 2px 8px;
+      color: var(--text-muted);
+    }
   }
 `;
 
