@@ -3,14 +3,14 @@ import { Link } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { useToast } from '../../components/ui/Toaster.jsx';
 import {
-    safeApiCall,
-    getTeacherIssues,
-    updateTeacherIssueStatus,
-    resolveTeacherIssue,
-    getTeacherIssueById,
-    normalizeIssue,
-    addInternalNote,
-    bulkResolveIssues,
+	safeApiCall,
+	getTeacherIssues,
+	updateTeacherIssueStatus,
+	resolveTeacherIssue,
+	getTeacherIssueById,
+	normalizeIssue,
+	addInternalNote,
+	bulkResolveIssues,
 } from '../../services/teacherServices.js';
 import { API_BASE_URL } from '../../services/api.js';
 import { useAuth } from '../../hooks/useAuth.js';
@@ -119,8 +119,10 @@ const IssueDetailPanel = ({ issueId, onClose, onUpdate, isMobile }) => {
 		if (!note.trim()) return;
 		setIsAddingNote(true);
 		try {
-			await safeApiCall(addInternalNote, issueId, note);
-			setNote(''); // Optimistically clear the input
+			// The backend now returns the new list of notes
+			const newNotes = await safeApiCall(addInternalNote, issueId, note);
+			setIssue(prev => ({ ...prev, internalNotes: newNotes }));
+			setNote(''); // Clear the input on success
 		} catch (err) {
 			toast.error('Failed to add note', { description: err.message });
 		} finally {
@@ -266,7 +268,7 @@ const IssueDetailPanel = ({ issueId, onClose, onUpdate, isMobile }) => {
 	);
 };
 
-const IssueRow = ({ issue, onSelect, onToggleSelect, isChecked }) => {
+const IssueRow = ({ issue, onSelect, onToggleSelect, isChecked, isSelected, onUpdate, toast }) => {
 	const config = statusStyles[issue.status] || statusStyles.open;
 
 	const handleStatusChange = async newStatus => {
@@ -309,10 +311,19 @@ const IssueRow = ({ issue, onSelect, onToggleSelect, isChecked }) => {
 	);
 };
 
-const IssueCard = ({ issue, onSelect, onToggleSelect, isChecked }) => {
+const IssueCard = ({ issue, onSelect, onToggleSelect, isChecked, isSelected }) => {
 	const config = statusStyles[issue.status] || statusStyles.open;
 	return (
-		<div style={styles.card.container} onClick={() => onSelect(issue)}>
+		<div
+			style={{
+				...styles.card.container,
+				...(isSelected && {
+					borderColor: 'var(--primary)',
+					boxShadow: '0 0 0 1px var(--primary)',
+				}),
+			}}
+			onClick={() => onSelect(issue)}
+		>
 			<div style={styles.card.header}>
 				<input
 					type="checkbox"
@@ -325,9 +336,7 @@ const IssueCard = ({ issue, onSelect, onToggleSelect, isChecked }) => {
 					style={{ marginRight: 12 }}
 				/>
 				<span style={styles.card.title}>{issue.examTitle}</span>
-				<div
-					style={{ ...styles.statusPill, color: config.color, background: config.bg }}
-				>
+				<div style={{ ...styles.statusPill, color: config.color, background: config.bg }}>
 					{config.label}
 				</div>
 			</div>
@@ -570,6 +579,9 @@ const TeacherIssues = () => {
 										onSelect={() => setSelectedIssueId(issue.id)}
 										onToggleSelect={handleToggleSelect}
 										isChecked={selectedIssueIds.includes(issue.id)}
+										isSelected={selectedIssueId === issue.id}
+										onUpdate={handleUpdate}
+										toast={toast}
 									/>
 								))}
 							</tbody>
@@ -590,6 +602,7 @@ const TeacherIssues = () => {
 								onSelect={() => setSelectedIssueId(issue.id)}
 								onToggleSelect={handleToggleSelect}
 								isChecked={selectedIssueIds.includes(issue.id)}
+								isSelected={selectedIssueId === issue.id}
 							/>
 						))}
 					</div>
