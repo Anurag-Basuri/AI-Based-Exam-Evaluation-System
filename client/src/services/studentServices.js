@@ -303,20 +303,17 @@ export const getMySubmissions = async (params = {}, forceRefresh = false) => {
 	return normalizedList;
 };
 
-export const startSubmission = async examId => {
+export const startExam = async examId => {
 	const payload = { examId };
+	// The backend now returns a fully populated and normalized object, so we can use it directly.
 	const res = await tryPost(EP.submissionStart(examId), payload);
-	const data = res?.data?.data ?? res?.data ?? {};
-	return normalizeSubmission(data);
+	return res?.data?.data ?? res?.data ?? {};
 };
-
-// Alias for UI import
-export const startExam = async examId => startSubmission(examId);
 
 // Save answers (and markedForReview) for a given submission ID
 export const saveSubmissionAnswers = async (submissionId, payload) => {
-	// FIX: The backend route uses POST, not PATCH.
 	const res = await tryPost([EP.submissionSyncById(submissionId)], payload);
+	// The backend returns the updated submission, which we can normalize and use.
 	const data = res?.data?.data ?? res?.data ?? {};
 	return normalizeSubmission(data);
 };
