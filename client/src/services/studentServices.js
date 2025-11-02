@@ -272,6 +272,14 @@ export const getExamById = async examId => {
 	return normalizeExam(data);
 };
 
+export const startExam = async examId => {
+	// The primary endpoint uses the examId in the URL.
+	// The fallback endpoint expects the examId in the body.
+	const res = await tryPost(EP.submissionStart(examId), { examId });
+	const data = res?.data?.data ?? res?.data ?? {};
+	return normalizeSubmission(data);
+};
+
 // ---------- Student: Submissions ----------
 // --- NEW: Simple in-memory cache for submissions ---
 let submissionsCache = {
