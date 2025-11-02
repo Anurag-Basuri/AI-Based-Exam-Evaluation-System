@@ -102,14 +102,14 @@ const TakeExam = () => {
 			try {
 				// Final save before submitting
 				if (hasUnsavedChanges.current) {
-					await safeApiCall(saveSubmissionAnswers, submission._id, {
+					await safeApiCall(saveSubmissionAnswers, submission.id, {
 						answers: submission.answers || [],
 						markedForReview: markedForReview,
 					});
 				}
 
 				// Submit
-				await safeApiCall(submitSubmission, submission._id, {
+				await safeApiCall(submitSubmission, submission.id, {
 					submissionType: isAuto ? 'auto' : 'manual',
 				});
 
@@ -119,7 +119,8 @@ const TakeExam = () => {
 
 				success('Submission successful! Redirecting to results...');
 				setTimeout(() => {
-					navigate('/student/results', { replace: true });
+					// FIX: Navigate to the specific result page for this submission
+					navigate(`/student/results/view/${submission.id}`, { replace: true });
 				}, 1500);
 			} catch (e) {
 				toastError(e?.message || 'Failed to submit. Please try again.');
@@ -283,7 +284,7 @@ const TakeExam = () => {
 					answers: answersToSave || submission.answers,
 					markedForReview: reviewState || markedForReview,
 				};
-				await safeApiCall(saveSubmissionAnswers, submission._id, payload);
+				await safeApiCall(saveSubmissionAnswers, submission.id, payload);
 				setLastSaved(new Date());
 			} catch (e) {
 				hasUnsavedChanges.current = true;
@@ -308,7 +309,7 @@ const TakeExam = () => {
 
 	// --- Toggle review ---
 	const handleToggleReview = useCallback(() => {
-		const currentQuestionId = submission?.questions?.[currentQuestionIndex]?._id;
+		const currentQuestionId = submission?.questions?.[currentQuestionIndex]?.id;
 		if (!currentQuestionId) return;
 
 		const newMarkedForReview = markedForReview.includes(currentQuestionId)
@@ -382,10 +383,10 @@ const TakeExam = () => {
 		const answers = submission?.answers || [];
 		let answeredCount = 0;
 		const statusMap = questions.map(q => {
-			const ans = answers.find(a => String(a.question) === String(q._id));
+			const ans = answers.find(a => String(a.question) === String(q.id));
 			const isAnswered =
 				(ans?.responseText && ans.responseText.trim().length > 0) || ans?.responseOption;
-			const isMarked = markedForReview.includes(q._id);
+			const isMarked = markedForReview.includes(q.id);
 			if (isAnswered) answeredCount++;
 			if (isMarked && isAnswered) return 'answered-review';
 			if (isMarked) return 'review';
@@ -515,14 +516,14 @@ const TakeExam = () => {
 					disabled={autoSubmitting}
 					style={{
 						...styles.navButton,
-						...(markedForReview.includes(currentQuestion?._id)
+						...(markedForReview.includes(currentQuestion?.id)
 							? styles.reviewBtnActive
 							: {}),
 					}}
 				>
 					⭐
 					<span className="hide-on-mobile">
-						{markedForReview.includes(currentQuestion?._id) ? 'Marked' : 'Review'}
+						{markedForReview.includes(currentQuestion?.id) ? 'Marked' : 'Review'}
 					</span>
 				</button>
 
@@ -805,10 +806,10 @@ const QuestionCard = ({ question, index, answer, onAnswerChange, disabled }) => 
 				{isMCQ ? (
 					<div style={{ display: 'grid', gap: 12 }}>
 						{(question.options || []).map(opt => {
-							const isChecked = String(answer?.responseOption) === String(opt._id);
+							const isChecked = String(answer?.responseOption) === String(opt.id);
 							return (
 								<label
-									key={opt._id}
+									key={opt.id}
 									style={{
 										...styles.mcqOption,
 										...(isChecked ? styles.mcqOptionChecked : {}),
@@ -816,12 +817,12 @@ const QuestionCard = ({ question, index, answer, onAnswerChange, disabled }) => 
 								>
 									<input
 										type="radio"
-										name={`q_${question._id}`}
-										value={opt._id}
+										name={`q_${question.id}`}
+										value={opt.id}
 										checked={isChecked}
 										onChange={e =>
 											onAnswerChange(
-												question._id,
+												question.id,
 												e.target.value,
 												'multiple-choice',
 											)
@@ -845,7 +846,7 @@ const QuestionCard = ({ question, index, answer, onAnswerChange, disabled }) => 
 						<textarea
 							value={answer?.responseText || ''}
 							onChange={e =>
-								onAnswerChange(question._id, e.target.value, 'descriptive')
+								onAnswerChange(question.id, e.target.value, 'descriptive')
 							}
 							disabled={disabled}
 							rows={10}

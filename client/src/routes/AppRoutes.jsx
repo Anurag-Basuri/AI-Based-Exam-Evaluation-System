@@ -22,7 +22,7 @@ const StudentExams = lazy(() => import('../pages/student/Exams.jsx'));
 const StudentResults = lazy(() => import('../pages/student/result.jsx'));
 const StudentIssues = lazy(() => import('../pages/student/issue.jsx'));
 const StudentSettings = lazy(() => import('../pages/student/Settings.jsx'));
-const TakeExam = lazy(() => import('../pages/student/TakeExam.jsx'));
+const StudentTakeExam = lazy(() => import('../pages/student/TakeExam.jsx'));
 
 // Teacher pages
 const TeacherHome = lazy(() => import('../pages/teacher/Home.jsx'));
@@ -69,13 +69,11 @@ const AppRoutes = () => (
 				<Route path="/student" element={withBoundary(<StudentDash />)}>
 					<Route index element={withBoundary(<StudentHome />)} />
 					<Route path="exams" element={withBoundary(<StudentExams />)} />
+					<Route path="take/:id" element={withBoundary(<StudentTakeExam />)} />
 					<Route path="results" element={withBoundary(<StudentResults />)} />
+					<Route path="results/view/:id" element={withBoundary(<StudentResults />)} />
 					<Route path="issues" element={withBoundary(<StudentIssues />)} />
 					<Route path="settings" element={withBoundary(<StudentSettings />)} />
-					{/* FIX: The path should be 'take/:submissionId' to match the navigation URL */}
-					<Route path="take/:submissionId" element={withBoundary(<TakeExam />)} />
-					{/* REMOVED redundant and confusing routes that pointed to the same component */}
-					<Route path="*" element={<Navigate to="/student" replace />} />
 				</Route>
 			</Route>
 
