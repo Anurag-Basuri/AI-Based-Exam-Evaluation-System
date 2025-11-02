@@ -64,7 +64,7 @@ router.post(
 );
 
 // Compat: sync by submissionId
-router.post(
+router.patch(
 	'/:id/answers',
 	checkAuth,
 	verifyStudent,

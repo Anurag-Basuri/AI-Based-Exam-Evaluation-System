@@ -84,7 +84,12 @@ const TakeExam = () => {
 
 	const hasUnsavedChanges = useRef(false);
 	const saveTimeoutRef = useRef(null);
-	const questionPanelRef = useRef(null);
+	const submissionRef = useRef(submission); // <-- Create a ref to hold the latest submission state
+
+	// Keep the ref updated whenever the submission state changes
+	useEffect(() => {
+		submissionRef.current = submission;
+	}, [submission]);
 
 	// --- Timer Hook ---
 	const { remainingMs, remaining } = useTimer(submission?.startedAt, submission?.duration);
@@ -273,7 +278,8 @@ const TakeExam = () => {
 	// --- Quick save ---
 	const handleQuickSave = useCallback(
 		async (answersToSave, reviewState) => {
-			if (!submission || saving || !isOnline) return;
+			const currentSubmission = submissionRef.current; // <-- Use the submission from the ref
+			if (!currentSubmission || saving || !isOnline) return;
 			if (!answersToSave && !reviewState && !hasUnsavedChanges.current) return;
 
 			setSaving(true);
@@ -281,10 +287,10 @@ const TakeExam = () => {
 
 			try {
 				const payload = {
-					answers: answersToSave || submission.answers,
+					answers: answersToSave || currentSubmission.answers,
 					markedForReview: reviewState || markedForReview,
 				};
-				await safeApiCall(saveSubmissionAnswers, submission.id, payload);
+				await safeApiCall(saveSubmissionAnswers, currentSubmission.id, payload);
 				setLastSaved(new Date());
 			} catch (e) {
 				hasUnsavedChanges.current = true;
@@ -293,7 +299,7 @@ const TakeExam = () => {
 				setSaving(false);
 			}
 		},
-		[submission, saving, isOnline, markedForReview],
+		[saving, isOnline, markedForReview], // <-- Remove submission from dependencies
 	);
 
 	// --- Debounced save ---
@@ -323,6 +329,7 @@ const TakeExam = () => {
 	// --- Answer change ---
 	const handleAnswerChange = (questionId, value, type) => {
 		hasUnsavedChanges.current = true;
+		let newAnswersForSave;
 		setSubmission(prev => {
 			if (!prev) return null;
 			const newAnswers = [...(prev.answers || [])];
@@ -342,8 +349,11 @@ const TakeExam = () => {
 				answerToUpdate.responseText = value;
 			}
 			newAnswers[answerIndex] = answerToUpdate;
+			newAnswersForSave = newAnswers; // Capture the new answers for the debounced save
 			return { ...prev, answers: newAnswers };
 		});
+		// Pass the updated answers directly to the debounced function
+		debouncedSave(newAnswersForSave, null);
 	};
 
 	// --- Navigation ---
@@ -459,11 +469,11 @@ const TakeExam = () => {
 
 				{currentQuestion && (
 					<QuestionCard
-						key={currentQuestion._id}
+						key={currentQuestion.id}
 						question={currentQuestion}
 						index={currentQuestionIndex}
 						answer={submission.answers?.find(
-							a => String(a.question) === String(currentQuestion._id),
+							a => String(a.question) === String(currentQuestion.id),
 						)}
 						onAnswerChange={handleAnswerChange}
 						disabled={autoSubmitting}
