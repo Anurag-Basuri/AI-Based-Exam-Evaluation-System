@@ -606,7 +606,20 @@ const syncAnswersBySubmissionId = asyncHandler(async (req, res) => {
 	}
 
 	await submission.save();
-	return ApiResponse.success(res, submission, 'State synced');
+
+	// --- CRITICAL FIX: Re-populate and return the full, consistent submission object ---
+	const populatedSubmission = await Submission.findById(submission._id)
+		.populate({
+			path: 'exam',
+			select: 'title duration instructions aiPolicy',
+		})
+		.populate({
+			path: 'questions',
+			select: 'text type options max_marks',
+		})
+		.lean();
+
+	return ApiResponse.success(res, populatedSubmission, 'State synced');
 });
 
 // Submit by submission ID
@@ -743,5 +756,5 @@ export {
 	publishSingleSubmissionResult,
 	publishAllExamResults,
 	getSubmissionForGrading,
-	getSubmissionForResults, 
+	getSubmissionForResults,
 };
