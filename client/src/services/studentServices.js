@@ -316,6 +316,16 @@ export const getSubmissionById = async submissionId => {
 	return normalizeSubmission(data);
 };
 
+export const saveSubmissionAnswers = async (submissionId, payload) => {
+	const res = await tryPatch(() => EP.submissionSyncById(submissionId), payload);
+	return res?.data?.data ?? res?.data;
+};
+
+export const submitSubmission = async (submissionId, payload) => {
+	const res = await tryPost(() => EP.submissionSubmitById(submissionId), payload);
+	return res?.data?.data ?? res?.data;
+};
+
 // ---------- Issues (Student) ----------
 const normalizeIssue = i => {
 	// CRITICAL FIX: Ensure 'i' itself is not null or undefined.
