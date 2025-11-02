@@ -692,13 +692,21 @@ const publishAllExamResults = asyncHandler(async (req, res) => {
 	);
 });
 
-// Create a new submission (student)
-const createSubmission = asyncHandler(async (req, res) => {
-	const studentId = req.student?._id || req.user?.id;
-	const { examId } = req.body;
-
-	if (!examId) throw ApiError.BadRequest('Exam ID is required');
-
-	const exam = await Exam.findById(examId).select('status startTime endTime duration questions');
-	if (!exam) throw ApiError.NotFound('Exam not found');
-	if
+export {
+	startSubmission,
+	submitSubmission,
+	updateEvaluation,
+	evaluateSubmission,
+	getSubmission,
+	getExamSubmissions,
+	getMySubmissions,
+	startSubmissionByParam,
+	getSubmissionByIdParam,
+	syncAnswersBySubmissionId,
+	submitSubmissionById,
+	logViolation,
+	testEvaluationService,
+	publishSingleSubmissionResult,
+	publishAllExamResults,
+	getSubmissionForGrading
+};
