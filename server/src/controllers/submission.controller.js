@@ -435,46 +435,66 @@ const getMySubmissions = asyncHandler(async (req, res) => {
 		};
 	});
 
-	return ApiResponse.success(res, normalized, 'My submissions fetched');
+	return ApiResponse.success(res, normalized, 'Your submissions');
+});
+
+// Get a student's own submission by ID (for taking an exam)
+const getSubmissionByIdParam = asyncHandler(async (req, res) => {
+	const submissionId = req.params.id;
+	const studentId = req.student?._id || req.user?.id;
+
+	if (!submissionId.match(/^[a-f\d]{24}$/i)) {
+		throw ApiError.BadRequest('Invalid submission ID');
+	}
+
+	const submission = await Submission.findById(submissionId)
+		.populate({
+			path: 'exam',
+			select: 'title duration instructions aiPolicy',
+		})
+		.populate({
+			path: 'questions',
+			select: 'text type options max_marks',
+		})
+		.lean();
+
+	if (!submission) {
+		throw ApiError.NotFound('Submission not found');
+	}
+
+	// Security: Ensure the submission belongs to the logged-in student
+	if (String(submission.student) !== String(studentId)) {
+		throw ApiError.Forbidden('You are not authorized to view this submission');
+	}
+
+	// Normalize the data for the TakeExam page
+	const normalized = {
+		id: submission._id,
+		status: submission.status,
+		startedAt: submission.startedAt,
+		submittedAt: submission.submittedAt,
+		duration: submission.exam?.duration,
+		examTitle: submission.exam?.title,
+		examPolicy: submission.exam?.aiPolicy,
+		instructions: submission.exam?.instructions,
+		questions: (submission.questions || []).map(q => ({
+			id: q._id,
+			text: q.text,
+			type: q.type,
+			max_marks: q.max_marks,
+			options: (q.options || []).map(opt => ({ id: opt._id, text: opt.text })),
+		})),
+		answers: submission.answers || [],
+		markedForReview: submission.markedForReview || [],
+	};
+
+	return ApiResponse.success(res, normalized, 'Submission details fetched');
 });
 
 // Start via URL param
 const startSubmissionByParam = asyncHandler(async (req, res) => {
 	req.body.examId = req.params.id;
 	return startSubmission(req, res);
-});
-
-// Get submission by ID (student's own)
-const getSubmissionByIdParam = asyncHandler(async (req, res) => {
-	const studentId = req.student?._id || req.user?.id;
-	const id = req.params.id;
-	if (!id) throw ApiError.BadRequest('Submission ID is required');
-
-	const submission = await Submission.findOne({ _id: id, student: studentId })
-		.populate({
-			path: 'exam',
-			select: 'title duration startTime endTime questions aiPolicy',
-			populate: {
-				path: 'questions',
-				model: 'Question',
-				select: 'text type options max_marks aiPolicy',
-			},
-		})
-		.populate({ path: 'answers.question', model: 'Question' });
-
-	if (!submission) throw ApiError.NotFound('Submission not found');
-
-	// --- NEW: Gate results visibility ---
-	// If results are not published, do not send evaluation details to the student.
-	if (submission.status !== 'published') {
-		submission.evaluations = []; // Clear evaluations
-	}
-
-	// Backfill duration if missing
-	if (!submission.duration && submission.exam?.duration) {
-		submission.duration = submission.exam.duration;
-	}
-	return ApiResponse.success(res, submission, 'Submission fetched');
 });
 
 // Sync answers by submission ID
@@ -726,15 +746,15 @@ export {
 	evaluateSubmission,
 	getSubmission,
 	getExamSubmissions,
+	getSubmissionForGrading,
 	getMySubmissions,
-	startSubmissionByParam,
 	getSubmissionByIdParam,
+	startSubmissionByParam,
 	syncAnswersBySubmissionId,
 	submitSubmissionById,
 	logViolation,
 	testEvaluationService,
 	publishSingleSubmissionResult,
 	publishAllExamResults,
-	getSubmissionForGrading,
 	createSubmission,
 };
