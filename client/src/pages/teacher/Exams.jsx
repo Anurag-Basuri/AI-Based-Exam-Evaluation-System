@@ -663,10 +663,10 @@ const TeacherExams = () => {
 	}, [exams]);
 
 	const handlePublish = async exam => {
-		if (!exam?.questionCount) {
-			setErrorBanner('Add at least one question before publishing this exam.');
-			return;
-		}
+		// if (!exam?.questionCount) {
+		// 	setErrorBanner('Add at least one question before publishing this exam.');
+		// 	return;
+		// }
 		const now = Date.now();
 		// Use startMs from normalized data
 		const startsInFuture = exam.startMs && now < exam.startMs;

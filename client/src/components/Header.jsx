@@ -29,14 +29,21 @@ const Header = ({ transparent = false }) => {
 	useEffect(() => {
 		if (!rootRef.current) return;
 		const setVar = () => {
-			const h = rootRef.current.getBoundingClientRect().height;
-			document.documentElement.style.setProperty('--header-h', `${Math.round(h)}px`);
+			// Guard against the ref being null if the component unmounts
+			if (rootRef.current) {
+				const h = rootRef.current.getBoundingClientRect().height;
+				document.documentElement.style.setProperty('--header-h', `${Math.round(h)}px`);
+			}
 		};
 		setVar();
 		const ro = new ResizeObserver(setVar);
 		ro.observe(rootRef.current);
 		window.addEventListener('resize', setVar);
 		return () => {
+			// Add a guard here as well for safety during unmount
+			if (rootRef.current) {
+				ro.unobserve(rootRef.current);
+			}
 			ro.disconnect();
 			window.removeEventListener('resize', setVar);
 		};
@@ -212,7 +219,9 @@ const Header = ({ transparent = false }) => {
 									height: 36,
 									borderRadius: '50%',
 									objectFit: 'cover',
-									border: `2px solid ${role === 'student' ? 'var(--primary-strong)' : '#f59e42'}`,
+									border: `2px solid ${
+										role === 'student' ? 'var(--primary-strong)' : '#f59e42'
+									}`,
 								}}
 							/>
 							{!isMobile && (

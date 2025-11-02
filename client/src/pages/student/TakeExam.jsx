@@ -58,7 +58,7 @@ const useExamEnvironment = (isExamActive, onViolation) => {
 
 const TakeExam = () => {
 	const params = useParams();
-	const submissionId = params.submissionId || params.id;
+	const submissionId = params.id || params.submissionId;
 	const navigate = useNavigate();
 	const { success, error: toastError, info } = useToast();
 
@@ -515,8 +515,8 @@ const TakeExam = () => {
 								{saving
 									? 'Saving…'
 									: lastSaved
-										? `Saved ${lastSaved.toLocaleTimeString()}`
-										: 'Not saved yet'}
+									? `Saved ${lastSaved.toLocaleTimeString()}`
+									: 'Not saved yet'}
 							</small>
 							<span style={styles.toolbarTimer}>
 								⏳ {remaining.mm}:{remaining.ss}
