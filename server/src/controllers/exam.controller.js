@@ -12,7 +12,7 @@ const createExam = asyncHandler(async (req, res) => {
 		title,
 		description,
 		duration,
-		questionIds,
+		questionIds, // This was missing from the destructuring
 		startTime,
 		endTime,
 		aiPolicy,
@@ -46,7 +46,7 @@ const createExam = asyncHandler(async (req, res) => {
 		title,
 		description,
 		duration,
-		questions: questions.length > 0 ? questions.map(q => q._id) : [],
+		questions: questions.map(q => q._id),
 		startTime,
 		endTime,
 		createdBy: teacherId,
@@ -156,6 +156,122 @@ const getAllExams = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, exams, 'Exams fetched');
 });
 
+// Get teacher's own exams (fast list)
+const getMyExams = asyncHandler(async (req, res) => {
+	const teacherId = req.teacher?._id || req.user?.id;
+	const { status, q, sortBy = 'updatedAt', limit = 20, page = 1, hasSubmissions } = req.query;
+
+	const lim = Math.max(1, Math.min(100, Number(limit)));
+	const skip = (Math.max(1, Number(page)) - 1) * lim;
+
+	// --- Aggregation Pipeline ---
+	const pipeline = [];
+
+	// 1. Match exams by teacher and filters
+	const matchStage = { createdBy: new mongoose.Types.ObjectId(teacherId) };
+	if (status) matchStage.status = String(status).toLowerCase();
+	if (q) matchStage.title = { $regex: String(q), $options: 'i' };
+	pipeline.push({ $match: matchStage });
+
+	// 2. Lookup submissions for each exam
+	pipeline.push({
+		$lookup: {
+			from: 'submissions', // The collection name for the Submission model
+			localField: '_id',
+			foreignField: 'exam',
+			as: 'submissionDocs',
+		},
+	});
+
+	// --- Conditionally filter for exams with submissions ---
+	if (hasSubmissions === 'true') {
+		pipeline.push({
+			$match: {
+				'submissionDocs.0': { $exists: true },
+			},
+		});
+	}
+
+	// 3. Add counts and project final fields
+	pipeline.push({
+		$addFields: {
+			submissionCount: { $size: '$submissionDocs' },
+			// Note: 'enrolledCount' is the same as submissionCount since a submission is created on start.
+			enrolledCount: { $size: '$submissionDocs' },
+			questionCount: { $size: '$questions' },
+			evaluatedCount: {
+				$size: {
+					$filter: {
+						input: '$submissionDocs',
+						as: 'sub',
+						cond: { $eq: ['$$sub.status', 'evaluated'] },
+					},
+				},
+			},
+			publishedCount: {
+				$size: {
+					$filter: {
+						input: '$submissionDocs',
+						as: 'sub',
+						cond: { $eq: ['$$sub.status', 'published'] },
+					},
+				},
+			},
+		},
+	});
+
+	// 4. Select the final fields to send to the client
+	pipeline.push({
+		$project: {
+			_id: 1,
+			title: 1,
+			status: 1,
+			searchId: 1,
+			startTime: 1,
+			endTime: 1,
+			duration: 1,
+			updatedAt: 1,
+			submissionCount: 1,
+			enrolledCount: 1,
+			questionCount: 1,
+			evaluatedCount: 1,
+			publishedCount: 1,
+			totalMarks: 1,
+			instructions: 1,
+			autoPublishResults: 1,
+		},
+	});
+
+	// 5. Sort the results
+	const sortStage = {};
+	if (sortBy === 'start') {
+		sortStage.startTime = -1;
+	} else if (sortBy === 'title') {
+		sortStage.title = 1;
+	} else {
+		sortStage.updatedAt = -1; // Default sort
+	}
+	pipeline.push({ $sort: sortStage });
+
+	// 6. Paginate the results
+	const paginatedPipeline = [...pipeline, { $skip: skip }, { $limit: lim }];
+
+	// --- Execute Aggregation ---
+	const examsPromise = Exam.aggregate(paginatedPipeline);
+
+	// We need a separate pipeline to count the total documents matching the filter
+	const totalPromise = Exam.aggregate([...pipeline, { $count: 'total' }]);
+
+	const [exams, totalResult] = await Promise.all([examsPromise, totalPromise]);
+	const total = totalResult[0]?.total || 0;
+
+	return ApiResponse.success(
+		res,
+		{ items: exams, page: Number(page), limit: lim, total },
+		'Your exams',
+	);
+});
+
 // Get a single exam by ID
 const getExamById = asyncHandler(async (req, res) => {
 	const examId = req.params.id;
@@ -166,8 +282,10 @@ const getExamById = asyncHandler(async (req, res) => {
 		.populate('createdBy', 'fullname email')
 		.populate({
 			path: 'questions',
+			select: '-__v', // Exclude version key from populated questions
 			populate: { path: 'createdBy', select: 'fullname email' },
-		});
+		})
+		.lean(); // Use .lean() for a plain object
 
 	if (!exam) {
 		throw ApiError.NotFound('Exam not found');
@@ -492,113 +610,6 @@ const duplicateExam = asyncHandler(async (req, res) => {
 	await copy.save();
 
 	return ApiResponse.success(res, copy, 'Exam duplicated', 201);
-});
-
-// Get teacher's own exams (fast list)
-const getMyExams = asyncHandler(async (req, res) => {
-	const teacherId = req.teacher?._id || req.user?.id;
-	const { status, q, limit = 20, page = 1, hasSubmissions } = req.query;
-
-	const lim = Math.max(1, Math.min(100, Number(limit)));
-	const skip = (Math.max(1, Number(page)) - 1) * lim;
-
-	// --- Aggregation Pipeline ---
-	const pipeline = [];
-
-	// 1. Match exams by teacher and filters
-	const matchStage = { createdBy: new mongoose.Types.ObjectId(teacherId) };
-	if (status) matchStage.status = String(status).toLowerCase();
-	if (q) matchStage.title = { $regex: String(q), $options: 'i' };
-	pipeline.push({ $match: matchStage });
-
-	// 2. Lookup submissions for each exam
-	pipeline.push({
-		$lookup: {
-			from: 'submissions', // The collection name for the Submission model
-			localField: '_id',
-			foreignField: 'exam',
-			as: 'submissionDocs',
-		},
-	});
-
-	// --- Conditionally filter for exams with submissions ---
-	if (hasSubmissions === 'true') {
-		pipeline.push({
-			$match: {
-				'submissionDocs.0': { $exists: true },
-			},
-		});
-	}
-
-	// 3. Add counts and project final fields
-	pipeline.push({
-		$addFields: {
-			submissionCount: { $size: '$submissionDocs' },
-			// Note: 'enrolledCount' is the same as submissionCount since a submission is created on start.
-			enrolledCount: { $size: '$submissionDocs' },
-			questionCount: { $size: '$questions' },
-			evaluatedCount: {
-				$size: {
-					$filter: {
-						input: '$submissionDocs',
-						as: 'sub',
-						cond: { $eq: ['$$sub.status', 'evaluated'] },
-					},
-				},
-			},
-			publishedCount: {
-				$size: {
-					$filter: {
-						input: '$submissionDocs',
-						as: 'sub',
-						cond: { $eq: ['$$sub.status', 'published'] },
-					},
-				},
-			},
-		},
-	});
-
-	// 4. Select the final fields to send to the client
-	pipeline.push({
-		$project: {
-			_id: 1,
-			title: 1,
-			status: 1,
-			searchId: 1,
-			startTime: 1,
-			endTime: 1,
-			duration: 1,
-			submissionCount: 1,
-			enrolledCount: 1,
-			questionCount: 1,
-			evaluatedCount: 1,
-			publishedCount: 1,
-			totalMarks: 1,
-			instructions: 1,
-			autoPublishResults: 1,
-		},
-	});
-
-	// 5. Sort the results
-	pipeline.push({ $sort: { updatedAt: -1 } });
-
-	// 6. Paginate the results
-	const paginatedPipeline = [...pipeline, { $skip: skip }, { $limit: lim }];
-
-	// --- Execute Aggregation ---
-	const examsPromise = Exam.aggregate(paginatedPipeline);
-
-	// We need a separate pipeline to count the total documents matching the filter
-	const totalPromise = Exam.aggregate([...pipeline, { $count: 'total' }]);
-
-	const [exams, totalResult] = await Promise.all([examsPromise, totalPromise]);
-	const total = totalResult[0]?.total || 0;
-
-	return ApiResponse.success(
-		res,
-		{ items: exams, page: Number(page), limit: lim, total },
-		'Your exams',
-	);
 });
 
 // Manually trigger a status sync
