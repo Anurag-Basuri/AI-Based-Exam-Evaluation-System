@@ -179,20 +179,34 @@ const TakeExam = () => {
 	useEffect(() => {
 		const onKey = e => {
 			if (!isStarted || autoSubmitting) return;
+
+			// Do not interfere with typing in inputs/textareas
+			const target = e.target;
+			if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+				// Allow specific shortcuts even when typing
+				if (!e.altKey) return;
+			}
+
 			const key = `${e.altKey ? 'alt+' : ''}${e.key.toLowerCase()}`;
+			let handled = false;
 
 			if (key === 'alt+n') {
-				e.preventDefault();
 				document.getElementById('save-next-btn')?.click();
+				handled = true;
 			} else if (key === 'alt+p') {
-				e.preventDefault();
 				document.getElementById('prev-btn')?.click();
+				handled = true;
 			} else if (key === 'alt+m') {
-				e.preventDefault();
 				document.getElementById('mark-review-btn')?.click();
+				handled = true;
 			} else if (key === 'alt+s') {
-				e.preventDefault();
 				document.getElementById('submit-btn')?.click();
+				handled = true;
+			}
+
+			// Only prevent default if we actually handled the shortcut
+			if (handled) {
+				e.preventDefault();
 			}
 		};
 		window.addEventListener('keydown', onKey);
@@ -305,9 +319,9 @@ const TakeExam = () => {
 	// --- Answer change ---
 	const handleAnswerChange = (questionId, value, type) => {
 		hasUnsavedChanges.current = true;
-		let updatedAnswers;
 		setSubmission(prev => {
-			const newAnswers = [...prev.answers];
+			if (!prev) return null;
+			const newAnswers = [...(prev.answers || [])];
 			const answerIndex = newAnswers.findIndex(
 				a => String(a.question) === String(questionId),
 			);
@@ -324,10 +338,8 @@ const TakeExam = () => {
 				answerToUpdate.responseText = value;
 			}
 			newAnswers[answerIndex] = answerToUpdate;
-			updatedAnswers = newAnswers;
 			return { ...prev, answers: newAnswers };
 		});
-		if (updatedAnswers) debouncedSave(updatedAnswers, null);
 	};
 
 	// --- Navigation ---
