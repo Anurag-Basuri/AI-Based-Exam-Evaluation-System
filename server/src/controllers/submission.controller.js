@@ -213,13 +213,13 @@ const startSubmission = asyncHandler(async (req, res) => {
 		})
 		.populate({
 			path: 'questions',
-			select: 'text type options max_marks',
+			select: 'text type options max_marks', // Ensure all necessary fields are selected
 		})
 		.lean();
 
-	// Normalize the data for the TakeExam page, just like in getSubmissionByIdParam
+	// --- FIX: Return a consistent data structure with _id ---
 	const normalized = {
-		id: populatedSubmission._id,
+		_id: populatedSubmission._id, // Use _id
 		status: populatedSubmission.status,
 		startedAt: populatedSubmission.startedAt,
 		submittedAt: populatedSubmission.submittedAt,
@@ -228,11 +228,8 @@ const startSubmission = asyncHandler(async (req, res) => {
 		examPolicy: populatedSubmission.exam?.aiPolicy,
 		instructions: populatedSubmission.exam?.instructions,
 		questions: (populatedSubmission.questions || []).map(q => ({
-			id: q._id,
-			text: q.text,
-			type: q.type,
-			max_marks: q.max_marks,
-			options: (q.options || []).map(opt => ({ id: opt._id, text: opt.text })),
+			...q,
+			options: (q.options || []).map(opt => ({ ...opt })), // Ensure options have _id
 		})),
 		answers: populatedSubmission.answers || [],
 		markedForReview: populatedSubmission.markedForReview || [],
@@ -485,55 +482,52 @@ const getMySubmissions = asyncHandler(async (req, res) => {
 
 // Get a student's own submission by ID (for taking an exam)
 const getSubmissionByIdParam = asyncHandler(async (req, res) => {
-	const submissionId = req.params.id;
-	const studentId = req.student?._id || req.user?.id;
+    const submissionId = req.params.id;
+    const studentId = req.student?._id || req.user?.id;
 
-	if (!submissionId.match(/^[a-f\d]{24}$/i)) {
-		throw ApiError.BadRequest('Invalid submission ID');
-	}
+    if (!submissionId.match(/^[a-f\d]{24}$/i)) {
+        throw ApiError.BadRequest('Invalid submission ID');
+    }
 
-	const submission = await Submission.findById(submissionId)
-		.populate({
-			path: 'exam',
-			select: 'title duration instructions aiPolicy',
-		})
-		.populate({
-			path: 'questions',
-			select: 'text type options max_marks',
-		})
-		.lean();
+    const submission = await Submission.findById(submissionId)
+        .populate({
+            path: 'exam',
+            select: 'title duration instructions aiPolicy',
+        })
+        .populate({
+            path: 'questions',
+            select: 'text type options max_marks',
+        })
+        .lean();
 
-	if (!submission) {
-		throw ApiError.NotFound('Submission not found');
-	}
+    if (!submission) {
+        throw ApiError.NotFound('Submission not found');
+    }
 
-	// Security: Ensure the submission belongs to the logged-in student
-	if (String(submission.student) !== String(studentId)) {
-		throw ApiError.Forbidden('You are not authorized to view this submission');
-	}
+    // Security: Ensure the submission belongs to the logged-in student
+    if (String(submission.student) !== String(studentId)) {
+        throw ApiError.Forbidden('You are not authorized to view this submission');
+    }
 
-	// Normalize the data for the TakeExam page
-	const normalized = {
-		id: submission._id,
-		status: submission.status,
-		startedAt: submission.startedAt,
-		submittedAt: submission.submittedAt,
-		duration: submission.exam?.duration,
-		examTitle: submission.exam?.title,
-		examPolicy: submission.exam?.aiPolicy,
-		instructions: submission.exam?.instructions,
-		questions: (submission.questions || []).map(q => ({
-			id: q._id,
-			text: q.text,
-			type: q.type,
-			max_marks: q.max_marks,
-			options: (q.options || []).map(opt => ({ id: opt._id, text: opt.text })),
-		})),
-		answers: submission.answers || [],
-		markedForReview: submission.markedForReview || [],
-	};
+    // --- FIX: Normalize the data for the TakeExam page consistently ---
+    const normalized = {
+        _id: submission._id, // Use _id
+        status: submission.status,
+        startedAt: submission.startedAt,
+        submittedAt: submission.submittedAt,
+        duration: submission.exam?.duration,
+        examTitle: submission.exam?.title,
+        examPolicy: submission.exam?.aiPolicy,
+        instructions: submission.exam?.instructions,
+        questions: (submission.questions || []).map(q => ({
+            ...q,
+            options: (q.options || []).map(opt => ({ ...opt })),
+        })),
+        answers: submission.answers || [],
+        markedForReview: submission.markedForReview || [],
+    };
 
-	return ApiResponse.success(res, normalized, 'Submission details fetched');
+    return ApiResponse.success(res, normalized, 'Submission details fetched');
 });
 
 // Start via URL param
@@ -707,99 +701,4 @@ const createSubmission = asyncHandler(async (req, res) => {
 
 	const exam = await Exam.findById(examId).select('status startTime endTime duration questions');
 	if (!exam) throw ApiError.NotFound('Exam not found');
-	if (exam.status !== 'active') throw ApiError.Forbidden('Exam is not active');
-
-	const now = new Date();
-	if (exam.startTime && now < new Date(exam.startTime))
-		throw ApiError.Forbidden('Exam has not started yet');
-	if (exam.endTime && now > new Date(exam.endTime)) throw ApiError.Forbidden('Exam has ended');
-
-	// Check if there is an existing submission
-	const existingSubmission = await Submission.findOne({ exam: examId, student: studentId });
-	if (existingSubmission) {
-		// If the existing submission is in-progress, return it
-		if (existingSubmission.status === 'in-progress') {
-			return ApiResponse.success(res, existingSubmission, 'Submission already in progress');
-		}
-
-		// If the existing submission is submitted but the exam is still active, reopen it
-		if (existingSubmission.status === 'submitted' && exam.endTime > now) {
-			existingSubmission.status = 'in-progress';
-			existingSubmission.startedAt = new Date();
-			existingSubmission.submittedAt = null; // Clear submittedAt to reopen
-			await existingSubmission.save();
-
-			// Return the reopened submission
-			return ApiResponse.success(res, existingSubmission, 'Submission reopened');
-		}
-
-		// If the existing submission is evaluated, return it with a note
-		if (existingSubmission.status === 'evaluated') {
-			return ApiResponse.success(
-				res,
-				existingSubmission,
-				'Submission already evaluated. You can view the results.',
-			);
-		}
-
-		// For any other status, fall back to the existing submission
-		return ApiResponse.success(res, existingSubmission, 'Submission found');
-	}
-
-	// --- Pre-populate answer slots ---
-	const initialAnswers = (exam.questions || []).map(questionId => ({
-		question: questionId,
-		responseText: '',
-		responseOption: null,
-	}));
-
-	// Create a new submission
-	const newSubmission = new Submission({
-		exam: examId,
-		student: studentId,
-		startedAt: new Date(),
-		duration: exam.duration,
-		status: 'in-progress',
-		answers: initialAnswers,
-	});
-
-	await newSubmission.save();
-
-	// Populate the new submission with details needed for the dashboard feed
-	const populatedSubmission = await newSubmission.populate([
-		{ path: 'student', select: 'fullname username' },
-		{ path: 'exam', select: 'title' },
-	]);
-
-	// Notify all teachers in real-time about the new submission
-	const io = req.app.get('io');
-	if (io) {
-		io.to('teachers').emit('new-submission', populatedSubmission);
-	}
-
-	return ApiResponse.created(
-		res,
-		{ submissionId: newSubmission._id },
-		'Exam submitted successfully',
-	);
-});
-
-export {
-	startSubmission,
-	submitSubmission,
-	updateEvaluation,
-	evaluateSubmission,
-	getSubmission,
-	getExamSubmissions,
-	getSubmissionForGrading,
-	getMySubmissions,
-	getSubmissionByIdParam,
-	startSubmissionByParam,
-	syncAnswersBySubmissionId,
-	submitSubmissionById,
-	logViolation,
-	testEvaluationService,
-	publishSingleSubmissionResult,
-	publishAllExamResults,
-	createSubmission,
-};
+	if
