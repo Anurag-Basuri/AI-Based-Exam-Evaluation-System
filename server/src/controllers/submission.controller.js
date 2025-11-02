@@ -173,9 +173,37 @@ const startSubmission = asyncHandler(async (req, res) => {
 			const finalized = await finalizeAsSubmitted(existing, exam);
 			return ApiResponse.success(res, finalized, 'Time over. Submission finalized');
 		}
-		// If not expired, just return the existing submission to be resumed.
+		// --- FIX: If resuming, re-populate the submission to ensure frontend gets all data ---
+		const populatedExisting = await Submission.findById(existing._id)
+			.populate({
+				path: 'exam',
+				select: 'title duration instructions aiPolicy',
+			})
+			.populate({
+				path: 'questions',
+				select: 'text type options max_marks',
+			})
+			.lean();
+
+		const normalizedExisting = {
+			_id: populatedExisting._id,
+			status: populatedExisting.status,
+			startedAt: populatedExisting.startedAt,
+			submittedAt: populatedExisting.submittedAt,
+			duration: populatedExisting.exam?.duration,
+			examTitle: populatedExisting.exam?.title,
+			examPolicy: populatedExisting.exam?.aiPolicy,
+			instructions: populatedExisting.exam?.instructions,
+			questions: (populatedExisting.questions || []).map(q => ({
+				...q,
+				options: (q.options || []).map(opt => ({ ...opt })),
+			})),
+			answers: populatedExisting.answers || [],
+			markedForReview: populatedExisting.markedForReview || [],
+		};
+
 		console.log('[submission.controller.js] startSubmission: Resuming existing submission.');
-		return ApiResponse.success(res, existing, 'Submission already started');
+		return ApiResponse.success(res, normalizedExisting, 'Submission already started');
 	}
 
 	// --- Pre-populate answer slots ---
@@ -393,6 +421,36 @@ const getExamSubmissions = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, results, 'Exam submissions fetched');
 });
 
+// --- NEW: Get a single submission with full details for a student to view results ---
+const getSubmissionForResults = asyncHandler(async (req, res) => {
+	const submissionId = req.params.id;
+	const studentId = req.student?._id || req.user?.id;
+
+	const submission = await Submission.findById(submissionId)
+		.populate({
+			path: 'exam',
+			select: 'title', // We only need the title for the modal header
+		})
+		.populate({
+			path: 'answers.question', // Populate the question within each answer
+			model: 'Question',
+			select: 'text type options max_marks',
+		})
+		.lean(); // Use .lean() for performance
+
+	if (!submission) {
+		throw ApiError.NotFound('Submission not found.');
+	}
+
+	// Security: Ensure the student requesting the submission is the one who owns it
+	if (String(submission.student) !== String(studentId)) {
+		throw ApiError.Forbidden('You are not authorized to view this submission.');
+	}
+
+	// The data is already in a good format for the frontend, so we can send it directly.
+	return ApiResponse.success(res, submission, 'Submission fetched for results.');
+});
+
 // --- Get a single submission with full details for a teacher to grade ---
 const getSubmissionForGrading = asyncHandler(async (req, res) => {
 	const submissionId = req.params.id;
@@ -428,52 +486,28 @@ const getMySubmissions = asyncHandler(async (req, res) => {
 	const studentId = req.student?._id || req.user?.id;
 
 	const submissions = await Submission.find({ student: studentId })
-		.populate('exam', 'title duration startTime endTime')
-		.populate({ path: 'answers.question', select: 'max_marks' })
+		.populate('exam', 'title')
+		.populate({ path: 'questions', select: 'max_marks' }) // Populate top-level questions for maxScore calculation
 		.lean();
 
 	const normalized = submissions.map(sub => {
 		const score = Array.isArray(sub.evaluations)
 			? sub.evaluations.reduce((acc, ev) => acc + (ev?.evaluation?.marks || 0), 0)
+			: null;
+
+		// FIX: Calculate maxScore from the populated top-level `questions` array
+		const maxScore = Array.isArray(sub.questions)
+			? sub.questions.reduce((acc, q) => acc + (q?.max_marks || 0), 0)
 			: 0;
-		const maxScore = Array.isArray(sub.answers)
-			? sub.answers.reduce((acc, ans) => acc + (ans?.question?.max_marks || 0), 0)
-			: 0;
-
-		// Preserve real status so UI can show Continue button for in-progress
-		const status = sub.status || 'pending';
-
-		// --- NEW: Gate results visibility based on status ---
-		const resultsPublished = status === 'published';
-		let displayScore = null;
-		let displayRemarks = 'Awaiting evaluation.';
-
-		if (status === 'in-progress') {
-			displayRemarks = 'Exam in progress.';
-		} else if (status === 'submitted') {
-			displayRemarks = 'Submitted. Awaiting evaluation.';
-		} else if (status === 'evaluated') {
-			displayRemarks = 'Evaluated. Results will be available soon.';
-		} else if (resultsPublished) {
-			displayScore = score;
-			displayRemarks =
-				Array.isArray(sub.evaluations) && sub.evaluations[0]?.evaluation?.remarks
-					? sub.evaluations[0].evaluation.remarks
-					: 'Results published.';
-		}
 
 		return {
 			id: String(sub._id),
 			examTitle: sub.exam?.title || 'Exam',
 			examId: String(sub.exam?._id || ''),
-			duration: sub.exam?.duration ?? null,
-			score: displayScore, // Use gated score
-			maxScore,
-			status,
-			startedAt: sub.startedAt ? new Date(sub.startedAt).toLocaleString() : null,
+			score: sub.status === 'published' ? score : null,
+			maxScore: sub.status === 'published' ? maxScore : null,
+			status: sub.status || 'pending',
 			submittedAt: sub.submittedAt ? new Date(sub.submittedAt).toLocaleString() : null,
-			evaluatedAt: sub.evaluatedAt ? new Date(sub.evaluatedAt).toLocaleString() : null,
-			remarks: displayRemarks, // Use gated remarks
 		};
 	});
 
@@ -482,52 +516,52 @@ const getMySubmissions = asyncHandler(async (req, res) => {
 
 // Get a student's own submission by ID (for taking an exam)
 const getSubmissionByIdParam = asyncHandler(async (req, res) => {
-    const submissionId = req.params.id;
-    const studentId = req.student?._id || req.user?.id;
+	const submissionId = req.params.id;
+	const studentId = req.student?._id || req.user?.id;
 
-    if (!submissionId.match(/^[a-f\d]{24}$/i)) {
-        throw ApiError.BadRequest('Invalid submission ID');
-    }
+	if (!submissionId.match(/^[a-f\d]{24}$/i)) {
+		throw ApiError.BadRequest('Invalid submission ID');
+	}
 
-    const submission = await Submission.findById(submissionId)
-        .populate({
-            path: 'exam',
-            select: 'title duration instructions aiPolicy',
-        })
-        .populate({
-            path: 'questions',
-            select: 'text type options max_marks',
-        })
-        .lean();
+	const submission = await Submission.findById(submissionId)
+		.populate({
+			path: 'exam',
+			select: 'title duration instructions aiPolicy',
+		})
+		.populate({
+			path: 'questions',
+			select: 'text type options max_marks',
+		})
+		.lean();
 
-    if (!submission) {
-        throw ApiError.NotFound('Submission not found');
-    }
+	if (!submission) {
+		throw ApiError.NotFound('Submission not found');
+	}
 
-    // Security: Ensure the submission belongs to the logged-in student
-    if (String(submission.student) !== String(studentId)) {
-        throw ApiError.Forbidden('You are not authorized to view this submission');
-    }
+	// Security: Ensure the submission belongs to the logged-in student
+	if (String(submission.student) !== String(studentId)) {
+		throw ApiError.Forbidden('You are not authorized to view this submission');
+	}
 
-    // --- FIX: Normalize the data for the TakeExam page consistently ---
-    const normalized = {
-        _id: submission._id, // Use _id
-        status: submission.status,
-        startedAt: submission.startedAt,
-        submittedAt: submission.submittedAt,
-        duration: submission.exam?.duration,
-        examTitle: submission.exam?.title,
-        examPolicy: submission.exam?.aiPolicy,
-        instructions: submission.exam?.instructions,
-        questions: (submission.questions || []).map(q => ({
-            ...q,
-            options: (q.options || []).map(opt => ({ ...opt })),
-        })),
-        answers: submission.answers || [],
-        markedForReview: submission.markedForReview || [],
-    };
+	// --- FIX: Normalize the data for the TakeExam page consistently ---
+	const normalized = {
+		_id: submission._id, // Use _id
+		status: submission.status,
+		startedAt: submission.startedAt,
+		submittedAt: submission.submittedAt,
+		duration: submission.exam?.duration,
+		examTitle: submission.exam?.title,
+		examPolicy: submission.exam?.aiPolicy,
+		instructions: submission.exam?.instructions,
+		questions: (submission.questions || []).map(q => ({
+			...q,
+			options: (q.options || []).map(opt => ({ ...opt })),
+		})),
+		answers: submission.answers || [],
+		markedForReview: submission.markedForReview || [],
+	};
 
-    return ApiResponse.success(res, normalized, 'Submission details fetched');
+	return ApiResponse.success(res, normalized, 'Submission details fetched');
 });
 
 // Start via URL param
@@ -708,5 +742,6 @@ export {
 	testEvaluationService,
 	publishSingleSubmissionResult,
 	publishAllExamResults,
-	getSubmissionForGrading
+	getSubmissionForGrading,
+	getSubmissionForResults, 
 };
