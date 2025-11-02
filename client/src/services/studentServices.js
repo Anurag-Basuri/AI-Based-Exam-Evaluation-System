@@ -307,7 +307,7 @@ export const getMySubmissions = async (params = {}, forceRefresh = false) => {
 
 	// Update cache
 	submissionsCache = {
-		data: normalizedList,
+		data: normalized
 		timestamp: now,
 	};
 
@@ -322,18 +322,19 @@ export const getSubmissionForResults = async submissionId => {
 };
 
 export const getSubmissionById = async submissionId => {
-	const res = await tryGet(EP.submissionById(submissionId));
-	const data = res?.data?.data ?? res?.data ?? {};
-	return normalizeSubmission(data);
+    const res = await tryGet(EP.submissionById(submissionId));
+    const data = res?.data?.data ?? res?.data ?? {};
+    return normalizeSubmission(data);
 };
 
 export const saveSubmissionAnswers = async (submissionId, payload) => {
-	const res = await tryPatch(() => EP.submissionSyncById(submissionId), payload);
-	return res?.data?.data ?? res?.data;
+    const res = await tryPatch(() => EP.submissionSyncById(submissionId), payload);
+    const data = res?.data?.data ?? res?.data;
+    return normalizeSubmission(data);
 };
 
 export const submitSubmission = async (submissionId, payload) => {
-	const res = await tryPost(() => EP.submissionSubmitById(submissionId), payload);
+    const res = await tryPost(() => EP.submissionSubmitById(submissionId), payload);
 	return res?.data?.data ?? res?.data;
 };
 
