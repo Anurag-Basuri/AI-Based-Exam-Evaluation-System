@@ -130,11 +130,26 @@ const startSubmission = asyncHandler(async (req, res) => {
 	const studentId = req.student?._id || req.user?.id;
 	const { examId } = req.body;
 
+	console.log(
+		'[submission.controller.js] startSubmission: Received request for examId:',
+		examId,
+		'by studentId:',
+		studentId,
+	);
+
 	if (!examId) throw ApiError.BadRequest('Exam ID is required');
 
 	const exam = await Exam.findById(examId).select('status startTime endTime duration questions');
-	if (!exam) throw ApiError.NotFound('Exam not found');
-	if (exam.status !== 'active') throw ApiError.Forbidden('Exam is not active');
+	if (!exam) {
+		console.error('[submission.controller.js] startSubmission: ERROR - Exam not found.');
+		throw ApiError.NotFound('Exam not found');
+	}
+	if (exam.status !== 'active') {
+		console.error(
+			`[submission.controller.js] startSubmission: ERROR - Exam status is '${exam.status}', not 'active'.`,
+		);
+		throw ApiError.Forbidden('Exam is not active');
+	}
 
 	const now = new Date();
 	if (exam.startTime && now < new Date(exam.startTime))
@@ -144,12 +159,22 @@ const startSubmission = asyncHandler(async (req, res) => {
 	const existing = await Submission.findOne({ exam: examId, student: studentId });
 
 	if (existing) {
+		console.log(
+			'[submission.controller.js] startSubmission: Found existing submission:',
+			existing._id,
+			'with status:',
+			existing.status,
+		);
 		// If expired while away, auto-submit and return final
 		if (isExpired(existing, exam) && existing.status === 'in-progress') {
+			console.log(
+				'[submission.controller.js] startSubmission: Existing submission is expired. Finalizing...',
+			);
 			const finalized = await finalizeAsSubmitted(existing, exam);
 			return ApiResponse.success(res, finalized, 'Time over. Submission finalized');
 		}
 		// If not expired, just return the existing submission to be resumed.
+		console.log('[submission.controller.js] startSubmission: Resuming existing submission.');
 		return ApiResponse.success(res, existing, 'Submission already started');
 	}
 
@@ -172,8 +197,49 @@ const startSubmission = asyncHandler(async (req, res) => {
 
 	await submission.save();
 
-	// Return the newly created submission. The TakeExam page will fetch the full details.
-	return ApiResponse.success(res, submission, 'Submission started', 201);
+	console.log(
+		'[submission.controller.js] startSubmission: CREATED new submission with id:',
+		submission._id,
+		'and status:',
+		submission.status,
+	);
+
+	// --- FIX: Populate the submission before sending it back ---
+	// The TakeExam page needs the full details immediately.
+	const populatedSubmission = await Submission.findById(submission._id)
+		.populate({
+			path: 'exam',
+			select: 'title duration instructions aiPolicy',
+		})
+		.populate({
+			path: 'questions',
+			select: 'text type options max_marks',
+		})
+		.lean();
+
+	// Normalize the data for the TakeExam page, just like in getSubmissionByIdParam
+	const normalized = {
+		id: populatedSubmission._id,
+		status: populatedSubmission.status,
+		startedAt: populatedSubmission.startedAt,
+		submittedAt: populatedSubmission.submittedAt,
+		duration: populatedSubmission.exam?.duration,
+		examTitle: populatedSubmission.exam?.title,
+		examPolicy: populatedSubmission.exam?.aiPolicy,
+		instructions: populatedSubmission.exam?.instructions,
+		questions: (populatedSubmission.questions || []).map(q => ({
+			id: q._id,
+			text: q.text,
+			type: q.type,
+			max_marks: q.max_marks,
+			options: (q.options || []).map(opt => ({ id: opt._id, text: opt.text })),
+		})),
+		answers: populatedSubmission.answers || [],
+		markedForReview: populatedSubmission.markedForReview || [],
+	};
+
+	// Return the newly created and populated submission.
+	return ApiResponse.success(res, normalized, 'Submission started', 201);
 });
 
 // Helper to safely merge incoming answers into existing slots
