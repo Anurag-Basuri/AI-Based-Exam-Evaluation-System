@@ -84,6 +84,7 @@ const TakeExam = () => {
 
 	const hasUnsavedChanges = useRef(false);
 	const saveTimeoutRef = useRef(null);
+	const questionPanelRef = useRef(null);
 	const submissionRef = useRef(submission); // <-- Create a ref to hold the latest submission state
 
 	// Keep the ref updated whenever the submission state changes
@@ -278,8 +279,8 @@ const TakeExam = () => {
 	// --- Quick save ---
 	const handleQuickSave = useCallback(
 		async (answersToSave, reviewState) => {
-			const currentSubmission = submissionRef.current; // <-- Use the submission from the ref
-			if (!currentSubmission || saving || !isOnline) return;
+			const currentSubmission = submissionRef.current;
+			if (!currentSubmission || !currentSubmission.id || saving || !isOnline) return;
 			if (!answersToSave && !reviewState && !hasUnsavedChanges.current) return;
 
 			setSaving(true);
@@ -290,16 +291,23 @@ const TakeExam = () => {
 					answers: answersToSave || currentSubmission.answers,
 					markedForReview: reviewState || markedForReview,
 				};
-				await safeApiCall(saveSubmissionAnswers, currentSubmission.id, payload);
+				// --- CRITICAL FIX: Update state with the normalized response from the save call ---
+				const updatedSubmission = await safeApiCall(
+					saveSubmissionAnswers,
+					currentSubmission.id,
+					payload,
+				);
+				setSubmission(updatedSubmission); // This ensures the state is always fresh
 				setLastSaved(new Date());
 			} catch (e) {
 				hasUnsavedChanges.current = true;
 				console.error('Auto-save failed:', e);
+				toastError('Auto-save failed. Check your connection.');
 			} finally {
 				setSaving(false);
 			}
 		},
-		[saving, isOnline, markedForReview], // <-- Remove submission from dependencies
+		[saving, isOnline, markedForReview, toastError],
 	);
 
 	// --- Debounced save ---

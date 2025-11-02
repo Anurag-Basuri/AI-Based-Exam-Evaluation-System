@@ -307,7 +307,7 @@ export const getMySubmissions = async (params = {}, forceRefresh = false) => {
 
 	// Update cache
 	submissionsCache = {
-		data: normalized
+		data: normalizedList,
 		timestamp: now,
 	};
 
