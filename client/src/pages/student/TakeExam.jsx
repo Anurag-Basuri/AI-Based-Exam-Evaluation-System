@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useToast } from '../../components/ui/Toaster.jsx';
 import {
 	safeApiCall,
@@ -60,6 +60,8 @@ const TakeExam = () => {
 	const params = useParams();
 	const submissionId = params.id || params.submissionId;
 	const navigate = useNavigate();
+	const { state: navState } = useLocation(); // Get state from navigation
+
 	const { success, error: toastError, info } = useToast();
 
 	// --- State ---
@@ -199,6 +201,25 @@ const TakeExam = () => {
 	// --- Load submission ---
 	useEffect(() => {
 		console.log('[TakeExam.jsx] Mount: Component is mounting.');
+
+		// --- OPTIMIZATION: Check if submission data was passed via navigation state ---
+		if (navState?.submission) {
+			console.log('[TakeExam.jsx] Load: Received submission data from navigation state.');
+			const s = navState.submission;
+			if (s.status === 'submitted' || s.status === 'evaluated') {
+				console.warn(
+					`[TakeExam.jsx] Load: Submission status is '${s.status}'. Redirecting to results.`,
+				);
+				navigate('/student/results', { replace: true });
+				return;
+			}
+			setSubmission(s);
+			setMarkedForReview(s.markedForReview || []);
+			setLoading(false);
+			return; // Exit early
+		}
+
+		// --- Fallback to fetching if no state is passed ---
 		if (!submissionId) {
 			console.error(
 				'[TakeExam.jsx] Load: ERROR - No submissionId found in URL params. Redirecting.',
@@ -232,7 +253,7 @@ const TakeExam = () => {
 				setLoading(false);
 			}
 		})();
-	}, [submissionId, navigate]);
+	}, [submissionId, navigate, navState]);
 
 	// --- Start exam ---
 	const handleStartExam = async () => {
