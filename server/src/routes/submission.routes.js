@@ -18,6 +18,7 @@ import {
 	publishSingleSubmissionResult,
 	publishAllExamResults,
 	getSubmissionForGrading,
+	getSubmissionForResults,
 } from '../controllers/submission.controller.js';
 
 const router = Router();
@@ -25,6 +26,15 @@ const router = Router();
 // Directly test the AI evaluation service with a sample question/answer
 router.post('/test-evaluation', testEvaluationService);
 router.get('/my-submissions', checkAuth, verifyStudent, getMySubmissions);
+
+// --- NEW: Student gets their own submission details for the results page ---
+router.get(
+	'/results/:id',
+	checkAuth,
+	verifyStudent,
+	param('id').notEmpty().withMessage('Submission ID is required'),
+	getSubmissionForResults,
+);
 
 // Student gets their own submission by ID (for taking the exam)
 router.get(
