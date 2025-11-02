@@ -1,8 +1,8 @@
 import React from 'react';
 import {
-	safeApiCall,
-	getMySubmissions,
-	getSubmissionById,
+    safeApiCall,
+    getMySubmissions,
+    getSubmissionForResults,
 } from '../../services/studentServices.js';
 
 // --- Theme-aware status styles ---
@@ -133,7 +133,8 @@ const ResultDetailModal = ({ submissionId, onClose }) => {
             setLoading(true);
             setError('');
             try {
-                const data = await safeApiCall(getSubmissionById, submissionId);
+                // FIX: Use the new, correct service function
+                const data = await safeApiCall(getSubmissionForResults, submissionId);
                 setSubmission(data);
             } catch (e) {
                 setError(e.message || 'Failed to load details.');
@@ -144,9 +145,13 @@ const ResultDetailModal = ({ submissionId, onClose }) => {
         loadDetails();
     }, [submissionId]);
 
-    // FIX: answersMap key must be the string id (normalizeSubmission returns 'question' as string)
+    // FIX: The new endpoint provides `answers` with populated `question` objects,
+    // so we create the map using the nested question ID.
     const answersMap = React.useMemo(
-        () => new Map((submission?.answers || []).map(a => [String(a.question), a])),
+        () =>
+            new Map(
+                (submission?.answers || []).map(a => [String(a.question?._id), a]),
+            ),
         [submission],
     );
 
@@ -198,6 +203,12 @@ const ResultCard = ({ result, onViewDetails }) => {
     const isPublished = result.status === 'published';
     const hasScore = isPublished && result.score !== null && result.score !== undefined;
 
+    // --- FIX: Calculate percentage on the client-side for reliability ---
+    const percentage =
+        hasScore && result.maxScore > 0
+            ? Math.round((result.score / result.maxScore) * 100)
+            : null;
+
     return (
         <article style={styles.resultCard} className="result-card">
             <div style={styles.resultCardMain}>
@@ -228,19 +239,19 @@ const ResultCard = ({ result, onViewDetails }) => {
                         <>
                             <span style={styles.scoreValue}>{result.score.toFixed(1)}</span>
                             <span style={styles.scoreMax}>/ {result.maxScore || 100}</span>
-                            {result.percentage != null && (
+                            {percentage != null && (
                                 <span
                                     style={{
                                         ...styles.scorePercent,
                                         color:
-                                            result.percentage >= 70
+                                            percentage >= 70
                                                 ? 'var(--success-text)'
-                                                : result.percentage >= 50
+                                                : percentage >= 50
                                                     ? 'var(--warning-text)'
                                                     : 'var(--danger-text)',
                                     }}
                                 >
-                                    ({result.percentage}%)
+                                    ({percentage}%)
                                 </span>
                             )}
                         </>
@@ -263,20 +274,20 @@ const ResultCard = ({ result, onViewDetails }) => {
                 <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)' }}>
                     Performance
                 </div>
-                {hasScore && result.percentage != null && (
+                {hasScore && percentage != null && (
                     <div
                         style={{
                             ...styles.donutChart,
                             background: `conic-gradient(${
-                                result.percentage >= 70
+                                percentage >= 70
                                     ? 'var(--success-text)'
-                                    : result.percentage >= 50
+                                    : percentage >= 50
                                         ? 'var(--warning-text)'
                                         : 'var(--danger-text)'
-                            } ${result.percentage * 3.6}deg, var(--border) 0deg)`,
+                            } ${percentage * 3.6}deg, var(--border) 0deg)`,
                         }}
                     >
-                        <div style={styles.donutChartInner}>{result.percentage}%</div>
+                        <div style={styles.donutChartInner}>{percentage}%</div>
                     </div>
                 )}
                 <button
