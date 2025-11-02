@@ -269,18 +269,20 @@ const startSubmission = asyncHandler(async (req, res) => {
 
 // Helper to safely merge incoming answers into existing slots
 function mergeAnswers(existingAnswers, incomingAnswers) {
-	const byQ = new Map(existingAnswers.map(a => [String(a.question), { ...a }]));
-	for (const inc of incomingAnswers) {
-		const qid = String(inc?.question || '');
-		if (!qid || !byQ.has(qid)) continue; // ignore unknown questions
-		const prev = byQ.get(qid);
-		byQ.set(qid, {
-			question: prev.question,
-			responseText: inc.responseText ?? prev.responseText ?? '',
-			responseOption: inc.responseOption ?? prev.responseOption ?? null,
-		});
-	}
-	return Array.from(byQ.values());
+	const incomingMap = new Map(incomingAnswers.map(a => [String(a.question), a]));
+
+	existingAnswers.forEach(existingAns => {
+		const qid = String(existingAns.question);
+		if (incomingMap.has(qid)) {
+			const incoming = incomingMap.get(qid);
+			// Update properties on the existing Mongoose sub-document
+			existingAns.responseText = incoming.responseText ?? existingAns.responseText;
+			existingAns.responseOption = incoming.responseOption ?? existingAns.responseOption;
+		}
+	});
+
+	// Return the mutated array. Mongoose will detect the changes.
+	return existingAnswers;
 }
 
 // Submit a submission (mark as submitted and evaluate)
