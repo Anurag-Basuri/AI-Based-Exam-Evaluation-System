@@ -85,9 +85,11 @@ const ExamEdit = () => {
 				description: exam.description,
 				instructions: exam.instructions,
 				duration: exam.duration,
-				// Use correct normalized fields (startMs/endMs)
-				startTime: exam.startMs ? new Date(exam.startMs).toISOString().slice(0, 16) : '',
-				endTime: exam.endMs ? new Date(exam.endMs).toISOString().slice(0, 16) : '',
+				// Use correct normalized fields (startMs/endMs) if available, otherwise format from string
+				startTime: exam.startTime
+					? new Date(exam.startTime).toISOString().slice(0, 16)
+					: '',
+				endTime: exam.endTime ? new Date(exam.endTime).toISOString().slice(0, 16) : '',
 				autoPublishResults: exam.autoPublishResults,
 			});
 			// Load AI policy, providing defaults if not set
@@ -98,7 +100,8 @@ const ExamEdit = () => {
 				customInstructions: exam.aiPolicy?.customInstructions || '',
 			});
 			setStatus(exam.status);
-			setSelectedIds(new Set(exam.questions || []));
+			// The `questions` array now contains full objects, so we map to get their IDs
+			setSelectedIds(new Set((exam.questions || []).map(q => q._id)));
 			// Backend now returns { items: [...] }
 			const bank = await safeApiCall(getTeacherQuestions);
 			setQuestions(Array.isArray(bank?.items) ? bank.items : []);
@@ -141,7 +144,7 @@ const ExamEdit = () => {
 	}, [questions, query, typeFilter, difficultyFilter]);
 
 	const selectedList = React.useMemo(() => {
-		const map = new Map(questions.map(q => [q.id, q]));
+		const map = new Map(questions.map(q => [q._id, q]));
 		return Array.from(selectedIds)
 			.map(i => map.get(i))
 			.filter(Boolean);
@@ -439,11 +442,11 @@ const ExamEdit = () => {
 					}}
 				>
 					{filteredQuestions.map(q => {
-						const selected = selectedIds.has(q.id);
+						const selected = selectedIds.has(q._id);
 						return (
 							<div
-								key={q.id}
-								onClick={() => (isLocked ? undefined : toggleSelected(q.id))}
+								key={q._id}
+								onClick={() => (isLocked ? undefined : toggleSelected(q._id))}
 								style={{
 									userSelect: 'none',
 									cursor: isLocked ? 'not-allowed' : 'pointer',
@@ -467,7 +470,7 @@ const ExamEdit = () => {
 											type="checkbox"
 											checked={selected}
 											onChange={() =>
-												isLocked ? undefined : toggleSelected(q.id)
+												isLocked ? undefined : toggleSelected(q._id)
 											}
 											disabled={isLocked}
 											style={{
