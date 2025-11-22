@@ -119,17 +119,107 @@ flowchart TD
 
 ```
 AI-Based-Exam-Evaluation-System/
+├─ Readme.md
 ├─ client/
-│  ├─ src/
-│  │  ├─ pages/          # Student & Teacher views (TakeExam, Exams, Results)
-│  │  ├─ services/       # API wrappers (studentServices.js)
-│  │  └─ components/     # Reusable UI pieces
+│  ├─ .env
+│  ├─ package.json
+│  ├─ vite.config.js
+│  ├─ index.html
+│  ├─ public/
+│  │  ├─ index.html
+│  │  ├─ manifest.json
+│  │  └─ robots.txt
+│  └─ src/
+│     ├─ main.jsx
+│     ├─ App.jsx
+│     ├─ App.css
+│     ├─ index.css
+│     ├─ assets/
+│     ├─ components/
+│     │  ├─ ErrorBoundary.jsx
+│     │  ├─ Header.jsx
+│     │  ├─ Login.jsx
+│     │  ├─ Register.jsx
+│     │  ├─ RouteFallback.jsx
+│     │  └─ Sidebar.jsx
+│     ├─ context/
+│     │  ├─ AuthContext.jsx
+│     │  └─ ThemeContext.jsx
+│     ├─ hooks/
+│     │  ├─ useAuth.js
+│     │  └─ useTheme.js
+│     ├─ pages/
+│     │  ├─ auth.jsx
+│     │  ├─ LandingPage.jsx
+│     │  ├─ StudentDash.jsx
+│     │  ├─ TeacherDash.jsx
+│     │  ├─ student/
+│     │  │  ├─ Exams.jsx
+│     │  │  ├─ Home.jsx
+│     │  │  ├─ issue.jsx
+│     │  │  ├─ result.jsx
+│     │  │  ├─ Settings.jsx
+│     │  │  ├─ TakeExam.jsx
+│     │  │  └─ components/ (TakeExamSkeleton.jsx)
+│     │  └─ teacher/
+│     │     ├─ ExamCreate.jsx
+│     │     ├─ ExamEdit.jsx
+│     │     ├─ Exams.jsx
+│     │     ├─ Home.jsx
+│     │     ├─ issue.jsx
+│     │     ├─ result.jsx
+│     │     ├─ Settings.jsx
+│     │     └─ SubmissionGrade.jsx
+│     ├─ routes/
+│     │  ├─ AppRoutes.jsx
+│     │  └─ ProtectedRoutes.jsx
+│     ├─ services/
+│     │  ├─ api.js
+│     │  ├─ apiServices.js
+│     │  ├─ studentServices.js
+│     │  └─ teacherServices.js
+│     └─ utils/
+│        └─ handleToken.js
 └─ server/
-   ├─ src/
-   │  ├─ controllers/    # Route handlers (submission.controller.js)
-   │  ├─ routes/         # Express routes (submission.routes.js)
-   │  ├─ models/         # Mongoose schemas
-   │  └─ services/       # Business logic (evaluation)
+   ├─ .env
+   ├─ package.json
+   └─ src/
+      ├─ app.js
+      ├─ db.js
+      ├─ server.js
+      ├─ controllers/
+      │  ├─ exam.controller.js
+      │  ├─ issue.controller.js
+      │  ├─ question.controller.js
+      │  ├─ student.controller.js
+      │  ├─ submission.controller.js
+      │  └─ teacher.controller.js
+      ├─ middlewares/
+      │  ├─ auth.middleware.js
+      │  └─ cors.middleware.js
+      ├─ models/
+      │  ├─ exam.model.js
+      │  ├─ issue.model.js
+      │  ├─ question.model.js
+      │  ├─ student.model.js
+      │  ├─ submission.model.js
+      │  └─ teacher.model.js
+      ├─ routes/
+      │  ├─ exam.routes.js
+      │  ├─ issue.routes.js
+      │  ├─ question.routes.js
+      │  ├─ student.routes.js
+      │  ├─ submission.routes.js
+      │  └─ teacher.routes.js
+      ├─ services/
+      │  ├─ evaluation.service.js
+      │  └─ examStatus.service.js
+      ├─ socket/
+      │  └─ initSocket.js
+      └─ utils/
+         ├─ ApiError.js
+         ├─ ApiResponse.js
+         └─ asyncHandler.js
 ```
 
 ---
