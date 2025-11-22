@@ -1,232 +1,242 @@
 # AI-Based Exam Evaluation System
 
-[![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](https://opensource.org/licenses/ISC)
-[![Node.js CI](https://github.com/your-username/your-repo/actions/workflows/node.js.yml/badge.svg)](https://github.com/your-username/your-repo/actions/workflows/node.js.yml)
-[![React](https://img.shields.io/badge/React-18-blue?logo=react)](https://reactjs.org/)
-[![Node.js](https://img.shields.io/badge/Node.js-18+-green?logo=nodedotjs)](https://nodejs.org/)
-[![Express.js](https://img.shields.io/badge/Express.js-4-lightgrey?logo=express)](https://expressjs.com/)
+[![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](https://opensource.org/licenses/ISC)  
+[![Node.js CI](https://github.com/your-username/your-repo/actions/workflows/node.js.yml/badge.svg)](https://github.com/your-username/your-repo/actions/workflows/node.js.yml)  
+[![React](https://img.shields.io/badge/React-18-blue?logo=react)](https://reactjs.org/)  
+[![Node.js](https://img.shields.io/badge/Node.js-18+-green?logo=nodedotjs)](https://nodejs.org/)  
+[![Express.js](https://img.shields.io/badge/Express.js-4-lightgrey?logo=express)](https://expressjs.com/)  
 [![MongoDB](https://img.shields.io/badge/MongoDB-green?logo=mongodb)](https://www.mongodb.com/)
 
-A modern, full-stack MERN application designed to streamline the entire examination process—from creation and delivery to automated evaluation and issue resolution. This system provides a seamless digital experience for both teachers and students.
-
-## Why This Project?
-
-Traditional exam management is often manual, time-consuming, and prone to inconsistencies. This project addresses these challenges by offering a centralized platform that automates key tasks, ensures consistent grading, and provides a real-time, interactive environment for all users. It's an ideal solution for educational institutions and training organizations looking to modernize their assessment workflows.
+A modern MERN application to create, deliver, autosave, and (partially) auto-evaluate exams. Designed for instructors and students, the system emphasizes reliability (autosave), auditability (submissions & issues), and extensibility (AI evaluation service).
 
 ---
 
-## Core Features
+## Why this project?
 
-### Student Experience
-
-- **Secure Authentication:** Simple registration and login with JWT-based session management.
-- **Dashboard:** A personalized portal to view available exams, recent results, and pending actions.
-- **Exam Taking:** A distraction-free interface for taking exams, with automatic saving of answers to prevent data loss.
-- **View Results:** Instant access to graded submissions, including scores and teacher feedback.
-- **Support System:** Raise issues related to exams or evaluations and track their status in real-time.
-
-### Teacher & Admin Experience
-
-- **Exam Management:** A powerful editor to create, manage, and publish exams with various question types (MCQ, Subjective).
-- **Submission Monitoring:** Track student submissions in real-time as they happen.
-- **AI-Assisted Grading:** Leverage automated scoring for objective questions and review subjective answers efficiently.
-- **Issue Resolution:** A dedicated dashboard to view, manage, and respond to student-raised issues.
-- **Real-time Notifications:** Receive instant updates for new submissions and issues via WebSockets.
-
-### Platform & Technology
-
-- **Real-Time Communication:** Uses **Socket.IO** for instant updates on issue statuses, new submissions, and notifications.
-- **RESTful API:** A well-structured and secure backend API built with Node.js and Express.
-- **Input Validation:** Ensures data integrity with `express-validator` on all critical API routes.
-- **Responsive Design:** A clean, modern UI built with React that works seamlessly across devices.
-- **Role-Based Access Control:** Secure middleware ensures students and teachers can only access authorized resources.
+Managing exams manually is error-prone and time-consuming. This project automates core workflows—exam creation, delivery, autosaving, and evaluation—so institutions can run assessments at scale with consistent grading and fewer administrative overheads.
 
 ---
 
-## How It Works
+## Core features
 
-The system provides distinct, role-based workflows for students and teachers to ensure a seamless and secure examination process.
+### Student experience
 
-#### For Students
+- JWT-based authentication and secure sessions.
+- Dashboard to view and join available exams.
+- Distraction-free exam UI with automatic and manual save options.
+- Submit exams and view results with per-question feedback.
+- Raise and track support issues (real-time updates via Socket.IO).
 
-1.  **Register & Login:** Students create an account and log in to access their personal dashboard.
-2.  **Find an Exam:** On the dashboard, students can see a list of available exams or search for a specific one using a unique exam code provided by their teacher.
-3.  **Take the Exam:** Once an exam is started, the student enters a clean, distraction-free interface. Answers are saved automatically in the background to prevent data loss from network issues or accidental browser closures.
-4.  **Submit & View Results:** After completing the exam, students can submit their work. Once graded by the teacher, they can view their results, including scores for each question and any feedback.
-5.  **Raise a Support Ticket:** If a student has an issue with an exam question, their grade, or a technical problem, they can raise a support ticket directly through the platform. They can track the status of their ticket (`Open`, `In Progress`, `Resolved`) in real-time.
+### Teacher & admin experience
 
-#### For Teachers
+- Create, edit, publish exams with multiple question types (MCQ, subjective).
+- Monitor live submissions and student progress.
+- AI-assisted grading pipeline for objective questions and to assist subjective review.
+- Manage and resolve student issues, with history and replies.
 
-1.  **Create & Manage Exams:** Teachers have access to a powerful exam editor where they can create new exams, add questions (Multiple Choice, Subjective), set durations, and define scoring.
-2.  **Publish Exams:** Once an exam is ready, the teacher can publish it, which generates a unique code to share with students.
-3.  **Monitor Submissions:** Teachers can see which students have started, are in progress, or have completed an exam in real-time.
-4.  **Grade Submissions:** The system automatically grades objective (MCQ) questions. For subjective questions, teachers use a streamlined interface to review answers and assign scores.
-5.  **Resolve Issues:** Teachers have a dedicated dashboard to view and manage all student-raised issues. They can assign issues, update their status, and provide resolutions with replies, which are instantly visible to the student.
+### Platform & technology
 
----
-
-## Technology Stack
-
-- **Frontend:** React 18, Vite, React Router
-- **Backend:** Node.js, Express.js
-- **Database:** MongoDB with Mongoose
-- **Real-time Engine:** Socket.IO
-- **Authentication:** JSON Web Tokens (JWT)
-- **Styling:** CSS-in-JS (Inline Styles) & Global CSS
+- Real-time updates via Socket.IO.
+- RESTful API built with Express and Mongoose.
+- Input validation using `express-validator`.
+- Responsive React UI (Vite).
+- Role-based access control and inline styling + CSS.
 
 ---
 
-## High-Level Flow
+## How it works (high-level)
+
+- Students start exams (server creates a Submission).
+- Answers are autosaved periodically; the server persists them into the Submission document.
+- When time expires or the student submits, the server finalizes and triggers evaluation.
+- Teachers can review, adjust evaluations, and publish results.
+
+---
+
+## Technology stack
+
+- Frontend: React 18, Vite, React Router
+- Backend: Node.js, Express.js
+- Database: MongoDB (Mongoose)
+- Real-time: Socket.IO
+- Auth: JWT
+- Styling: Inline styles + global CSS
+
+---
+
+## High-level flow
 
 ```mermaid
 flowchart TD
-    A[User Visits App] --> B{Login / Register}
-    B -->|JWT Issued| C[Authenticated Dashboard]
-
-    subgraph Student Flow
-      C --> S1[Views Exams]
-      S1 --> S2[Starts Exam]
-      S2 --> S3[Answers Questions (Autosave)]
-      S3 --> S4[Submits Exam]
-      S4 --> S5[Views Results]
-      S5 --> S6[Raises Support Issue]
+    A[Open App] --> B{Login / Register}
+    B --> C[Dashboard (Auth)]
+    subgraph Student
+      C --> S1[Find Exam]
+      S1 --> S2[Start Exam (Submission created)]
+      S2 --> S3[Answer Questions (Auto-save)]
+      S3 --> S4[Submit Exam]
+      S4 --> S5[View Results]
+      S5 --> S6[Open Issue]
     end
-
-    subgraph Teacher Flow
-      C --> T1[Creates/Manages Exams]
-      T1 --> T2[Monitors Submissions]
-      T2 --> T3[Grades Submissions]
-      T3 --> T4[Resolves Issues]
+    subgraph Teacher
+      C --> T1[Create & Publish Exam]
+      T1 --> T2[Monitor Submissions]
+      T2 --> T3[Grade / Review]
+      T3 --> T4[Resolve Issues]
     end
-
-    S6 --> T4
 ```
 
 ---
 
-## API Endpoints Overview
+## API endpoints (base: /api)
 
-Base URL: `/api`
+> Note: the active implementation uses PATCH for partial updates (syncing answers). Confirm routes in `server/src/routes`.
 
-| Resource       | Method | Endpoint                      | Access  | Description                             |
-| -------------- | ------ | ----------------------------- | ------- | --------------------------------------- |
-| **Student**    | POST   | `/students/register`          | Public  | Register a new student account.         |
-|                | POST   | `/students/login`             | Public  | Log in and receive JWT tokens.          |
-|                | GET    | `/students/profile`           | Student | Get current student's profile.          |
-| **Exam**       | GET    | `/exams/search/:code`         | Student | Find an exam by its unique code.        |
-|                | GET    | `/exams/:id`                  | Student | Get details for a single exam.          |
-| **Submission** | POST   | `/submissions/start/:examId`  | Student | Start a new submission for an exam.     |
-|                | GET    | `/submissions/my-submissions` | Student | Get all submissions for the student.    |
-|                | POST   | `/:id/answers`                | Student | Save answers for an ongoing submission. |
-|                | POST   | `/:id/submit`                 | Student | Finalize and submit an exam.            |
-| **Issue**      | POST   | `/issues/create`              | Student | Create a new support issue.             |
-|                | GET    | `/issues/student`             | Student | Get all issues raised by the student.   |
-|                | DELETE | `/issues/:id`                 | Student | Withdraw an open issue.                 |
-|                | GET    | `/issues/all`                 | Teacher | Get all issues (for admin view).        |
-|                | PATCH  | `/issues/:id/resolve`         | Teacher | Mark an issue as resolved with a reply. |
+| Resource   | Method | Endpoint                      | Access  | Description                              |
+| ---------- | ------ | ----------------------------- | ------- | ---------------------------------------- |
+| Student    | POST   | `/students/register`          | Public  | Register a student                       |
+|            | POST   | `/students/login`             | Public  | Login and receive JWT                    |
+|            | GET    | `/students/profile`           | Student | Current student profile                  |
+| Exam       | GET    | `/exams/search/:code`         | Student | Find an exam by code                     |
+|            | GET    | `/exams/:id`                  | Student | Get exam details                         |
+| Submission | POST   | `/submissions/start/:examId`  | Student | Start a new submission / enter exam      |
+|            | GET    | `/submissions/my-submissions` | Student | List student's submissions               |
+|            | GET    | `/submissions/:id`            | Student | Get a submission (take / resume)         |
+|            | PATCH  | `/submissions/:id/answers`    | Student | Sync (autosave) answers (partial update) |
+|            | POST   | `/submissions/:id/submit`     | Student | Finalize and submit an exam              |
+| Issue      | POST   | `/issues/create`              | Student | Create a support issue                   |
+|            | GET    | `/issues/student`             | Student | Get student issues                       |
+|            | DELETE | `/issues/:id`                 | Student | Withdraw issue                           |
 
 ---
 
-## Project Structure
+## Project structure
 
 ```
 AI-Based-Exam-Evaluation-System/
 ├─ client/
 │  ├─ src/
-│  │  ├─ components/  # Reusable UI components
-│  │  ├─ context/     # Auth & Theme context
-│  │  ├─ hooks/       # Custom hooks (useAuth)
-│  │  ├─ pages/       # Main pages for Student/Teacher dashboards
-│  │  ├─ routes/      # App routing configuration
-│  │  └─ services/    # API call handlers (studentServices)
-│  └─ package.json
+│  │  ├─ pages/          # Student & Teacher views (TakeExam, Exams, Results)
+│  │  ├─ services/       # API wrappers (studentServices.js)
+│  │  └─ components/     # Reusable UI pieces
 └─ server/
    ├─ src/
-   │  ├─ controllers/ # Route logic
-   │  ├─ middlewares/ # Auth, error handling
-   │  ├─ models/      # Mongoose schemas
-   │  ├─ routes/      # API route definitions
-   │  ├─ services/    # Business logic (e.g., evaluation)
-   │  ├─ socket/      # Socket.IO connection and event handling
-   │  ├─ utils/       # API Error/Response classes
-   │  ├─ app.js       # Express app setup
-   │  └─ server.js    # Server and DB initialization
-   └─ package.json
+   │  ├─ controllers/    # Route handlers (submission.controller.js)
+   │  ├─ routes/         # Express routes (submission.routes.js)
+   │  ├─ models/         # Mongoose schemas
+   │  └─ services/       # Business logic (evaluation)
 ```
 
 ---
 
-## Local Setup and Installation
+## Local setup
 
-**Prerequisites:**
+Requirements: Node.js v18+, MongoDB (local or Atlas)
 
-- Node.js v18+
-- MongoDB (local instance or Atlas connection string)
-
-### 1. Clone the Repository
+1. Clone
 
 ```bash
-git clone <repository-url>
+git clone <repo-url>
 cd AI-Based-Exam-Evaluation-System
 ```
 
-### 2. Backend Setup
+2. Backend
 
 ```bash
 cd server
 npm install
 ```
 
-Create a `.env` file in the `server/` directory and add the following variables:
+Create `server/.env` with at least:
 
 ```env
-# server/.env
 MONGODB_URI=mongodb://localhost:27017/exam-evaluation
-JWT_SECRET=your-super-secret-jwt-key
+JWT_SECRET=your_jwt_secret
 PORT=3003
 CORS_ORIGIN=http://localhost:5173
 ```
 
-Run the backend server:
+Run server:
 
 ```bash
 npm run dev
 ```
 
-### 3. Frontend Setup
+3. Frontend
 
 ```bash
 cd ../client
 npm install
 ```
 
-Create an optional `.env` file in the `client/` directory to specify the API server URL:
+Optional `client/.env`:
 
 ```env
-# client/.env
 VITE_API_BASE_URL=http://localhost:3003
 ```
 
-Run the frontend development server:
+Run client:
 
 ```bash
 npm run dev
 ```
 
-The application will be available at `http://localhost:5173`.
+Open: http://localhost:5173
 
 ---
 
-## Roadmap
+## Environment variables (minimal)
 
-- [ ] Implement rich question types (e.g., code snippets, file uploads).
-- [ ] Enhance AI evaluation with more sophisticated rubrics and feedback generation.
-- [ ] Add basic proctoring features like tab-switching detection.
-- [ ] Introduce email notifications for key events (e.g., issue resolution).
-- [ ] Develop bulk import/export functionality for exams and results.
+- server/.env
+  - MONGODB_URI
+  - JWT_SECRET
+  - PORT (optional, default 3003)
+  - CORS_ORIGIN (frontend origin)
+- client/.env (optional)
+  - VITE_API_BASE_URL (defaults to http://localhost:3003)
+
+---
+
+## Common issues & troubleshooting
+
+- "PATCH /api/submissions/undefined/answers" — submission id is missing on client. Ensure:
+  - The TakeExam page fetches a fresh submission from GET /submissions/:id before autosave.
+  - The normalizer (`client/src/services/studentServices.js`) retains `id` and `answers` slots.
+- Autosave failures — check network, server CORS settings, and that server accepts PATCH on `/submissions/:id/answers`.
+- MongoDB errors — confirm `MONGODB_URI` and that the DB is reachable.
+- JWT / Auth errors — ensure token is sent in Authorization header: `Bearer <token>`.
+
+---
+
+## Development notes
+
+- Autosave interval and max violations are configurable in the client (TakeExam page).
+- Server returns populated submission objects; client code expects normalized shapes (`submission.id`, `questions[].id`, `answers[]`).
+- If you change submission schema, update `normalizeSubmission` in `client/src/services/studentServices.js`.
+
+---
+
+## Roadmap (ideas)
+
+- Rich question types: code blocks, file uploads.
+- Improved AI rubrics and multi-pass evaluation.
+- Basic proctoring (tab-switch detection, webcam hooks).
+- Email/notification integration for key events.
+
+---
+
+## Contributing
+
+1. Fork the repo
+2. Create a branch per feature/fix
+3. Open a PR with tests or manual test steps
+
+Please include logs and reproduction steps for bug fixes.
 
 ---
 
 ## License
 
-This project is licensed under the ISC License. See the [LICENSE](LICENSE) file for details.
+ISC License — see LICENSE file.
+
+---
