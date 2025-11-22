@@ -416,8 +416,10 @@ Please include tests or manual test steps where possible.
 
 ---
 
+...existing code...
 ## License
 
-ISC License — see LICENSE file.
+ISC License — see the [LICENSE](./LICENSE) file or the official [ISC license text](https://opensource.org/licenses/ISC).
+...existing code...
 
 ---
