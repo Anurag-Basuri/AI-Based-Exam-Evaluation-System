@@ -1,19 +1,23 @@
 # AI-Based Exam Evaluation System
 
 [![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](https://opensource.org/licenses/ISC)  
-[![Node.js CI](https://github.com/your-username/your-repo/actions/workflows/node.js.yml/badge.svg)](https://github.com/your-username/your-repo/actions/workflows/node.js.yml)  
 [![React](https://img.shields.io/badge/React-18-blue?logo=react)](https://reactjs.org/)  
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green?logo=nodedotjs)](https://nodejs.org/)  
 [![Express.js](https://img.shields.io/badge/Express.js-4-lightgrey?logo=express)](https://expressjs.com/)  
 [![MongoDB](https://img.shields.io/badge/MongoDB-green?logo=mongodb)](https://www.mongodb.com/)
 
-A modern MERN application to create, deliver, autosave, and (partially) auto-evaluate exams. Designed for instructors and students, the system emphasizes reliability (autosave), auditability (submissions & issues), and extensibility (AI evaluation service).
+A modern MERN (MongoDB, Express, React, Node) application to create, deliver, autosave, and partially auto-evaluate exams. Built for instructors and students with emphasis on reliability (autosave), auditability (submissions & issues), and extensibility (AI evaluation service).
 
 ---
 
 ## Why this project?
 
-Managing exams manually is error-prone and time-consuming. This project automates core workflows—exam creation, delivery, autosaving, and evaluation—so institutions can run assessments at scale with consistent grading and fewer administrative overheads.
+This project reduces manual effort in creating and grading exams, providing:
+
+- Reliable autosave to prevent data loss
+- Consistent, auditable submission records
+- Extensible evaluation pipeline with hooks for AI-assisted grading
+- Real-time support/issue reporting for students
 
 ---
 
@@ -21,35 +25,36 @@ Managing exams manually is error-prone and time-consuming. This project automate
 
 ### Student experience
 
-- JWT-based authentication and secure sessions.
-- Dashboard to view and join available exams.
-- Distraction-free exam UI with automatic and manual save options.
-- Submit exams and view results with per-question feedback.
-- Raise and track support issues (real-time updates via Socket.IO).
+- Secure authentication (JWT) and session handling.
+- Dashboard to browse and join exams.
+- Focused exam UI with autosave and manual save.
+- Submit exams and view per-question feedback.
+- Report issues and follow their resolution (Socket.IO real-time updates).
 
 ### Teacher & admin experience
 
-- Create, edit, publish exams with multiple question types (MCQ, subjective).
-- Monitor live submissions and student progress.
-- AI-assisted grading pipeline for objective questions and to assist subjective review.
-- Manage and resolve student issues, with history and replies.
+- Create/edit/publish exams (MCQ and subjective).
+- Monitor student progress in real time.
+- AI-assisted grading pipeline to speed subjective review.
+- Issue management and response history.
 
 ### Platform & technology
 
-- Real-time updates via Socket.IO.
-- RESTful API built with Express and Mongoose.
-- Input validation using `express-validator`.
-- Responsive React UI (Vite).
-- Role-based access control and inline styling + CSS.
+- Real-time via Socket.IO
+- REST API with Express + Mongoose
+- Input validation with express-validator
+- Frontend: React + Vite, React Router
+- Role-based access control
+- Simple inline styling and global CSS for quick customization
 
 ---
 
-## How it works (high-level)
+## How it works (high level)
 
-- Students start exams (server creates a Submission).
-- Answers are autosaved periodically; the server persists them into the Submission document.
-- When time expires or the student submits, the server finalizes and triggers evaluation.
-- Teachers can review, adjust evaluations, and publish results.
+1. Student starts an exam → server creates a Submission.
+2. Student answers are autosaved periodically to that Submission.
+3. On submit or time expiry the server finalizes and triggers evaluation.
+4. Teachers can review, adjust scores, and publish results.
 
 ---
 
@@ -90,7 +95,7 @@ flowchart TD
 
 ## API endpoints (base: /api)
 
-> Note: the active implementation uses PATCH for partial updates (syncing answers). Confirm routes in `server/src/routes`.
+> Implementation uses PATCH for partial updates (syncing answers). Confirm current server routes under `server/src/routes`.
 
 | Resource   | Method | Endpoint                      | Access  | Description                              |
 | ---------- | ------ | ----------------------------- | ------- | ---------------------------------------- |
@@ -131,7 +136,7 @@ AI-Based-Exam-Evaluation-System/
 
 ## Local setup
 
-Requirements: Node.js v18+, MongoDB (local or Atlas)
+Requirements: Node.js v18+, MongoDB (local or Atlas). Example commands for Windows PowerShell / cmd.
 
 1. Clone
 
@@ -142,56 +147,33 @@ cd AI-Based-Exam-Evaluation-System
 
 2. Backend
 
-```bash
+```powershell
 cd server
 npm install
-```
-
-Create `server/.env` with at least:
-
-```env
-MONGODB_URI=mongodb://localhost:27017/exam-evaluation
-JWT_SECRET=your_jwt_secret
-PORT=3003
-CORS_ORIGIN=http://localhost:5173
-```
-
-Run server:
-
-```bash
+# Create server/.env with required variables (see below)
 npm run dev
 ```
 
 3. Frontend
 
-```bash
+```powershell
 cd ../client
 npm install
-```
-
-Optional `client/.env`:
-
-```env
-VITE_API_BASE_URL=http://localhost:3003
-```
-
-Run client:
-
-```bash
+# (Optional) create client/.env if you need non-default API base
 npm run dev
 ```
 
-Open: http://localhost:5173
+Open the frontend (Vite) app, usually at http://localhost:5173
 
 ---
 
-## Environment variables (minimal)
+## Environment variables (minimum)
 
 - server/.env
-  - MONGODB_URI
+  - MONGODB_URI (e.g. mongodb://localhost:27017/exam-evaluation)
   - JWT_SECRET
   - PORT (optional, default 3003)
-  - CORS_ORIGIN (frontend origin)
+  - CORS_ORIGIN (frontend origin, e.g. http://localhost:5173)
 - client/.env (optional)
   - VITE_API_BASE_URL (defaults to http://localhost:3003)
 
@@ -199,29 +181,41 @@ Open: http://localhost:5173
 
 ## Common issues & troubleshooting
 
-- "PATCH /api/submissions/undefined/answers" — submission id is missing on client. Ensure:
-  - The TakeExam page fetches a fresh submission from GET /submissions/:id before autosave.
-  - The normalizer (`client/src/services/studentServices.js`) retains `id` and `answers` slots.
-- Autosave failures — check network, server CORS settings, and that server accepts PATCH on `/submissions/:id/answers`.
-- MongoDB errors — confirm `MONGODB_URI` and that the DB is reachable.
-- JWT / Auth errors — ensure token is sent in Authorization header: `Bearer <token>`.
+- PATCH /api/submissions/undefined/answers
+  - Cause: submission id is missing on the client. Fixes:
+    - Ensure TakeExam fetches a fresh submission via GET /submissions/:id on mount.
+    - Ensure `normalizeSubmission` (client/src/services/studentServices.js) always sets `id: String(s._id ?? s.id)`.
+    - Verify the client uses `submission.id` (not `_id`) when calling save/submit.
+- Answers not persisted after submit
+  - Cause: server merge logic replacing sub-docs or not preserving sub-doc \_id.
+    - Ensure `mergeAnswers` updates existing answer sub-docs in-place and `submission.save()` is called.
+    - Server should return a populated submission (exam/questions) or client must re-normalize response.
+- Autosave failures
+  - Confirm server accepts PATCH on `/submissions/:id/answers`.
+  - Check network tab and Authorization header: `Bearer <token>`.
+  - Ensure debounce/save closure uses latest submission state (use useRef in React).
+- Database / Mongoose errors
+  - Verify `MONGODB_URI` and DB connection in server logs.
+- Auth / 401
+  - Confirm client sends JWT in Authorization header and token is valid.
 
 ---
 
 ## Development notes
 
-- Autosave interval and max violations are configurable in the client (TakeExam page).
-- Server returns populated submission objects; client code expects normalized shapes (`submission.id`, `questions[].id`, `answers[]`).
-- If you change submission schema, update `normalizeSubmission` in `client/src/services/studentServices.js`.
+- Autosave interval and max-violations are configurable in client (TakeExam component).
+- Client expects normalized submission object:
+  - `submission.id`, `questions[].id`, `answers[]` with `question` referencing question id.
+- If schema changes, update `normalizeSubmission` in `client/src/services/studentServices.js` and server response/population accordingly.
 
 ---
 
 ## Roadmap (ideas)
 
-- Rich question types: code blocks, file uploads.
-- Improved AI rubrics and multi-pass evaluation.
-- Basic proctoring (tab-switch detection, webcam hooks).
-- Email/notification integration for key events.
+- Add rich question types: code editor, file uploads.
+- Improve AI rubrics, multi-pass grading and reviewer workflows.
+- Basic proctoring features (tab switch detection, webcam hooks).
+- Notification/email integration for result/publish events.
 
 ---
 
@@ -229,9 +223,9 @@ Open: http://localhost:5173
 
 1. Fork the repo
 2. Create a branch per feature/fix
-3. Open a PR with tests or manual test steps
+3. Open a PR with clear reproduction steps and logs for bug fixes
 
-Please include logs and reproduction steps for bug fixes.
+Please include tests or manual test steps where possible.
 
 ---
 
