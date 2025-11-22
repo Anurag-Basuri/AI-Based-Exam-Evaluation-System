@@ -95,23 +95,120 @@ flowchart TD
 
 ## API endpoints (base: /api)
 
-> Implementation uses PATCH for partial updates (syncing answers). Confirm current server routes under `server/src/routes`.
+Authorization
+- Protected endpoints require: Authorization: Bearer <JWT>
+- Public endpoints do not require auth.
 
-| Resource   | Method | Endpoint                      | Access  | Description                              |
-| ---------- | ------ | ----------------------------- | ------- | ---------------------------------------- |
-| Student    | POST   | `/students/register`          | Public  | Register a student                       |
-|            | POST   | `/students/login`             | Public  | Login and receive JWT                    |
-|            | GET    | `/students/profile`           | Student | Current student profile                  |
-| Exam       | GET    | `/exams/search/:code`         | Student | Find an exam by code                     |
-|            | GET    | `/exams/:id`                  | Student | Get exam details                         |
-| Submission | POST   | `/submissions/start/:examId`  | Student | Start a new submission / enter exam      |
-|            | GET    | `/submissions/my-submissions` | Student | List student's submissions               |
-|            | GET    | `/submissions/:id`            | Student | Get a submission (take / resume)         |
-|            | PATCH  | `/submissions/:id/answers`    | Student | Sync (autosave) answers (partial update) |
-|            | POST   | `/submissions/:id/submit`     | Student | Finalize and submit an exam              |
-| Issue      | POST   | `/issues/create`              | Student | Create a support issue                   |
-|            | GET    | `/issues/student`             | Student | Get student issues                       |
-|            | DELETE | `/issues/:id`                 | Student | Withdraw issue                           |
+Notes
+- Student-facing routes are under /students, /exams, /submissions, /issues.
+- Teacher/admin routes are under exam/question/teacher-related controllers.
+- Autosave uses PATCH /submissions/:id/answers (partial update).
+- Where applicable, request bodies are JSON; path params are URL-encoded.
+
+Authentication / Student account
+- POST /students/register
+  - Public — Register a new student.
+  - Body: { name, email, password, ... }
+  - Response: { token, student }
+- POST /students/login
+  - Public — Login and receive JWT.
+  - Body: { email, password }
+  - Response: { token, student }
+- GET /students/profile
+  - Student — Get current authenticated student profile.
+- PUT /students/update
+  - Student — Update profile.
+  - Body: partial student fields.
+- POST /students/change-password
+  - Student — Change password.
+  - Body: { oldPassword, newPassword }
+
+Exams (student + teacher)
+- GET /exams
+  - Authenticated — (teacher) list/filter exams.
+- GET /exams/:id
+  - Authenticated — Get exam details (title, duration, questions metadata, policy).
+- GET /exams/search/:code
+  - Public/Student — Find an exam by access code.
+- POST /exams
+  - Teacher — Create exam.
+  - Body: exam metadata and question refs.
+- PUT /exams/:id
+  - Teacher — Update exam.
+- DELETE /exams/:id
+  - Teacher — Delete exam / unpublish.
+
+Questions (teacher)
+- POST /questions
+  - Teacher — Create question (MCQ/subjective).
+- PUT /questions/:id
+  - Teacher — Update question.
+- DELETE /questions/:id
+  - Teacher — Delete question.
+
+Submissions (student workflow)
+- POST /submissions/start/:examId
+  - Student — Start a new submission (server creates Submission and returns it).
+  - Alternative POST /submissions/start may also exist for payload-based start.
+- GET /submissions/my-submissions
+  - Student — List student's submissions (history).
+- GET /submissions/:id
+  - Student — Get a single submission (fresh data for TakeExam).
+- PATCH /submissions/:id/answers
+  - Student — Autosave / sync answers (partial update).
+  - Body: { answers: [...], markedForReview?: [...] }
+  - Response: full/populated submission (client should normalize).
+- POST /submissions/:id/submit
+  - Student — Finalize and submit exam for evaluation.
+  - Body: optional metadata e.g. { submissionType: 'manual'|'auto' }
+- POST /submissions/:id/violation
+  - Student — Report a client-side violation (tab switch, fullscreen exit).
+  - Body: { type, details }
+
+Submission results / evaluation (student & teacher)
+- GET /submissions/results/:id
+  - Student — Get submission+evaluation data suitable for results view.
+- GET /submissions/:id/evaluations
+  - Teacher — Get per-question evaluations (teacher grading view).
+- POST /submissions/test-evaluation
+  - Dev/Admin — Run evaluation service on provided sample (used for testing AI pipeline).
+
+Issues / Support
+- POST /issues/create
+  - Student — Create a support issue against a submission or exam.
+  - Body: { submissionId?, examId?, message, attachments? }
+- GET /issues/student
+  - Student — List student issues.
+- GET /issues/:id
+  - Authenticated — Get issue details (student/teacher).
+- POST /issues/:id/reply
+  - Authenticated — Reply to an issue (teacher or student).
+- DELETE /issues/:id
+  - Student/Teacher — Withdraw or remove an issue (permissions apply).
+
+Teacher / Admin operations
+- GET /teacher/submissions
+  - Teacher — List submissions (filter by exam/student/status).
+- GET /teacher/submissions/:id
+  - Teacher — View a submission for grading.
+- POST /teacher/submissions/:id/grade
+  - Teacher — Apply manual per-question marks / override AI evaluation.
+  - Body: { evaluations: [...] , remarks? }
+- POST /teacher/exams/:id/publish
+  - Teacher — Publish exam to students.
+
+Utility / Dev endpoints
+- POST /test-evaluation (or /submissions/test-evaluation)
+  - Dev — Directly call evaluation service for diagnostics (may be protected).
+- GET /health or /
+  - App health check.
+
+Common request/response tips
+- Always include Authorization header for protected routes.
+- PATCH /submissions/:id/answers expects only changed data — server merges into existing submission.
+- Server responses may return Mongoose objects; client should run normalizeSubmission() to ensure shape:
+  - submission.id (String), questions[].id, answers[] with { question, responseText, responseOption }.
+- If you see PATCH /submissions/undefined/answers in logs, the client submission id is missing — ensure TakeExam fetched and stored submission.id before autosave.
 
 ---
 
