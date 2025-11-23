@@ -1,1152 +1,812 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import * as TeacherSvc from '../../services/teacherServices.js';
-import { apiClient } from '../../services/api.js';
-import Alert from '../../components/ui/Alert.jsx';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { useToast } from '../../components/ui/Toaster.jsx';
-import PageHeader from '../../components/ui/PageHeader.jsx';
+import * as TeacherSvc from '../../services/teacherServices.js';
 
-const ActionModal = ({ title, children, onConfirm, onCancel, confirmText = 'Confirm' }) => (
-	<div
-		style={{
-			position: 'fixed',
-			inset: 0,
-			background: 'rgba(0,0,0,0.5)',
-			backdropFilter: 'blur(4px)',
-			display: 'grid',
-			placeItems: 'center',
-			padding: 16,
-			zIndex: 100,
-		}}
-		onClick={onCancel}
-	>
-		<div
-			style={{
-				background: 'var(--surface)',
-				border: '1px solid var(--border)',
-				borderRadius: 16,
-				padding: '20px',
-				width: 'min(500px, 95vw)',
-				boxShadow: 'var(--shadow-lg)',
-			}}
-			onClick={e => e.stopPropagation()}
-		>
-			<h3 style={{ marginTop: 0, color: 'var(--text)' }}>{title}</h3>
-			<div style={{ margin: '16px 0' }}>{children}</div>
-			<div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
-				<button
-					onClick={onCancel}
-					style={{
-						padding: '10px 16px',
-						borderRadius: 8,
-						border: '1px solid var(--border)',
-						background: 'var(--surface)',
-						color: 'var(--text)',
-						fontWeight: 700,
-					}}
-				>
-					Cancel
-				</button>
-				<button
-					onClick={onConfirm}
-					style={{
-						padding: '10px 16px',
-						borderRadius: 8,
-						border: 'none',
-						background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
-						color: '#fff',
-						fontWeight: 700,
-					}}
-				>
-					{confirmText}
-				</button>
+// --- Constants & Config ---
+const MOBILE_BREAKPOINT = 1024;
+
+const STATUS_CONFIG = {
+	active: { label: 'Active', color: 'var(--success-text)', bg: 'var(--success-bg)', border: 'var(--success-border)', icon: '🟢' },
+	scheduled: { label: 'Scheduled', color: 'var(--info-text)', bg: 'var(--info-bg)', border: 'var(--info-border)', icon: '🗓️' },
+	draft: { label: 'Draft', color: 'var(--text-muted)', bg: 'var(--bg-secondary)', border: 'var(--border)', icon: '📝' },
+	completed: { label: 'Completed', color: 'var(--primary)', bg: 'var(--primary-light-bg)', border: 'var(--primary-light)', icon: '✅' },
+	cancelled: { label: 'Cancelled', color: 'var(--danger-text)', bg: 'var(--danger-bg)', border: 'var(--danger-border)', icon: '❌' },
+};
+
+// --- Helper Components ---
+
+const StatCard = ({ title, value, icon, color, loading }) => (
+	<div style={styles.statCard}>
+		<div style={{ ...styles.statIcon, background: color + '20', color: color }}>{icon}</div>
+		<div>
+			<div style={styles.statLabel}>{title}</div>
+			<div style={styles.statValue}>
+				{loading ? <span className="skeleton" style={{ width: 40, height: 24, display: 'block', borderRadius: 4 }} /> : value}
 			</div>
 		</div>
 	</div>
 );
 
-const MoreActionsMenu = ({ children }) => {
-	const [isOpen, setIsOpen] = React.useState(false);
-	const ref = React.useRef(null);
+const StatusBadge = ({ status }) => {
+	const config = STATUS_CONFIG[status] || STATUS_CONFIG.draft;
+	return (
+		<span style={{
+			...styles.badge,
+			color: config.color,
+			background: config.bg,
+			border: `1px solid ${config.border}`
+		}}>
+			{config.icon} {config.label}
+		</span>
+	);
+};
 
-	React.useEffect(() => {
-		const handleClickOutside = event => {
-			if (ref.current && !ref.current.contains(event.target)) {
-				setIsOpen(false);
-			}
-		};
-		document.addEventListener('mousedown', handleClickOutside);
-		return () => document.removeEventListener('mousedown', handleClickOutside);
-	}, []);
+const ActionMenu = ({ onAction, isOpen, onClose }) => {
+	if (!isOpen) return null;
+	return (
+		<>
+			<div style={styles.menuBackdrop} onClick={onClose} />
+			<div style={styles.actionMenu}>
+				<button onClick={() => onAction('clone')} style={styles.menuItem}>📋 Clone</button>
+				<button onClick={() => onAction('rename')} style={styles.menuItem}>✏️ Rename</button>
+				<button onClick={() => onAction('regenerate')} style={styles.menuItem}>🔄 New Code</button>
+				<div style={styles.menuDivider} />
+				<button onClick={() => onAction('delete')} style={{ ...styles.menuItem, color: 'var(--danger-text)' }}>🗑️ Delete</button>
+			</div>
+		</>
+	);
+};
+
+const ExamRow = ({ exam, onAction, onNavigate }) => {
+	const [menuOpen, setMenuOpen] = useState(false);
+	const status = exam.derivedStatus || exam.status;
+
+	const handleMenuAction = (action) => {
+		onAction(action, exam);
+		setMenuOpen(false);
+	};
 
 	return (
-		<div ref={ref} style={{ position: 'relative' }}>
-			<button
-				onClick={() => setIsOpen(o => !o)}
-				style={{
-					flex: '1 1 120px',
-					padding: '10px 14px',
-					borderRadius: 8,
-					border: '1px solid var(--border)',
-					background: 'var(--surface)',
-					color: 'var(--text)',
-					fontWeight: 700,
-					fontSize: 14,
-				}}
-			>
-				More...
-			</button>
-			{isOpen && (
-				<div
-					style={{
-						position: 'absolute',
-						right: 0,
-						bottom: '100%',
-						marginBottom: 8,
-						background: 'var(--surface)',
-						border: '1px solid var(--border)',
-						borderRadius: 8,
-						boxShadow: 'var(--shadow-lg)',
-						zIndex: 10,
-						minWidth: 180,
-						display: 'flex',
-						flexDirection: 'column',
-						padding: 6,
-					}}
-				>
-					{React.Children.map(children, child =>
-						React.cloneElement(child, {
-							style: {
-								...child.props.style,
-								width: '100%',
-								textAlign: 'left',
-								padding: '10px 14px',
-								background: 'transparent',
-								border: 'none',
-								borderRadius: 6,
-								cursor: 'pointer',
-							},
-							onMouseEnter: e => (e.currentTarget.style.background = 'var(--bg)'),
-							onMouseLeave: e => (e.currentTarget.style.background = 'transparent'),
-							onClick: e => {
-								child.props.onClick(e);
-								setIsOpen(false);
-							},
-						}),
+		<tr style={styles.row} onClick={() => onNavigate(exam)}>
+			<td style={styles.cell}>
+				<div style={styles.examTitle}>{exam.title}</div>
+				<div style={styles.examMeta}>
+					{exam.questionCount || 0} Qs • {exam.duration} mins
+				</div>
+			</td>
+			<td style={styles.cell}>
+				<StatusBadge status={status} />
+			</td>
+			<td style={styles.cell}>
+				<div style={styles.codeBox}>
+					<span style={{ fontFamily: 'monospace' }}>{exam.searchId || '—'}</span>
+					{exam.searchId && (
+						<button 
+							onClick={(e) => { e.stopPropagation(); onAction('copy', exam); }}
+							style={styles.copyBtn}
+							title="Copy Code"
+						>
+							📋
+						</button>
 					)}
 				</div>
-			)}
+			</td>
+			<td style={styles.cell}>
+				<div style={styles.statGroup}>
+					<span>👥 {exam.enrolledCount || 0}</span>
+					<span>📝 {exam.submissionCount || 0}</span>
+				</div>
+			</td>
+			<td style={styles.cell}>
+				{new Date(exam.startTime).toLocaleDateString()}
+			</td>
+			<td style={styles.cell} onClick={e => e.stopPropagation()}>
+				<div style={styles.actions}>
+					{status === 'draft' ? (
+						<button onClick={() => onAction('publish', exam)} style={styles.btnPrimarySmall}>Publish</button>
+					) : (
+						<button onClick={() => onNavigate(exam)} style={styles.btnSecondarySmall}>View</button>
+					)}
+					<div style={{ position: 'relative' }}>
+						<button onClick={() => setMenuOpen(!menuOpen)} style={styles.btnIcon}>⋮</button>
+						<ActionMenu isOpen={menuOpen} onClose={() => setMenuOpen(false)} onAction={handleMenuAction} />
+					</div>
+				</div>
+			</td>
+		</tr>
+	);
+};
+
+const ExamCard = ({ exam, onAction, onNavigate }) => {
+	const [menuOpen, setMenuOpen] = useState(false);
+	const status = exam.derivedStatus || exam.status;
+
+	return (
+		<div style={styles.card} onClick={() => onNavigate(exam)}>
+			<div style={styles.cardHeader}>
+				<div style={styles.examTitle}>{exam.title}</div>
+				<div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
+					<button onClick={() => setMenuOpen(!menuOpen)} style={styles.btnIcon}>⋮</button>
+					<ActionMenu isOpen={menuOpen} onClose={() => setMenuOpen(false)} onAction={(a) => { onAction(a, exam); setMenuOpen(false); }} />
+				</div>
+			</div>
+			
+			<div style={styles.cardStatusRow}>
+				<StatusBadge status={status} />
+				<div style={styles.codeBox}>
+					<span style={{ fontFamily: 'monospace' }}>{exam.searchId || '—'}</span>
+					{exam.searchId && (
+						<button 
+							onClick={(e) => { e.stopPropagation(); onAction('copy', exam); }}
+							style={styles.copyBtn}
+						>
+							📋
+						</button>
+					)}
+				</div>
+			</div>
+
+			<div style={styles.cardStats}>
+				<div style={styles.cardStatItem}>
+					<span style={styles.cardStatLabel}>Questions</span>
+					<span style={styles.cardStatValue}>{exam.questionCount || 0}</span>
+				</div>
+				<div style={styles.cardStatItem}>
+					<span style={styles.cardStatLabel}>Duration</span>
+					<span style={styles.cardStatValue}>{exam.duration}m</span>
+				</div>
+				<div style={styles.cardStatItem}>
+					<span style={styles.cardStatLabel}>Enrolled</span>
+					<span style={styles.cardStatValue}>{exam.enrolledCount || 0}</span>
+				</div>
+			</div>
+
+			<div style={styles.cardFooter}>
+				<div style={styles.examMeta}>{new Date(exam.startTime).toLocaleDateString()}</div>
+				{status === 'draft' ? (
+					<button 
+						onClick={(e) => { e.stopPropagation(); onAction('publish', exam); }} 
+						style={styles.btnPrimarySmall}
+					>
+						Publish
+					</button>
+				) : (
+					<button 
+						onClick={(e) => { e.stopPropagation(); onNavigate(exam); }} 
+						style={styles.btnSecondarySmall}
+					>
+						View Details
+					</button>
+				)}
+			</div>
 		</div>
 	);
 };
 
-const statusConfig = {
-	live: {
-		bg: '#dcfce7',
-		border: '#22c55e',
-		color: '#166534',
-		label: 'Live',
-		icon: '🟢',
-	},
-	active: {
-		bg: '#dcfce7',
-		border: '#22c55e',
-		color: '#166534',
-		label: 'Live',
-		icon: '🟢',
-	},
-	scheduled: {
-		bg: '#dbeafe',
-		border: '#3b82f6',
-		color: '#1e40af',
-		label: 'Scheduled',
-		icon: '🗓️',
-	},
-	draft: {
-		bg: '#f3f4f6',
-		border: '#9ca3af',
-		color: '#4b5563',
-		label: 'Draft',
-		icon: '📄',
-	},
-	completed: {
-		bg: '#ede9fe',
-		border: '#8b5cf6',
-		color: '#5b21b6',
-		label: 'Completed',
-		icon: '✅',
-	},
-	cancelled: {
-		bg: '#fee2e2',
-		border: '#ef4444',
-		color: '#991b1b',
-		label: 'Cancelled',
-		icon: '❌',
-	},
-};
-
-const FilterButton = ({ active, children, onClick, count }) => (
-	<button
-		onClick={onClick}
-		style={{
-			padding: '10px 16px',
-			borderRadius: 25,
-			border: active ? '2px solid #3b82f6' : '1px solid var(--border)',
-			background: active ? 'color-mix(in srgb, #3b82f6 20%, transparent)' : 'var(--surface)',
-			color: active ? '#3b82f6' : 'var(--text)',
-			cursor: 'pointer',
-			fontWeight: 600,
-			fontSize: '14px',
-			display: 'flex',
-			alignItems: 'center',
-			gap: 8,
-		}}
-	>
-		{children}
-		{count !== undefined && (
-			<span
-				style={{
-					background: active ? '#3b82f6' : 'var(--text-muted)',
-					color: '#ffffff',
-					borderRadius: '12px',
-					padding: '2px 8px',
-					fontSize: '12px',
-					fontWeight: 700,
-				}}
-			>
-				{count}
-			</span>
-		)}
-	</button>
-);
-
-const Badge = ({ children }) => (
-	<span
-		style={{
-			display: 'inline-flex',
-			alignItems: 'center',
-			gap: 6,
-			fontSize: 12,
-			padding: '6px 10px',
-			borderRadius: 20,
-			border: '1px solid var(--border)',
-			background: 'var(--bg)',
-			color: 'var(--text)',
-			fontWeight: 700,
-		}}
-	>
-		{children}
-	</span>
-);
-
-const ExamCard = ({
-	exam,
-	onPublish,
-	onClone,
-	onEdit,
-	publishing,
-	onCopyCode,
-	onEndNow,
-	onCancel,
-	onExtend15,
-	onRegenerate,
-	onRename,
-	onDelete,
-	onReschedule,
-}) => {
-	const visualStatus = exam.derivedStatus || exam.status || 'draft';
-	const config = statusConfig[visualStatus] || statusConfig.draft;
-
-	// Derive view state
-	const now = Date.now();
-	const isScheduled = exam.status === 'active' && exam.startMs && now < exam.startMs;
-	const isLive =
-		exam.status === 'active' &&
-		exam.startMs &&
-		exam.endMs &&
-		now >= exam.startMs &&
-		now <= exam.endMs;
-	const isDraft = exam.status === 'draft';
-	const isCompleted = exam.derivedStatus === 'completed';
-	const isCancelled = exam.status === 'cancelled';
-
-	return (
-		<article
-			style={{
-				background: 'var(--surface)',
-				borderRadius: 16,
-				border: '1px solid var(--border)',
-				boxShadow: 'var(--shadow-sm)',
-				display: 'flex',
-				flexDirection: 'column',
-				transition: 'transform .2s ease, box-shadow .2s ease',
-			}}
-			onMouseEnter={e => {
-				e.currentTarget.style.transform = 'translateY(-2px)';
-				e.currentTarget.style.boxShadow = 'var(--shadow-lg)';
-			}}
-			onMouseLeave={e => {
-				e.currentTarget.style.transform = 'translateY(0)';
-				e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
-			}}
-		>
-			<header
-				style={{
-					padding: '16px 20px',
-					borderBottom: '1px solid var(--border)',
-					background: 'var(--bg)',
-					borderTopLeftRadius: 16,
-					borderTopRightRadius: 16,
-				}}
-			>
-				<div
-					style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 8 }}
-				>
-					<h3
-						style={{
-							margin: 0,
-							fontSize: 18,
-							fontWeight: 800,
-							color: 'var(--text)',
-							flex: 1,
-							lineHeight: 1.3,
-						}}
-						title={exam.title}
-					>
-						{exam.title}
-					</h3>
-
-					<span
-						style={{
-							display: 'flex',
-							alignItems: 'center',
-							gap: 6,
-							fontSize: 12,
-							padding: '4px 10px',
-							borderRadius: 20,
-							border: `1px solid ${config.border}`,
-							background: config.bg,
-							color: config.color,
-							fontWeight: 800,
-						}}
-					>
-						<span>{config.icon}</span>
-						{config.label}
-					</span>
-				</div>
-
-				{/* Share code */}
-				{!isDraft && (
-					<div
-						style={{
-							display: 'flex',
-							gap: 8,
-							alignItems: 'center',
-							marginTop: 10,
-							justifyContent: 'space-between',
-							flexWrap: 'wrap',
-						}}
-					>
-						<Badge>
-							Share code:{' '}
-							<span style={{ color: 'var(--text)', fontFamily: 'monospace' }}>
-								{exam.searchId || '—'}
-							</span>
-						</Badge>
-						<button
-							onClick={() => onCopyCode(exam.searchId)}
-							disabled={!exam.searchId}
-							title="Copy share code"
-							style={{
-								padding: '6px 10px',
-								borderRadius: 8,
-								border: '1px solid var(--border)',
-								background: 'var(--surface)',
-								color: 'var(--text)',
-								cursor: exam.searchId ? 'pointer' : 'not-allowed',
-								fontWeight: 700,
-								fontSize: 12,
-							}}
-						>
-							📋 Copy
-						</button>
-					</div>
-				)}
-			</header>
-
-			<div style={{ padding: '16px 20px', flex: 1 }}>
-				<div
-					style={{
-						display: 'grid',
-						gridTemplateColumns: '1fr 1fr',
-						gap: '8px 16px',
-						color: 'var(--text-muted)',
-						fontSize: 13,
-						marginBottom: 16,
-					}}
-				>
-					<div>
-						<strong style={{ color: 'var(--text)' }}>Start:</strong>{' '}
-						{exam.startAt || '—'}
-					</div>
-					<div>
-						<strong style={{ color: 'var(--text)' }}>End:</strong> {exam.endAt || '—'}
-					</div>
-					<div>
-						<strong style={{ color: 'var(--text)' }}>Enrolled:</strong> {exam.enrolled}
-					</div>
-					<div>
-						<strong style={{ color: 'var(--text)' }}>Submissions:</strong>{' '}
-						{exam.submissions}
-					</div>
-				</div>
-			</div>
-
-			<div
-				style={{
-					display: 'flex',
-					gap: 10,
-					flexWrap: 'wrap',
-					padding: '0 20px 20px 20px',
-					borderTop: '1px solid var(--border)',
-					paddingTop: 16,
-				}}
-			>
-				<button
-					onClick={() => onEdit(exam)}
-					// SIMPLIFIED: Use the reliable derivedStatus for UI logic.
-					disabled={exam.derivedStatus === 'live'}
-					title={
-						exam.derivedStatus === 'live'
-							? 'Cannot edit a live exam'
-							: 'Edit exam details'
-					}
-					style={{
-						flex: '1 1 120px',
-						padding: '10px 14px',
-						borderRadius: 8,
-						border: 'none',
-						background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
-						color: '#ffffff',
-						cursor: exam.derivedStatus === 'live' ? 'not-allowed' : 'pointer',
-						fontWeight: 700,
-						fontSize: 14,
-						boxShadow: '0 4px 12px rgba(99,102,241,0.25)',
-						opacity: exam.derivedStatus === 'live' ? 0.6 : 1,
-					}}
-				>
-					✏️ Edit
-				</button>
-
-				<button
-					onClick={() => onClone(exam)}
-					style={{
-						flex: '1 1 120px',
-						padding: '10px 14px',
-						borderRadius: 8,
-						border: '1px solid var(--border)',
-						background: 'var(--surface)',
-						color: 'var(--text)',
-						cursor: 'pointer',
-						fontWeight: 700,
-						fontSize: 14,
-					}}
-				>
-					📋 Clone
-				</button>
-
-				{/* Only allow publish from draft (server requires draft -> active) */}
-				{exam.status === 'draft' && (
-					<button
-						onClick={() => onPublish(exam)}
-						disabled={publishing}
-						style={{
-							flex: '1 1 120px',
-							padding: '10px 14px',
-							borderRadius: 8,
-							border: 'none',
-							background: publishing
-								? '#9ca3af'
-								: 'linear-gradient(135deg, #10b981, #059669)',
-							color: '#ffffff',
-							cursor: publishing ? 'not-allowed' : 'pointer',
-							fontWeight: 700,
-							fontSize: 14,
-							boxShadow: publishing ? 'none' : '0 4px 12px rgba(16,185,129,0.25)',
-						}}
-					>
-						{publishing ? '⏳ Publishing...' : '🚀 Publish'}
-					</button>
-				)}
-
-				{isScheduled && (
-					<>
-						<button
-							onClick={() => onCancel(exam)}
-							style={{
-								/* neutral */ padding: '10px 14px',
-								borderRadius: 8,
-								border: '1px solid var(--border)',
-								background: 'var(--surface)',
-								color: '#dc2626',
-								fontWeight: 700,
-							}}
-						>
-							⛔ Cancel
-						</button>
-						<button
-							onClick={() => onExtend15(exam)}
-							style={{
-								padding: '10px 14px',
-								borderRadius: 8,
-								border: 'none',
-								background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
-								color: '#fff',
-								fontWeight: 700,
-							}}
-						>
-							➕ Extend +15m
-						</button>
-						<button
-							onClick={() => onRegenerate(exam)}
-							style={{
-								padding: '10px 14px',
-								borderRadius: 8,
-								border: '1px solid var(--border)',
-								background: 'var(--surface)',
-								color: 'var(--text)',
-								fontWeight: 700,
-							}}
-						>
-							🔁 New code
-						</button>
-						<button
-							onClick={() => onRename(exam)}
-							style={{
-								padding: '10px 14px',
-								borderRadius: 8,
-								border: '1px solid var(--border)',
-								background: 'var(--surface)',
-								color: 'var(--text)',
-								fontWeight: 700,
-							}}
-						>
-							🖊️ Rename
-						</button>
-					</>
-				)}
-
-				{isLive && (
-					<>
-						<button
-							onClick={() => onEndNow(exam)}
-							style={{
-								padding: '10px 14px',
-								borderRadius: 8,
-								border: 'none',
-								background: 'linear-gradient(135deg, #ef4444, #dc2626)',
-								color: '#fff',
-								fontWeight: 800,
-							}}
-						>
-							🛑 End now
-						</button>
-						<button
-							onClick={() => onExtend15(exam)}
-							style={{
-								padding: '10px 14px',
-								borderRadius: 8,
-								border: 'none',
-								background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
-								color: '#fff',
-								fontWeight: 700,
-							}}
-						>
-							➕ Extend +15m
-						</button>
-					</>
-				)}
-
-				{/* Reschedule (scheduled only) */}
-				{isScheduled && (
-					<button
-						onClick={() => onReschedule(exam)}
-						style={{
-							padding: '10px 14px',
-							borderRadius: 8,
-							border: '1px solid var(--border)',
-							background: 'var(--surface)',
-							color: '#1d4ed8',
-							fontWeight: 700,
-						}}
-					>
-						🗓️ Reschedule
-					</button>
-				)}
-
-				{/* Delete (only when not active/live/scheduled) */}
-				{(isDraft || isCancelled || isCompleted) && (
-					<button
-						onClick={() => onDelete(exam)}
-						style={{
-							padding: '10px 14px',
-							borderRadius: 8,
-							border: '1px solid color-mix(in srgb, #ef4444 30%, var(--border))',
-							background: 'var(--surface)',
-							color: '#ef4444',
-							fontWeight: 800,
-						}}
-					>
-						🗑️ Delete
-					</button>
-				)}
-			</div>
-		</article>
-	);
-};
+// --- Main Page Component ---
 
 const TeacherExams = () => {
-	const [loading, setLoading] = React.useState(false);
-	const [error, setError] = React.useState('');
-	const [exams, setExams] = React.useState([]);
-	const [query, setQuery] = React.useState('');
-	const [status, setStatus] = React.useState('all'); // all | live | scheduled | draft | completed | cancelled
-	const [sortBy, setSortBy] = React.useState('start'); // start | title
-	const [message, setMessage] = React.useState('');
-	const [publishingIds, setPublishingIds] = React.useState(new Set());
-	const [errorBanner, setErrorBanner] = React.useState('');
-	const { success, error: toastError } = useToast();
+	const [stats, setStats] = useState({ total: 0, active: 0, scheduled: 0, completed: 0 });
+	const [exams, setExams] = useState([]);
+	const [loading, setLoading] = useState(true);
+	const [filter, setFilter] = useState('all');
+	const [search, setSearch] = useState('');
+	const [isMobile, setIsMobile] = useState(window.innerWidth < MOBILE_BREAKPOINT);
+	
 	const navigate = useNavigate();
-	const [modal, setModal] = React.useState({ type: null, exam: null, value: '' });
+	const { toast } = useToast();
 
-	const loadExams = React.useCallback(async () => {
+	// --- Effects ---
+	
+	useEffect(() => {
+		const handleResize = () => setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
+		window.addEventListener('resize', handleResize);
+		return () => window.removeEventListener('resize', handleResize);
+	}, []);
+
+	const loadData = useCallback(async () => {
 		setLoading(true);
-		setErrorBanner('');
 		try {
-			const params = {
-				status: status === 'all' ? undefined : status,
-				q: query || undefined,
-				sortBy: sortBy,
-			};
-			const response = await TeacherSvc.safeApiCall(TeacherSvc.getTeacherExams, params);
-			setExams(Array.isArray(response?.items) ? response.items : []);
-		} catch (e) {
-			setErrorBanner(e?.message || 'Failed to load exams');
+			const [statsData, examsData] = await Promise.all([
+				TeacherSvc.safeApiCall(TeacherSvc.getTeacherExamStats),
+				TeacherSvc.safeApiCall(TeacherSvc.getTeacherExams, { limit: 100 }) // Fetch more for client-side filtering for now
+			]);
+			setStats(statsData || { total: 0, active: 0, scheduled: 0, completed: 0 });
+			setExams(examsData?.items || []);
+		} catch (err) {
+			toast.error('Failed to load data', { description: err.message });
 		} finally {
 			setLoading(false);
 		}
-	}, [status, query, sortBy]);
+	}, [toast]);
 
-	React.useEffect(() => {
-		loadExams();
-	}, [loadExams]);
+	useEffect(() => {
+		loadData();
+	}, [loadData]);
 
-	const filteredExams = React.useMemo(() => {
-		// Filtering is now done on the backend, client just displays the result.
-		return exams;
-	}, [exams]);
+	// --- Handlers ---
 
-	const statusCounts = React.useMemo(() => {
-		const counts = {
-			all: exams.length,
-			live: 0,
-			scheduled: 0,
-			draft: 0,
-			completed: 0,
-			cancelled: 0,
-		};
-		exams.forEach(exam => {
-			const visual = exam.derivedStatus || exam.status;
-			if (counts[visual] !== undefined) counts[visual] += 1;
-		});
-		return counts;
-	}, [exams]);
-
-	const handlePublish = async exam => {
-		// if (!exam?.questionCount) {
-		// 	setErrorBanner('Add at least one question before publishing this exam.');
-		// 	return;
-		// }
-		const now = Date.now();
-		// Use startMs from normalized data
-		const startsInFuture = exam.startMs && now < exam.startMs;
-		const endsInPast = exam.endMs && now > exam.endMs;
-		const warn = endsInPast
-			? 'End time appears to be in the past. Continue publishing?'
-			: startsInFuture
-			? 'Exam will be scheduled (not live yet). Publish now?'
-			: 'Publish this exam now?';
-		if (!window.confirm(warn)) return;
-
-		setPublishingIds(prev => new Set([...prev, exam.id]));
-		setMessage('');
+	const handleAction = async (action, exam) => {
 		try {
-			const updated = await TeacherSvc.safeApiCall(TeacherSvc.publishTeacherExam, exam.id);
-			// Merge back into list
-			setExams(prev => prev.map(ex => (ex.id === exam.id ? updated : ex)));
-			success('Exam published successfully');
-		} catch (e) {
-			setErrorBanner(e?.message || 'Failed to publish exam');
-		} finally {
-			setPublishingIds(prev => {
-				const next = new Set(prev);
-				next.delete(exam.id);
-				return next;
-			});
-		}
-	};
-
-	const handleClone = async exam => {
-		try {
-			const copy = await TeacherSvc.safeApiCall(TeacherSvc.duplicateTeacherExam, exam.id);
-			setExams(prev => [copy, ...prev]);
-			success(`Cloned "${exam.title}"`);
-		} catch (e) {
-			setErrorBanner(e?.message || 'Failed to clone exam');
-		}
-	};
-
-	const handleEdit = exam => {
-		navigate(`/teacher/exams/edit/${exam.id}`);
-	};
-
-	const handleCopyCode = async code => {
-		if (!code) return;
-		try {
-			await navigator.clipboard.writeText(code);
-			success('Share code copied');
-		} catch {
-			setErrorBanner('Failed to copy code');
-		}
-	};
-
-	const handleEndNow = async exam => {
-		if (!window.confirm('End this exam immediately?')) return;
-		try {
-			const updated = await TeacherSvc.safeApiCall(TeacherSvc.endExamNow, exam.id);
-			setExams(prev => prev.map(e => (e.id === exam.id ? updated : e)));
-			success('Exam ended');
-		} catch (e) {
-			setErrorBanner(e?.message || 'Failed to end exam');
-		}
-	};
-
-	const handleCancel = async exam => {
-		if (!window.confirm('Cancel this scheduled exam? Students will not be able to join.'))
-			return;
-		try {
-			const updated = await TeacherSvc.safeApiCall(TeacherSvc.cancelExam, exam.id);
-			setExams(prev => prev.map(e => (e.id === exam.id ? updated : e)));
-			success('Exam cancelled');
-		} catch (e) {
-			setErrorBanner(e?.message || 'Failed to cancel exam');
-		}
-	};
-
-	const handleExtend15 = async exam => {
-		try {
-			const updated = await TeacherSvc.safeApiCall(TeacherSvc.extendExamEnd, exam.id, {
-				minutes: 15,
-			});
-			setExams(prev => prev.map(e => (e.id === exam.id ? updated : e)));
-			success('Extended by 15 minutes');
-		} catch (e) {
-			setErrorBanner(e?.message || 'Failed to extend exam');
-		}
-	};
-
-	const handleRegenerate = async exam => {
-		if (!window.confirm('Regenerate the share code? Existing code will no longer work.'))
-			return;
-		try {
-			const { searchId } = await TeacherSvc.safeApiCall(
-				TeacherSvc.regenerateExamShareCode,
-				exam.id,
-			);
-			setExams(prev => prev.map(e => (e.id === exam.id ? { ...e, searchId } : e)));
-			success('New share code generated');
-		} catch (e) {
-			setErrorBanner(e?.message || 'Failed to regenerate code');
-		}
-	};
-
-	const handleRename = async exam => {
-		setModal({ type: 'rename', exam, value: exam.title });
-	};
-
-	const handleDelete = async exam => {
-		const warn =
-			'Delete this exam permanently?\nThis cannot be undone and removes the exam from your list.';
-		if (!window.confirm(warn)) return;
-		try {
-			const res = await TeacherSvc.safeApiCall(TeacherSvc.deleteExam, exam.id);
-			if (res?.success) {
-				setExams(prev => prev.filter(e => e.id !== exam.id));
-				success('Exam deleted');
-			} else {
-				setErrorBanner('Failed to delete exam');
+			switch (action) {
+				case 'copy':
+					await navigator.clipboard.writeText(exam.searchId);
+					toast.success('Code copied to clipboard');
+					break;
+				case 'delete':
+					if (!window.confirm(`Delete "${exam.title}"? This cannot be undone.`)) return;
+					await TeacherSvc.safeApiCall(TeacherSvc.deleteExam, exam.id);
+					toast.success('Exam deleted');
+					loadData(); // Reload to refresh stats and list
+					break;
+				case 'clone':
+					await TeacherSvc.safeApiCall(TeacherSvc.duplicateTeacherExam, exam.id);
+					toast.success('Exam cloned');
+					loadData();
+					break;
+				case 'publish':
+					if (!window.confirm(`Publish "${exam.title}"?`)) return;
+					await TeacherSvc.safeApiCall(TeacherSvc.publishTeacherExam, exam.id);
+					toast.success('Exam published');
+					loadData();
+					break;
+				case 'regenerate':
+					if (!window.confirm('Regenerate share code? Old code will stop working.')) return;
+					await TeacherSvc.safeApiCall(TeacherSvc.regenerateExamShareCode, exam.id);
+					toast.success('New code generated');
+					loadData();
+					break;
+				case 'rename':
+					const newName = window.prompt('Enter new name:', exam.title);
+					if (newName && newName !== exam.title) {
+						await TeacherSvc.safeApiCall(TeacherSvc.updateTeacherExam, exam.id, { title: newName });
+						toast.success('Exam renamed');
+						loadData();
+					}
+					break;
+				default:
+					break;
 			}
-		} catch (e) {
-			setErrorBanner(e?.message || 'Failed to delete exam');
+		} catch (err) {
+			toast.error('Action failed', { description: err.message });
 		}
 	};
 
-	const handleReschedule = async exam => {
-		const toLocalInput = ms => new Date(ms).toISOString().slice(0, 16);
-		const startDefault = exam.startMs
-			? toLocalInput(exam.startMs)
-			: new Date(Date.now() + 60 * 60 * 1000).toISOString().slice(0, 16);
-		const endDefault = exam.endMs
-			? toLocalInput(exam.endMs)
-			: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString().slice(0, 16);
+	const handleNavigate = (exam) => {
+		if (exam.status === 'draft') {
+			navigate(`/teacher/exams/edit/${exam.id}`);
+		} else {
+			// For now, edit page handles live exams too (in read-only/manage mode)
+			// Or we could route to a specific 'manage' page if it existed
+			navigate(`/teacher/exams/edit/${exam.id}`);
+		}
+	};
 
-		setModal({
-			type: 'reschedule',
-			exam,
-			value: { start: startDefault, end: endDefault },
+	// --- Filtering ---
+
+	const filteredExams = useMemo(() => {
+		return exams.filter(exam => {
+			const matchesSearch = exam.title.toLowerCase().includes(search.toLowerCase());
+			const status = exam.derivedStatus || exam.status;
+			
+			let matchesFilter = true;
+			if (filter === 'active') matchesFilter = status === 'active';
+			if (filter === 'scheduled') matchesFilter = status === 'scheduled';
+			if (filter === 'draft') matchesFilter = status === 'draft';
+			if (filter === 'completed') matchesFilter = status === 'completed' || status === 'cancelled';
+
+			return matchesSearch && matchesFilter;
 		});
-	};
+	}, [exams, filter, search]);
 
-	const handleModalConfirm = async () => {
-		const { type, exam, value } = modal;
-		if (!type || !exam) return;
-
-		try {
-			if (type === 'rename') {
-				if (!value || !value.trim()) return;
-				const updated = await TeacherSvc.safeApiCall(TeacherSvc.updateExam, exam.id, {
-					title: value.trim(),
-				});
-				setExams(prev => prev.map(e => (e.id === exam.id ? updated : e)));
-				success('Title updated');
-			} else if (type === 'reschedule') {
-				const start = new Date(value.start);
-				const end = new Date(value.end);
-				if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-					setErrorBanner('Invalid date/time format');
-					return;
-				}
-				if (end <= start) {
-					setErrorBanner('End time must be after start time');
-					return;
-				}
-				if (start <= new Date()) {
-					setErrorBanner('Start time must be in the future');
-					return;
-				}
-				const updated = await TeacherSvc.safeApiCall(TeacherSvc.updateExam, exam.id, {
-					startTime: start.toISOString(),
-					endTime: end.toISOString(),
-				});
-				setExams(prev => prev.map(e => (e.id === exam.id ? updated : e)));
-				success('Exam rescheduled');
-			}
-		} catch (e) {
-			setErrorBanner(e?.message || `Failed to perform action: ${type}`);
-		} finally {
-			setModal({ type: null, exam: null, value: '' });
-		}
-	};
-
-	const filterOptions = [
-		{ key: 'all', label: 'All' },
-		{ key: 'live', label: 'Live' },
-		{ key: 'scheduled', label: 'Scheduled' },
-		{ key: 'draft', label: 'Draft' },
-		{ key: 'completed', label: 'Completed' },
-		{ key: 'cancelled', label: 'Cancelled' },
-	];
+	// --- Render ---
 
 	return (
-		<div style={{ maxWidth: '1200px' }}>
-			<PageHeader
-				title="Exam Management"
-				subtitle="Create, schedule, publish, and track your exams."
-				breadcrumbs={[{ label: 'Home', to: '/teacher' }, { label: 'Exams' }]}
-				actions={[
-					<button
-						key="refresh"
-						onClick={loadExams}
-						className="tap"
-						title="Refresh"
-						style={{
-							padding: '10px 14px',
-							borderRadius: 10,
-							border: '1px solid var(--border)',
-							background: 'var(--surface)',
-							color: 'var(--text)',
-							fontWeight: 800,
-						}}
-					>
-						<span className="desktop-only">↻ Refresh</span>
-						<span className="mobile-only">↻</span>
-					</button>,
-					<button
-						key="create"
-						onClick={() => navigate('/teacher/exams/create')}
-						className="tap"
-						style={{
-							padding: '12px 20px',
-							borderRadius: 10,
-							border: 'none',
-							background: 'linear-gradient(135deg, #10b981, #059669)',
-							color: '#fff',
-							fontWeight: 900,
-							boxShadow: '0 8px 20px rgba(16,185,129,0.3)',
-						}}
-					>
-						<span className="desktop-only">➕ Create Exam</span>
-						<span className="mobile-only">➕</span>
-					</button>,
-				]}
-			/>
-			<style>{`
-        .desktop-only { display: inline; }
-        .mobile-only { display: none; }
-        @media (max-width: 768px) {
-          .desktop-only { display: none; }
-          .mobile-only { display: inline; }
-        }
-      `}</style>
-			{errorBanner && (
-				<div style={{ marginBottom: 12 }}>
-					<Alert type="error" onClose={() => setErrorBanner('')}>
-						{errorBanner}
-					</Alert>
-				</div>
-			)}
+		<div style={styles.page}>
+			<div style={styles.container}>
+				
+				{/* Header */}
+				<header style={styles.header}>
+					<div>
+						<h1 style={styles.title}>My Exams</h1>
+						<p style={styles.subtitle}>Manage your assessments and track performance.</p>
+					</div>
+					<Link to="/teacher/exams/create" style={styles.createBtn}>
+						<span style={{ fontSize: 18 }}>+</span> Create Exam
+					</Link>
+				</header>
 
-			{modal.type === 'rename' && (
-				<ActionModal
-					title="Rename Exam"
-					onCancel={() => setModal({ type: null, exam: null, value: '' })}
-					onConfirm={handleModalConfirm}
-					confirmText="Rename"
-				>
-					<input
-						type="text"
-						value={modal.value}
-						onChange={e => setModal(m => ({ ...m, value: e.target.value }))}
-						style={{
-							width: '100%',
-							padding: '12px',
-							borderRadius: 8,
-							border: '1px solid var(--border)',
-						}}
-						placeholder="New exam title"
+				{/* Stats Dashboard */}
+				<div style={styles.statsGrid}>
+					<StatCard 
+						title="Total Exams" 
+						value={stats.total} 
+						icon="📚" 
+						color="#6366f1" 
+						loading={loading} 
 					/>
-				</ActionModal>
-			)}
+					<StatCard 
+						title="Active Now" 
+						value={stats.active} 
+						icon="🟢" 
+						color="#22c55e" 
+						loading={loading} 
+					/>
+					<StatCard 
+						title="Scheduled" 
+						value={stats.scheduled} 
+						icon="🗓️" 
+						color="#3b82f6" 
+						loading={loading} 
+					/>
+					<StatCard 
+						title="Completed" 
+						value={stats.completed} 
+						icon="✅" 
+						color="#8b5cf6" 
+						loading={loading} 
+					/>
+				</div>
 
-			{modal.type === 'reschedule' && (
-				<ActionModal
-					title="Reschedule Exam"
-					onCancel={() => setModal({ type: null, exam: null, value: '' })}
-					onConfirm={handleModalConfirm}
-					confirmText="Reschedule"
-				>
-					<div style={{ display: 'grid', gap: 12 }}>
-						<label>
-							New Start Time
-							<input
-								type="datetime-local"
-								value={modal.value.start}
-								onChange={e =>
-									setModal(m => ({
-										...m,
-										value: { ...m.value, start: e.target.value },
-									}))
-								}
-								style={{
-									width: '100%',
-									padding: '12px',
-									borderRadius: 8,
-									border: '1px solid var(--border)',
-									marginTop: 4,
-								}}
-							/>
-						</label>
-						<label>
-							New End Time
-							<input
-								type="datetime-local"
-								value={modal.value.end}
-								onChange={e =>
-									setModal(m => ({
-										...m,
-										value: { ...m.value, end: e.target.value },
-									}))
-								}
-								style={{
-									width: '100%',
-									padding: '12px',
-									borderRadius: 8,
-									border: '1px solid var(--border)',
-									marginTop: 4,
-								}}
-							/>
-						</label>
-					</div>
-				</ActionModal>
-			)}
-
-			<div
-				style={{
-					background: 'var(--surface)',
-					padding: 16,
-					borderRadius: 16,
-					border: '1px solid var(--border)',
-					marginBottom: 18,
-					boxShadow: 'var(--shadow-md)',
-				}}
-			>
-				<div style={{ display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
-					<div style={{ position: 'relative', flex: '1 1 320px' }}>
-						<input
-							value={query}
-							onChange={e => setQuery(e.target.value)}
-							placeholder="Search exams by title..."
-							style={{
-								width: '100%',
-								padding: '12px 16px 12px 48px',
-								borderRadius: 12,
-								border: '1px solid var(--border)',
-								background: 'var(--bg)',
-								color: 'var(--text)',
-								outline: 'none',
-								fontSize: '14px',
-							}}
-						/>
-						<span
-							style={{
-								position: 'absolute',
-								left: 16,
-								top: '50%',
-								transform: 'translateY(-50%)',
-								color: 'var(--text-muted)',
-								fontSize: '16px',
-							}}
-						>
-							🔍
-						</span>
-					</div>
-
-					<div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-						{filterOptions.map(option => (
-							<FilterButton
-								key={option.key}
-								active={status === option.key}
-								onClick={() => setStatus(option.key)}
-								count={statusCounts[option.key] || 0}
+				{/* Controls */}
+				<div style={styles.controls}>
+					<div style={styles.tabs}>
+						{['all', 'active', 'scheduled', 'draft', 'completed'].map(f => (
+							<button
+								key={f}
+								onClick={() => setFilter(f)}
+								style={filter === f ? styles.tabActive : styles.tab}
 							>
-								{option.label}
-							</FilterButton>
+								{f.charAt(0).toUpperCase() + f.slice(1)}
+							</button>
 						))}
 					</div>
-
-					<div style={{ marginLeft: 'auto' }}>
-						<select
-							value={sortBy}
-							onChange={e => setSortBy(e.target.value)}
-							title="Sort"
-							style={{
-								background: 'var(--bg)',
-								color: 'var(--text)',
-								border: '1px solid var(--border)',
-								borderRadius: 10,
-								padding: '10px 12px',
-								fontWeight: 700,
-							}}
-						>
-							<option value="start">Sort by start time</option>
-							<option value="title">Sort by title</option>
-						</select>
+					<div style={styles.searchWrapper}>
+						<span style={styles.searchIcon}>🔍</span>
+						<input
+							type="text"
+							placeholder="Search exams..."
+							value={search}
+							onChange={e => setSearch(e.target.value)}
+							style={styles.searchInput}
+						/>
 					</div>
 				</div>
+
+				{/* Content */}
+				<div style={styles.contentArea}>
+					{loading ? (
+						<div style={styles.loadingState}>
+							<div className="spinner" />
+							<p>Loading your exams...</p>
+						</div>
+					) : filteredExams.length === 0 ? (
+						<div style={styles.emptyState}>
+							<div style={{ fontSize: 48, marginBottom: 16 }}>📭</div>
+							<h3>No exams found</h3>
+							<p>Try adjusting your filters or create a new exam.</p>
+						</div>
+					) : (
+						<>
+							{!isMobile ? (
+								<div style={styles.tableWrapper}>
+									<table style={styles.table}>
+										<thead>
+											<tr>
+												<th style={styles.th}>Exam Details</th>
+												<th style={styles.th}>Status</th>
+												<th style={styles.th}>Code</th>
+												<th style={styles.th}>Stats</th>
+												<th style={styles.th}>Date</th>
+												<th style={styles.th}>Actions</th>
+											</tr>
+										</thead>
+										<tbody>
+											{filteredExams.map(exam => (
+												<ExamRow 
+													key={exam.id} 
+													exam={exam} 
+													onAction={handleAction} 
+													onNavigate={handleNavigate} 
+												/>
+											))}
+										</tbody>
+									</table>
+								</div>
+							) : (
+								<div style={styles.cardGrid}>
+									{filteredExams.map(exam => (
+										<ExamCard 
+											key={exam.id} 
+											exam={exam} 
+											onAction={handleAction} 
+											onNavigate={handleNavigate} 
+										/>
+									))}
+								</div>
+							)}
+						</>
+					)}
+				</div>
 			</div>
-
-			{/* Loading/Error/Empty States */}
-			{loading && (
-				<div
-					aria-busy="true"
-					style={{
-						display: 'grid',
-						gap: 12,
-						gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))',
-					}}
-				>
-					{Array.from({ length: 4 }).map((_, i) => (
-						<div
-							key={i}
-							style={{
-								height: 180,
-								borderRadius: 16,
-								border: '1px solid var(--border)',
-								background:
-									'linear-gradient(90deg, var(--bg) 25%, color-mix(in srgb, var(--bg) 80%, #fff) 37%, var(--bg) 63%)',
-								backgroundSize: '400% 100%',
-								animation: 'shimmer 1.1s ease-in-out infinite',
-							}}
-						/>
-					))}
-
-					<style>{`@keyframes shimmer{0%{background-position:100% 0}100%{background-position:-100% 0}}`}</style>
-				</div>
-			)}
-			{error && (
-				<div style={{ color: '#ef4444', textAlign: 'center', fontWeight: 700 }}>
-					Error: {error}
-				</div>
-			)}
-			{!loading && !errorBanner && filteredExams.length === 0 && (
-				<div
-					style={{
-						padding: '60px 20px',
-						textAlign: 'center',
-						background: 'var(--surface)',
-						borderRadius: 16,
-						border: '2px dashed var(--border)',
-					}}
-				>
-					<div style={{ fontSize: '48px', marginBottom: 16 }}>📝</div>
-					<h3 style={{ margin: '0 0 8px 0', color: 'var(--text)' }}>No matching exams</h3>
-					<p style={{ margin: 0, color: 'var(--text-muted)' }}>
-						Adjust your search or filters, or create a new exam.
-					</p>
-				</div>
-			)}
-
-			{/* Exams Grid */}
-			{!loading && !errorBanner && filteredExams.length > 0 && (
-				<div
-					style={{
-						display: 'grid',
-						gap: 20,
-						gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 400px), 1fr))',
-					}}
-				>
-					{filteredExams.map(exam => (
-						<ExamCard
-							key={exam.id}
-							exam={exam}
-							onPublish={handlePublish}
-							onClone={handleClone}
-							onEdit={handleEdit}
-							onCopyCode={handleCopyCode}
-							onEndNow={handleEndNow}
-							onCancel={handleCancel}
-							onExtend15={handleExtend15}
-							onRegenerate={handleRegenerate}
-							onRename={handleRename}
-							onDelete={handleDelete}
-							onReschedule={handleReschedule}
-							publishing={publishingIds.has(exam.id)}
-						/>
-					))}
-				</div>
-			)}
 		</div>
 	);
+};
+
+// --- Styles ---
+
+const styles = {
+	page: {
+		minHeight: '100vh',
+		background: 'var(--bg-secondary)',
+		padding: '24px',
+	},
+	container: {
+		maxWidth: 1200,
+		margin: '0 auto',
+		display: 'flex',
+		flexDirection: 'column',
+		gap: 32,
+	},
+	header: {
+		display: 'flex',
+		justifyContent: 'space-between',
+		alignItems: 'center',
+		gap: 16,
+		flexWrap: 'wrap',
+	},
+	title: {
+		margin: 0,
+		fontSize: 32,
+		fontWeight: 800,
+		color: 'var(--text)',
+		letterSpacing: '-0.02em',
+	},
+	subtitle: {
+		margin: '4px 0 0',
+		color: 'var(--text-muted)',
+		fontSize: 16,
+	},
+	createBtn: {
+		display: 'flex',
+		alignItems: 'center',
+		gap: 8,
+		background: 'var(--primary)',
+		color: '#fff',
+		padding: '12px 24px',
+		borderRadius: 12,
+		textDecoration: 'none',
+		fontWeight: 600,
+		fontSize: 15,
+		boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
+		transition: 'transform 0.2s',
+	},
+	statsGrid: {
+		display: 'grid',
+		gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+		gap: 16,
+	},
+	statCard: {
+		background: 'var(--surface)',
+		padding: 20,
+		borderRadius: 16,
+		border: '1px solid var(--border)',
+		display: 'flex',
+		alignItems: 'center',
+		gap: 16,
+		boxShadow: 'var(--shadow-sm)',
+	},
+	statIcon: {
+		width: 48,
+		height: 48,
+		borderRadius: 12,
+		display: 'flex',
+		alignItems: 'center',
+		justifyContent: 'center',
+		fontSize: 24,
+	},
+	statLabel: {
+		color: 'var(--text-muted)',
+		fontSize: 13,
+		fontWeight: 600,
+		textTransform: 'uppercase',
+		letterSpacing: '0.05em',
+	},
+	statValue: {
+		fontSize: 24,
+		fontWeight: 800,
+		color: 'var(--text)',
+		lineHeight: 1.2,
+	},
+	controls: {
+		display: 'flex',
+		justifyContent: 'space-between',
+		alignItems: 'center',
+		gap: 16,
+		flexWrap: 'wrap',
+	},
+	tabs: {
+		display: 'flex',
+		gap: 4,
+		background: 'var(--surface)',
+		padding: 4,
+		borderRadius: 12,
+		border: '1px solid var(--border)',
+		overflowX: 'auto',
+	},
+	tab: {
+		padding: '8px 16px',
+		borderRadius: 8,
+		border: 'none',
+		background: 'transparent',
+		color: 'var(--text-muted)',
+		fontWeight: 600,
+		fontSize: 14,
+		cursor: 'pointer',
+		transition: 'all 0.2s',
+	},
+	tabActive: {
+		padding: '8px 16px',
+		borderRadius: 8,
+		border: 'none',
+		background: 'var(--primary)',
+		color: '#fff',
+		fontWeight: 600,
+		fontSize: 14,
+		cursor: 'pointer',
+		boxShadow: '0 2px 8px rgba(59, 130, 246, 0.25)',
+	},
+	searchWrapper: {
+		position: 'relative',
+		flex: '1 1 300px',
+		maxWidth: 400,
+	},
+	searchIcon: {
+		position: 'absolute',
+		left: 12,
+		top: '50%',
+		transform: 'translateY(-50%)',
+		color: 'var(--text-muted)',
+		pointerEvents: 'none',
+	},
+	searchInput: {
+		width: '100%',
+		padding: '10px 12px 10px 40px',
+		borderRadius: 12,
+		border: '1px solid var(--border)',
+		background: 'var(--surface)',
+		color: 'var(--text)',
+		fontSize: 14,
+		outline: 'none',
+		transition: 'border-color 0.2s',
+	},
+	contentArea: {
+		minHeight: 400,
+	},
+	tableWrapper: {
+		background: 'var(--surface)',
+		borderRadius: 16,
+		border: '1px solid var(--border)',
+		overflow: 'hidden',
+		boxShadow: 'var(--shadow-sm)',
+	},
+	table: {
+		width: '100%',
+		borderCollapse: 'collapse',
+	},
+	th: {
+		textAlign: 'left',
+		padding: '16px 24px',
+		borderBottom: '1px solid var(--border)',
+		color: 'var(--text-muted)',
+		fontSize: 12,
+		fontWeight: 700,
+		textTransform: 'uppercase',
+		background: 'var(--bg-secondary)',
+	},
+	row: {
+		cursor: 'pointer',
+		transition: 'background 0.1s',
+		borderBottom: '1px solid var(--border)',
+	},
+	cell: {
+		padding: '16px 24px',
+		verticalAlign: 'middle',
+		color: 'var(--text)',
+		fontSize: 14,
+	},
+	examTitle: {
+		fontWeight: 600,
+		fontSize: 15,
+		marginBottom: 4,
+		color: 'var(--text)',
+	},
+	examMeta: {
+		color: 'var(--text-muted)',
+		fontSize: 13,
+	},
+	badge: {
+		display: 'inline-flex',
+		alignItems: 'center',
+		gap: 6,
+		padding: '4px 10px',
+		borderRadius: 99,
+		fontSize: 12,
+		fontWeight: 600,
+	},
+	codeBox: {
+		display: 'inline-flex',
+		alignItems: 'center',
+		gap: 8,
+		background: 'var(--bg-secondary)',
+		padding: '4px 8px',
+		borderRadius: 6,
+		border: '1px solid var(--border)',
+		fontSize: 13,
+	},
+	copyBtn: {
+		border: 'none',
+		background: 'transparent',
+		cursor: 'pointer',
+		padding: 2,
+		fontSize: 14,
+		opacity: 0.7,
+	},
+	statGroup: {
+		display: 'flex',
+		gap: 12,
+		fontSize: 13,
+		color: 'var(--text-muted)',
+		fontWeight: 500,
+	},
+	actions: {
+		display: 'flex',
+		alignItems: 'center',
+		gap: 8,
+		justifyContent: 'flex-end',
+	},
+	btnPrimarySmall: {
+		padding: '6px 12px',
+		borderRadius: 6,
+		border: 'none',
+		background: 'var(--primary)',
+		color: '#fff',
+		fontSize: 13,
+		fontWeight: 600,
+		cursor: 'pointer',
+	},
+	btnSecondarySmall: {
+		padding: '6px 12px',
+		borderRadius: 6,
+		border: '1px solid var(--border)',
+		background: 'var(--surface)',
+		color: 'var(--text)',
+		fontSize: 13,
+		fontWeight: 600,
+		cursor: 'pointer',
+	},
+	btnIcon: {
+		width: 32,
+		height: 32,
+		borderRadius: 6,
+		border: 'none',
+		background: 'transparent',
+		color: 'var(--text-muted)',
+		fontSize: 18,
+		cursor: 'pointer',
+		display: 'flex',
+		alignItems: 'center',
+		justifyContent: 'center',
+		transition: 'background 0.2s',
+	},
+	menuBackdrop: {
+		position: 'fixed',
+		inset: 0,
+		zIndex: 40,
+	},
+	actionMenu: {
+		position: 'absolute',
+		right: 0,
+		top: '100%',
+		marginTop: 4,
+		background: 'var(--surface)',
+		border: '1px solid var(--border)',
+		borderRadius: 8,
+		boxShadow: 'var(--shadow-md)',
+		zIndex: 50,
+		minWidth: 160,
+		padding: 4,
+		display: 'flex',
+		flexDirection: 'column',
+	},
+	menuItem: {
+		padding: '10px 12px',
+		textAlign: 'left',
+		background: 'transparent',
+		border: 'none',
+		color: 'var(--text)',
+		fontSize: 14,
+		fontWeight: 500,
+		cursor: 'pointer',
+		borderRadius: 6,
+		display: 'flex',
+		alignItems: 'center',
+		gap: 8,
+		transition: 'background 0.1s',
+	},
+	menuDivider: {
+		height: 1,
+		background: 'var(--border)',
+		margin: '4px 0',
+	},
+	cardGrid: {
+		display: 'grid',
+		gap: 16,
+	},
+	card: {
+		background: 'var(--surface)',
+		borderRadius: 16,
+		border: '1px solid var(--border)',
+		padding: 16,
+		display: 'flex',
+		flexDirection: 'column',
+		gap: 16,
+	},
+	cardHeader: {
+		display: 'flex',
+		justifyContent: 'space-between',
+		alignItems: 'flex-start',
+	},
+	cardStatusRow: {
+		display: 'flex',
+		justifyContent: 'space-between',
+		alignItems: 'center',
+	},
+	cardStats: {
+		display: 'grid',
+		gridTemplateColumns: '1fr 1fr 1fr',
+		gap: 8,
+		background: 'var(--bg-secondary)',
+		padding: 12,
+		borderRadius: 8,
+	},
+	cardStatItem: {
+		display: 'flex',
+		flexDirection: 'column',
+		alignItems: 'center',
+		gap: 4,
+	},
+	cardStatLabel: {
+		fontSize: 11,
+		color: 'var(--text-muted)',
+		textTransform: 'uppercase',
+	},
+	cardStatValue: {
+		fontSize: 14,
+		fontWeight: 700,
+		color: 'var(--text)',
+	},
+	cardFooter: {
+		display: 'flex',
+		justifyContent: 'space-between',
+		alignItems: 'center',
+		paddingTop: 16,
+		borderTop: '1px solid var(--border)',
+	},
+	loadingState: {
+		display: 'flex',
+		flexDirection: 'column',
+		alignItems: 'center',
+		justifyContent: 'center',
+		padding: 64,
+		color: 'var(--text-muted)',
+	},
+	emptyState: {
+		textAlign: 'center',
+		padding: 64,
+		color: 'var(--text-muted)',
+	},
 };
 
 export default TeacherExams;
