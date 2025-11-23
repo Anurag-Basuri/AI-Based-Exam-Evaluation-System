@@ -168,6 +168,13 @@ const normalizeExam = e => {
 		else if (now > endMs) derivedStatus = 'completed';
 	}
 
+	// Safe date formatter
+	const formatDate = (dateVal) => {
+		if (!dateVal) return '—';
+		const d = new Date(dateVal);
+		return isNaN(d.getTime()) ? '—' : d.toLocaleString();
+	};
+
 	return {
 		id: String(e?._id ?? e?.id ?? ''),
 		title: e?.title ?? 'Untitled Exam',
@@ -177,8 +184,8 @@ const normalizeExam = e => {
 		status: rawStatus, // server status
 		derivedStatus, // UI status: draft/scheduled/live/completed/cancelled
 		searchId: e?.searchId ?? e?.search_id ?? '',
-		startAt: e?.startTime ? new Date(e.startTime).toLocaleString() : (e?.startAt ?? ''),
-		endAt: e?.endTime ? new Date(e.endTime).toLocaleString() : (e?.endAt ?? ''),
+		startAt: formatDate(e?.startTime || e?.startAt),
+		endAt: formatDate(e?.endTime || e?.endAt),
 		startMs: startMs ?? null,
 		endMs: endMs ?? null,
 		createdBy: String(e?.createdBy?._id ?? e?.createdBy ?? ''),
@@ -186,7 +193,7 @@ const normalizeExam = e => {
 		submissions: typeof submissions === 'number' ? submissions : 0,
 		questions: Array.isArray(e?.questions) ? e.questions.map(q => String(q?._id ?? q)) : [],
 		totalMarks: e?.totalMarks ?? 0,
-		publishedAt: e?.publishedAt ? new Date(e.publishedAt).toLocaleString() : null,
+		publishedAt: formatDate(e?.publishedAt),
 		autoPublishResults: !!e?.autoPublishResults,
 	};
 };

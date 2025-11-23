@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useToast } from '../../components/ui/Toaster.jsx';
+import { io } from 'socket.io-client';
+import { API_BASE_URL } from '../../services/api.js';
 import * as TeacherSvc from '../../services/teacherServices.js';
 
 // --- Constants & Config ---
@@ -237,7 +239,32 @@ const TeacherExams = () => {
 
 	useEffect(() => {
 		loadData();
-	}, [loadData]);
+
+		const socket = io(API_BASE_URL, {
+			withCredentials: true,
+			transports: ['websocket'],
+		});
+
+		socket.on('connect_error', (err) => {
+			console.warn('Socket connection error:', err);
+		});
+
+		const handleUpdate = () => {
+			loadData();
+			toast.info('Exam list updated');
+		};
+
+		socket.on('exam-created', handleUpdate);
+		socket.on('exam-updated', handleUpdate);
+		socket.on('exam-deleted', handleUpdate);
+
+		return () => {
+			socket.off('exam-created', handleUpdate);
+			socket.off('exam-updated', handleUpdate);
+			socket.off('exam-deleted', handleUpdate);
+			socket.disconnect();
+		};
+	}, [loadData, toast]);
 
 	// --- Handlers ---
 
