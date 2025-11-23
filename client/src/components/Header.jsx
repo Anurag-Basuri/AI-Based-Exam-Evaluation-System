@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.js';
 import { useTheme } from '../hooks/useTheme.js';
+import logo from '../assets/logo.svg';
 
 const useIsMobile = () => {
 	const isBrowser = typeof window !== 'undefined';
@@ -146,9 +147,9 @@ const Header = ({ transparent = false }) => {
 				style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: '0.65rem' }}
 			>
 				<img
-					src="/logo512.png"
+					src={logo}
 					alt="AI Exam System logo"
-					style={{ width: 36, height: 36, borderRadius: '8px' }}
+					style={{ width: 40, height: 40, borderRadius: '8px' }}
 				/>
 				<div style={{ display: 'grid', lineHeight: 1 }}>
 					<h1
