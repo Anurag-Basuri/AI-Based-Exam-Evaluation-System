@@ -303,6 +303,78 @@ const Header = ({ transparent = false }) => {
 							</div>
 						)}
 					</div>
+				) : isMobile ? (
+					<div ref={userDdRef} style={{ position: 'relative' }}>
+						<button
+							onClick={() => setShowUserDropdown(s => !s)}
+							aria-label="Menu"
+							style={{
+								background: 'transparent',
+								border: 'none',
+								padding: '0.5rem',
+								cursor: 'pointer',
+								color: 'var(--text)',
+							}}
+						>
+							<svg
+								width="24"
+								height="24"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="2"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+							>
+								<line x1="3" y1="12" x2="21" y2="12"></line>
+								<line x1="3" y1="6" x2="21" y2="6"></line>
+								<line x1="3" y1="18" x2="21" y2="18"></line>
+							</svg>
+						</button>
+						{showUserDropdown && (
+							<div
+								role="menu"
+								style={{
+									position: 'absolute',
+									top: 'calc(100% + 8px)',
+									right: 0,
+									background: 'var(--surface)',
+									borderRadius: '0.6rem',
+									border: '1px solid var(--border)',
+									boxShadow: '0 10px 30px rgba(0,0,0,0.12)',
+									width: 200,
+									overflow: 'hidden',
+									zIndex: 101,
+									padding: '0.5rem',
+								}}
+							>
+								<button
+									onClick={() => {
+										goToLogin();
+										setShowUserDropdown(false);
+									}}
+									style={{ ...menuBtnStyle, marginBottom: '0.25rem' }}
+								>
+									Sign in
+								</button>
+								<button
+									onClick={() => {
+										goToRegister();
+										setShowUserDropdown(false);
+									}}
+									style={{
+										...menuBtnStyle,
+										background: 'var(--primary)',
+										color: '#fff',
+										borderRadius: '0.4rem',
+										textAlign: 'center',
+									}}
+								>
+									Create account
+								</button>
+							</div>
+						)}
+					</div>
 				) : (
 					<>
 						<button onClick={goToLogin} style={outlineBtnStyle}>
