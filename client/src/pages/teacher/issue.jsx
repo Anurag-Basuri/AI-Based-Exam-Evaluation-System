@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { useToast } from '../../components/ui/Toaster.jsx';
@@ -50,6 +50,107 @@ const activityIcons = {
 };
 
 // --- Components ---
+
+const StatusDropdown = ({ currentStatus, issueId, onUpdate, disabled }) => {
+	const [isOpen, setIsOpen] = useState(false);
+	const [loading, setLoading] = useState(false);
+	const dropdownRef = useRef(null);
+	const { toast } = useToast();
+
+	const config = statusStyles[currentStatus] || statusStyles.open;
+
+	useEffect(() => {
+		const handleClickOutside = event => {
+			if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+				setIsOpen(false);
+			}
+		};
+		document.addEventListener('mousedown', handleClickOutside);
+		return () => document.removeEventListener('mousedown', handleClickOutside);
+	}, []);
+
+	const handleStatusChange = async (newStatus, e) => {
+		e.stopPropagation();
+		if (newStatus === currentStatus) {
+			setIsOpen(false);
+			return;
+		}
+		setLoading(true);
+		try {
+			const updated = await safeApiCall(updateTeacherIssueStatus, issueId, newStatus);
+			onUpdate(updated);
+			toast.success(`Status updated to ${statusStyles[newStatus].label}`);
+		} catch (err) {
+			toast.error('Failed to update status', { description: err.message });
+		} finally {
+			setLoading(false);
+			setIsOpen(false);
+		}
+	};
+
+	if (currentStatus === 'resolved' || disabled) {
+		return (
+			<span
+				style={{
+					...styles.statusPill,
+					color: config.color,
+					background: config.bg,
+					border: `1px solid ${config.border}`,
+					cursor: 'default',
+					opacity: disabled ? 0.7 : 1,
+				}}
+			>
+				{config.icon} {config.label}
+			</span>
+		);
+	}
+
+	return (
+		<div style={{ position: 'relative' }} ref={dropdownRef} onClick={e => e.stopPropagation()}>
+			<button
+				onClick={() => setIsOpen(!isOpen)}
+				disabled={loading}
+				style={{
+					...styles.statusPill,
+					color: config.color,
+					background: config.bg,
+					border: `1px solid ${config.border}`,
+					cursor: 'pointer',
+					display: 'flex',
+					alignItems: 'center',
+					gap: 6,
+					paddingRight: 8,
+				}}
+			>
+				{loading ? (
+					<span className="spinner-small" />
+				) : (
+					<>
+						{config.icon} {config.label}
+						<span style={{ fontSize: 10, opacity: 0.6 }}>▼</span>
+					</>
+				)}
+			</button>
+
+			{isOpen && (
+				<div style={styles.dropdownMenu}>
+					{['open', 'in-progress'].map(status => (
+						<button
+							key={status}
+							onClick={e => handleStatusChange(status, e)}
+							style={{
+								...styles.dropdownItem,
+								background: status === currentStatus ? 'var(--bg-secondary)' : 'transparent',
+							}}
+						>
+							{statusStyles[status].icon} {statusStyles[status].label}
+						</button>
+					))}
+				</div>
+			)}
+		</div>
+	);
+};
 
 const BulkActionToolbar = ({ selectedIds, onBulkResolve, onClear }) => {
 	if (selectedIds.length === 0) return null;
@@ -106,8 +207,9 @@ const IssueDetailPanel = ({ issueId, onClose, onUpdate, isMobile }) => {
 		try {
 			const updated = await safeApiCall(resolveTeacherIssue, issueId, reply);
 			onUpdate(updated);
+			setIssue(updated); // Update local state
 			toast.success('Issue has been resolved!');
-			onClose();
+			// Don't close immediately, let them see the result
 		} catch (err) {
 			toast.error('Failed to resolve', { description: err.message });
 		} finally {
@@ -121,7 +223,6 @@ const IssueDetailPanel = ({ issueId, onClose, onUpdate, isMobile }) => {
 		setIsAddingNote(true);
 		try {
 			const newNotes = await safeApiCall(addInternalNote, issueId, note);
-			// Update local state with the new notes returned from backend
 			setIssue(prev => ({ ...prev, internalNotes: newNotes || [] }));
 			setNote('');
 		} catch (err) {
@@ -129,6 +230,11 @@ const IssueDetailPanel = ({ issueId, onClose, onUpdate, isMobile }) => {
 		} finally {
 			setIsAddingNote(false);
 		}
+	};
+
+	const handleLocalUpdate = updated => {
+		setIssue(updated);
+		onUpdate(updated);
 	};
 
 	if (!issueId) return null;
@@ -151,15 +257,11 @@ const IssueDetailPanel = ({ issueId, onClose, onUpdate, isMobile }) => {
 							<div style={styles.section}>
 								<div style={styles.issueTitleBlock}>
 									<h2 style={styles.issueExamTitle}>{issue.examTitle}</h2>
-									<div
-										style={{
-											...styles.statusBadge,
-											...statusStyles[issue.status],
-										}}
-									>
-										{statusStyles[issue.status]?.icon}{' '}
-										{statusStyles[issue.status]?.label}
-									</div>
+									<StatusDropdown 
+										currentStatus={issue.status} 
+										issueId={issue.id} 
+										onUpdate={handleLocalUpdate}
+									/>
 								</div>
 								<div style={styles.metaGrid}>
 									<div style={styles.metaItem}>
@@ -294,8 +396,6 @@ const IssueDetailPanel = ({ issueId, onClose, onUpdate, isMobile }) => {
 };
 
 const IssueRow = ({ issue, onSelect, onToggleSelect, isChecked, isSelected, onUpdate, toast }) => {
-	const config = statusStyles[issue.status] || statusStyles.open;
-
 	return (
 		<tr
 			style={{
@@ -323,16 +423,11 @@ const IssueRow = ({ issue, onSelect, onToggleSelect, isChecked, isSelected, onUp
 			</td>
 			<td style={styles.tableCell}>{issue.examTitle}</td>
 			<td style={styles.tableCell}>
-				<span
-					style={{
-						...styles.statusPill,
-						color: config.color,
-						background: config.bg,
-						border: `1px solid ${config.border}`,
-					}}
-				>
-					{config.icon} {config.label}
-				</span>
+				<StatusDropdown 
+					currentStatus={issue.status} 
+					issueId={issue.id} 
+					onUpdate={onUpdate}
+				/>
 			</td>
 			<td style={styles.tableCell}>{issue.assignedTo || 'Unassigned'}</td>
 			<td style={styles.tableCell}>
@@ -345,8 +440,7 @@ const IssueRow = ({ issue, onSelect, onToggleSelect, isChecked, isSelected, onUp
 	);
 };
 
-const IssueCard = ({ issue, onSelect, onToggleSelect, isChecked, isSelected }) => {
-	const config = statusStyles[issue.status] || statusStyles.open;
+const IssueCard = ({ issue, onSelect, onToggleSelect, isChecked, isSelected, onUpdate }) => {
 	return (
 		<div
 			style={{
@@ -370,17 +464,11 @@ const IssueCard = ({ issue, onSelect, onToggleSelect, isChecked, isSelected }) =
 					/>
 					<span style={styles.card.title}>{issue.examTitle}</span>
 				</div>
-				<span
-					style={{
-						...styles.statusPill,
-						color: config.color,
-						background: config.bg,
-						border: `1px solid ${config.border}`,
-						fontSize: 11,
-					}}
-				>
-					{config.label}
-				</span>
+				<StatusDropdown 
+					currentStatus={issue.status} 
+					issueId={issue.id} 
+					onUpdate={onUpdate}
+				/>
 			</div>
 			<div style={styles.card.body}>
 				<div style={styles.cardRow}>
@@ -452,6 +540,11 @@ const TeacherIssues = () => {
 		socket.on('issue-update', updatedIssueData => {
 			const normalized = normalizeIssue(updatedIssueData.issue || updatedIssueData);
 			setIssues(prev => prev.map(i => (i.id === normalized.id ? normalized : i)));
+			// Also update selected issue if it matches
+			if (selectedIssueId === normalized.id) {
+				// We don't need to do anything here as the detail panel fetches its own data, 
+				// but if we passed data down, we would update it.
+			}
 		});
 
 		socket.on('issues-updated', updatedIssues => {
@@ -467,7 +560,7 @@ const TeacherIssues = () => {
 		});
 
 		return () => socket.disconnect();
-	}, [loadIssues, toast, user]);
+	}, [loadIssues, toast, user, selectedIssueId]);
 
 	const handleUpdate = updatedIssue => {
 		setIssues(prev => prev.map(i => (i.id === updatedIssue.id ? updatedIssue : i)));
@@ -639,6 +732,7 @@ const TeacherIssues = () => {
 									onToggleSelect={handleToggleSelect}
 									isChecked={selectedIssueIds.includes(issue.id)}
 									isSelected={selectedIssueId === issue.id}
+									onUpdate={handleUpdate}
 								/>
 							))}
 						</div>
@@ -782,6 +876,40 @@ const styles = {
 		alignItems: 'center',
 		gap: 6,
 		whiteSpace: 'nowrap',
+		border: 'none',
+		outline: 'none',
+		fontFamily: 'inherit',
+	},
+	dropdownMenu: {
+		position: 'absolute',
+		top: '100%',
+		left: 0,
+		marginTop: 4,
+		background: 'var(--surface)',
+		border: '1px solid var(--border)',
+		borderRadius: 8,
+		boxShadow: 'var(--shadow-md)',
+		zIndex: 20,
+		minWidth: 140,
+		padding: 4,
+		display: 'flex',
+		flexDirection: 'column',
+		gap: 2,
+	},
+	dropdownItem: {
+		padding: '8px 12px',
+		borderRadius: 6,
+		border: 'none',
+		background: 'transparent',
+		color: 'var(--text)',
+		fontSize: 13,
+		fontWeight: 500,
+		cursor: 'pointer',
+		textAlign: 'left',
+		display: 'flex',
+		alignItems: 'center',
+		gap: 8,
+		transition: 'background 0.1s',
 	},
 	checkbox: {
 		width: 16,
@@ -842,21 +970,17 @@ const styles = {
 	},
 	issueTitleBlock: {
 		marginBottom: 16,
+		display: 'flex',
+		justifyContent: 'space-between',
+		alignItems: 'flex-start',
+		gap: 16,
 	},
 	issueExamTitle: {
-		margin: '0 0 12px 0',
+		margin: 0,
 		fontSize: 20,
 		fontWeight: 700,
 		lineHeight: 1.3,
-	},
-	statusBadge: {
-		display: 'inline-flex',
-		alignItems: 'center',
-		gap: 6,
-		padding: '6px 12px',
-		borderRadius: 8,
-		fontSize: 13,
-		fontWeight: 600,
+		flex: 1,
 	},
 	metaGrid: {
 		display: 'grid',
