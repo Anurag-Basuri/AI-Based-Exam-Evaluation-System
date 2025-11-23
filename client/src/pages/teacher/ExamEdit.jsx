@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import ExamForm from '../../components/forms/ExamForm.jsx';
 import QuestionForm from '../../components/questions/QuestionForm.jsx';
@@ -14,35 +14,59 @@ import Alert from '../../components/ui/Alert.jsx';
 import { useToast } from '../../components/ui/Toaster.jsx';
 import PageHeader from '../../components/ui/PageHeader.jsx';
 
-const Pill = ({ children }) => (
-	<span
-		style={{
-			display: 'inline-flex',
-			alignItems: 'center',
-			gap: 6,
-			padding: '4px 10px',
-			fontSize: 12,
-			fontWeight: 700,
-			borderRadius: 999,
-			border: '1px solid var(--border)',
-			background: 'var(--bg)',
-			color: 'var(--text)',
-		}}
-	>
+// --- UI Components ---
+
+const Pill = ({ children, variant = 'default', onClick }) => {
+	const bg = variant === 'primary' ? 'var(--primary-light-bg)' : 'var(--bg)';
+	const color = variant === 'primary' ? 'var(--primary)' : 'var(--text)';
+	const border = variant === 'primary' ? 'var(--primary-light)' : 'var(--border)';
+
+	return (
+		<span
+			onClick={onClick}
+			style={{
+				display: 'inline-flex',
+				alignItems: 'center',
+				gap: 6,
+				padding: '4px 12px',
+				fontSize: 12,
+				fontWeight: 600,
+				borderRadius: 999,
+				border: `1px solid ${border}`,
+				background: bg,
+				color: color,
+				cursor: onClick ? 'pointer' : 'default',
+				transition: 'all 0.2s',
+			}}
+		>
+			{children}
+		</span>
+	);
+};
+
+const Section = ({ title, subtitle, children, actions }) => (
+	<section style={styles.section}>
+		<header style={styles.sectionHeader}>
+			<div>
+				<h2 style={styles.sectionTitle}>{title}</h2>
+				{subtitle && <p style={styles.sectionSubtitle}>{subtitle}</p>}
+			</div>
+			{actions && <div>{actions}</div>}
+		</header>
 		{children}
-	</span>
+	</section>
 );
 
 const ExamEdit = () => {
 	const { id } = useParams();
 	const navigate = useNavigate();
+	const { success, error: toastError } = useToast();
 
-	const [loading, setLoading] = React.useState(true);
-	const [saving, setSaving] = React.useState(false);
-	const [message, setMessage] = React.useState('');
-	const [errorBanner, setErrorBanner] = React.useState('');
+	const [loading, setLoading] = useState(true);
+	const [saving, setSaving] = useState(false);
+	const [errorBanner, setErrorBanner] = useState('');
 
-	const [details, setDetails] = React.useState({
+	const [details, setDetails] = useState({
 		title: '',
 		description: '',
 		instructions: '',
@@ -51,32 +75,29 @@ const ExamEdit = () => {
 		endTime: '',
 		autoPublishResults: false,
 	});
-	const [detailErrors, setDetailErrors] = React.useState({});
-	const [status, setStatus] = React.useState('draft');
+	const [detailErrors, setDetailErrors] = useState({});
+	const [status, setStatus] = useState('draft');
 
-	// Add state for AI Policy
-	const [aiPolicy, setAiPolicy] = React.useState({
+	const [aiPolicy, setAiPolicy] = useState({
 		strictness: 'moderate',
 		reviewTone: 'concise',
 		expectedLength: 20,
 		customInstructions: '',
 	});
 
-	const [questions, setQuestions] = React.useState([]);
-	const [selectedIds, setSelectedIds] = React.useState(new Set());
-	const [query, setQuery] = React.useState('');
-	const [typeFilter, setTypeFilter] = React.useState('all');
-	const [difficultyFilter, setDifficultyFilter] = React.useState('all');
+	const [questions, setQuestions] = useState([]);
+	const [selectedIds, setSelectedIds] = useState(new Set());
+	const [query, setQuery] = useState('');
+	const [typeFilter, setTypeFilter] = useState('all');
+	const [difficultyFilter, setDifficultyFilter] = useState('all');
 
-	const [showQModal, setShowQModal] = React.useState(false);
-	const [editQuestion, setEditQuestion] = React.useState(null);
-	const { success } = useToast();
+	const [showQModal, setShowQModal] = useState(false);
+	const [editQuestion, setEditQuestion] = useState(null);
 
 	const toISO = v => (v ? new Date(v).toISOString() : null);
 
-	const loadAll = React.useCallback(async () => {
+	const loadAll = useCallback(async () => {
 		setLoading(true);
-		setMessage('');
 		setErrorBanner('');
 		try {
 			const exam = await safeApiCall(getTeacherExamById, id);
@@ -85,14 +106,12 @@ const ExamEdit = () => {
 				description: exam.description,
 				instructions: exam.instructions,
 				duration: exam.duration,
-				// Use correct normalized fields (startMs/endMs) if available, otherwise format from string
 				startTime: exam.startTime
 					? new Date(exam.startTime).toISOString().slice(0, 16)
 					: '',
 				endTime: exam.endTime ? new Date(exam.endTime).toISOString().slice(0, 16) : '',
 				autoPublishResults: exam.autoPublishResults,
 			});
-			// Load AI policy, providing defaults if not set
 			setAiPolicy({
 				strictness: exam.aiPolicy?.strictness || 'moderate',
 				reviewTone: exam.aiPolicy?.reviewTone || 'concise',
@@ -100,19 +119,19 @@ const ExamEdit = () => {
 				customInstructions: exam.aiPolicy?.customInstructions || '',
 			});
 			setStatus(exam.status);
-			// The `questions` array now contains full objects, so we map to get their IDs
-			setSelectedIds(new Set((exam.questions || []).map(q => q._id)));
-			// Backend now returns { items: [...] }
+			setSelectedIds(new Set((exam.questions || []).map(q => q._id || q)));
+			
 			const bank = await safeApiCall(getTeacherQuestions);
 			setQuestions(Array.isArray(bank?.items) ? bank.items : []);
 		} catch (e) {
 			setErrorBanner(e?.message || 'Failed to load exam');
+			toastError('Failed to load exam details');
 		} finally {
 			setLoading(false);
 		}
-	}, [id]);
+	}, [id, toastError]);
 
-	React.useEffect(() => {
+	useEffect(() => {
 		loadAll();
 	}, [loadAll]);
 
@@ -133,7 +152,7 @@ const ExamEdit = () => {
 		return Object.keys(errs).length === 0;
 	};
 
-	const filteredQuestions = React.useMemo(() => {
+	const filteredQuestions = useMemo(() => {
 		const q = query.trim().toLowerCase();
 		return questions.filter(item => {
 			const typeOk = typeFilter === 'all' || item.type === typeFilter;
@@ -143,14 +162,14 @@ const ExamEdit = () => {
 		});
 	}, [questions, query, typeFilter, difficultyFilter]);
 
-	const selectedList = React.useMemo(() => {
-		const map = new Map(questions.map(q => [q._id, q]));
+	const selectedList = useMemo(() => {
+		const map = new Map(questions.map(q => [q._id || q.id, q]));
 		return Array.from(selectedIds)
 			.map(i => map.get(i))
 			.filter(Boolean);
 	}, [selectedIds, questions]);
 
-	const totalMarks = React.useMemo(
+	const totalMarks = useMemo(
 		() => selectedList.reduce((sum, q) => sum + (q?.max_marks || 0), 0),
 		[selectedList],
 	);
@@ -170,13 +189,12 @@ const ExamEdit = () => {
 			return;
 		}
 		if (!validateDetails()) {
-			setErrorBanner('Fix highlighted fields');
+			setErrorBanner('Please fix the highlighted errors in the details section.');
 			return;
 		}
 		setSaving(true);
 		setErrorBanner('');
 		try {
-			// 1) Update details (not questions)
 			await safeApiCall(updateExam, id, {
 				title: details.title.trim(),
 				description: details.description?.trim() || '',
@@ -185,16 +203,14 @@ const ExamEdit = () => {
 				startTime: toISO(details.startTime),
 				endTime: toISO(details.endTime),
 				autoPublishResults: details.autoPublishResults,
-				// status is not changed here; publishing is a separate action
 				aiPolicy: {
 					...aiPolicy,
 					expectedLength: Number(aiPolicy.expectedLength),
 				},
 			});
-			// 2) Update question set (server validates ownership)
 			await safeApiCall(setExamQuestions, id, { questionIds: Array.from(selectedIds) });
-			success('Exam updated');
-			setTimeout(() => navigate('/teacher/exams'), 400);
+			success('Exam updated successfully');
+			setTimeout(() => navigate('/teacher/exams'), 500);
 		} catch (e) {
 			setErrorBanner(e?.message || 'Failed to update exam');
 		} finally {
@@ -202,14 +218,9 @@ const ExamEdit = () => {
 		}
 	};
 
-	const isScheduled = React.useMemo(() => {
-		if (!details.startTime) return false;
-		return status === 'active' && new Date(details.startTime) > new Date();
-	}, [status, details.startTime]);
-
 	const canEditQuestions = status === 'draft';
+	const isLocked = status !== 'draft';
 
-	// Open editor for a question
 	const openEditQuestion = q => {
 		if (!canEditQuestions) return;
 		setEditQuestion(q);
@@ -219,411 +230,200 @@ const ExamEdit = () => {
 	const handleSaveQuestion = async values => {
 		try {
 			const saved = await safeApiCall(updateTeacherQuestion, editQuestion.id, values);
-			// Update bank with edited question
 			setQuestions(prev => prev.map(q => (q.id === saved.id ? saved : q)));
 			success('Question updated');
 			setShowQModal(false);
 			setEditQuestion(null);
 		} catch (e) {
-			setErrorBanner(e?.message || 'Failed to update question');
+			toastError(e?.message || 'Failed to update question');
 		}
 	};
 
 	if (loading) {
-		return <div style={{ color: 'var(--text-muted)' }}>Loading…</div>;
+		return (
+			<div style={styles.loadingContainer}>
+				<div className="spinner" />
+				<p>Loading exam details...</p>
+			</div>
+		);
 	}
 
-	const isLocked = status !== 'draft'; // Block editing if not draft
-
 	return (
-		<div style={{ maxWidth: 1200, margin: '0 auto' }}>
-			<PageHeader
-				title="Edit Exam"
-				subtitle={`Modify details and question selection. Status: ${status}`}
-				breadcrumbs={[
-					{ label: 'Home', to: '/teacher' },
-					{ label: 'Exams', to: '/teacher/exams' },
-					{ label: 'Edit' },
-				]}
-				actions={[
-					<button
-						key="back"
-						onClick={() => navigate('/teacher/exams')}
-						className="tap"
-						style={{
-							padding: '10px 16px',
-							borderRadius: 10,
-							border: '1px solid var(--border)',
-							background: 'var(--surface)',
-							color: 'var(--text)',
-							fontWeight: 800,
-						}}
-					>
-						<span className="desktop-only">← Back</span>
-						<span className="mobile-only">←</span>
-					</button>,
-					<button
-						key="save"
-						onClick={onSave}
-						disabled={saving || isLocked}
-						className="tap"
-						title={isLocked ? 'Only draft exams can be edited' : 'Save changes'}
-						style={{
-							padding: '10px 16px',
-							borderRadius: 10,
-							border: 'none',
-							background:
-								saving || isLocked
-									? '#9ca3af'
-									: 'linear-gradient(135deg, #10b981, #059669)',
-							color: '#fff',
-							fontWeight: 900,
-							cursor: saving || isLocked ? 'not-allowed' : 'pointer',
-						}}
-					>
-						{saving ? 'Saving…' : 'Save changes'}
-					</button>,
-				]}
-			/>
-			<style>{`
-        .desktop-only { display: inline; }
-        .mobile-only { display: none; }
-        @media (max-width: 768px) {
-          .desktop-only { display: none; }
-          .mobile-only { display: inline; }
-        }
-      `}</style>
-
-			{errorBanner && (
-				<div style={{ marginBottom: 12 }}>
-					<Alert type="error" onClose={() => setErrorBanner('')}>
-						{errorBanner}
-					</Alert>
-				</div>
-			)}
-
-			<section
-				style={{
-					background: 'var(--surface)',
-					border: '1px solid var(--border)',
-					borderRadius: 16,
-					padding: 16,
-					marginBottom: 16,
-				}}
-			>
-				<header style={{ marginBottom: 12 }}>
-					<h2 style={{ margin: 0, color: 'var(--text)', fontWeight: 800, fontSize: 20 }}>
-						Details
-					</h2>
-					<p style={{ margin: '6px 0 0 0', color: 'var(--text-muted)', fontSize: 14 }}>
-						Title, description, time window and duration.
-					</p>
-				</header>
-				<ExamForm
-					value={details}
-					onChange={setDetails}
-					errors={detailErrors}
-					disabled={saving || isLocked}
-					aiPolicy={aiPolicy}
-					onAiPolicyChange={setAiPolicy}
+		<div style={styles.page}>
+			<div style={styles.container}>
+				<PageHeader
+					title="Edit Exam"
+					subtitle={`Modify details and question selection. Status: ${status}`}
+					breadcrumbs={[
+						{ label: 'Home', to: '/teacher' },
+						{ label: 'Exams', to: '/teacher/exams' },
+						{ label: 'Edit' },
+					]}
+					actions={[
+						<button
+							key="cancel"
+							onClick={() => navigate('/teacher/exams')}
+							style={styles.btnSecondary}
+						>
+							Cancel
+						</button>,
+						<button
+							key="save"
+							onClick={onSave}
+							disabled={saving || isLocked}
+							style={saving || isLocked ? styles.btnDisabled : styles.btnPrimary}
+						>
+							{saving ? 'Saving...' : 'Save Changes'}
+						</button>,
+					]}
 				/>
-			</section>
 
-			<section
-				style={{
-					background: 'var(--surface)',
-					border: '1px solid var(--border)',
-					borderRadius: 16,
-					padding: 16,
-				}}
-			>
-				<header
-					style={{
-						marginBottom: 12,
-						display: 'flex',
-						justifyContent: 'space-between',
-						alignItems: 'center',
-					}}
-				>
-					<h2 style={{ margin: 0, color: 'var(--text)', fontWeight: 800, fontSize: 20 }}>
-						Questions
-					</h2>
-					<Pill>
-						{selectedIds.size} selected • {totalMarks} marks
-					</Pill>
-				</header>
-				{!canEditQuestions && (
-					<div style={{ marginBottom: 12 }}>
-						<Alert type="info">
-							Question selection is locked because this exam is no longer a draft. You
-							can still view the selected questions.
+				{errorBanner && (
+					<div style={{ marginBottom: 24 }}>
+						<Alert type="error" onClose={() => setErrorBanner('')}>
+							{errorBanner}
 						</Alert>
 					</div>
 				)}
 
-				<div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 12 }}>
-					<div style={{ position: 'relative', flex: '1 1 360px' }}>
-						<input
-							value={query}
-							onChange={e => setQuery(e.target.value)}
-							placeholder="Search in your questions..."
-							style={{
-								width: '100%',
-								padding: '12px 14px 12px 38px',
-								borderRadius: 12,
-								border: '1px solid var(--border)',
-								background: 'var(--bg)',
-								color: 'var(--text)',
-								outline: 'none',
-								fontSize: 14,
-							}}
-							disabled={isLocked}
-						/>
-						<span
-							style={{
-								position: 'absolute',
-								left: 12,
-								top: '50%',
-								transform: 'translateY(-50%)',
-								color: 'var(--text-muted)',
-							}}
-						>
-							🔎
-						</span>
+				<div style={styles.grid}>
+					{/* Left Column: Details */}
+					<div style={styles.colMain}>
+						<Section title="Exam Details" subtitle="Basic information and settings">
+							<ExamForm
+								value={details}
+								onChange={setDetails}
+								errors={detailErrors}
+								disabled={saving || isLocked}
+								aiPolicy={aiPolicy}
+								onAiPolicyChange={setAiPolicy}
+							/>
+						</Section>
 					</div>
-					<Pill>
-						Type:&nbsp;
-						<select
-							value={typeFilter}
-							onChange={e => setTypeFilter(e.target.value)}
-							style={{
-								background: 'var(--bg)',
-								color: 'var(--text)',
-								border: '1px solid var(--border)',
-								borderRadius: 8,
-								padding: '6px 8px',
-								fontWeight: 700,
-							}}
-							disabled={isLocked}
-						>
-							<option value="all">All Types</option>
-							<option value="multiple-choice">MCQ</option>
-							<option value="subjective">Subjective</option>
-						</select>
-					</Pill>
-					<Pill>
-						Difficulty:&nbsp;
-						<select
-							value={difficultyFilter}
-							onChange={e => setDifficultyFilter(e.target.value)}
-							style={{
-								background: 'var(--bg)',
-								color: 'var(--text)',
-								border: '1px solid var(--border)',
-								borderRadius: 8,
-								padding: '6px 8px',
-								fontWeight: 700,
-							}}
-							disabled={isLocked}
-						>
-							<option value="all">All</option>
-							<option value="easy">Easy</option>
-							<option value="medium">Medium</option>
-							<option value="hard">Hard</option>
-						</select>
-					</Pill>
-				</div>
 
-				<div
-					style={{
-						display: 'grid',
-						gap: 12,
-						gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-					}}
-				>
-					{filteredQuestions.map(q => {
-						const selected = selectedIds.has(q._id);
-						return (
-							<div
-								key={q._id}
-								onClick={() => (isLocked ? undefined : toggleSelected(q._id))}
-								style={{
-									userSelect: 'none',
-									cursor: isLocked ? 'not-allowed' : 'pointer',
-									// Use explicit checkbox, remove color-mix
-									background: 'var(--surface)',
-									border: `2px solid ${selected ? '#3b82f6' : 'var(--border)'}`,
-									borderRadius: 12,
-									padding: 14,
-									boxShadow: selected ? '0 0 0 4px rgba(59,130,246,.12)' : 'none',
-								}}
-							>
-								<div
-									style={{
-										display: 'flex',
-										justifyContent: 'space-between',
-										gap: 10,
-									}}
+					{/* Right Column: Questions */}
+					<div style={styles.colSide}>
+						<Section 
+							title="Questions" 
+							subtitle={`${selectedIds.size} selected • ${totalMarks} marks`}
+							actions={
+								<button
+									onClick={() => setSelectedIds(new Set())}
+									disabled={isLocked || selectedIds.size === 0}
+									style={styles.btnClear}
 								>
-									<div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-										<input
-											type="checkbox"
-											checked={selected}
-											onChange={() =>
-												isLocked ? undefined : toggleSelected(q._id)
-											}
-											disabled={isLocked}
-											style={{
-												cursor: isLocked ? 'pointer' : 'not-allowed',
-											}}
-										/>
-										<strong style={{ color: 'var(--text)' }}>
-											{q.type === 'multiple-choice' ? 'MCQ' : 'Subjective'}
-										</strong>
-										<Pill>{q.difficulty}</Pill>
-									</div>
-									<Pill>Marks: {q.max_marks}</Pill>
+									Clear All
+								</button>
+							}
+						>
+							{!canEditQuestions && (
+								<div style={{ marginBottom: 16 }}>
+									<Alert type="info">
+										Editing locked for non-draft exams.
+									</Alert>
 								</div>
-								<p
-									style={{
-										margin: '8px 0 0 0',
-										color: 'var(--text)',
-										fontWeight: 600,
-										fontSize: 14,
-										overflow: 'hidden',
-										display: '-webkit-box',
-										WebkitLineClamp: 3,
-										WebkitBoxOrient: 'vertical',
-									}}
-								>
-									{q.text}
-								</p>
-								{q.tags && q.tags.length > 0 && (
-									<div
-										style={{
-											display: 'flex',
-											flexWrap: 'wrap',
-											gap: 4,
-											marginTop: 8,
-										}}
+							)}
+
+							<div style={styles.filterBar}>
+								<div style={styles.searchWrapper}>
+									<span style={styles.searchIcon}>🔍</span>
+									<input
+										value={query}
+										onChange={e => setQuery(e.target.value)}
+										placeholder="Search questions..."
+										style={styles.searchInput}
+										disabled={isLocked}
+									/>
+								</div>
+								<div style={styles.filterRow}>
+									<select
+										value={typeFilter}
+										onChange={e => setTypeFilter(e.target.value)}
+										style={styles.select}
+										disabled={isLocked}
 									>
-										{q.tags.map(tag => (
-											<Pill key={tag}>{tag}</Pill>
-										))}
-									</div>
-								)}
-								<div
-									style={{
-										display: 'flex',
-										justifyContent: 'flex-end',
-										gap: 8,
-										marginTop: 8,
-									}}
-								>
-									<button
-										type="button"
-										onClick={e => {
-											e.stopPropagation();
-											openEditQuestion(q);
-										}}
-										disabled={!canEditQuestions}
-										style={{
-											padding: '6px 10px',
-											borderRadius: 8,
-											border: '1px solid var(--border)',
-											background: 'var(--surface)',
-											color: 'var(--text)',
-											fontWeight: 700,
-											fontSize: 12,
-											cursor: canEditQuestions ? 'pointer' : 'not-allowed',
-										}}
+										<option value="all">All Types</option>
+										<option value="multiple-choice">MCQ</option>
+										<option value="subjective">Subjective</option>
+									</select>
+									<select
+										value={difficultyFilter}
+										onChange={e => setDifficultyFilter(e.target.value)}
+										style={styles.select}
+										disabled={isLocked}
 									>
-										Edit question
-									</button>
+										<option value="all">All Difficulties</option>
+										<option value="easy">Easy</option>
+										<option value="medium">Medium</option>
+										<option value="hard">Hard</option>
+									</select>
 								</div>
 							</div>
-						);
-					})}
-				</div>
 
-				<div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
-					<button
-						onClick={() => setSelectedIds(new Set())}
-						disabled={isLocked || selectedIds.size === 0}
-						style={{
-							padding: '8px 10px',
-							borderRadius: 8,
-							border: '1px solid var(--border)',
-							background: 'var(--surface)',
-							color: 'var(--text)',
-							fontWeight: 800,
-							cursor: isLocked ? 'not-allowed' : 'pointer',
-							fontSize: 12,
-						}}
-					>
-						Clear selection
-					</button>
-					<button
-						onClick={onSave}
-						disabled={saving || isLocked}
-						style={{
-							padding: '10px 16px',
-							borderRadius: 10,
-							border: 'none',
-							background:
-								saving || isLocked
-									? '#9ca3af'
-									: 'linear-gradient(135deg, #10b981, #059669)',
-							color: '#fff',
-							fontWeight: 800,
-							cursor: saving || isLocked ? 'not-allowed' : 'pointer',
-						}}
-					>
-						{saving ? 'Saving…' : 'Save changes'}
-					</button>
+							<div style={styles.questionList}>
+								{filteredQuestions.length === 0 ? (
+									<div style={styles.emptyState}>No questions found.</div>
+								) : (
+									filteredQuestions.map(q => {
+										const selected = selectedIds.has(q._id || q.id);
+										return (
+											<div
+												key={q._id || q.id}
+												onClick={() => !isLocked && toggleSelected(q._id || q.id)}
+												style={{
+													...styles.questionCard,
+													borderColor: selected ? 'var(--primary)' : 'var(--border)',
+													background: selected ? 'var(--primary-light-bg)' : 'var(--surface)',
+													cursor: isLocked ? 'default' : 'pointer',
+												}}
+											>
+												<div style={styles.qHeader}>
+													<div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+														<input
+															type="checkbox"
+															checked={selected}
+															onChange={() => !isLocked && toggleSelected(q._id || q.id)}
+															disabled={isLocked}
+															style={styles.checkbox}
+														/>
+														<span style={styles.qType}>
+															{q.type === 'multiple-choice' ? 'MCQ' : 'Subj'}
+														</span>
+													</div>
+													<span style={styles.qMarks}>{q.max_marks}m</span>
+												</div>
+												<p style={styles.qText}>{q.text}</p>
+												<div style={styles.qFooter}>
+													<Pill>{q.difficulty}</Pill>
+													{canEditQuestions && (
+														<button
+															onClick={e => {
+																e.stopPropagation();
+																openEditQuestion(q);
+															}}
+															style={styles.btnEditQ}
+														>
+															Edit
+														</button>
+													)}
+												</div>
+											</div>
+										);
+									})
+								)}
+							</div>
+						</Section>
+					</div>
 				</div>
-			</section>
+			</div>
 
-			{/* Modal for editing question */}
 			{showQModal && editQuestion && (
-				<div
-					role="dialog"
-					aria-modal="true"
-					style={{
-						position: 'fixed',
-						inset: 0,
-						background: 'color-mix(in srgb, var(--bg) 50%, transparent)',
-						display: 'grid',
-						placeItems: 'center',
-						padding: 16,
-						zIndex: 50,
-					}}
-					onClick={e => {
-						if (e.target === e.currentTarget) {
-							setShowQModal(false);
-							setEditQuestion(null);
-						}
-					}}
-				>
-					<div
-						style={{
-							width: 'min(720px, 96vw)',
-							maxHeight: '90vh',
-							overflow: 'auto',
-							background: 'var(--surface)',
-							border: '1px solid var(--border)',
-							borderRadius: 16,
-							boxShadow: 'var(--shadow-md)',
-							padding: 16,
-						}}
-					>
+				<div style={styles.modalOverlay} onClick={() => setShowQModal(false)}>
+					<div style={styles.modalContent} onClick={e => e.stopPropagation()}>
 						<QuestionForm
 							defaultType={editQuestion.type}
 							defaultValue={editQuestion}
-							onCancel={() => {
-								setShowQModal(false);
-								setEditQuestion(null);
-							}}
+							onCancel={() => setShowQModal(false)}
 							onSave={handleSaveQuestion}
 						/>
 					</div>
@@ -631,6 +431,225 @@ const ExamEdit = () => {
 			)}
 		</div>
 	);
+};
+
+const styles = {
+	page: {
+		minHeight: '100vh',
+		background: 'var(--bg-secondary)',
+		padding: '24px',
+	},
+	container: {
+		maxWidth: 1200,
+		margin: '0 auto',
+		display: 'flex',
+		flexDirection: 'column',
+		gap: 24,
+	},
+	loadingContainer: {
+		display: 'flex',
+		flexDirection: 'column',
+		alignItems: 'center',
+		justifyContent: 'center',
+		minHeight: '50vh',
+		color: 'var(--text-muted)',
+	},
+	grid: {
+		display: 'grid',
+		gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
+		gap: 24,
+		alignItems: 'start',
+	},
+	colMain: {
+		flex: 1,
+	},
+	colSide: {
+		flex: 1,
+	},
+	section: {
+		background: 'var(--surface)',
+		borderRadius: 16,
+		border: '1px solid var(--border)',
+		padding: 24,
+		boxShadow: 'var(--shadow-sm)',
+	},
+	sectionHeader: {
+		display: 'flex',
+		justifyContent: 'space-between',
+		alignItems: 'flex-start',
+		marginBottom: 20,
+	},
+	sectionTitle: {
+		fontSize: 18,
+		fontWeight: 700,
+		color: 'var(--text)',
+		margin: 0,
+	},
+	sectionSubtitle: {
+		fontSize: 14,
+		color: 'var(--text-muted)',
+		margin: '4px 0 0',
+	},
+	btnPrimary: {
+		padding: '10px 20px',
+		borderRadius: 10,
+		border: 'none',
+		background: 'var(--primary)',
+		color: '#fff',
+		fontWeight: 600,
+		cursor: 'pointer',
+		transition: 'all 0.2s',
+	},
+	btnSecondary: {
+		padding: '10px 20px',
+		borderRadius: 10,
+		border: '1px solid var(--border)',
+		background: 'var(--surface)',
+		color: 'var(--text)',
+		fontWeight: 600,
+		cursor: 'pointer',
+		transition: 'all 0.2s',
+	},
+	btnDisabled: {
+		padding: '10px 20px',
+		borderRadius: 10,
+		border: 'none',
+		background: 'var(--gray-300)',
+		color: 'var(--gray-500)',
+		fontWeight: 600,
+		cursor: 'not-allowed',
+	},
+	btnClear: {
+		background: 'transparent',
+		border: 'none',
+		color: 'var(--danger-text)',
+		fontSize: 13,
+		fontWeight: 600,
+		cursor: 'pointer',
+	},
+	filterBar: {
+		display: 'flex',
+		flexDirection: 'column',
+		gap: 12,
+		marginBottom: 16,
+	},
+	searchWrapper: {
+		position: 'relative',
+	},
+	searchIcon: {
+		position: 'absolute',
+		left: 12,
+		top: '50%',
+		transform: 'translateY(-50%)',
+		color: 'var(--text-muted)',
+	},
+	searchInput: {
+		width: '100%',
+		padding: '10px 12px 10px 36px',
+		borderRadius: 10,
+		border: '1px solid var(--border)',
+		background: 'var(--bg)',
+		color: 'var(--text)',
+		fontSize: 14,
+	},
+	filterRow: {
+		display: 'flex',
+		gap: 8,
+	},
+	select: {
+		flex: 1,
+		padding: '8px',
+		borderRadius: 8,
+		border: '1px solid var(--border)',
+		background: 'var(--bg)',
+		color: 'var(--text)',
+		fontSize: 13,
+	},
+	questionList: {
+		display: 'flex',
+		flexDirection: 'column',
+		gap: 12,
+		maxHeight: 600,
+		overflowY: 'auto',
+		paddingRight: 4,
+	},
+	questionCard: {
+		border: '1px solid var(--border)',
+		borderRadius: 12,
+		padding: 12,
+		transition: 'all 0.2s',
+	},
+	qHeader: {
+		display: 'flex',
+		justifyContent: 'space-between',
+		marginBottom: 8,
+	},
+	qType: {
+		fontSize: 12,
+		fontWeight: 700,
+		color: 'var(--text-muted)',
+		textTransform: 'uppercase',
+	},
+	qMarks: {
+		fontSize: 12,
+		fontWeight: 600,
+		color: 'var(--primary)',
+	},
+	qText: {
+		fontSize: 14,
+		color: 'var(--text)',
+		margin: '0 0 12px',
+		lineHeight: 1.4,
+		display: '-webkit-box',
+		WebkitLineClamp: 2,
+		WebkitBoxOrient: 'vertical',
+		overflow: 'hidden',
+	},
+	qFooter: {
+		display: 'flex',
+		justifyContent: 'space-between',
+		alignItems: 'center',
+	},
+	btnEditQ: {
+		padding: '4px 8px',
+		borderRadius: 6,
+		border: '1px solid var(--border)',
+		background: 'var(--surface)',
+		color: 'var(--text)',
+		fontSize: 11,
+		fontWeight: 600,
+		cursor: 'pointer',
+	},
+	emptyState: {
+		textAlign: 'center',
+		padding: 24,
+		color: 'var(--text-muted)',
+		fontStyle: 'italic',
+	},
+	modalOverlay: {
+		position: 'fixed',
+		inset: 0,
+		background: 'rgba(0,0,0,0.5)',
+		display: 'grid',
+		placeItems: 'center',
+		zIndex: 100,
+		padding: 16,
+	},
+	modalContent: {
+		background: 'var(--surface)',
+		borderRadius: 16,
+		width: '100%',
+		maxWidth: 700,
+		maxHeight: '90vh',
+		overflowY: 'auto',
+		padding: 24,
+		boxShadow: 'var(--shadow-lg)',
+	},
+	checkbox: {
+		width: 16,
+		height: 16,
+		cursor: 'pointer',
+	},
 };
 
 export default ExamEdit;
