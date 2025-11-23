@@ -63,7 +63,16 @@ router.post(
 );
 
 // Bulk resolve issues
-router.post('/bulk-resolve', checkAuth, verifyTeacher, bulkResolveIssues);
+router.post(
+	'/bulk-resolve',
+	checkAuth,
+	verifyTeacher,
+	body('issueIds')
+		.isArray({ min: 1 })
+		.withMessage('Issue IDs must be a non-empty array of MongoIDs'),
+	body('reply').isString().isLength({ min: 2 }).withMessage('Reply is required'),
+	bulkResolveIssues,
+);
 
 // Resolve with reply
 router.patch(
