@@ -121,7 +121,8 @@ const IssueDetailPanel = ({ issueId, onClose, onUpdate, isMobile }) => {
 		setIsAddingNote(true);
 		try {
 			const newNotes = await safeApiCall(addInternalNote, issueId, note);
-			setIssue(prev => ({ ...prev, internalNotes: newNotes }));
+			// Update local state with the new notes returned from backend
+			setIssue(prev => ({ ...prev, internalNotes: newNotes || [] }));
 			setNote('');
 		} catch (err) {
 			toast.error('Failed to add note', { description: err.message });
@@ -403,7 +404,6 @@ const TeacherIssues = () => {
 	const [error, setError] = useState('');
 	const [issues, setIssues] = useState([]);
 	const [filter, setFilter] = useState('my-issues');
-	const [searchQuery, setSearchQuery] = useState('');
 	const [selectedIssueId, setSelectedIssueId] = useState(null);
 	const [selectedIssueIds, setSelectedIssueIds] = useState([]);
 	const [isMobile, setIsMobile] = useState(window.innerWidth < MOBILE_BREAKPOINT);
@@ -499,17 +499,8 @@ const TeacherIssues = () => {
 				filtered = filtered.filter(i => i.status === filter);
 			}
 		}
-		if (searchQuery) {
-			const q = searchQuery.toLowerCase();
-			filtered = filtered.filter(
-				i =>
-					i.studentName?.toLowerCase().includes(q) ||
-					i.examTitle?.toLowerCase().includes(q) ||
-					i.description?.toLowerCase().includes(q),
-			);
-		}
 		return filtered;
-	}, [issues, filter, searchQuery, user?.id]);
+	}, [issues, filter, user?.id]);
 
 	const handleSelectAll = () => {
 		const visibleUnresolvedIds = filteredIssues
@@ -546,16 +537,6 @@ const TeacherIssues = () => {
 						<p style={styles.subtitle}>Manage and resolve student inquiries.</p>
 					</div>
 					<div style={styles.controlsContainer(isMobile)}>
-						<div style={styles.searchWrapper}>
-							<span style={styles.searchIcon}>🔍</span>
-							<input
-								type="search"
-								placeholder="Search issues..."
-								value={searchQuery}
-								onChange={e => setSearchQuery(e.target.value)}
-								style={styles.searchInput}
-							/>
-						</div>
 						<div style={styles.filterGroup}>
 							{['my-issues', 'open', 'in-progress', 'resolved', 'all'].map(f => (
 								<button
@@ -708,30 +689,6 @@ const styles = {
 	}),
 	title: { margin: 0, fontSize: 28, fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.02em' },
 	subtitle: { margin: '4px 0 0', color: 'var(--text-muted)', fontSize: 15 },
-	searchWrapper: {
-		position: 'relative',
-		width: '100%',
-		maxWidth: 300,
-	},
-	searchIcon: {
-		position: 'absolute',
-		left: 12,
-		top: '50%',
-		transform: 'translateY(-50%)',
-		fontSize: 14,
-		opacity: 0.5,
-		pointerEvents: 'none',
-	},
-	searchInput: {
-		padding: '10px 14px 10px 36px',
-		borderRadius: 10,
-		border: '1px solid var(--border)',
-		background: 'var(--surface)',
-		width: '100%',
-		fontSize: 14,
-		transition: 'border-color 0.2s',
-		outline: 'none',
-	},
 	filterGroup: {
 		display: 'flex',
 		gap: 4,

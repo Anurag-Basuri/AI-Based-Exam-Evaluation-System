@@ -479,9 +479,8 @@ export const updateTeacherIssueStatus = async (issueId, status) => {
 // Service function to add an internal note
 export const addInternalNote = async (issueId, note) => {
 	const res = await tryPost(EP.issueAddNote(issueId), { note });
-	// The backend returns the new list of notes, but the socket event handles the UI update.
-	// We can just return a success indicator.
-	return res?.data;
+	// The backend returns the new list of notes.
+	return res?.data?.data;
 };
 
 // Service function to resolve issues in bulk
