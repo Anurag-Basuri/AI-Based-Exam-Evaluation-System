@@ -16,19 +16,18 @@ import image6 from '../assets/image6.jpg';
 import image7 from '../assets/image7.jpg';
 import image8 from '../assets/image8.jpg';
 
+// New Generated Assets
+import hero1 from '../assets/hero_1.png';
+import hero2 from '../assets/hero_2.png';
+import hero3 from '../assets/hero_3.png';
+import hero4 from '../assets/hero_4.png';
+import card1 from '../assets/card_1.png';
+import card2 from '../assets/card_2.png';
+import card3 from '../assets/card_3.png';
+
 // --- Data & Constants ---
-const heroImages = [
-	'https://images.unsplash.com/photo-1532012197267-da84d127e765?q=80&w=1400&auto=format&fit=crop',
-	'https://images.unsplash.com/photo-1518081461904-9acb9846e1b9?q=80&w=1400&auto=format&fit=crop',
-	'https://images.unsplash.com/photo-1513258496099-48168024aec0?q=80&w=1400&auto=format&fit=crop',
-	'https://images.unsplash.com/photo-1523580846011-d3a5bc25702b?q=80&w=1400&auto=format&fit=crop',
-];
-const cardPhotos = [
-	'https://images.unsplash.com/photo-1523580846011-d3a5bc25702b?q=80&w=800&auto=format&fit=crop',
-	'https://images.unsplash.com/photo-1498079022511-d15614cb1c02?q=80&w=800&auto=format&fit=crop',
-	'https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=800&auto=format&fit=crop',
-	'https://images.unsplash.com/photo-1523580846011-d3a5bc25702b?q=80&w=800&auto=format&fit=crop',
-];
+const heroImages = [hero1, hero2, hero3, hero4];
+const cardPhotos = [card1, card2, card3, card1];
 const features = [
 	{
 		title: 'Create, schedule, publish',
