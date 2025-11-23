@@ -8,6 +8,7 @@ const MOBILE_BREAKPOINT = 1024;
 
 const STATUS_CONFIG = {
 	active: { label: 'Active', color: 'var(--success-text)', bg: 'var(--success-bg)', border: 'var(--success-border)', icon: '🟢' },
+	live: { label: 'Live Now', color: 'var(--danger-text)', bg: 'var(--danger-bg)', border: 'var(--danger-border)', icon: '🔴' },
 	scheduled: { label: 'Scheduled', color: 'var(--info-text)', bg: 'var(--info-bg)', border: 'var(--info-border)', icon: '🗓️' },
 	draft: { label: 'Draft', color: 'var(--text-muted)', bg: 'var(--bg-secondary)', border: 'var(--border)', icon: '📝' },
 	completed: { label: 'Completed', color: 'var(--primary)', bg: 'var(--primary-light-bg)', border: 'var(--primary-light)', icon: '✅' },
@@ -208,14 +209,27 @@ const TeacherExams = () => {
 	const loadData = useCallback(async () => {
 		setLoading(true);
 		try {
-			const [statsData, examsData] = await Promise.all([
+			// Load stats and exams independently to prevent one failure from blocking the other
+			const [statsRes, examsRes] = await Promise.allSettled([
 				TeacherSvc.safeApiCall(TeacherSvc.getTeacherExamStats),
-				TeacherSvc.safeApiCall(TeacherSvc.getTeacherExams, { limit: 100 }) // Fetch more for client-side filtering for now
+				TeacherSvc.safeApiCall(TeacherSvc.getTeacherExams, { limit: 100 })
 			]);
-			setStats(statsData || { total: 0, active: 0, scheduled: 0, completed: 0 });
-			setExams(examsData?.items || []);
+
+			if (statsRes.status === 'fulfilled') {
+				setStats(statsRes.value || { total: 0, active: 0, scheduled: 0, completed: 0 });
+			} else {
+				console.error('Failed to load stats:', statsRes.reason);
+				// Don't toast for stats failure, it's non-critical
+			}
+
+			if (examsRes.status === 'fulfilled') {
+				setExams(examsRes.value?.items || []);
+			} else {
+				console.error('Failed to load exams:', examsRes.reason);
+				toast.error('Failed to load exams list');
+			}
 		} catch (err) {
-			toast.error('Failed to load data', { description: err.message });
+			toast.error('Unexpected error loading data');
 		} finally {
 			setLoading(false);
 		}
@@ -291,7 +305,7 @@ const TeacherExams = () => {
 			const status = exam.derivedStatus || exam.status;
 			
 			let matchesFilter = true;
-			if (filter === 'active') matchesFilter = status === 'active';
+			if (filter === 'active') matchesFilter = status === 'active' || status === 'live';
 			if (filter === 'scheduled') matchesFilter = status === 'scheduled';
 			if (filter === 'draft') matchesFilter = status === 'draft';
 			if (filter === 'completed') matchesFilter = status === 'completed' || status === 'cancelled';
