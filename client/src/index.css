@@ -53,6 +53,25 @@
     --transition-bounce: 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
   
     --focus: #6366f1;
+
+    /* Semantic Variants */
+    --success-bg: #dcfce7;
+    --success-text: #166534;
+    --success-border: #86efac;
+
+    --warning-bg: #fef3c7;
+    --warning-text: #92400e;
+    --warning-border: #fcd34d;
+
+    --danger-bg: #fee2e2;
+    --danger-text: #991b1b;
+    --danger-border: #fca5a5;
+
+    --info-bg: #dbeafe;
+    --info-text: #1e40af;
+    --info-border: #93c5fd;
+
+    --primary-light-bg: #eff6ff;
 }
 
 [data-theme="dark"] {
