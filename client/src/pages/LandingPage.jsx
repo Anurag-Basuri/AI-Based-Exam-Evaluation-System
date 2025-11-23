@@ -163,7 +163,7 @@ const HeroSection = ({ isAuthenticated, user, isDark, isMobile }) => {
 					zIndex: 1,
 					display: 'grid',
 					gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
-					gap: '4rem',
+					gap: isMobile ? '2rem' : '4rem',
 					alignItems: 'center',
 				}}
 			>
@@ -186,7 +186,7 @@ const HeroSection = ({ isAuthenticated, user, isDark, isMobile }) => {
 					</div>
 					<h1
 						style={{
-							fontSize: isMobile ? '2.5rem' : '4rem',
+							fontSize: isMobile ? 'clamp(2.5rem, 8vw, 3rem)' : '4rem',
 							fontWeight: 800,
 							lineHeight: 1.1,
 							marginBottom: '1.5rem',
