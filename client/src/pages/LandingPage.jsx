@@ -47,6 +47,44 @@ const features = [
 	},
 ];
 
+const teacherSteps = [
+	{
+		title: 'Create Exam',
+		desc: 'Set up your exam with MCQs and subjective questions. Define duration and schedule.',
+	},
+	{
+		title: 'Publish & Share',
+		desc: 'Make the exam live and share the unique 8-digit code with your students.',
+	},
+	{
+		title: 'Monitor',
+		desc: 'Track submissions in real-time as students complete the assessment.',
+	},
+	{
+		title: 'AI Evaluation',
+		desc: 'Let our AI grade subjective answers based on your policy. Review and finalize.',
+	},
+];
+
+const studentSteps = [
+	{
+		title: 'Join Exam',
+		desc: 'Enter the unique code provided by your teacher to access the secure exam environment.',
+	},
+	{
+		title: 'Attempt',
+		desc: 'Answer questions in a distraction-free fullscreen interface. Progress is auto-saved.',
+	},
+	{
+		title: 'Submit',
+		desc: 'Review your answers and submit. The system ensures your data is synced safely.',
+	},
+	{
+		title: 'Results',
+		desc: 'View your detailed performance report and AI feedback once results are published.',
+	},
+];
+
 // --- Reusable Hooks ---
 const useResponsive = () => {
 	const [windowWidth, setWindowWidth] = useState(
@@ -253,7 +291,7 @@ const HeroSection = ({ isAuthenticated, user, isDark, isMobile }) => {
 									Get Started
 								</button>
 								<button
-									onClick={() => document.getElementById('features').scrollIntoView({ behavior: 'smooth' })}
+									onClick={() => document.getElementById('how-it-works').scrollIntoView({ behavior: 'smooth' })}
 									style={{
 										padding: '0.875rem 2rem',
 										borderRadius: '12px',
@@ -266,7 +304,7 @@ const HeroSection = ({ isAuthenticated, user, isDark, isMobile }) => {
 									}}
 									className="card-hover"
 								>
-									Learn More
+									How it Works
 								</button>
 							</>
 						)}
@@ -278,7 +316,7 @@ const HeroSection = ({ isAuthenticated, user, isDark, isMobile }) => {
 					style={{
 						position: 'relative',
 						height: isMobile ? '300px' : '500px',
-						display: isMobile ? 'none' : 'block', // Hide on mobile for simpler view, or adjust
+						display: isMobile ? 'none' : 'block',
 					}}
 				>
 					<div
@@ -404,6 +442,193 @@ const FeaturesSection = ({ isMobile }) => (
 						</p>
 					</div>
 				))}
+			</div>
+		</div>
+	</section>
+);
+
+const HowItWorksSection = ({ isMobile }) => {
+	const [activeTab, setActiveTab] = useState('teacher');
+	const steps = activeTab === 'teacher' ? teacherSteps : studentSteps;
+
+	return (
+		<section
+			id="how-it-works"
+			style={{
+				padding: isMobile ? '4rem 1rem' : '6rem 2rem',
+				background: 'var(--bg-secondary)',
+			}}
+		>
+			<div style={{ maxWidth: 1280, margin: '0 auto' }}>
+				<div style={{ textAlign: 'center', marginBottom: '3rem' }}>
+					<h2
+						style={{
+							fontSize: isMobile ? '2rem' : '2.5rem',
+							fontWeight: 700,
+							marginBottom: '1rem',
+						}}
+					>
+						How it Works
+					</h2>
+					<p
+						style={{
+							color: 'var(--text-muted)',
+							fontSize: '1.125rem',
+							maxWidth: '600px',
+							margin: '0 auto 2rem',
+						}}
+					>
+						Simple workflows for everyone involved.
+					</p>
+
+					<div
+						style={{
+							display: 'inline-flex',
+							background: 'var(--surface)',
+							padding: '0.5rem',
+							borderRadius: '12px',
+							border: '1px solid var(--border)',
+							gap: '0.5rem',
+						}}
+					>
+						<button
+							onClick={() => setActiveTab('teacher')}
+							style={{
+								padding: '0.5rem 1.5rem',
+								borderRadius: '8px',
+								background: activeTab === 'teacher' ? 'var(--primary)' : 'transparent',
+								color: activeTab === 'teacher' ? '#fff' : 'var(--text-muted)',
+								border: 'none',
+								fontWeight: 600,
+								cursor: 'pointer',
+								transition: 'all 0.2s ease',
+							}}
+						>
+							For Teachers
+						</button>
+						<button
+							onClick={() => setActiveTab('student')}
+							style={{
+								padding: '0.5rem 1.5rem',
+								borderRadius: '8px',
+								background: activeTab === 'student' ? 'var(--primary)' : 'transparent',
+								color: activeTab === 'student' ? '#fff' : 'var(--text-muted)',
+								border: 'none',
+								fontWeight: 600,
+								cursor: 'pointer',
+								transition: 'all 0.2s ease',
+							}}
+						>
+							For Students
+						</button>
+					</div>
+				</div>
+
+				<div
+					style={{
+						display: 'grid',
+						gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)',
+						gap: '2rem',
+						marginTop: '3rem',
+					}}
+				>
+					{steps.map((step, index) => (
+						<div
+							key={index}
+							className="card-hover"
+							style={{
+								background: 'var(--surface)',
+								padding: '2rem',
+								borderRadius: '16px',
+								border: '1px solid var(--border)',
+								position: 'relative',
+							}}
+						>
+							<div
+								style={{
+									width: '40px',
+									height: '40px',
+									background: 'var(--primary-light)',
+									color: 'var(--primary-strong)',
+									borderRadius: '50%',
+									display: 'flex',
+									alignItems: 'center',
+									justifyContent: 'center',
+									fontWeight: 700,
+									marginBottom: '1.5rem',
+								}}
+							>
+								{index + 1}
+							</div>
+							<h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.75rem' }}>
+								{step.title}
+							</h3>
+							<p style={{ color: 'var(--text-muted)', lineHeight: 1.6 }}>{step.desc}</p>
+						</div>
+					))}
+				</div>
+			</div>
+		</section>
+	);
+};
+
+const TechStackSection = ({ isMobile }) => (
+	<section
+		style={{
+			padding: isMobile ? '4rem 1rem' : '6rem 2rem',
+			background: 'var(--surface)',
+			borderTop: '1px solid var(--border)',
+		}}
+	>
+		<div style={{ maxWidth: 1280, margin: '0 auto', display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '4rem', alignItems: 'center' }}>
+			<div>
+				<h2
+					style={{
+						fontSize: isMobile ? '2rem' : '2.5rem',
+						fontWeight: 700,
+						marginBottom: '1.5rem',
+					}}
+				>
+					Powered by Advanced Tech
+				</h2>
+				<p style={{ color: 'var(--text-muted)', fontSize: '1.125rem', lineHeight: 1.7, marginBottom: '2rem' }}>
+					Our platform leverages cutting-edge technology to ensure a seamless and secure experience.
+				</p>
+				
+				<div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+					<div style={{ display: 'flex', gap: '1rem' }}>
+						<div style={{ minWidth: 48, height: 48, borderRadius: 12, background: 'rgba(16, 185, 129, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--success)' }}>
+							🤖
+						</div>
+						<div>
+							<h4 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.25rem' }}>AI Evaluation Engine</h4>
+							<p style={{ color: 'var(--text-muted)' }}>Integrated with Hugging Face LLMs to understand context and grade subjective answers intelligently.</p>
+						</div>
+					</div>
+					<div style={{ display: 'flex', gap: '1rem' }}>
+						<div style={{ minWidth: 48, height: 48, borderRadius: 12, background: 'rgba(59, 130, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>
+							⚡
+						</div>
+						<div>
+							<h4 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.25rem' }}>Real-time Synchronization</h4>
+							<p style={{ color: 'var(--text-muted)' }}>Socket.IO ensures that every keystroke is saved and connection drops don't mean data loss.</p>
+						</div>
+					</div>
+					<div style={{ display: 'flex', gap: '1rem' }}>
+						<div style={{ minWidth: 48, height: 48, borderRadius: 12, background: 'rgba(245, 158, 11, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--warning)' }}>
+							🛡️
+						</div>
+						<div>
+							<h4 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.25rem' }}>Proctoring & Security</h4>
+							<p style={{ color: 'var(--text-muted)' }}>Fullscreen enforcement, tab-switch detection, and secure JWT authentication.</p>
+						</div>
+					</div>
+				</div>
+			</div>
+			<div style={{ position: 'relative' }}>
+				<div className="card-hover" style={{ borderRadius: '24px', overflow: 'hidden', boxShadow: 'var(--shadow-xl)', border: '1px solid var(--border)' }}>
+					<img src={hero4} alt="Technology" style={{ width: '100%', display: 'block' }} />
+				</div>
 			</div>
 		</div>
 	</section>
@@ -537,6 +762,8 @@ const LandingPage = () => {
 				isMobile={isMobile}
 			/>
 			<FeaturesSection isMobile={isMobile} />
+			<HowItWorksSection isMobile={isMobile} />
+			<TechStackSection isMobile={isMobile} />
 			<RoleSelectionSection isMobile={isMobile} onAuth={handleAuth} />
 			<Footer />
 		</div>
