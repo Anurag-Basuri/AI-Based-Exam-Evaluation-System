@@ -42,14 +42,17 @@ const createIssue = asyncHandler(async (req, res) => {
 		activityLog: [], // Initialize activity log
 	};
 
-	// Auto-assign 'evaluation' or 'question' issues to the exam creator
-	if (['evaluation', 'question'].includes(issueType) && submission.exam?.createdBy) {
+	// Auto-assign to the exam creator by default (Industry standard: ownership)
+	if (submission.exam?.createdBy) {
 		issueData.assignedTo = submission.exam.createdBy;
-		issueData.status = 'in-progress'; // Set status to in-progress as it's assigned
+		// If it's a technical issue, maybe keep it open? For now, let's assign all to the teacher.
+		// We can keep status as 'open' so the teacher sees it as new, but it is assigned to them.
 		issueData.activityLog.push({
 			action: 'assigned',
 			details: `Automatically assigned to the exam creator.`,
 		});
+	} else {
+		throw new ApiError(500, 'Exam has no creator. Cannot assign issue.');
 	}
 
 	const issue = await Issue.create(issueData);
@@ -60,16 +63,15 @@ const createIssue = asyncHandler(async (req, res) => {
 		.populate('assignedTo', 'fullname')
 		.lean();
 
-	// If for any reason population fails, throw an error before responding.
-	if (!populatedIssue || !populatedIssue.exam || !populatedIssue.student) {
+	if (!populatedIssue) {
 		throw new ApiError(500, 'Failed to retrieve complete issue details after creation.');
 	}
 
-	// Emit to teachers room
+	// Real-time: Emit ONLY to the assigned teacher
 	const io = req.io || req.app?.get('io');
-	if (io) {
-		// This single event is sufficient. All teachers, including the one
-		io.to('teachers').emit('new-issue', populatedIssue);
+	if (io && populatedIssue.assignedTo) {
+		// Emit to the specific teacher's room
+		io.to(String(populatedIssue.assignedTo._id)).emit('new-issue', populatedIssue);
 	}
 
 	return ApiResponse.success(res, populatedIssue, 'Issue raised successfully', 201);
@@ -87,10 +89,14 @@ const getStudentIssues = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, issues, 'Student issues fetched');
 });
 
-// Get all issues for a teacher (assigned or all) with optional filters
+// Get issues assigned to the current teacher
 const getAllIssues = asyncHandler(async (req, res) => {
 	const { status, exam, search } = req.query;
-	const filter = {};
+	const teacherId = req.teacher?._id;
+
+	// STRICT ACCESS CONTROL: Only show issues assigned to this teacher
+	const filter = { assignedTo: teacherId };
+
 	if (status) filter.status = String(status).toLowerCase();
 	if (exam) filter.exam = exam;
 
@@ -100,10 +106,14 @@ const getAllIssues = asyncHandler(async (req, res) => {
 			mongoose.model('Student').find({ fullname: searchRegex }).select('_id').lean(),
 			mongoose.model('Exam').find({ title: searchRegex }).select('_id').lean(),
 		]);
-		filter.$or = [
-			{ description: searchRegex },
-			{ student: { $in: studentIds.map(s => s._id) } },
-			{ exam: { $in: examIds.map(e => e._id) } },
+		filter.$and = [
+			{
+				$or: [
+					{ description: searchRegex },
+					{ student: { $in: studentIds.map(s => s._id) } },
+					{ exam: { $in: examIds.map(e => e._id) } },
+				],
+			},
 		];
 	}
 
@@ -114,10 +124,10 @@ const getAllIssues = asyncHandler(async (req, res) => {
 		.sort({ createdAt: -1 })
 		.lean();
 
-	return ApiResponse.success(res, issues, 'All issues fetched');
+	return ApiResponse.success(res, issues, 'Assigned issues fetched');
 });
 
-// Teacher updates an issue's status (no resolve here; use resolve endpoint)
+// Teacher updates an issue's status
 const updateIssueStatus = asyncHandler(async (req, res) => {
 	const { id } = req.params;
 	const { status } = req.body;
@@ -126,35 +136,23 @@ const updateIssueStatus = asyncHandler(async (req, res) => {
 	const issue = await Issue.findById(id);
 	if (!issue) throw ApiError.NotFound('Issue not found');
 
-	const oldStatus = issue.status; // Capture the status before the update
+	// Authorization Check: Ensure the teacher owns this issue
+	if (String(issue.assignedTo) !== String(teacherId)) {
+		throw ApiError.Forbidden('You are not authorized to update this issue.');
+	}
 
 	if (issue.status === 'resolved') {
 		throw ApiError.Conflict('Cannot change status of a resolved issue.');
 	}
-	if (issue.status === 'in-progress' && status === 'open') {
-		throw new ApiError(409, 'Cannot unassign an issue that is already in progress.');
-	}
 
 	issue.status = String(status).toLowerCase();
 
-	// Assign/unassign based on status
-	if (issue.status === 'in-progress') {
-		issue.assignedTo = teacherId;
-		issue.activityLog.push({
-			action: 'assigned',
-			user: teacherId,
-			userModel: 'Teacher',
-			details: 'Issue assigned and moved to In Progress.',
-		});
-	} else if (issue.status === 'open') {
-		issue.assignedTo = null;
-		issue.activityLog.push({
-			action: 'status-changed',
-			user: teacherId,
-			userModel: 'Teacher',
-			details: 'Issue moved back to Open.',
-		});
-	}
+	issue.activityLog.push({
+		action: 'status-changed',
+		user: teacherId,
+		userModel: 'Teacher',
+		details: `Status updated to ${status}.`,
+	});
 
 	await issue.save();
 
@@ -166,8 +164,8 @@ const updateIssueStatus = asyncHandler(async (req, res) => {
 
 	const io = req.io || req.app?.get('io');
 	if (io) {
-		// The frontend `issue-update` listener expects the normalized issue object directly.
-		io.to('teachers').emit('issue-update', populatedIssue);
+		// Emit to the teacher (confirmation) and the student
+		io.to(String(teacherId)).emit('issue-update', populatedIssue);
 		if (populatedIssue.student) {
 			io.to(String(populatedIssue.student._id)).emit('issue-update', populatedIssue);
 		}
@@ -186,6 +184,12 @@ const resolveIssue = asyncHandler(async (req, res) => {
 
 	const issue = await Issue.findById(issueId);
 	if (!issue) throw ApiError.NotFound('Issue not found');
+
+	// Authorization Check
+	if (String(issue.assignedTo) !== String(teacherId)) {
+		throw ApiError.Forbidden('You are not authorized to resolve this issue.');
+	}
+
 	if (issue.status === 'resolved') {
 		return ApiResponse.success(res, issue, 'Issue already resolved');
 	}
@@ -202,7 +206,7 @@ const resolveIssue = asyncHandler(async (req, res) => {
 	const io = req.io || req.app?.get('io');
 	if (io) {
 		io.to(String(issue.student)).emit('issue-update', populatedIssue);
-		io.to('teachers').emit('issue-update', populatedIssue);
+		io.to(String(teacherId)).emit('issue-update', populatedIssue);
 	}
 
 	return ApiResponse.success(res, populatedIssue, 'Issue resolved');
@@ -218,25 +222,31 @@ const addInternalNote = asyncHandler(async (req, res) => {
 		throw new ApiError(400, 'Note cannot be empty.');
 	}
 
-	const issue = await Issue.findByIdAndUpdate(
+	const issue = await Issue.findById(id);
+	if (!issue) throw ApiError.NotFound('Issue not found');
+
+	// Authorization Check
+	if (String(issue.assignedTo) !== String(teacherId)) {
+		throw ApiError.Forbidden('You are not authorized to add notes to this issue.');
+	}
+
+	const updatedIssue = await Issue.findByIdAndUpdate(
 		id,
 		{ $push: { internalNotes: { user: teacherId, note: note.trim() } } },
 		{ new: true },
 	)
 		.populate('internalNotes.user', 'fullname')
+		.populate('student', 'fullname email') // Need student ID for socket if we wanted to emit to them (we don't for internal notes)
+		.populate('assignedTo', 'fullname')
 		.lean();
 
-	if (!issue) {
-		throw new ApiError(404, 'Issue not found.');
-	}
-
-	// Emit an update so all teachers see the new note in real-time
+	// Emit update ONLY to the assigned teacher (it's an internal note)
 	const io = req.io || req.app?.get('io');
 	if (io) {
-		io.to('teachers').emit('issue-update', issue);
+		io.to(String(teacherId)).emit('issue-update', updatedIssue);
 	}
 
-	return ApiResponse.success(res, issue.internalNotes, 'Note added successfully.');
+	return ApiResponse.success(res, updatedIssue.internalNotes, 'Note added successfully.');
 });
 
 // Teacher resolves multiple issues at once
@@ -249,6 +259,16 @@ const bulkResolveIssues = asyncHandler(async (req, res) => {
 	}
 	if (!reply?.trim()) {
 		throw new ApiError(400, 'A reply is required for bulk resolution.');
+	}
+
+	// Verify ownership of ALL issues before updating
+	const count = await Issue.countDocuments({
+		_id: { $in: issueIds },
+		assignedTo: teacherId,
+	});
+
+	if (count !== issueIds.length) {
+		throw ApiError.Forbidden('You can only resolve issues assigned to you.');
 	}
 
 	const updateResult = await Issue.updateMany(
@@ -284,10 +304,11 @@ const bulkResolveIssues = asyncHandler(async (req, res) => {
 
 	const io = req.io || req.app?.get('io');
 	if (io) {
-		// Send a single event with all updated issues for efficiency
-		io.to('teachers').emit('issues-updated', updatedIssues);
+		// Emit to the teacher
+		io.to(String(teacherId)).emit('issues-updated', updatedIssues);
+		// Emit to each student individually
 		updatedIssues.forEach(issue => {
-			io.to(String(issue.student)).emit('issue-update', issue);
+			io.to(String(issue.student._id)).emit('issue-update', issue);
 		});
 	}
 
@@ -312,6 +333,12 @@ const getIssueById = asyncHandler(async (req, res) => {
 
 	if (!issue) throw ApiError.NotFound('Issue not found');
 
+	// Access Control: Teacher can only view their assigned issues
+	// (Optional: Allow viewing if they are an admin, but for now strict)
+	if (req.teacher && String(issue.assignedTo?._id || issue.assignedTo) !== String(req.teacher._id)) {
+		throw ApiError.Forbidden('You are not authorized to view this issue.');
+	}
+
 	return ApiResponse.success(res, issue, 'Issue details fetched');
 });
 
@@ -326,22 +353,20 @@ const deleteIssue = asyncHandler(async (req, res) => {
 		throw new ApiError(404, 'Issue not found.');
 	}
 
-	// Security check: Ensure the student owns this issue
 	if (String(issue.student) !== String(studentId)) {
 		throw new ApiError(403, 'You are not authorized to delete this issue.');
 	}
 
-	// Business logic: Prevent deletion of resolved issues
 	if (issue.status === 'resolved') {
 		throw new ApiError(409, 'Cannot delete an issue that has already been resolved.');
 	}
 
 	await Issue.findByIdAndDelete(id);
 
-	// Notify teachers in real-time to remove it from their UI
 	const io = req.io || req.app?.get('io');
-	if (io) {
-		io.to('teachers').emit('issue-deleted', { id });
+	if (io && issue.assignedTo) {
+		// Notify the assigned teacher
+		io.to(String(issue.assignedTo)).emit('issue-deleted', { id });
 	}
 
 	return ApiResponse.success(res, null, 'Issue withdrawn successfully.');

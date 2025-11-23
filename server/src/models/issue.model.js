@@ -80,6 +80,7 @@ const issueSchema = new mongoose.Schema(
 		assignedTo: {
 			type: mongoose.Schema.Types.ObjectId,
 			ref: 'Teacher',
+			required: [true, 'Teacher reference is required'],
 		},
 		reply: {
 			type: String,
