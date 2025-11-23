@@ -21,6 +21,7 @@ import {
 	cancelExam,
 	extendExam,
 	regenerateExamCode,
+	getExamStats,
 } from '../controllers/exam.controller.js';
 
 const router = Router();
@@ -65,6 +66,9 @@ router.get('/my', checkAuth, verifyTeacher, getMyExams);
 
 // Optional: ops/testing — trigger a sync now
 router.post('/sync-status', checkAuth, verifyTeacher, syncStatusesNow);
+
+// Get exam stats
+router.get('/stats', checkAuth, verifyTeacher, getExamStats);
 
 // Get single exam by ID
 router.get('/:id', checkAuth, getExamById);

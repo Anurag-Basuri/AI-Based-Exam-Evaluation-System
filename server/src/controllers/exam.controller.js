@@ -745,6 +745,73 @@ const regenerateExamCode = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, { searchId: newCode }, 'Share code regenerated');
 });
 
+// Get exam statistics for dashboard
+const getExamStats = asyncHandler(async (req, res) => {
+	const teacherId = req.teacher?._id || req.user?.id;
+	const now = new Date();
+
+	const stats = await Exam.aggregate([
+		{ $match: { createdBy: new mongoose.Types.ObjectId(teacherId) } },
+		{
+			$group: {
+				_id: null,
+				total: { $sum: 1 },
+				draft: { $sum: { $cond: [{ $eq: ['$status', 'draft'] }, 1, 0] } },
+				active: {
+					$sum: {
+						$cond: [
+							{
+								$and: [
+									{ $eq: ['$status', 'active'] },
+									{ $lte: ['$startTime', now] },
+									{ $gte: ['$endTime', now] },
+								],
+							},
+							1,
+							0,
+						],
+					},
+				},
+				scheduled: {
+					$sum: {
+						$cond: [
+							{
+								$and: [{ $eq: ['$status', 'active'] }, { $gt: ['$startTime', now] }],
+							},
+							1,
+							0,
+						],
+					},
+				},
+				completed: {
+					$sum: {
+						$cond: [
+							{
+								$or: [
+									{ $eq: ['$status', 'completed'] },
+									{
+										$and: [
+											{ $eq: ['$status', 'active'] },
+											{ $lt: ['$endTime', now] },
+										],
+									},
+								],
+							},
+							1,
+							0,
+						],
+					},
+				},
+			},
+		},
+	]);
+
+	const result = stats[0] || { total: 0, draft: 0, active: 0, scheduled: 0, completed: 0 };
+	delete result._id;
+
+	return ApiResponse.success(res, result, 'Exam stats fetched');
+});
+
 export {
 	createExam,
 	addQuestionsToExam,
@@ -765,4 +832,5 @@ export {
 	cancelExam,
 	extendExam,
 	regenerateExamCode,
+	getExamStats,
 };
