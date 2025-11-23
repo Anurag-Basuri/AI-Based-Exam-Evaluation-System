@@ -17,25 +17,28 @@ import { useAuth } from '../../hooks/useAuth.js';
 
 const MOBILE_BREAKPOINT = 1024;
 
-// --- UI Enhancements ---
+// --- UI Constants ---
 const statusStyles = {
 	open: {
 		label: 'Open',
 		icon: '⚪',
 		color: 'var(--warning-text)',
 		bg: 'var(--warning-bg)',
+		border: 'var(--warning-border)',
 	},
 	'in-progress': {
 		label: 'In Progress',
 		icon: '🟡',
 		color: 'var(--info-text)',
 		bg: 'var(--info-bg)',
+		border: 'var(--info-border)',
 	},
 	resolved: {
 		label: 'Resolved',
 		icon: '🟢',
 		color: 'var(--success-text)',
 		bg: 'var(--success-bg)',
+		border: 'var(--success-border)',
 	},
 };
 
@@ -62,18 +65,16 @@ const BulkActionToolbar = ({ selectedIds, onBulkResolve, onClear }) => {
 
 	return (
 		<div style={styles.bulkToolbar}>
-			<span>
-				<strong>{selectedIds.length}</strong> selected
-			</span>
-			<div style={{ display: 'flex', gap: 12 }}>
-				<button onClick={handleResolveClick} style={styles.buttonPrimary}>
-					Resolve Selected
+			<div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+				<div style={styles.selectionBadge}>{selectedIds.length}</div>
+				<span style={{ fontWeight: 500, color: 'var(--primary-contrast)' }}>Selected</span>
+			</div>
+			<div style={{ display: 'flex', gap: 8 }}>
+				<button onClick={handleResolveClick} style={styles.buttonWhite}>
+					Resolve All
 				</button>
-				<button
-					onClick={onClear}
-					style={{ ...styles.buttonSecondary, background: 'transparent' }}
-				>
-					Clear Selection
+				<button onClick={onClear} style={styles.buttonGhostWhite}>
+					Cancel
 				</button>
 			</div>
 		</div>
@@ -119,10 +120,9 @@ const IssueDetailPanel = ({ issueId, onClose, onUpdate, isMobile }) => {
 		if (!note.trim()) return;
 		setIsAddingNote(true);
 		try {
-			// The backend now returns the new list of notes
 			const newNotes = await safeApiCall(addInternalNote, issueId, note);
 			setIssue(prev => ({ ...prev, internalNotes: newNotes }));
-			setNote(''); // Clear the input on success
+			setNote('');
 		} catch (err) {
 			toast.error('Failed to add note', { description: err.message });
 		} finally {
@@ -134,135 +134,159 @@ const IssueDetailPanel = ({ issueId, onClose, onUpdate, isMobile }) => {
 
 	return (
 		<>
-			{isMobile && <div style={styles.modalBackdrop} onClick={onClose} />}
+			<div style={styles.modalBackdrop} onClick={onClose} />
 			<div style={styles.detailPanel(isMobile)}>
-				<button onClick={onClose} style={styles.modalCloseButton}>
-					&times;
-				</button>
-				{loading && <div style={styles.detailLoading}>Loading details...</div>}
-				{!loading && issue && (
-					<>
-						<h3 style={{ marginTop: 0 }}>{issue.examTitle}</h3>
-						<div style={styles.detailMeta}>
-							<span>
-								<strong>Student:</strong> {issue.studentName}
-							</span>
-							<span>
-								<strong>Status:</strong> {issue.status}
-							</span>
-							{issue.assignedTo && (
-								<span>
-									<strong>Assigned To:</strong> {issue.assignedTo}
-								</span>
-							)}
-						</div>
-						<div style={styles.detailBox}>
-							<strong>Description:</strong> {issue.description}
-						</div>
+				<div style={styles.detailHeader}>
+					<h3 style={{ margin: 0, fontSize: '1.25rem' }}>Issue Details</h3>
+					<button onClick={onClose} style={styles.closeButton}>
+						&times;
+					</button>
+				</div>
 
-						{issue.submission?.id && (
-							<Link
-								to={`/teacher/grade/${issue.submission.id}`}
-								style={styles.linkButton}
-							>
-								View Submission
-							</Link>
-						)}
-
-						{issue.status !== 'resolved' && (
-							<form onSubmit={handleResolve} style={{ marginTop: 24 }}>
-								<h4>Resolve Issue</h4>
-								<textarea
-									value={reply}
-									onChange={e => setReply(e.target.value)}
-									placeholder="Type your reply to the student..."
-									rows={4}
-									style={styles.textarea}
-									required
-								/>
-								<div
-									style={{
-										display: 'flex',
-										justifyContent: 'flex-end',
-										marginTop: 10,
-									}}
-								>
-									<button
-										type="submit"
-										disabled={isSaving}
-										style={styles.buttonPrimary}
+				<div style={styles.detailContent}>
+					{loading && <div style={styles.loadingState}>Loading details...</div>}
+					{!loading && issue && (
+						<>
+							<div style={styles.section}>
+								<div style={styles.issueTitleBlock}>
+									<h2 style={styles.issueExamTitle}>{issue.examTitle}</h2>
+									<div
+										style={{
+											...styles.statusBadge,
+											...statusStyles[issue.status],
+										}}
 									>
-										{isSaving ? 'Saving...' : 'Save & Resolve'}
-									</button>
+										{statusStyles[issue.status]?.icon}{' '}
+										{statusStyles[issue.status]?.label}
+									</div>
 								</div>
-							</form>
-						)}
-
-						{issue.reply && (
-							<div style={{ marginTop: 24 }}>
-								<h4>Resolution Reply</h4>
-								<div style={styles.detailBox}>{issue.reply}</div>
-							</div>
-						)}
-
-						<div style={{ marginTop: 24 }}>
-							<h4>Internal Notes</h4>
-							<div style={styles.internalNotesContainer}>
-								{(issue.internalNotes || []).length === 0 && (
-									<p style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
-										No internal notes yet.
-									</p>
-								)}
-								{(issue.internalNotes || []).map((n, i) => (
-									<div key={i} style={styles.internalNote}>
-										<strong>{n.user?.fullname || 'User'}:</strong> {n.note}
-										<span style={styles.activityTime}>
-											{new Date(n.createdAt).toLocaleString()}
+								<div style={styles.metaGrid}>
+									<div style={styles.metaItem}>
+										<span style={styles.metaLabel}>Student</span>
+										<span style={styles.metaValue}>{issue.studentName}</span>
+									</div>
+									<div style={styles.metaItem}>
+										<span style={styles.metaLabel}>Assigned To</span>
+										<span style={styles.metaValue}>
+											{issue.assignedTo || 'Unassigned'}
 										</span>
 									</div>
-								))}
-							</div>
-							<form
-								onSubmit={handleAddNote}
-								style={{ marginTop: 10, display: 'flex', gap: 8 }}
-							>
-								<input
-									value={note}
-									onChange={e => setNote(e.target.value)}
-									placeholder="Add a private note..."
-									style={{ ...styles.searchInput, flex: 1 }}
-								/>
-								<button
-									type="submit"
-									disabled={isAddingNote}
-									style={styles.actionButton}
-								>
-									{isAddingNote ? '...' : 'Add'}
-								</button>
-							</form>
-						</div>
-
-						<div style={{ marginTop: 24 }}>
-							<h4>Activity Log</h4>
-							<ul style={styles.activityLog}>
-								{(issue.activityLog || []).map((log, i) => (
-									<li key={i} style={{ display: 'flex' }}>
-										<span style={styles.activityIcon}>
-											{activityIcons[log.action] || '•'}
+									<div style={styles.metaItem}>
+										<span style={styles.metaLabel}>Reported</span>
+										<span style={styles.metaValue}>
+											{new Date(issue.createdAt).toLocaleDateString()}
 										</span>
-										<div style={styles.activityText}>
-											<strong>{log.user?.fullname || 'System'}</strong>:{' '}
-											{log.details}
-											<span style={styles.activityTime}>
-												{new Date(log.createdAt).toLocaleString()}
-											</span>
+									</div>
+								</div>
+							</div>
+
+							<div style={styles.section}>
+								<h4 style={styles.sectionTitle}>Description</h4>
+								<div style={styles.descriptionBox}>{issue.description}</div>
+								{issue.submission?.id && (
+									<Link
+										to={`/teacher/grade/${issue.submission.id}`}
+										style={styles.viewSubmissionLink}
+									>
+										View Student Submission &rarr;
+									</Link>
+								)}
+							</div>
+
+							{issue.status !== 'resolved' && (
+								<div style={styles.section}>
+									<h4 style={styles.sectionTitle}>Resolve Issue</h4>
+									<form onSubmit={handleResolve} style={styles.resolveForm}>
+										<textarea
+											value={reply}
+											onChange={e => setReply(e.target.value)}
+											placeholder="Type your reply to the student..."
+											rows={4}
+											style={styles.textarea}
+											required
+										/>
+										<div style={styles.formActions}>
+											<button
+												type="submit"
+												disabled={isSaving}
+												style={styles.buttonPrimary}
+											>
+												{isSaving ? 'Saving...' : 'Resolve Issue'}
+											</button>
 										</div>
-									</li>
-								))}
-							</ul>
-						</div>
-					</>
-				)}
+									</form>
+								</div>
+							)}
+
+							{issue.reply && (
+								<div style={styles.section}>
+									<h4 style={styles.sectionTitle}>Resolution</h4>
+									<div style={styles.resolutionBox}>
+										<div style={styles.resolutionHeader}>Reply to Student:</div>
+										{issue.reply}
+									</div>
+								</div>
+							)}
+
+							<div style={styles.section}>
+								<h4 style={styles.sectionTitle}>Internal Notes</h4>
+								<div style={styles.notesList}>
+									{(issue.internalNotes || []).length === 0 && (
+										<p style={styles.emptyNotes}>No internal notes yet.</p>
+									)}
+									{(issue.internalNotes || []).map((n, i) => (
+										<div key={i} style={styles.noteItem}>
+											<div style={styles.noteHeader}>
+												<strong>{n.user?.fullname || 'User'}</strong>
+												<span style={styles.noteTime}>
+													{new Date(n.createdAt).toLocaleString()}
+												</span>
+											</div>
+											<div style={styles.noteContent}>{n.note}</div>
+										</div>
+									))}
+								</div>
+								<form onSubmit={handleAddNote} style={styles.addNoteForm}>
+									<input
+										value={note}
+										onChange={e => setNote(e.target.value)}
+										placeholder="Add a private note..."
+										style={styles.noteInput}
+									/>
+									<button
+										type="submit"
+										disabled={isAddingNote}
+										style={styles.buttonSecondary}
+									>
+										Add
+									</button>
+								</form>
+							</div>
+
+							<div style={styles.section}>
+								<h4 style={styles.sectionTitle}>Activity Log</h4>
+								<div style={styles.timeline}>
+									{(issue.activityLog || []).map((log, i) => (
+										<div key={i} style={styles.timelineItem}>
+											<div style={styles.timelineIcon}>
+												{activityIcons[log.action] || '•'}
+											</div>
+											<div style={styles.timelineContent}>
+												<div style={styles.timelineText}>
+													<strong>{log.user?.fullname || 'System'}</strong>{' '}
+													{log.details}
+												</div>
+												<div style={styles.timelineTime}>
+													{new Date(log.createdAt).toLocaleString()}
+												</div>
+											</div>
+										</div>
+									))}
+								</div>
+							</div>
+						</>
+					)}
+				</div>
 			</div>
 		</>
 	);
@@ -271,22 +295,11 @@ const IssueDetailPanel = ({ issueId, onClose, onUpdate, isMobile }) => {
 const IssueRow = ({ issue, onSelect, onToggleSelect, isChecked, isSelected, onUpdate, toast }) => {
 	const config = statusStyles[issue.status] || statusStyles.open;
 
-	const handleStatusChange = async newStatus => {
-		try {
-			const updatedIssue = await safeApiCall(updateTeacherIssueStatus, issue.id, newStatus);
-			onUpdate(updatedIssue);
-			toast.success(`Issue status updated to "${newStatus}"`);
-		} catch (err) {
-			toast.error('Failed to update status', { description: err.message });
-		}
-	};
-
 	return (
 		<tr
 			style={{
 				...styles.tableRow,
-				background: isSelected ? 'var(--primary-bg)' : 'transparent',
-				cursor: 'pointer',
+				background: isSelected ? 'var(--primary-light-bg)' : 'transparent',
 			}}
 			onClick={() => onSelect(issue)}
 		>
@@ -296,17 +309,37 @@ const IssueRow = ({ issue, onSelect, onToggleSelect, isChecked, isSelected, onUp
 					checked={isChecked}
 					onChange={() => onToggleSelect(issue.id)}
 					disabled={issue.status === 'resolved'}
+					style={styles.checkbox}
 				/>
 			</td>
-			<td style={styles.tableCell}>{issue.studentName || 'N/A'}</td>
-			<td style={styles.tableCell}>{issue.examTitle}</td>
 			<td style={styles.tableCell}>
-				<div style={{ ...styles.statusPill, color: config.color, background: config.bg }}>
-					{config.icon} {config.label}
+				<div style={styles.studentCell}>
+					<div style={styles.avatarPlaceholder}>
+						{issue.studentName?.charAt(0) || 'S'}
+					</div>
+					<span style={{ fontWeight: 500 }}>{issue.studentName || 'N/A'}</span>
 				</div>
 			</td>
+			<td style={styles.tableCell}>{issue.examTitle}</td>
+			<td style={styles.tableCell}>
+				<span
+					style={{
+						...styles.statusPill,
+						color: config.color,
+						background: config.bg,
+						border: `1px solid ${config.border}`,
+					}}
+				>
+					{config.icon} {config.label}
+				</span>
+			</td>
 			<td style={styles.tableCell}>{issue.assignedTo || 'Unassigned'}</td>
-			<td style={styles.tableCell}>{issue.createdAt}</td>
+			<td style={styles.tableCell}>
+				{new Date(issue.createdAt).toLocaleDateString(undefined, {
+					month: 'short',
+					day: 'numeric',
+				})}
+			</td>
 		</tr>
 	);
 };
@@ -317,39 +350,49 @@ const IssueCard = ({ issue, onSelect, onToggleSelect, isChecked, isSelected }) =
 		<div
 			style={{
 				...styles.card.container,
-				...(isSelected && {
-					borderColor: 'var(--primary)',
-					boxShadow: '0 0 0 1px var(--primary)',
-				}),
+				borderColor: isSelected ? 'var(--primary)' : 'var(--border)',
+				boxShadow: isSelected ? '0 0 0 2px var(--primary-light)' : 'var(--shadow-sm)',
 			}}
 			onClick={() => onSelect(issue)}
 		>
 			<div style={styles.card.header}>
-				<input
-					type="checkbox"
-					checked={isChecked}
-					onChange={e => {
-						e.stopPropagation();
-						onToggleSelect(issue.id);
-					}}
-					disabled={issue.status === 'resolved'}
-					style={{ marginRight: 12 }}
-				/>
-				<span style={styles.card.title}>{issue.examTitle}</span>
-				<div style={{ ...styles.statusPill, color: config.color, background: config.bg }}>
-					{config.label}
+				<div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+					<input
+						type="checkbox"
+						checked={isChecked}
+						onChange={e => {
+							e.stopPropagation();
+							onToggleSelect(issue.id);
+						}}
+						disabled={issue.status === 'resolved'}
+						style={styles.checkbox}
+					/>
+					<span style={styles.card.title}>{issue.examTitle}</span>
 				</div>
+				<span
+					style={{
+						...styles.statusPill,
+						color: config.color,
+						background: config.bg,
+						border: `1px solid ${config.border}`,
+						fontSize: 11,
+					}}
+				>
+					{config.label}
+				</span>
 			</div>
 			<div style={styles.card.body}>
-				<p>
-					<strong>Student:</strong> {issue.studentName || 'N/A'}
-				</p>
-				<p>
-					<strong>Assigned:</strong> {issue.assignedTo || 'Unassigned'}
-				</p>
-				<p style={{ color: 'var(--text-muted)', fontSize: 12 }}>
-					Reported on {issue.createdAt}
-				</p>
+				<div style={styles.cardRow}>
+					<span style={styles.cardLabel}>Student:</span>
+					<span style={styles.cardValue}>{issue.studentName || 'N/A'}</span>
+				</div>
+				<div style={styles.cardRow}>
+					<span style={styles.cardLabel}>Assigned:</span>
+					<span style={styles.cardValue}>{issue.assignedTo || 'Unassigned'}</span>
+				</div>
+				<div style={styles.cardFooter}>
+					Reported on {new Date(issue.createdAt).toLocaleDateString()}
+				</div>
 			</div>
 		</div>
 	);
@@ -431,7 +474,6 @@ const TeacherIssues = () => {
 	};
 
 	const handleToggleSelect = issueId => {
-		// UX Improvement: When selecting multiple, close the detail panel
 		if (selectedIssueId) setSelectedIssueId(null);
 		setSelectedIssueIds(prev =>
 			prev.includes(issueId) ? prev.filter(id => id !== issueId) : [...prev, issueId],
@@ -500,17 +542,20 @@ const TeacherIssues = () => {
 			<div style={styles.mainContent(isMobile)}>
 				<header style={styles.header(isMobile)}>
 					<div>
-						<h1 style={styles.title}>Manage Issues</h1>
-						<p style={styles.subtitle}>Review and resolve student-submitted issues.</p>
+						<h1 style={styles.title}>Issue Tracker</h1>
+						<p style={styles.subtitle}>Manage and resolve student inquiries.</p>
 					</div>
 					<div style={styles.controlsContainer(isMobile)}>
-						<input
-							type="search"
-							placeholder="Search by student, exam..."
-							value={searchQuery}
-							onChange={e => setSearchQuery(e.target.value)}
-							style={styles.searchInput}
-						/>
+						<div style={styles.searchWrapper}>
+							<span style={styles.searchIcon}>🔍</span>
+							<input
+								type="search"
+								placeholder="Search issues..."
+								value={searchQuery}
+								onChange={e => setSearchQuery(e.target.value)}
+								style={styles.searchInput}
+							/>
+						</div>
 						<div style={styles.filterGroup}>
 							{['my-issues', 'open', 'in-progress', 'resolved', 'all'].map(f => (
 								<button
@@ -531,82 +576,93 @@ const TeacherIssues = () => {
 					</div>
 				</header>
 
-				<BulkActionToolbar
-					selectedIds={selectedIssueIds}
-					onBulkResolve={handleBulkResolve}
-					onClear={() => setSelectedIssueIds([])}
-				/>
+				<div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column' }}>
+					<BulkActionToolbar
+						selectedIds={selectedIssueIds}
+						onBulkResolve={handleBulkResolve}
+						onClear={() => setSelectedIssueIds([])}
+					/>
 
-				{error && <p style={{ color: 'var(--danger-text)', padding: '0 16px' }}>{error}</p>}
-				{loading && (
-					<p style={{ color: 'var(--text-muted)', padding: '0 16px' }}>
-						Loading issues...
-					</p>
-				)}
+					{error && (
+						<div style={styles.errorBanner}>
+							⚠️ {error}
+						</div>
+					)}
+					
+					{loading && (
+						<div style={styles.loadingContainer}>
+							<div className="spinner"></div>
+							<p>Loading issues...</p>
+						</div>
+					)}
 
-				{!isMobile ? (
-					<div style={styles.tableContainer}>
-						<table style={styles.table}>
-							<thead>
-								<tr>
-									<th style={{ ...styles.tableHeader, width: 50 }}>
-										<input
-											type="checkbox"
-											onChange={handleSelectAll}
-											checked={isAllVisibleSelected}
-										/>
-									</th>
-									<th style={styles.tableHeader}>Student</th>
-									<th style={styles.tableHeader}>Exam</th>
-									<th style={styles.tableHeader}>Status</th>
-									<th style={styles.tableHeader}>Assigned To</th>
-									<th style={styles.tableHeader}>Date</th>
-								</tr>
-							</thead>
-							<tbody>
-								{!loading && filteredIssues.length === 0 && (
+					{!loading && !isMobile ? (
+						<div style={styles.tableContainer}>
+							<table style={styles.table}>
+								<thead>
 									<tr>
-										<td colSpan="6" style={styles.emptyState}>
-											<div style={{ fontSize: 48 }}>🎉</div>
-											No issues match the current filters. All clear!
-										</td>
+										<th style={{ ...styles.tableHeader, width: 40 }}>
+											<input
+												type="checkbox"
+												onChange={handleSelectAll}
+												checked={isAllVisibleSelected}
+												style={styles.checkbox}
+											/>
+										</th>
+										<th style={styles.tableHeader}>Student</th>
+										<th style={styles.tableHeader}>Exam</th>
+										<th style={styles.tableHeader}>Status</th>
+										<th style={styles.tableHeader}>Assigned To</th>
+										<th style={styles.tableHeader}>Date</th>
 									</tr>
-								)}
-								{filteredIssues.map(issue => (
-									<IssueRow
-										key={issue.id}
-										issue={issue}
-										onSelect={() => setSelectedIssueId(issue.id)}
-										onToggleSelect={handleToggleSelect}
-										isChecked={selectedIssueIds.includes(issue.id)}
-										isSelected={selectedIssueId === issue.id}
-										onUpdate={handleUpdate}
-										toast={toast}
-									/>
-								))}
-							</tbody>
-						</table>
-					</div>
-				) : (
-					<div style={styles.cardList}>
-						{!loading && filteredIssues.length === 0 && (
-							<div style={styles.emptyState}>
-								<div style={{ fontSize: 48 }}>🎉</div>
-								No issues match the current filters. All clear!
-							</div>
-						)}
-						{filteredIssues.map(issue => (
-							<IssueCard
-								key={issue.id}
-								issue={issue}
-								onSelect={() => setSelectedIssueId(issue.id)}
-								onToggleSelect={handleToggleSelect}
-								isChecked={selectedIssueIds.includes(issue.id)}
-								isSelected={selectedIssueId === issue.id}
-							/>
-						))}
-					</div>
-				)}
+								</thead>
+								<tbody>
+									{filteredIssues.length === 0 && (
+										<tr>
+											<td colSpan="6" style={styles.emptyState}>
+												<div style={{ fontSize: 48, marginBottom: 16 }}>🎉</div>
+												<div style={{ fontWeight: 600, fontSize: 18 }}>All caught up!</div>
+												<div style={{ color: 'var(--text-muted)' }}>No issues found matching your filters.</div>
+											</td>
+										</tr>
+									)}
+									{filteredIssues.map(issue => (
+										<IssueRow
+											key={issue.id}
+											issue={issue}
+											onSelect={() => setSelectedIssueId(issue.id)}
+											onToggleSelect={handleToggleSelect}
+											isChecked={selectedIssueIds.includes(issue.id)}
+											isSelected={selectedIssueId === issue.id}
+											onUpdate={handleUpdate}
+											toast={toast}
+										/>
+									))}
+								</tbody>
+							</table>
+						</div>
+					) : !loading && isMobile ? (
+						<div style={styles.cardList}>
+							{filteredIssues.length === 0 && (
+								<div style={styles.emptyState}>
+									<div style={{ fontSize: 48, marginBottom: 16 }}>🎉</div>
+									<div style={{ fontWeight: 600, fontSize: 18 }}>All caught up!</div>
+									<div style={{ color: 'var(--text-muted)' }}>No issues found matching your filters.</div>
+								</div>
+							)}
+							{filteredIssues.map(issue => (
+								<IssueCard
+									key={issue.id}
+									issue={issue}
+									onSelect={() => setSelectedIssueId(issue.id)}
+									onToggleSelect={handleToggleSelect}
+									isChecked={selectedIssueIds.includes(issue.id)}
+									isSelected={selectedIssueId === issue.id}
+								/>
+							))}
+						</div>
+					) : null}
+				</div>
 			</div>
 			{selectedIssueId && (
 				<IssueDetailPanel
@@ -621,23 +677,28 @@ const TeacherIssues = () => {
 };
 
 const styles = {
-	pageLayout: { display: 'flex', position: 'relative', height: '100vh', overflow: 'hidden' },
+	pageLayout: {
+		display: 'flex',
+		position: 'relative',
+		height: '100vh',
+		overflow: 'hidden',
+		background: 'var(--bg-secondary)',
+	},
 	mainContent: isMobile => ({
 		flex: 1,
 		minWidth: 0,
-		padding: isMobile ? 16 : 24,
+		padding: isMobile ? 16 : 32,
 		display: 'flex',
 		flexDirection: 'column',
-		overflowY: 'auto',
+		overflowY: 'hidden',
 	}),
 	header: isMobile => ({
-		borderBottom: '1px solid var(--border)',
-		paddingBottom: 24,
 		marginBottom: 24,
 		display: 'flex',
 		flexDirection: isMobile ? 'column' : 'row',
 		justifyContent: 'space-between',
-		gap: 16,
+		gap: 20,
+		flexShrink: 0,
 	}),
 	controlsContainer: isMobile => ({
 		display: 'flex',
@@ -645,86 +706,131 @@ const styles = {
 		gap: 16,
 		alignItems: isMobile ? 'stretch' : 'center',
 	}),
-	title: { margin: 0, fontSize: 28, color: 'var(--text)' },
-	subtitle: { margin: '4px 0 0', color: 'var(--text-muted)' },
+	title: { margin: 0, fontSize: 28, fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.02em' },
+	subtitle: { margin: '4px 0 0', color: 'var(--text-muted)', fontSize: 15 },
+	searchWrapper: {
+		position: 'relative',
+		width: '100%',
+		maxWidth: 300,
+	},
+	searchIcon: {
+		position: 'absolute',
+		left: 12,
+		top: '50%',
+		transform: 'translateY(-50%)',
+		fontSize: 14,
+		opacity: 0.5,
+		pointerEvents: 'none',
+	},
 	searchInput: {
-		padding: '10px 14px',
-		borderRadius: 8,
+		padding: '10px 14px 10px 36px',
+		borderRadius: 10,
 		border: '1px solid var(--border)',
 		background: 'var(--surface)',
 		width: '100%',
-		minWidth: 250,
+		fontSize: 14,
+		transition: 'border-color 0.2s',
+		outline: 'none',
 	},
 	filterGroup: {
 		display: 'flex',
 		gap: 4,
-		background: 'var(--bg)',
+		background: 'var(--surface)',
 		padding: 4,
-		borderRadius: 10,
+		borderRadius: 12,
+		border: '1px solid var(--border)',
 		overflowX: 'auto',
 	},
 	filterButton: {
-		padding: '8px 12px',
+		padding: '8px 16px',
 		borderRadius: 8,
 		border: 'none',
 		background: 'transparent',
 		color: 'var(--text-muted)',
 		fontWeight: 600,
+		fontSize: 13,
 		cursor: 'pointer',
 		whiteSpace: 'nowrap',
+		transition: 'all 0.2s',
 	},
 	filterButtonActive: {
-		padding: '8px 12px',
+		padding: '8px 16px',
 		borderRadius: 8,
 		border: 'none',
-		background: 'var(--surface)',
-		color: 'var(--primary)',
+		background: 'var(--primary)',
+		color: '#fff',
 		fontWeight: 600,
+		fontSize: 13,
 		cursor: 'pointer',
-		boxShadow: 'var(--shadow-sm)',
+		boxShadow: '0 2px 8px rgba(59, 130, 246, 0.25)',
 		whiteSpace: 'nowrap',
 	},
 	tableContainer: {
 		background: 'var(--surface)',
 		borderRadius: 16,
 		border: '1px solid var(--border)',
-		overflowX: 'auto',
-		flex: '1 1 auto',
+		overflow: 'auto',
+		flex: 1,
+		boxShadow: 'var(--shadow-sm)',
 	},
-	table: { width: '100%', borderCollapse: 'collapse' },
+	table: { width: '100%', borderCollapse: 'separate', borderSpacing: 0 },
 	tableHeader: {
-		padding: '12px 16px',
+		padding: '16px 20px',
 		textAlign: 'left',
 		borderBottom: '1px solid var(--border)',
 		color: 'var(--text-muted)',
 		fontSize: 12,
+		fontWeight: 700,
 		textTransform: 'uppercase',
-		background: 'var(--bg)',
+		background: 'var(--surface)',
+		position: 'sticky',
+		top: 0,
+		zIndex: 10,
 		whiteSpace: 'nowrap',
 	},
 	tableRow: {
-		borderBottom: '1px solid var(--border)',
 		cursor: 'pointer',
-		transition: 'background 0.2s',
+		transition: 'background 0.15s',
 	},
-	'tableRow:last-child': { borderBottom: 'none' },
-	tableCell: { padding: '16px', verticalAlign: 'middle', fontSize: 14 },
+	tableCell: {
+		padding: '16px 20px',
+		verticalAlign: 'middle',
+		fontSize: 14,
+		borderBottom: '1px solid var(--border)',
+		color: 'var(--text)',
+	},
+	studentCell: {
+		display: 'flex',
+		alignItems: 'center',
+		gap: 12,
+	},
+	avatarPlaceholder: {
+		width: 32,
+		height: 32,
+		borderRadius: '50%',
+		background: 'var(--primary-light)',
+		color: 'var(--primary)',
+		display: 'flex',
+		alignItems: 'center',
+		justifyContent: 'center',
+		fontWeight: 700,
+		fontSize: 14,
+	},
 	statusPill: {
 		padding: '4px 10px',
-		borderRadius: 20,
-		fontWeight: 700,
+		borderRadius: 99,
+		fontWeight: 600,
 		fontSize: 12,
 		display: 'inline-flex',
 		alignItems: 'center',
 		gap: 6,
+		whiteSpace: 'nowrap',
 	},
-	actionButton: {
-		padding: '6px 10px',
-		borderRadius: 8,
-		border: '1px solid var(--border)',
-		background: 'var(--surface)',
-		fontWeight: 600,
+	checkbox: {
+		width: 16,
+		height: 16,
 		cursor: 'pointer',
+		accentColor: 'var(--primary)',
 	},
 	modalBackdrop: {
 		position: 'fixed',
@@ -732,186 +838,366 @@ const styles = {
 		left: 0,
 		width: '100%',
 		height: '100%',
-		background: 'rgba(0,0,0,0.5)',
-		backdropFilter: 'blur(4px)',
+		background: 'rgba(0,0,0,0.4)',
+		backdropFilter: 'blur(2px)',
 		zIndex: 100,
 	},
-	modalCloseButton: {
-		position: 'absolute',
-		top: 12,
-		right: 12,
-		background: 'var(--bg)',
-		border: '1px solid var(--border)',
-		borderRadius: '50%',
-		width: 36,
-		height: 36,
-		fontSize: 24,
-		cursor: 'pointer',
-		color: 'var(--text-muted)',
+	detailPanel: isMobile => ({
+		width: isMobile ? '100%' : '480px',
+		height: '100%',
+		background: 'var(--surface)',
+		borderLeft: isMobile ? 'none' : '1px solid var(--border)',
+		position: 'fixed',
+		top: 0,
+		right: 0,
+		zIndex: 101,
+		boxShadow: '-8px 0 32px rgba(0,0,0,0.1)',
 		display: 'flex',
+		flexDirection: 'column',
+		animation: 'slideIn 0.3s ease-out',
+	}),
+	detailHeader: {
+		padding: '20px 24px',
+		borderBottom: '1px solid var(--border)',
+		display: 'flex',
+		justifyContent: 'space-between',
 		alignItems: 'center',
-		justifyContent: 'center',
-		zIndex: 10,
+		background: 'var(--surface)',
 	},
-	detailBox: {
-		background: 'var(--bg)',
-		padding: 12,
-		borderRadius: 8,
-		border: '1px solid var(--border)',
+	closeButton: {
+		background: 'transparent',
+		border: 'none',
+		fontSize: 24,
+		color: 'var(--text-muted)',
+		cursor: 'pointer',
+		padding: 4,
+		lineHeight: 1,
+		borderRadius: 4,
+		transition: 'background 0.2s',
+	},
+	detailContent: {
+		flex: 1,
+		overflowY: 'auto',
+		padding: 24,
+	},
+	section: {
+		marginBottom: 32,
+	},
+	issueTitleBlock: {
 		marginBottom: 16,
+	},
+	issueExamTitle: {
+		margin: '0 0 12px 0',
+		fontSize: 20,
+		fontWeight: 700,
+		lineHeight: 1.3,
+	},
+	statusBadge: {
+		display: 'inline-flex',
+		alignItems: 'center',
+		gap: 6,
+		padding: '6px 12px',
+		borderRadius: 8,
+		fontSize: 13,
+		fontWeight: 600,
+	},
+	metaGrid: {
+		display: 'grid',
+		gridTemplateColumns: '1fr 1fr',
+		gap: 16,
+		background: 'var(--bg-secondary)',
+		padding: 16,
+		borderRadius: 12,
+	},
+	metaItem: {
+		display: 'flex',
+		flexDirection: 'column',
+		gap: 4,
+	},
+	metaLabel: {
+		fontSize: 12,
+		color: 'var(--text-muted)',
+		textTransform: 'uppercase',
+		fontWeight: 600,
+	},
+	metaValue: {
 		fontSize: 14,
+		fontWeight: 500,
+		color: 'var(--text)',
+	},
+	sectionTitle: {
+		fontSize: 14,
+		fontWeight: 700,
+		color: 'var(--text-muted)',
+		textTransform: 'uppercase',
+		marginBottom: 12,
+		letterSpacing: '0.05em',
+	},
+	descriptionBox: {
+		background: 'var(--bg-secondary)',
+		padding: 16,
+		borderRadius: 12,
+		fontSize: 15,
+		lineHeight: 1.6,
+		color: 'var(--text)',
+		border: '1px solid var(--border)',
+	},
+	viewSubmissionLink: {
+		display: 'inline-block',
+		marginTop: 12,
+		color: 'var(--primary)',
+		fontWeight: 600,
+		textDecoration: 'none',
+		fontSize: 14,
+	},
+	resolveForm: {
+		background: 'var(--surface)',
+		border: '1px solid var(--border)',
+		borderRadius: 12,
+		padding: 16,
+		boxShadow: 'var(--shadow-sm)',
 	},
 	textarea: {
 		width: '100%',
 		padding: 12,
 		borderRadius: 8,
 		border: '1px solid var(--border)',
-		background: 'var(--bg)',
+		background: 'var(--bg-secondary)',
 		resize: 'vertical',
 		minHeight: 100,
+		fontSize: 14,
+		marginBottom: 12,
+		outline: 'none',
+		transition: 'border-color 0.2s',
+	},
+	formActions: {
+		display: 'flex',
+		justifyContent: 'flex-end',
 	},
 	buttonPrimary: {
-		padding: '10px 16px',
+		padding: '10px 20px',
 		borderRadius: 8,
 		border: 'none',
-		background: 'var(--primary-gradient)',
-		color: 'var(--primary-contrast)',
-		fontWeight: 700,
+		background: 'var(--primary)',
+		color: '#fff',
+		fontWeight: 600,
 		cursor: 'pointer',
+		fontSize: 14,
+		boxShadow: '0 2px 8px rgba(59, 130, 246, 0.3)',
+		transition: 'transform 0.1s',
+	},
+	resolutionBox: {
+		background: 'var(--success-bg)',
+		border: '1px solid var(--success-border)',
+		padding: 16,
+		borderRadius: 12,
+		color: 'var(--text)',
+	},
+	resolutionHeader: {
+		fontSize: 12,
+		fontWeight: 700,
+		color: 'var(--success-text)',
+		marginBottom: 8,
+		textTransform: 'uppercase',
+	},
+	notesList: {
+		display: 'flex',
+		flexDirection: 'column',
+		gap: 12,
+		marginBottom: 16,
+	},
+	noteItem: {
+		background: 'var(--bg-secondary)',
+		padding: 12,
+		borderRadius: 8,
+		fontSize: 14,
+	},
+	noteHeader: {
+		display: 'flex',
+		justifyContent: 'space-between',
+		marginBottom: 4,
+		fontSize: 12,
+	},
+	noteTime: {
+		color: 'var(--text-muted)',
+	},
+	noteContent: {
+		color: 'var(--text)',
+		lineHeight: 1.5,
+	},
+	addNoteForm: {
+		display: 'flex',
+		gap: 8,
+	},
+	noteInput: {
+		flex: 1,
+		padding: '8px 12px',
+		borderRadius: 8,
+		border: '1px solid var(--border)',
+		background: 'var(--surface)',
+		fontSize: 14,
 	},
 	buttonSecondary: {
-		padding: '10px 16px',
+		padding: '8px 16px',
 		borderRadius: 8,
 		border: '1px solid var(--border)',
 		background: 'var(--surface)',
 		color: 'var(--text)',
-		fontWeight: 700,
+		fontWeight: 600,
 		cursor: 'pointer',
 	},
-	detailPanel: isMobile => ({
-		width: isMobile ? '100%' : '450px',
-		height: isMobile ? '100%' : '100vh',
-		flexShrink: 0,
-		background: 'var(--surface)',
-		borderLeft: isMobile ? 'none' : '1px solid var(--border)',
-		padding: 24,
-		position: isMobile ? 'fixed' : 'relative',
-		top: 0,
-		right: 0,
-		overflowY: 'auto',
-		zIndex: 101,
-		boxShadow: isMobile ? '-10px 0 30px rgba(0,0,0,0.1)' : 'none',
-		transform: isMobile ? 'translateX(0)' : 'none',
-		transition: 'transform 0.3s ease-in-out',
-	}),
-	detailMeta: {
-		display: 'flex',
-		flexWrap: 'wrap',
-		gap: '8px 16px',
-		fontSize: 13,
-		color: 'var(--text-muted)',
-		marginBottom: 16,
+	timeline: {
+		position: 'relative',
+		paddingLeft: 24,
+		borderLeft: '2px solid var(--border)',
 	},
-	activityLog: { listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 16 },
-	activityIcon: {
-		fontSize: 16,
-		background: 'var(--bg)',
-		borderRadius: '50%',
-		width: 32,
-		height: 32,
-		display: 'flex',
-		alignItems: 'center',
-		justifyContent: 'center',
-	},
-	activityText: { flex: 1, paddingLeft: 12 },
-	activityTime: { fontSize: 12, color: 'var(--text-muted)', display: 'block', marginTop: 2 },
-	linkButton: {
-		display: 'inline-block',
-		textDecoration: 'none',
-		padding: '8px 14px',
-		background: 'var(--primary-bg)',
-		color: 'var(--primary)',
-		border: '1px solid var(--primary-border)',
-		borderRadius: 8,
-		fontWeight: 600,
+	timelineItem: {
+		position: 'relative',
 		marginBottom: 24,
 	},
-	emptyState: {
-		textAlign: 'center',
-		padding: '64px 48px',
-		color: 'var(--text-muted)',
-		fontSize: 16,
-		flex: 1,
+	timelineIcon: {
+		position: 'absolute',
+		left: -33,
+		top: 0,
+		width: 18,
+		height: 18,
+		background: 'var(--surface)',
+		border: '2px solid var(--primary)',
+		borderRadius: '50%',
 		display: 'flex',
-		flexDirection: 'column',
 		alignItems: 'center',
 		justifyContent: 'center',
+		fontSize: 10,
 	},
-	detailLoading: {
-		textAlign: 'center',
-		padding: '48px',
+	timelineContent: {
+		background: 'var(--bg-secondary)',
+		padding: '8px 12px',
+		borderRadius: 8,
+	},
+	timelineText: {
+		fontSize: 13,
+		color: 'var(--text)',
+		marginBottom: 4,
+	},
+	timelineTime: {
+		fontSize: 11,
 		color: 'var(--text-muted)',
 	},
 	bulkToolbar: {
-		padding: '12px 16px',
-		background: 'var(--primary-bg)',
-		border: '1px solid var(--primary-border)',
-		borderRadius: 12,
-		marginBottom: 16,
+		position: 'absolute',
+		bottom: 32,
+		left: '50%',
+		transform: 'translateX(-50%)',
+		background: 'var(--primary)',
+		padding: '12px 24px',
+		borderRadius: 100,
 		display: 'flex',
-		justifyContent: 'space-between',
 		alignItems: 'center',
+		gap: 24,
+		boxShadow: '0 10px 30px rgba(59, 130, 246, 0.4)',
+		zIndex: 50,
+		animation: 'slideUp 0.3s ease-out',
 	},
-	internalNotesContainer: {
-		maxHeight: 200,
-		overflowY: 'auto',
-		background: 'var(--bg)',
-		border: '1px solid var(--border)',
-		borderRadius: 8,
-		padding: 8,
+	selectionBadge: {
+		background: 'rgba(255,255,255,0.2)',
+		color: '#fff',
+		width: 24,
+		height: 24,
+		borderRadius: '50%',
 		display: 'flex',
-		flexDirection: 'column',
-		gap: 8,
+		alignItems: 'center',
+		justifyContent: 'center',
+		fontSize: 12,
+		fontWeight: 700,
 	},
-	internalNote: {
-		padding: '8px 12px',
-		background: 'var(--surface)',
-		borderRadius: 6,
+	buttonWhite: {
+		background: '#fff',
+		color: 'var(--primary)',
+		border: 'none',
+		padding: '8px 16px',
+		borderRadius: 20,
+		fontWeight: 600,
+		fontSize: 13,
+		cursor: 'pointer',
+	},
+	buttonGhostWhite: {
+		background: 'transparent',
+		color: 'rgba(255,255,255,0.8)',
+		border: 'none',
+		padding: '8px',
+		fontWeight: 500,
+		fontSize: 13,
+		cursor: 'pointer',
+	},
+	emptyState: {
+		textAlign: 'center',
+		padding: '64px',
+		color: 'var(--text-muted)',
 	},
 	cardList: {
 		display: 'flex',
 		flexDirection: 'column',
-		gap: 12,
-		flex: '1 1 auto',
+		gap: 16,
+		paddingBottom: 80,
 	},
 	card: {
 		container: {
 			background: 'var(--surface)',
 			border: '1px solid var(--border)',
-			borderRadius: 12,
+			borderRadius: 16,
 			padding: 16,
 			cursor: 'pointer',
-			transition: 'border-color 0.2s, box-shadow 0.2s',
+			transition: 'all 0.2s',
 		},
 		header: {
 			display: 'flex',
-			alignItems: 'center',
-			gap: 8,
-			borderBottom: '1px solid var(--border)',
-			paddingBottom: 12,
+			justifyContent: 'space-between',
+			alignItems: 'flex-start',
 			marginBottom: 12,
 		},
 		title: {
-			fontWeight: 600,
+			fontWeight: 700,
+			fontSize: 16,
 			color: 'var(--text)',
-			flex: 1,
 		},
 		body: {
 			fontSize: 14,
-			'& p': {
-				margin: '0 0 8px 0',
-			},
 		},
+	},
+	cardRow: {
+		display: 'flex',
+		justifyContent: 'space-between',
+		marginBottom: 8,
+	},
+	cardLabel: {
+		color: 'var(--text-muted)',
+	},
+	cardValue: {
+		fontWeight: 500,
+		color: 'var(--text)',
+	},
+	cardFooter: {
+		marginTop: 12,
+		paddingTop: 12,
+		borderTop: '1px solid var(--border)',
+		fontSize: 12,
+		color: 'var(--text-muted)',
+	},
+	errorBanner: {
+		background: 'var(--danger-bg)',
+		color: 'var(--danger-text)',
+		padding: '12px 16px',
+		borderRadius: 8,
+		marginBottom: 16,
+		fontSize: 14,
+	},
+	loadingContainer: {
+		display: 'flex',
+		flexDirection: 'column',
+		alignItems: 'center',
+		justifyContent: 'center',
+		padding: 64,
+		color: 'var(--text-muted)',
 	},
 };
 
