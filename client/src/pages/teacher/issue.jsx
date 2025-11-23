@@ -26,13 +26,6 @@ const statusStyles = {
 		bg: 'var(--warning-bg)',
 		border: 'var(--warning-border)',
 	},
-	'in-progress': {
-		label: 'In Progress',
-		icon: '🟡',
-		color: 'var(--info-text)',
-		bg: 'var(--info-bg)',
-		border: 'var(--info-border)',
-	},
 	resolved: {
 		label: 'Resolved',
 		icon: '🟢',
@@ -134,7 +127,7 @@ const StatusDropdown = ({ currentStatus, issueId, onUpdate, disabled }) => {
 
 			{isOpen && (
 				<div style={styles.dropdownMenu}>
-					{['open', 'in-progress'].map(status => (
+					{['open'].map(status => (
 						<button
 							key={status}
 							onClick={e => handleStatusChange(status, e)}
@@ -631,7 +624,7 @@ const TeacherIssues = () => {
 					</div>
 					<div style={styles.controlsContainer(isMobile)}>
 						<div style={styles.filterGroup}>
-							{['my-issues', 'open', 'in-progress', 'resolved', 'all'].map(f => (
+							{['my-issues', 'open', 'resolved'].map(f => (
 								<button
 									key={f}
 									onClick={() => setFilter(f)}
