@@ -304,6 +304,10 @@ const getDashboardStats = asyncHandler(async (req, res) => {
 		recentSubmissions: Array.isArray(recentSubmissions) ? recentSubmissions : [],
 	};
 
+	// teacher info
+	const details = await Teacher.findById(teacherId).select('username fullname email phonenumber gender address createdAt');
+	stats.teacher = details;
+
 	return ApiResponse.success(res, stats, 'Dashboard stats fetched successfully');
 });
 
