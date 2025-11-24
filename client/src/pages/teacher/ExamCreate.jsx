@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ExamForm from '../../components/forms/ExamForm.jsx';
 import QuestionForm from '../../components/questions/QuestionForm.jsx';
@@ -22,200 +22,114 @@ const Stepper = ({ step }) => {
 	];
 
 	return (
-		<nav
-			aria-label="Progress"
-			style={{
-				background: 'var(--surface)',
-				border: '1px solid var(--border)',
-				borderRadius: 12,
-				padding: 12,
-				marginBottom: 16,
-			}}
-		>
-			<ol
-				style={{
-					listStyle: 'none',
-					display: 'flex',
-					justifyContent: 'space-between',
-					alignItems: 'center',
-					margin: 0,
-					padding: 0,
-				}}
-			>
-				{steps.map((s, idx) => {
-					const active = step === s.n;
-					const done = step > s.n;
-					return (
-						<React.Fragment key={s.n}>
-							<li
-								aria-current={active ? 'step' : undefined}
+		<div style={styles.stepperContainer}>
+			{steps.map((s, idx) => {
+				const active = step === s.n;
+				const done = step > s.n;
+				return (
+					<React.Fragment key={s.n}>
+						<div style={styles.stepItem}>
+							<div
 								style={{
-									display: 'flex',
-									alignItems: 'center',
-									gap: 8,
-									minWidth: 0,
+									...styles.stepCircle,
+									background: done ? 'var(--success)' : active ? 'var(--primary)' : 'var(--surface)',
+									borderColor: done || active ? 'transparent' : 'var(--border)',
+									color: done || active ? '#fff' : 'var(--text-muted)',
 								}}
 							>
+								{done ? '✓' : s.n}
+							</div>
+							<span
+								style={{
+									...styles.stepLabel,
+									color: active ? 'var(--text)' : 'var(--text-muted)',
+									fontWeight: active ? 700 : 500,
+								}}
+							>
+								{s.label}
+							</span>
+						</div>
+						{idx < steps.length - 1 && (
+							<div style={styles.stepLine}>
 								<div
-									aria-hidden
 									style={{
-										width: 28,
-										height: 28,
-										borderRadius: 999,
-										display: 'grid',
-										placeItems: 'center',
-										fontWeight: 800,
-										fontSize: 13,
-										flex: '0 0 auto',
-										border: '1px solid var(--border)',
-										background: done
-											? '#10b981'
-											: active
-											? '#3b82f6'
-											: 'var(--surface)',
-										color: done || active ? '#fff' : 'var(--text)',
-										boxShadow: active
-											? '0 0 0 3px rgba(59,130,246,.15)'
-											: 'none',
-									}}
-									title={s.label}
-								>
-									{s.n}
-								</div>
-								<span
-									className="desktop-only"
-									style={{
-										color: active ? 'var(--text)' : 'var(--text-muted)',
-										fontWeight: active ? 800 : 700,
-										fontSize: 13,
-										whiteSpace: 'nowrap',
-										overflow: 'hidden',
-										textOverflow: 'ellipsis',
-									}}
-								>
-									{s.label}
-								</span>
-							</li>
-							{idx < steps.length - 1 && (
-								<li
-									aria-hidden
-									style={{
-										flex: 1,
-										height: 2,
-										background: 'var(--border)',
-										margin: '0 8px',
+										height: '100%',
+										width: done ? '100%' : '0%',
+										background: 'var(--success)',
+										transition: 'width 0.3s ease',
 									}}
 								/>
-							)}
-						</React.Fragment>
-					);
-				})}
-			</ol>
-			<div
-				aria-hidden
-				style={{
-					marginTop: 8,
-					height: 6,
-					borderRadius: 999,
-					background: 'var(--bg)',
-					border: '1px solid var(--border)',
-					overflow: 'hidden',
-				}}
-			>
-				<div
-					style={{
-						height: '100%',
-						width: `${(Math.min(step, 3) / 3) * 100}%`,
-						background: 'linear-gradient(90deg, #3b82f6, #10b981)',
-						transition: 'width .25s ease',
-					}}
-				/>
-			</div>
-		</nav>
+							</div>
+						)}
+					</React.Fragment>
+				);
+			})}
+		</div>
 	);
 };
 
-const Step = ({ title, subtitle, children }) => (
-	<section
-		style={{
-			background: 'var(--surface)',
-			border: '1px solid var(--border)',
-			borderRadius: 16,
-			padding: 16,
-			marginBottom: 16,
-		}}
-	>
-		<header style={{ marginBottom: 12 }}>
-			<h2 style={{ margin: 0, color: 'var(--text)', fontWeight: 800, fontSize: 20 }}>
-				{title}
-			</h2>
-			{subtitle && (
-				<p style={{ margin: '6px 0 0 0', color: 'var(--text-muted)', fontSize: 14 }}>
-					{subtitle}
-				</p>
-			)}
+const Section = ({ title, subtitle, children, actions }) => (
+	<section style={styles.section}>
+		<header style={styles.sectionHeader}>
+			<div>
+				<h2 style={styles.sectionTitle}>{title}</h2>
+				{subtitle && <p style={styles.sectionSubtitle}>{subtitle}</p>}
+			</div>
+			{actions && <div>{actions}</div>}
 		</header>
 		{children}
 	</section>
 );
 
-const Toolbar = ({ children }) => (
-	<div
-		style={{
-			display: 'flex',
-			gap: 10,
-			justifyContent: 'space-between',
-			alignItems: 'center',
-			paddingTop: 10,
-			borderTop: '1px solid var(--border)',
-			marginTop: 16,
-			flexWrap: 'wrap',
-		}}
-	>
-		{children}
-	</div>
-);
+const Pill = ({ children, variant = 'default', onClick }) => {
+	const bg = variant === 'primary' ? 'var(--primary-light-bg)' : 'var(--bg)';
+	const color = variant === 'primary' ? 'var(--primary)' : 'var(--text)';
+	const border = variant === 'primary' ? 'var(--primary-light)' : 'var(--border)';
 
-const Pill = ({ children }) => (
-	<span
-		style={{
-			display: 'inline-flex',
-			alignItems: 'center',
-			gap: 6,
-			padding: '4px 10px',
-			fontSize: 12,
-			fontWeight: 700,
-			borderRadius: 999,
-			border: '1px solid var(--border)',
-			background: 'var(--bg)',
-			color: 'var(--text)',
-		}}
-	>
-		{children}
-	</span>
-);
+	return (
+		<span
+			onClick={onClick}
+			style={{
+				display: 'inline-flex',
+				alignItems: 'center',
+				gap: 6,
+				padding: '4px 12px',
+				fontSize: 12,
+				fontWeight: 600,
+				borderRadius: 999,
+				border: `1px solid ${border}`,
+				background: bg,
+				color: color,
+				cursor: onClick ? 'pointer' : 'default',
+				transition: 'all 0.2s',
+			}}
+		>
+			{children}
+		</span>
+	);
+};
 
 // --- Main Component ---
 
 const ExamCreate = () => {
 	const navigate = useNavigate();
-	const [step, setStep] = React.useState(1);
-	const [saving, setSaving] = React.useState(false);
-	const [errorBanner, setErrorBanner] = React.useState('');
-	const { success } = useToast();
+	const { success, error: toastError } = useToast();
+
+	const [step, setStep] = useState(1);
+	const [saving, setSaving] = useState(false);
+	const [errorBanner, setErrorBanner] = useState('');
 
 	// Step 1: exam details
-	const [details, setDetails] = React.useState({
+	const [details, setDetails] = useState({
 		title: '',
 		description: '',
 		duration: 60,
 		startTime: '',
 		endTime: '',
 	});
-	const [detailErrors, setDetailErrors] = React.useState({});
+	const [detailErrors, setDetailErrors] = useState({});
 
-	// Add state for AI Policy
-	const [aiPolicy, setAiPolicy] = React.useState({
+	const [aiPolicy, setAiPolicy] = useState({
 		strictness: 'moderate',
 		reviewTone: 'concise',
 		expectedLength: 20,
@@ -223,42 +137,36 @@ const ExamCreate = () => {
 	});
 
 	// Step 2: question bank + selection + inline create
-	const [loadingQ, setLoadingQ] = React.useState(false);
-	const [qError, setQError] = React.useState('');
-	const [questions, setQuestions] = React.useState([]);
-	const [query, setQuery] = React.useState('');
-	const [typeFilter, setTypeFilter] = React.useState('all');
-	const [difficultyFilter, setDifficultyFilter] = React.useState('all');
-	const [selectedIds, setSelectedIds] = React.useState(new Set());
+	const [loadingQ, setLoadingQ] = useState(false);
+	const [questions, setQuestions] = useState([]);
+	const [query, setQuery] = useState('');
+	const [typeFilter, setTypeFilter] = useState('all');
+	const [difficultyFilter, setDifficultyFilter] = useState('all');
+	const [selectedIds, setSelectedIds] = useState(new Set());
 
-	const [showCreateQuestion, setShowCreateQuestion] = React.useState(false);
-	const [createType, setCreateType] = React.useState('multiple-choice');
+	const [showCreateQuestion, setShowCreateQuestion] = useState(false);
+	const [createType, setCreateType] = useState('multiple-choice');
 
-	const loadQuestions = React.useCallback(async () => {
+	const loadQuestions = useCallback(async () => {
 		setLoadingQ(true);
-		setQError('');
 		try {
-			// Backend now returns { items: [...] }
 			const response = await safeApiCall(getTeacherQuestions);
-			// Ensure we handle both array and object responses gracefully
 			const items = Array.isArray(response) ? response : response?.items || [];
 			setQuestions(Array.isArray(items) ? items : []);
 		} catch (e) {
-			const msg = e?.message || 'Failed to load your questions';
-			setQError(msg);
-			setErrorBanner(msg);
+			toastError('Failed to load questions');
 		} finally {
 			setLoadingQ(false);
 		}
-	}, []);
+	}, [toastError]);
 
-	React.useEffect(() => {
+	useEffect(() => {
 		if (step === 2 && questions.length === 0) {
 			loadQuestions();
 		}
 	}, [step, loadQuestions, questions.length]);
 
-	const filteredQuestions = React.useMemo(() => {
+	const filteredQuestions = useMemo(() => {
 		const q = query.trim().toLowerCase();
 		return questions.filter(item => {
 			const typeOk = typeFilter === 'all' || item.type === typeFilter;
@@ -269,14 +177,14 @@ const ExamCreate = () => {
 		});
 	}, [questions, query, typeFilter, difficultyFilter]);
 
-	const selectedList = React.useMemo(() => {
+	const selectedList = useMemo(() => {
 		const map = new Map(questions.map(q => [q.id, q]));
 		return Array.from(selectedIds)
 			.map(id => map.get(id))
 			.filter(Boolean);
 	}, [selectedIds, questions]);
 
-	const totalMarks = React.useMemo(
+	const totalMarks = useMemo(
 		() => selectedList.reduce((sum, q) => sum + (q?.max_marks || 0), 0),
 		[selectedList],
 	);
@@ -290,16 +198,6 @@ const ExamCreate = () => {
 		});
 	};
 
-	const removeSelected = id => {
-		setSelectedIds(prev => {
-			const next = new Set(prev);
-			next.delete(id);
-			return next;
-		});
-	};
-
-	const clearSelected = () => setSelectedIds(new Set());
-
 	const validateDetails = () => {
 		const errs = {};
 		if (!details.title.trim()) errs.title = 'Title is required';
@@ -312,7 +210,6 @@ const ExamCreate = () => {
 			const s = new Date(details.startTime);
 			const e = new Date(details.endTime);
 			if (e <= s) errs.endTime = 'End time must be after start time';
-			// Add future validation to match backend
 			if (s <= new Date()) errs.startTime = 'Start time must be in the future';
 		}
 		setDetailErrors(errs);
@@ -330,24 +227,13 @@ const ExamCreate = () => {
 			}
 			success('Question created and selected');
 		} catch (e) {
-			setErrorBanner(e?.message || 'Failed to create question');
+			toastError(e?.message || 'Failed to create question');
 		} finally {
 			setShowCreateQuestion(false);
 		}
 	};
 
-	const onSubmitExam = async (redirectToList = true) => {
-		if (!validateDetails()) {
-			setErrorBanner('Please fix highlighted fields in Step 1.');
-			setStep(1);
-			return;
-		}
-		if (selectedIds.size === 0) {
-			setErrorBanner('Please select at least one question in Step 2.');
-			setStep(2);
-			return;
-		}
-
+	const onSubmitExam = async () => {
 		setSaving(true);
 		setErrorBanner('');
 		try {
@@ -357,7 +243,6 @@ const ExamCreate = () => {
 				duration: Number(details.duration),
 				startTime: toISO(details.startTime),
 				endTime: toISO(details.endTime),
-				// Backend expects an array of IDs
 				questionIds: Array.from(selectedIds),
 				aiPolicy: {
 					...aiPolicy,
@@ -366,20 +251,7 @@ const ExamCreate = () => {
 			};
 			await safeApiCall(createTeacherExam, payload);
 			success('Exam created successfully');
-			if (redirectToList) {
-				setTimeout(() => navigate('/teacher/exams'), 400);
-			} else {
-				// Reset form for creating another
-				setDetails({
-					title: '',
-					description: '',
-					duration: 60,
-					startTime: '',
-					endTime: '',
-				});
-				setSelectedIds(new Set());
-				setStep(1);
-			}
+			setTimeout(() => navigate('/teacher/exams'), 500);
 		} catch (e) {
 			setErrorBanner(e?.message || 'Failed to create exam');
 		} finally {
@@ -387,773 +259,577 @@ const ExamCreate = () => {
 		}
 	};
 
+	const handleNext = () => {
+		if (step === 1) {
+			if (validateDetails()) setStep(2);
+			else setErrorBanner('Please fix the errors before continuing.');
+		} else if (step === 2) {
+			if (selectedIds.size > 0) setStep(3);
+			else setErrorBanner('Please select at least one question.');
+		}
+	};
+
 	return (
-		<div style={{ maxWidth: 1200, margin: '0 auto' }}>
-			<PageHeader
-				title="Create Exam"
-				subtitle="Setup details, select or create questions, then review and create."
-				breadcrumbs={[
-					{ label: 'Home', to: '/teacher' },
-					{ label: 'Exams', to: '/teacher/exams' },
-					{ label: 'Create' },
-				]}
-				actions={[
-					<button
-						key="cancel"
-						onClick={() => navigate('/teacher/exams')}
-						className="tap"
-						style={{
-							padding: '10px 16px',
-							borderRadius: 10,
-							border: '1px solid var(--border)',
-							background: 'var(--surface)',
-							color: 'var(--text)',
-							fontWeight: 800,
-						}}
-					>
-						<span className="desktop-only">← Cancel</span>
-						<span className="mobile-only">← Back</span>
-					</button>,
-				]}
-			/>
-			<style>{`
-        .desktop-only { display: inline; }
-        .mobile-only { display: none; }
-        .step2-grid {
-          display: grid;
-          grid-template-columns: 2fr 1fr;
-          gap: 16px;
-        }
-        .step2-aside {
-          background: var(--bg);
-          border: 1px solid var(--border);
-          border-radius: 12px;
-          padding: 12px;
-          height: 100%;
-          align-self: start;
-          position: sticky;
-          top: 12px;
-        }
-
-        @media (max-width: 768px) {
-          .desktop-only { display: none; }
-          .mobile-only { display: inline; }
-          .step2-grid {
-            grid-template-columns: 1fr;
-          }
-          .step2-aside {
-            position: static;
-            height: auto;
-            margin-top: 16px;
-          }
-        }
-      `}</style>
-
-			<Stepper step={step} />
-
-			{errorBanner && (
-				<div style={{ marginBottom: 12 }}>
-					<Alert type="error" onClose={() => setErrorBanner('')}>
-						{errorBanner}
-					</Alert>
-				</div>
-			)}
-
-			{step === 1 && (
-				<Step
-					title="1) Exam details"
-					subtitle="Title, description, time window and duration."
-				>
-					<ExamForm
-						value={details}
-						onChange={setDetails}
-						errors={detailErrors}
-						disabled={saving}
-						aiPolicy={aiPolicy}
-						onAiPolicyChange={setAiPolicy}
-					/>
-					<Toolbar>
-						<div /> {/* Spacer */}
+		<div style={styles.page}>
+			<div style={styles.container}>
+				<PageHeader
+					title="Create Exam"
+					subtitle="Setup details, select or create questions, then review and create."
+					breadcrumbs={[
+						{ label: 'Home', to: '/teacher' },
+						{ label: 'Exams', to: '/teacher/exams' },
+						{ label: 'Create' },
+					]}
+					actions={[
 						<button
-							onClick={() => {
-								if (validateDetails()) setStep(2);
-								else setErrorBanner('Please fix the errors before continuing.');
-							}}
-							style={{
-								padding: '10px 16px',
-								borderRadius: 10,
-								border: 'none',
-								background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
-								color: '#fff',
-								fontWeight: 800,
-								cursor: 'pointer',
-							}}
+							key="cancel"
+							onClick={() => navigate('/teacher/exams')}
+							style={styles.btnSecondary}
 						>
-							Next: Questions →
-						</button>
-					</Toolbar>
-				</Step>
-			)}
+							Cancel
+						</button>,
+					]}
+				/>
 
-			{step === 2 && (
-				<Step
-					title="2) Select questions"
-					subtitle="Pick from your bank or create new ones."
-				>
-					<div className="step2-grid">
-						{/* Left: bank */}
-						<div>
-							<div
-								style={{
-									display: 'flex',
-									gap: 16,
-									flexWrap: 'wrap',
-									marginBottom: 12,
-									alignItems: 'center',
-								}}
+				<Stepper step={step} />
+
+				{errorBanner && (
+					<div style={{ marginBottom: 24 }}>
+						<Alert type="error" onClose={() => setErrorBanner('')}>
+							{errorBanner}
+						</Alert>
+					</div>
+				)}
+
+				{step === 1 && (
+					<Section title="1. Exam Details" subtitle="Title, description, time window and duration.">
+						<ExamForm
+							value={details}
+							onChange={setDetails}
+							errors={detailErrors}
+							disabled={saving}
+							aiPolicy={aiPolicy}
+							onAiPolicyChange={setAiPolicy}
+						/>
+						<div style={styles.footerActions}>
+							<button onClick={handleNext} style={styles.btnPrimary}>
+								Next: Questions →
+							</button>
+						</div>
+					</Section>
+				)}
+
+				{step === 2 && (
+					<div style={styles.grid}>
+						<div style={styles.colMain}>
+							<Section 
+								title="2. Select Questions" 
+								subtitle="Pick from your bank or create new ones."
+								actions={
+									<div style={{ display: 'flex', gap: 8 }}>
+										<button
+											onClick={() => {
+												setCreateType('multiple-choice');
+												setShowCreateQuestion(true);
+											}}
+											style={styles.btnSecondarySmall}
+										>
+											+ MCQ
+										</button>
+										<button
+											onClick={() => {
+												setCreateType('subjective');
+												setShowCreateQuestion(true);
+											}}
+											style={styles.btnSecondarySmall}
+										>
+											+ Subjective
+										</button>
+									</div>
+								}
 							>
-								<div style={{ position: 'relative', flex: '1 1 360px' }}>
-									<input
-										value={query}
-										onChange={e => setQuery(e.target.value)}
-										placeholder="Search in your questions..."
-										aria-label="Search questions"
-										style={{
-											width: '100%',
-											padding: '12px 14px 12px 38px',
-											borderRadius: 12,
-											border: '1px solid var(--border)',
-											background: 'var(--bg)',
-											color: 'var(--text)',
-											outline: 'none',
-											fontSize: 14,
-										}}
-									/>
-									<span
-										style={{
-											position: 'absolute',
-											left: 12,
-											top: '50%',
-											transform: 'translateY(-50%)',
-											color: 'var(--text-muted)',
-										}}
-										aria-hidden
-									>
-										🔎
-									</span>
-								</div>
-
-								<div
-									style={{
-										display: 'flex',
-										gap: 8,
-										alignItems: 'center',
-										flexWrap: 'wrap',
-									}}
-								>
-									<Pill>
-										Type:
+								<div style={styles.filterBar}>
+									<div style={styles.searchWrapper}>
+										<span style={styles.searchIcon}>🔍</span>
+										<input
+											value={query}
+											onChange={e => setQuery(e.target.value)}
+											placeholder="Search questions..."
+											style={styles.searchInput}
+										/>
+									</div>
+									<div style={styles.filterRow}>
 										<select
 											value={typeFilter}
 											onChange={e => setTypeFilter(e.target.value)}
-											aria-label="Filter by type"
-											style={{
-												background: 'var(--bg)',
-												color: 'var(--text)',
-												border: '1px solid var(--border)',
-												borderRadius: 8,
-												padding: '6px 8px',
-												fontWeight: 700,
-											}}
+											style={styles.select}
 										>
 											<option value="all">All Types</option>
 											<option value="multiple-choice">MCQ</option>
 											<option value="subjective">Subjective</option>
 										</select>
-									</Pill>
-									<Pill>
-										Difficulty:
 										<select
 											value={difficultyFilter}
 											onChange={e => setDifficultyFilter(e.target.value)}
-											aria-label="Filter by difficulty"
-											style={{
-												background: 'var(--bg)',
-												color: 'var(--text)',
-												border: '1px solid var(--border)',
-												borderRadius: 8,
-												padding: '6px 8px',
-												fontWeight: 700,
-											}}
+											style={styles.select}
 										>
-											<option value="all">All</option>
+											<option value="all">All Difficulties</option>
 											<option value="easy">Easy</option>
 											<option value="medium">Medium</option>
 											<option value="hard">Hard</option>
 										</select>
-									</Pill>
-									<Pill>
-										{filteredQuestions.length} of {questions.length}
-									</Pill>
-									<button
-										onClick={() => {
-											const ids = filteredQuestions.map(q => q.id);
-											setSelectedIds(prev => new Set([...prev, ...ids]));
-										}}
-										className="tap"
-										style={{
-											padding: '8px 12px',
-											borderRadius: 10,
-											border: '1px solid var(--border)',
-											background: 'var(--surface)',
-											color: 'var(--text)',
-											fontWeight: 800,
-											cursor: 'pointer',
-										}}
-										title="Select all filtered"
-									>
-										Select all
-									</button>
-									<button
-										onClick={() => {
-											const toRemove = new Set(
-												filteredQuestions.map(q => q.id),
-											);
-											setSelectedIds(prev => {
-												const next = new Set(prev);
-												toRemove.forEach(id => next.delete(id));
-												return next;
-											});
-										}}
-										className="tap"
-										style={{
-											padding: '8px 12px',
-											borderRadius: 10,
-											border: '1px solid var(--border)',
-											background: 'var(--surface)',
-											color: 'var(--text)',
-											fontWeight: 800,
-											cursor: 'pointer',
-										}}
-										title="Deselect all filtered"
-									>
-										Deselect
-									</button>
-									<button
-										onClick={() => {
-											setCreateType('multiple-choice');
-											setShowCreateQuestion(true);
-										}}
-										style={{
-											padding: '10px 14px',
-											borderRadius: 10,
-											border: 'none',
-											background: 'linear-gradient(135deg, #10b981, #059669)',
-											color: '#fff',
-											fontWeight: 800,
-											cursor: 'pointer',
-										}}
-									>
-										＋ New MCQ
-									</button>
-									<button
-										onClick={() => {
-											setCreateType('subjective');
-											setShowCreateQuestion(true);
-										}}
-										style={{
-											padding: '10px 14px',
-											borderRadius: 10,
-											border: '1px solid var(--border)',
-											background: 'var(--surface)',
-											color: 'var(--text)',
-											fontWeight: 800,
-											cursor: 'pointer',
-										}}
-									>
-										＋ New Subjective
-									</button>
+									</div>
 								</div>
-							</div>
 
-							{loadingQ && (
-								<div style={{ color: 'var(--text-muted)', padding: 10 }}>
-									Loading…
-								</div>
-							)}
-							{qError && (
-								<div style={{ color: '#ef4444', padding: 10 }}>Error: {qError}</div>
-							)}
-
-							<div
-								role="list"
-								aria-label="Question bank"
-								style={{
-									display: 'grid',
-									gap: 12,
-									gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-								}}
-							>
-								{filteredQuestions.map(q => {
-									const selected = selectedIds.has(q.id);
-									return (
-										<div
-											key={q.id}
-											role="listitem"
-											style={{
-												userSelect: 'none',
-												background: 'var(--surface)',
-												border: `2px solid ${
-													selected ? '#3b82f6' : 'var(--border)'
-												}`,
-												borderRadius: 12,
-												padding: 14,
-												boxShadow: selected
-													? '0 0 0 4px rgba(59,130,246,.12)'
-													: 'none',
-												transition:
-													'border-color .15s ease, box-shadow .15s ease',
-											}}
-										>
-											<div
-												style={{
-													display: 'flex',
-													alignItems: 'center',
-													justifyContent: 'space-between',
-													gap: 10,
-												}}
-											>
-												<div
-													style={{
-														display: 'flex',
-														alignItems: 'center',
-														gap: 10,
-													}}
-												>
-													<input
-														type="checkbox"
-														checked={selected}
-														onChange={() => toggleSelected(q.id)}
-														aria-label={`Select question ${
-															q.text?.slice(0, 40) || ''
-														}`}
-													/>
-													<strong style={{ color: 'var(--text)' }}>
-														{q.type === 'multiple-choice'
-															? 'MCQ'
-															: 'Subjective'}
-													</strong>
-													<Pill>{q.difficulty}</Pill>
-												</div>
-												<Pill>Marks: {q.max_marks}</Pill>
-											</div>
-											<p
-												style={{
-													margin: '8px 0 0 0',
-													color: 'var(--text)',
-													fontWeight: 600,
-													fontSize: 14,
-													overflow: 'hidden',
-													display: '-webkit-box',
-													WebkitLineClamp: 3,
-													WebkitBoxOrient: 'vertical',
-												}}
-												title={q.text}
-											>
-												{q.text}
-											</p>
-											{q.tags && q.tags.length > 0 && (
-												<div
-													style={{
-														display: 'flex',
-														flexWrap: 'wrap',
-														gap: 4,
-														marginTop: 8,
-													}}
-												>
-													{q.tags.map(tag => (
-														<Pill key={tag}>{tag}</Pill>
-													))}
-												</div>
-											)}
-											{q.type === 'multiple-choice' &&
-												q.options?.length > 0 && (
-													<ul
+								{loadingQ ? (
+									<div style={styles.loadingState}>Loading questions...</div>
+								) : (
+									<div style={styles.questionList}>
+										{filteredQuestions.length === 0 ? (
+											<div style={styles.emptyState}>No questions found.</div>
+										) : (
+											filteredQuestions.map(q => {
+												const selected = selectedIds.has(q.id);
+												return (
+													<div
+														key={q.id}
+														onClick={() => toggleSelected(q.id)}
 														style={{
-															margin: '8px 0 0 16px',
-															color: 'var(--text-muted)',
-															fontSize: 13,
+															...styles.questionCard,
+															borderColor: selected ? 'var(--primary)' : 'var(--border)',
+															background: selected ? 'var(--primary-light-bg)' : 'var(--surface)',
 														}}
 													>
-														{q.options.slice(0, 3).map((o, i) => (
-															<li key={i}>
-																{o.text} {o.isCorrect ? '✅' : ''}
-															</li>
-														))}
-														{q.options.length > 3 && <li>…</li>}
-													</ul>
-												)}
-											<div
-												style={{
-													display: 'flex',
-													justifyContent: 'flex-end',
-													marginTop: 10,
-												}}
-											>
-												<button
-													onClick={() => toggleSelected(q.id)}
-													className="tap"
-													style={{
-														padding: '8px 12px',
-														borderRadius: 8,
-														border: selected
-															? 'none'
-															: '1px solid var(--border)',
-														background: selected
-															? 'linear-gradient(135deg, #3b82f6, #1d4ed8)'
-															: 'var(--surface)',
-														color: selected ? '#fff' : 'var(--text)',
-														fontWeight: 800,
-														cursor: 'pointer',
-													}}
-												>
-													{selected ? 'Selected ✓' : 'Add to Exam'}
-												</button>
-											</div>
-										</div>
-									);
-								})}
-							</div>
+														<div style={styles.qHeader}>
+															<div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+																<input
+																	type="checkbox"
+																	checked={selected}
+																	onChange={() => toggleSelected(q.id)}
+																	style={styles.checkbox}
+																/>
+																<span style={styles.qType}>
+																	{q.type === 'multiple-choice' ? 'MCQ' : 'Subj'}
+																</span>
+															</div>
+															<span style={styles.qMarks}>{q.max_marks}m</span>
+														</div>
+														<p style={styles.qText}>{q.text}</p>
+														<div style={styles.qFooter}>
+															<Pill>{q.difficulty}</Pill>
+														</div>
+													</div>
+												);
+											})
+										)}
+									</div>
+								)}
+							</Section>
 						</div>
 
-						{/* Right: selection basket */}
-						<aside className="step2-aside">
-							<div
-								style={{
-									display: 'flex',
-									alignItems: 'center',
-									justifyContent: 'space-between',
-									marginBottom: 8,
-								}}
-							>
-								<strong style={{ color: 'var(--text)' }}>Selected</strong>
-								<Pill>
-									{selectedIds.size} items • {totalMarks} marks
-								</Pill>
+						<div style={styles.colSide}>
+							<Section title="Summary" subtitle="Selected questions">
+								<div style={styles.summaryStats}>
+									<div style={styles.statItem}>
+										<span style={styles.statValue}>{selectedIds.size}</span>
+										<span style={styles.statLabel}>Questions</span>
+									</div>
+									<div style={styles.statItem}>
+										<span style={styles.statValue}>{totalMarks}</span>
+										<span style={styles.statLabel}>Total Marks</span>
+									</div>
+								</div>
+								
+								<div style={styles.sideActions}>
+									<button 
+										onClick={() => setStep(1)} 
+										style={styles.btnSecondary}
+									>
+										← Back
+									</button>
+									<button 
+										onClick={handleNext} 
+										style={styles.btnPrimary}
+										disabled={selectedIds.size === 0}
+									>
+										Review →
+									</button>
+								</div>
+							</Section>
+						</div>
+					</div>
+				)}
+
+				{step === 3 && (
+					<div style={styles.reviewContainer}>
+						<Section title="3. Review & Create" subtitle="Double check everything before creating.">
+							<div style={styles.reviewGrid}>
+								<div style={styles.reviewItem}>
+									<span style={styles.reviewLabel}>Title</span>
+									<span style={styles.reviewValue}>{details.title}</span>
+								</div>
+								<div style={styles.reviewItem}>
+									<span style={styles.reviewLabel}>Duration</span>
+									<span style={styles.reviewValue}>{details.duration} mins</span>
+								</div>
+								<div style={styles.reviewItem}>
+									<span style={styles.reviewLabel}>Start Time</span>
+									<span style={styles.reviewValue}>{new Date(details.startTime).toLocaleString()}</span>
+								</div>
+								<div style={styles.reviewItem}>
+									<span style={styles.reviewLabel}>End Time</span>
+									<span style={styles.reviewValue}>{new Date(details.endTime).toLocaleString()}</span>
+								</div>
+								<div style={styles.reviewItem}>
+									<span style={styles.reviewLabel}>Questions</span>
+									<span style={styles.reviewValue}>{selectedIds.size} selected ({totalMarks} marks)</span>
+								</div>
 							</div>
-							{selectedList.length === 0 ? (
-								<p style={{ color: 'var(--text-muted)', margin: 0 }}>
-									No questions selected yet.
-								</p>
-							) : (
-								<ul
-									style={{
-										listStyle: 'none',
-										margin: 0,
-										padding: 0,
-										display: 'grid',
-										gap: 8,
-										maxHeight: 360,
-										overflow: 'auto',
-									}}
-								>
-									{selectedList.map(q => (
-										<li
-											key={q.id}
-											style={{
-												display: 'grid',
-												gap: 6,
-												border: '1px solid var(--border)',
-												borderRadius: 10,
-												background: 'var(--surface)',
-												padding: 10,
-											}}
-										>
-											<div
-												style={{
-													display: 'flex',
-													alignItems: 'center',
-													justifyContent: 'space-between',
-													gap: 8,
-												}}
-											>
-												<span
-													style={{
-														color: 'var(--text-muted)',
-														fontSize: 12,
-														fontWeight: 700,
-														textTransform: 'uppercase',
-													}}
-												>
-													{q.type === 'multiple-choice'
-														? 'MCQ'
-														: 'Subjective'}
-												</span>
-												<Pill>+{q.max_marks}</Pill>
-											</div>
-											<div
-												style={{
-													color: 'var(--text)',
-													fontSize: 13,
-													fontWeight: 700,
-													overflow: 'hidden',
-													display: '-webkit-box',
-													WebkitLineClamp: 2,
-													WebkitBoxOrient: 'vertical',
-												}}
-												title={q.text}
-											>
-												{q.text}
-											</div>
-											<div
-												style={{
-													display: 'flex',
-													justifyContent: 'flex-end',
-												}}
-											>
-												<button
-													onClick={() => removeSelected(q.id)}
-													style={{
-														padding: '6px 10px',
-														borderRadius: 8,
-														border: '1px solid var(--border)',
-														background: 'var(--surface)',
-														color: '#dc2626',
-														fontWeight: 800,
-														cursor: 'pointer',
-														fontSize: 12,
-													}}
-												>
-													Remove
-												</button>
-											</div>
-										</li>
-									))}
-								</ul>
-							)}
-							{selectedList.length > 0 && (
-								<button
-									onClick={clearSelected}
-									style={{
-										marginTop: 10,
-										width: '100%',
-										padding: '8px 10px',
-										borderRadius: 8,
-										border: '1px solid var(--border)',
-										background: 'var(--surface)',
-										color: 'var(--text)',
-										fontWeight: 800,
-										cursor: 'pointer',
-										fontSize: 12,
-									}}
-								>
-									Clear selection
+
+							<div style={styles.footerActions}>
+								<button onClick={() => setStep(2)} style={styles.btnSecondary}>
+									← Back
 								</button>
-							)}
-						</aside>
-					</div>
-
-					<Toolbar>
-						<button
-							onClick={() => setStep(1)}
-							style={{
-								padding: '10px 16px',
-								borderRadius: 10,
-								border: '1px solid var(--border)',
-								background: 'var(--surface)',
-								color: 'var(--text)',
-								fontWeight: 800,
-								cursor: 'pointer',
-							}}
-						>
-							← Back
-						</button>
-						<button
-							onClick={() => setStep(3)}
-							style={{
-								padding: '10px 16px',
-								borderRadius: 10,
-								border: 'none',
-								background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
-								color: '#fff',
-								fontWeight: 800,
-								cursor: 'pointer',
-							}}
-						>
-							Review →
-						</button>
-					</Toolbar>
-
-					{showCreateQuestion && (
-						<div
-							role="dialog"
-							aria-modal="true"
-							style={{
-								position: 'fixed',
-								inset: 0,
-								background: 'rgba(0,0,0,0.5)',
-								backdropFilter: 'blur(4px)',
-								display: 'grid',
-								placeItems: 'center',
-								padding: 16,
-								zIndex: 50,
-							}}
-							onClick={e => {
-								if (e.target === e.currentTarget) setShowCreateQuestion(false);
-							}}
-						>
-							<div
-								style={{
-									width: 'min(720px, 96vw)',
-									maxHeight: '90vh',
-									overflow: 'auto',
-									background: 'var(--surface)',
-									border: '1px solid var(--border)',
-									borderRadius: 16,
-									boxShadow: 'var(--shadow-md)',
-									padding: 16,
-								}}
-							>
-								<QuestionForm
-									defaultType={createType}
-									onCancel={() => setShowCreateQuestion(false)}
-									onSave={handleCreateQuestion}
-								/>
+								<button 
+									onClick={onSubmitExam} 
+									disabled={saving}
+									style={saving ? styles.btnDisabled : styles.btnPrimary}
+								>
+									{saving ? 'Creating...' : 'Create Exam'}
+								</button>
 							</div>
-						</div>
-					)}
-				</Step>
-			)}
-
-			{step === 3 && (
-				<Step title="3) Review and create">
-					<div
-						style={{
-							display: 'grid',
-							gap: 10,
-							gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-							marginBottom: 10,
-						}}
-					>
-						<div
-							style={{
-								background: 'var(--bg)',
-								border: '1px solid var(--border)',
-								borderRadius: 12,
-								padding: 12,
-							}}
-						>
-							<strong style={{ color: 'var(--text)' }}>Title</strong>
-							<div style={{ color: 'var(--text-muted)' }}>{details.title || '—'}</div>
-						</div>
-						<div
-							style={{
-								background: 'var(--bg)',
-								border: '1px solid var(--border)',
-								borderRadius: 12,
-								padding: 12,
-							}}
-						>
-							<strong style={{ color: 'var(--text)' }}>Duration</strong>
-							<div style={{ color: 'var(--text-muted)' }}>{details.duration} min</div>
-						</div>
-						<div
-							style={{
-								background: 'var(--bg)',
-								border: '1px solid var(--border)',
-								borderRadius: 12,
-								padding: 12,
-							}}
-						>
-							<strong style={{ color: 'var(--text)' }}>Start</strong>
-							<div style={{ color: 'var(--text-muted)' }}>
-								{new Date(details.startTime).toLocaleString() || '—'}
-							</div>
-						</div>
-						<div
-							style={{
-								background: 'var(--bg)',
-								border: '1px solid var(--border)',
-								borderRadius: 12,
-								padding: 12,
-							}}
-						>
-							<strong style={{ color: 'var(--text)' }}>End</strong>
-							<div style={{ color: 'var(--text-muted)' }}>
-								{new Date(details.endTime).toLocaleString() || '—'}
-							</div>
-						</div>
+						</Section>
 					</div>
+				)}
+			</div>
 
-					<div
-						style={{
-							display: 'flex',
-							alignItems: 'center',
-							justifyContent: 'space-between',
-							marginTop: 6,
-							marginBottom: 10,
-						}}
-					>
-						<strong style={{ color: 'var(--text)' }}>Selected questions</strong>
-						<Pill>
-							{selectedList.length} items • {totalMarks} marks
-						</Pill>
+			{showCreateQuestion && (
+				<div style={styles.modalOverlay} onClick={() => setShowCreateQuestion(false)}>
+					<div style={styles.modalContent} onClick={e => e.stopPropagation()}>
+						<QuestionForm
+							defaultType={createType}
+							onCancel={() => setShowCreateQuestion(false)}
+							onSave={handleCreateQuestion}
+						/>
 					</div>
-
-					<Toolbar>
-						<button
-							onClick={() => setStep(2)}
-							style={{
-								padding: '10px 16px',
-								borderRadius: 10,
-								border: '1px solid var(--border)',
-								background: 'var(--surface)',
-								color: 'var(--text)',
-								fontWeight: 800,
-								cursor: 'pointer',
-							}}
-						>
-							← Back
-						</button>
-						<div style={{ display: 'flex', gap: 8 }}>
-							<button
-								onClick={() => onSubmitExam(false)}
-								disabled={saving}
-								style={{
-									padding: '10px 16px',
-									borderRadius: 10,
-									border: '1px solid var(--border)',
-									background: 'var(--surface)',
-									color: 'var(--text)',
-									fontWeight: 800,
-									cursor: saving ? 'not-allowed' : 'pointer',
-								}}
-							>
-								{saving ? 'Creating…' : 'Create & add another'}
-							</button>
-							<button
-								onClick={() => onSubmitExam(true)}
-								disabled={saving}
-								style={{
-									padding: '10px 16px',
-									borderRadius: 10,
-									border: 'none',
-									background: saving
-										? '#9ca3af'
-										: 'linear-gradient(135deg, #10b981, #059669)',
-									color: '#fff',
-									fontWeight: 800,
-									cursor: saving ? 'not-allowed' : 'pointer',
-								}}
-							>
-								{saving ? 'Creating…' : 'Create exam'}
-							</button>
-						</div>
-					</Toolbar>
-				</Step>
+				</div>
 			)}
 		</div>
 	);
+};
+
+const styles = {
+	page: {
+		minHeight: '100vh',
+		background: 'var(--bg-secondary)',
+		padding: '24px',
+	},
+	container: {
+		maxWidth: 1200,
+		margin: '0 auto',
+		display: 'flex',
+		flexDirection: 'column',
+		gap: 24,
+	},
+	stepperContainer: {
+		display: 'flex',
+		alignItems: 'center',
+		justifyContent: 'space-between',
+		background: 'var(--surface)',
+		padding: '20px 40px',
+		borderRadius: 16,
+		border: '1px solid var(--border)',
+		boxShadow: 'var(--shadow-sm)',
+	},
+	stepItem: {
+		display: 'flex',
+		alignItems: 'center',
+		gap: 12,
+		zIndex: 1,
+	},
+	stepCircle: {
+		width: 32,
+		height: 32,
+		borderRadius: '50%',
+		display: 'flex',
+		alignItems: 'center',
+		justifyContent: 'center',
+		fontSize: 14,
+		fontWeight: 700,
+		border: '2px solid',
+		transition: 'all 0.3s ease',
+	},
+	stepLabel: {
+		fontSize: 14,
+		transition: 'all 0.3s ease',
+	},
+	stepLine: {
+		flex: 1,
+		height: 2,
+		background: 'var(--border)',
+		margin: '0 16px',
+		borderRadius: 2,
+	},
+	section: {
+		background: 'var(--surface)',
+		borderRadius: 16,
+		border: '1px solid var(--border)',
+		padding: 24,
+		boxShadow: 'var(--shadow-sm)',
+	},
+	sectionHeader: {
+		display: 'flex',
+		justifyContent: 'space-between',
+		alignItems: 'flex-start',
+		marginBottom: 20,
+	},
+	sectionTitle: {
+		fontSize: 18,
+		fontWeight: 700,
+		color: 'var(--text)',
+		margin: 0,
+	},
+	sectionSubtitle: {
+		fontSize: 14,
+		color: 'var(--text-muted)',
+		margin: '4px 0 0',
+	},
+	grid: {
+		display: 'grid',
+		gridTemplateColumns: '2fr 1fr',
+		gap: 24,
+	},
+	colMain: {
+		display: 'flex',
+		flexDirection: 'column',
+		gap: 24,
+	},
+	colSide: {
+		display: 'flex',
+		flexDirection: 'column',
+		gap: 24,
+	},
+	btnPrimary: {
+		padding: '10px 24px',
+		borderRadius: 10,
+		border: 'none',
+		background: 'var(--primary)',
+		color: '#fff',
+		fontWeight: 600,
+		cursor: 'pointer',
+		transition: 'all 0.2s',
+	},
+	btnSecondary: {
+		padding: '10px 20px',
+		borderRadius: 10,
+		border: '1px solid var(--border)',
+		background: 'var(--surface)',
+		color: 'var(--text)',
+		fontWeight: 600,
+		cursor: 'pointer',
+		transition: 'all 0.2s',
+	},
+	btnSecondarySmall: {
+		padding: '6px 12px',
+		borderRadius: 8,
+		border: '1px solid var(--border)',
+		background: 'var(--surface)',
+		color: 'var(--text)',
+		fontWeight: 600,
+		fontSize: 12,
+		cursor: 'pointer',
+	},
+	btnDisabled: {
+		padding: '10px 24px',
+		borderRadius: 10,
+		border: 'none',
+		background: 'var(--gray-300)',
+		color: 'var(--gray-500)',
+		fontWeight: 600,
+		cursor: 'not-allowed',
+	},
+	footerActions: {
+		display: 'flex',
+		justifyContent: 'flex-end',
+		gap: 12,
+		marginTop: 24,
+		paddingTop: 24,
+		borderTop: '1px solid var(--border)',
+	},
+	filterBar: {
+		display: 'flex',
+		flexDirection: 'column',
+		gap: 12,
+		marginBottom: 16,
+	},
+	searchWrapper: {
+		position: 'relative',
+	},
+	searchIcon: {
+		position: 'absolute',
+		left: 12,
+		top: '50%',
+		transform: 'translateY(-50%)',
+		color: 'var(--text-muted)',
+	},
+	searchInput: {
+		width: '100%',
+		padding: '10px 12px 10px 36px',
+		borderRadius: 10,
+		border: '1px solid var(--border)',
+		background: 'var(--bg)',
+		color: 'var(--text)',
+		fontSize: 14,
+	},
+	filterRow: {
+		display: 'flex',
+		gap: 8,
+	},
+	select: {
+		flex: 1,
+		padding: '8px',
+		borderRadius: 8,
+		border: '1px solid var(--border)',
+		background: 'var(--bg)',
+		color: 'var(--text)',
+		fontSize: 13,
+	},
+	questionList: {
+		display: 'flex',
+		flexDirection: 'column',
+		gap: 12,
+		maxHeight: 500,
+		overflowY: 'auto',
+		paddingRight: 4,
+	},
+	questionCard: {
+		border: '1px solid var(--border)',
+		borderRadius: 12,
+		padding: 12,
+		transition: 'all 0.2s',
+		cursor: 'pointer',
+	},
+	qHeader: {
+		display: 'flex',
+		justifyContent: 'space-between',
+		marginBottom: 8,
+	},
+	qType: {
+		fontSize: 12,
+		fontWeight: 700,
+		color: 'var(--text-muted)',
+		textTransform: 'uppercase',
+	},
+	qMarks: {
+		fontSize: 12,
+		fontWeight: 600,
+		color: 'var(--primary)',
+	},
+	qText: {
+		fontSize: 14,
+		color: 'var(--text)',
+		margin: '0 0 12px',
+		lineHeight: 1.4,
+		display: '-webkit-box',
+		WebkitLineClamp: 2,
+		WebkitBoxOrient: 'vertical',
+		overflow: 'hidden',
+	},
+	qFooter: {
+		display: 'flex',
+		justifyContent: 'space-between',
+		alignItems: 'center',
+	},
+	checkbox: {
+		width: 16,
+		height: 16,
+		cursor: 'pointer',
+	},
+	summaryStats: {
+		display: 'grid',
+		gridTemplateColumns: '1fr 1fr',
+		gap: 12,
+		marginBottom: 24,
+	},
+	statItem: {
+		background: 'var(--bg)',
+		padding: 16,
+		borderRadius: 12,
+		textAlign: 'center',
+		border: '1px solid var(--border)',
+	},
+	statValue: {
+		display: 'block',
+		fontSize: 24,
+		fontWeight: 800,
+		color: 'var(--primary)',
+		marginBottom: 4,
+	},
+	statLabel: {
+		fontSize: 12,
+		color: 'var(--text-muted)',
+		fontWeight: 600,
+	},
+	sideActions: {
+		display: 'flex',
+		flexDirection: 'column',
+		gap: 12,
+	},
+	reviewContainer: {
+		maxWidth: 800,
+		margin: '0 auto',
+		width: '100%',
+	},
+	reviewGrid: {
+		display: 'grid',
+		gap: 16,
+		marginBottom: 24,
+	},
+	reviewItem: {
+		display: 'flex',
+		justifyContent: 'space-between',
+		padding: '12px 0',
+		borderBottom: '1px solid var(--border)',
+	},
+	reviewLabel: {
+		color: 'var(--text-muted)',
+		fontWeight: 500,
+	},
+	reviewValue: {
+		color: 'var(--text)',
+		fontWeight: 600,
+		textAlign: 'right',
+	},
+	modalOverlay: {
+		position: 'fixed',
+		inset: 0,
+		background: 'rgba(0,0,0,0.5)',
+		display: 'grid',
+		placeItems: 'center',
+		zIndex: 100,
+		padding: 16,
+	},
+	modalContent: {
+		background: 'var(--surface)',
+		borderRadius: 16,
+		width: '100%',
+		maxWidth: 700,
+		maxHeight: '90vh',
+		overflowY: 'auto',
+		padding: 24,
+		boxShadow: 'var(--shadow-lg)',
+	},
+	loadingState: {
+		textAlign: 'center',
+		padding: 40,
+		color: 'var(--text-muted)',
+	},
+	emptyState: {
+		textAlign: 'center',
+		padding: 40,
+		color: 'var(--text-muted)',
+		fontStyle: 'italic',
+	},
 };
 
 export default ExamCreate;
