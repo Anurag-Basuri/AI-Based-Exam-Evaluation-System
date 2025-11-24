@@ -127,6 +127,7 @@ const TakeExam = () => {
 	const saveTimeoutRef = useRef(null);
 	const questionPanelRef = useRef(null);
 	const submissionRef = useRef(submission); // <-- Create a ref to hold the latest submission state
+    const pendingSave = useRef(null); // <-- Queue for pending saves
 
     // Check screen size on mount
     useEffect(() => {
@@ -155,10 +156,13 @@ const TakeExam = () => {
 
 			try {
 				// Final save before submitting
-				if (hasUnsavedChanges.current) {
+				if (hasUnsavedChanges.current || pendingSave.current) {
+                    const finalAnswers = pendingSave.current?.answers || submission.answers || [];
+                    const finalReview = pendingSave.current?.reviewState || markedForReview;
+                    
 					await safeApiCall(saveSubmissionAnswers, submission.id, {
-						answers: submission.answers || [],
-						markedForReview: markedForReview,
+						answers: finalAnswers,
+						markedForReview: finalReview,
 					});
 				}
 
@@ -348,21 +352,36 @@ const TakeExam = () => {
 	const handleQuickSave = useCallback(
 		async (answersToSave, reviewState) => {
 			const currentSubmission = submissionRef.current;
-			if (!currentSubmission || !currentSubmission.id || saving || !isOnline) return;
-			if (!answersToSave && !reviewState && !hasUnsavedChanges.current) return;
+			if (!currentSubmission || !currentSubmission.id || !isOnline) return;
+            
+            // If already saving, queue this request
+            if (saving) {
+                pendingSave.current = { answers: answersToSave, reviewState };
+                return;
+            }
+
+			if (!answersToSave && !reviewState && !hasUnsavedChanges.current && !pendingSave.current) return;
 
 			setSaving(true);
-			// don't clear unsaved flag until save succeeds
 			try {
+                // Check if we have pending changes to merge
+                const finalAnswers = answersToSave || pendingSave.current?.answers || currentSubmission.answers;
+                const finalReview = reviewState || pendingSave.current?.reviewState || markedForReview;
+                
+                // Clear pending immediately so new changes can accumulate
+                pendingSave.current = null;
+
 				const payload = {
-					answers: answersToSave || currentSubmission.answers,
-					markedForReview: reviewState || markedForReview,
+					answers: finalAnswers,
+					markedForReview: finalReview,
 				};
+                
 				const updatedSubmission = await safeApiCall(
 					saveSubmissionAnswers,
 					currentSubmission.id,
 					payload,
 				);
+                
 				// only update state when server returns valid normalized submission
 				if (updatedSubmission && updatedSubmission.id) {
 					setSubmission(prev => {
@@ -382,6 +401,10 @@ const TakeExam = () => {
 				toastError('Auto-save failed. Check your connection.');
 			} finally {
 				setSaving(false);
+                // If new changes came in while we were saving, trigger another save
+                if (pendingSave.current) {
+                    handleQuickSave(pendingSave.current.answers, pendingSave.current.reviewState);
+                }
 			}
 		},
 		[saving, isOnline, markedForReview, toastError],
@@ -438,7 +461,7 @@ const TakeExam = () => {
 
 			const answerToUpdate = { ...newAnswers[answerIndex] };
 			if (type === 'multiple-choice') {
-				answerToUpdate.responseOption = value;
+				answerToUpdate.responseOption = value; // This is now the OPTION ID
 			} else {
 				answerToUpdate.responseText = value;
 			}
@@ -678,7 +701,7 @@ const SidebarContent = ({
 		<div style={styles.statusInfo}>
 			<p style={styles.statusText}>
 				<span style={{ color: isOnline ? '#10b981' : '#ef4444' }}>
-					{isOnline ? '●' : '●'}
+					{isOnline ? '●' : '○'}
 				</span>{' '}
 				{isOnline ? 'Connected' : 'Offline'}
 			</p>
@@ -731,6 +754,7 @@ const StartScreen = ({ submission, onStart }) => (
 	<div style={styles.centeredMessage}>
 		<div style={styles.startCard}>
 			<div style={{ textAlign: 'center', marginBottom: 24 }}>
+                <div style={{ fontSize: 48, marginBottom: 16 }}>📝</div>
 				<h1 style={{ margin: 0, fontSize: 'clamp(1.5rem, 4vw, 2rem)' }}>
 					{submission.examTitle}
 				</h1>
@@ -862,10 +886,11 @@ const QuestionCard = ({ question, index, answer, onAnswerChange, disabled }) => 
 				{isMCQ ? (
 					<div style={styles.optionsGrid}>
 						{question.options?.map((opt, i) => {
-							const isSelected = String(answer?.responseOption) === String(i);
+                            // FIX: Use opt.id for comparison, not index
+							const isSelected = String(answer?.responseOption) === String(opt.id);
 							return (
 								<label
-									key={i}
+									key={opt.id || i}
 									style={{
 										...styles.optionLabel,
 										...(isSelected ? styles.optionSelected : {}),
@@ -874,10 +899,10 @@ const QuestionCard = ({ question, index, answer, onAnswerChange, disabled }) => 
 									<input
 										type="radio"
 										name={`q-${question.id}`}
-										value={i}
+										value={opt.id} // FIX: Use opt.id as value
 										checked={isSelected}
 										onChange={() =>
-											onAnswerChange(question.id, String(i), 'multiple-choice')
+											onAnswerChange(question.id, String(opt.id), 'multiple-choice')
 										}
 										disabled={disabled}
 										style={styles.radioInput}

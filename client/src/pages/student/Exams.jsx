@@ -171,15 +171,27 @@ const StudentExams = () => {
 
             <header style={styles.header.container}>
                 <div>
-                    <h1 style={styles.header.title}>My Exams</h1>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+                        <button 
+                            onClick={() => navigate('/student/dashboard')}
+                            style={styles.button.ghost}
+                        >
+                            ← Back
+                        </button>
+                        <h1 style={styles.header.title}>My Exams</h1>
+                    </div>
                     <p style={styles.header.subtitle}>Manage your assessments and track your progress.</p>
                 </div>
                 <button
                     onClick={() => loadMine(true)}
                     disabled={starting}
-                    style={styles.button.secondary}
+                    style={{
+                        ...styles.button.secondary,
+                        opacity: starting ? 0.7 : 1,
+                        cursor: starting ? 'wait' : 'pointer'
+                    }}
                 >
-                    {starting ? '⏳' : '🔄'} Refresh
+                    {starting ? '⏳ Refreshing...' : '🔄 Refresh List'}
                 </button>
             </header>
 
