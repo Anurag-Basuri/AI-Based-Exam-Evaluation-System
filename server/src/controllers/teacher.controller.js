@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Teacher from '../models/teacher.model.js';
 import Exam from '../models/exam.model.js';
 import Issue from '../models/issue.model.js';
@@ -159,100 +160,148 @@ const changePassword = asyncHandler(async (req, res) => {
 	});
 });
 
-// Get dashboard statistics for teacher
+// Get dashboard statistics for teacher (refactored, efficient, defensive)
 const getDashboardStats = asyncHandler(async (req, res) => {
 	const teacherId = req.teacher?._id || req.user?.id;
-	if (!teacherId) {
-		throw ApiError.Unauthorized('Teacher identification missing');
-	}
+	if (!teacherId) throw ApiError.Unauthorized('Teacher identification missing');
 
-	// 1. Get all exams for the teacher (lean for faster read-only ops)
-	const exams = await Exam.find({ teacher: teacherId })
-		.select(
-			'derivedStatus submissionsCount evaluatedCount title enrolledCount enrolled startAt startTime duration',
-		)
-		.lean();
+	const TID = new mongoose.Types.ObjectId(teacherId);
 
-	const examIds = exams.map(e => e._id);
+	// Aggregate exam-level summary and pending calculations server-side to avoid loading all docs
+	const summaryAgg = await Exam.aggregate([
+		{ $match: { teacher: TID } },
+		{
+			$project: {
+				title: 1,
+				derivedStatus: { $ifNull: ['$derivedStatus', ''] },
+				submissionsCount: { $ifNull: ['$submissionsCount', 0] },
+				evaluatedCount: { $ifNull: ['$evaluatedCount', 0] },
+				enrolledCount: { $ifNull: ['$enrolledCount', 0] },
+				enrolled: 1,
+			},
+		},
+		{
+			$addFields: {
+				pendingCount: {
+					$max: [{ $subtract: ['$submissionsCount', '$evaluatedCount'] }, 0],
+				},
+				derivedLower: { $toLower: '$derivedStatus' },
+				enrolledResolved: {
+					$cond: [
+						{ $isArray: '$enrolled' },
+						{ $size: '$enrolled' },
+						{ $ifNull: ['$enrolledCount', 0] },
+					],
+				},
+			},
+		},
+		{
+			$group: {
+				_id: null,
+				totalExams: { $sum: 1 },
+				live: {
+					$sum: {
+						$cond: [{ $in: ['$derivedLower', ['live', 'active']] }, 1, 0],
+					},
+				},
+				scheduled: { $sum: { $cond: [{ $eq: ['$derivedLower', 'scheduled'] }, 1, 0] } },
+				draft: { $sum: { $cond: [{ $eq: ['$derivedLower', 'draft'] }, 1, 0] } },
+				totalEnrolled: { $sum: '$enrolledResolved' },
+				pendingSubmissionsTotal: { $sum: '$pendingCount' },
+			},
+		},
+	]);
 
-	// 2. Get open issues
-	const openIssuesCount = await Issue.countDocuments({
-		teacher: teacherId,
-		status: 'open',
-	});
+	const summary = (Array.isArray(summaryAgg) && summaryAgg[0]) || {
+		totalExams: 0,
+		live: 0,
+		scheduled: 0,
+		draft: 0,
+		totalEnrolled: 0,
+		pendingSubmissionsTotal: 0,
+	};
 
-	// 3. Calculate stats from exams (defensive, numeric)
-	let liveExams = 0;
-	let scheduledExams = 0;
-	let draftExams = 0;
-	let totalExams = exams.length;
-	let pendingSubmissions = 0;
-	let totalEnrolled = 0;
+	// Top exams that need review (pending > 0)
+	const examsToReview = await Exam.aggregate([
+		{ $match: { teacher: TID } },
+		{
+			$project: {
+				title: 1,
+				submissionsCount: { $ifNull: ['$submissionsCount', 0] },
+				evaluatedCount: { $ifNull: ['$evaluatedCount', 0] },
+			},
+		},
+		{
+			$addFields: {
+				pendingCount: {
+					$max: [{ $subtract: ['$submissionsCount', '$evaluatedCount'] }, 0],
+				},
+			},
+		},
+		{ $match: { pendingCount: { $gt: 0 } } },
+		{ $sort: { pendingCount: -1 } },
+		{ $limit: 5 },
+		{ $project: { _id: 1, title: 1, submissionsCount: 1, evaluatedCount: 1, pendingCount: 1 } },
+	]);
 
-	exams.forEach(exam => {
-		const status = (exam.derivedStatus || '').toString().toLowerCase();
-		if (status === 'live' || status === 'active') liveExams++;
-		if (status === 'scheduled') scheduledExams++;
-		if (status === 'draft') draftExams++;
+	// Recent submissions for teacher's exams (use lookup to avoid retrieving large exam lists)
+	const recentSubmissions = await Submission.aggregate([
+		{ $sort: { createdAt: -1 } },
+		{
+			$lookup: {
+				from: 'exams',
+				localField: 'exam',
+				foreignField: '_id',
+				as: 'exam',
+			},
+		},
+		{ $unwind: '$exam' },
+		{ $match: { 'exam.teacher': TID } },
+		{
+			$lookup: {
+				from: 'students',
+				localField: 'student',
+				foreignField: '_id',
+				as: 'student',
+			},
+		},
+		{ $unwind: { path: '$student', preserveNullAndEmptyArrays: true } },
+		{
+			$project: {
+				_id: 1,
+				createdAt: 1,
+				status: 1,
+				grade: 1,
+				'student._id': 1,
+				'student.fullname': 1,
+				'student.username': 1,
+				'exam._id': 1,
+				'exam.title': 1,
+			},
+		},
+		{ $limit: 5 },
+	]);
 
-		const submissionsCount = Number(exam.submissionsCount || 0);
-		const evaluatedCount = Number(exam.evaluatedCount || 0);
-		const pendingForExam = Math.max(0, submissionsCount - evaluatedCount);
-		pendingSubmissions += pendingForExam;
+	// Open issues count (simple, fast)
+	const openIssuesCount = await Issue.countDocuments({ teacher: TID, status: 'open' });
 
-		// enrolledCount may be stored in different fields; support multiple shapes
-		if (typeof exam.enrolledCount === 'number') {
-			totalEnrolled += Math.max(0, exam.enrolledCount);
-		} else if (Array.isArray(exam.enrolled)) {
-			totalEnrolled += exam.enrolled.length;
-		}
-	});
-
-	// 4. Get exams that need review: include pendingCount and keep only >0
-	const examsToReview = exams
-		.map(exam => {
-			const submissionsCount = Number(exam.submissionsCount || 0);
-			const evaluatedCount = Number(exam.evaluatedCount || 0);
-			const pendingCount = Math.max(0, submissionsCount - evaluatedCount);
-			return {
-				_id: exam._id,
-				title: exam.title || 'Untitled',
-				submissionsCount,
-				evaluatedCount,
-				pendingCount,
-			};
-		})
-		.filter(e => e.pendingCount > 0)
-		.sort((a, b) => b.pendingCount - a.pendingCount)
-		.slice(0, 5);
-
-	// 5. Get recent submissions (query by exam ids to ensure teacher's)
-	let recentSubmissions = [];
-	if (examIds.length > 0) {
-		recentSubmissions = await Submission.find({ exam: { $in: examIds } })
-			.sort({ createdAt: -1 })
-			.limit(5)
-			.populate('student', 'fullname username')
-			.populate('exam', 'title')
-			.lean();
-	}
-
+	// Build normalized response
 	const stats = {
 		exams: {
-			total: Number(totalExams || 0),
-			live: Number(liveExams || 0),
-			scheduled: Number(scheduledExams || 0),
-			draft: Number(draftExams || 0),
-			totalEnrolled: Number(totalEnrolled || 0),
+			total: Number(summary.totalExams || 0),
+			live: Number(summary.live || 0),
+			scheduled: Number(summary.scheduled || 0),
+			draft: Number(summary.draft || 0),
+			totalEnrolled: Number(summary.totalEnrolled || 0),
 		},
 		issues: {
 			open: Number(openIssuesCount || 0),
 		},
 		submissions: {
-			pending: Number(pendingSubmissions || 0),
+			pending: Number(summary.pendingSubmissionsTotal || 0),
 		},
-		examsToReview,
-		recentSubmissions,
+		examsToReview: Array.isArray(examsToReview) ? examsToReview : [],
+		recentSubmissions: Array.isArray(recentSubmissions) ? recentSubmissions : [],
 	};
 
 	return ApiResponse.success(res, stats, 'Dashboard stats fetched successfully');
