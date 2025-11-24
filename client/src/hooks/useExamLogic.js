@@ -45,6 +45,12 @@ export const useExamLogic = submissionId => {
 		submissionRef.current = submission;
 	}, [submission]);
 
+	// helper: always keep submission state + ref in sync
+	const setSubmissionState = useCallback(newSubmission => {
+		setSubmission(newSubmission);
+		submissionRef.current = newSubmission;
+	}, []);
+
 	// --- Load Submission ---
 	useEffect(() => {
 		const load = async () => {
@@ -62,12 +68,18 @@ export const useExamLogic = submissionId => {
 					return;
 				}
 
-				// Normalize answers
+				// Normalize answers (ensure strings for ids)
 				const normalized = {
 					...(subData || {}),
 					answers:
 						Array.isArray(subData?.answers) && subData.answers.length > 0
-							? subData.answers
+							? subData.answers.map(a => ({
+									question: String(a.question ?? a.question?._id ?? a.questionId),
+									responseText: a.responseText ?? '',
+									responseOption: a.responseOption
+										? String(a.responseOption._id ?? a.responseOption)
+										: null,
+							  }))
 							: (subData.questions || []).map(q => ({
 									question: String(q.id),
 									responseText: '',
@@ -75,8 +87,12 @@ export const useExamLogic = submissionId => {
 							  })),
 				};
 
-				setSubmission(normalized);
-				setMarkedForReview(normalized.markedForReview || []);
+				setSubmissionState(normalized);
+				setMarkedForReview(
+					Array.isArray(normalized.markedForReview)
+						? normalized.markedForReview.map(id => String(id))
+						: [],
+				);
 			} catch (e) {
 				setError(e?.message || 'Failed to load submission');
 				toastError(e?.message || 'Failed to load submission');
@@ -85,7 +101,7 @@ export const useExamLogic = submissionId => {
 			}
 		};
 		load();
-	}, [submissionId, navigate, toastError]);
+	}, [submissionId, navigate, toastError, setSubmissionState]);
 
 	// --- Timer ---
 	const timer = useTimer(submission?.startedAt, submission?.duration);
@@ -195,14 +211,24 @@ export const useExamLogic = submissionId => {
 			const currentSubmission = submissionRef.current;
 			if (!currentSubmission?.id || !isOnline) return;
 
+			// Don't mutate inputs later: take deep snapshot
+			const snapshotAnswers = answersToSave
+				? JSON.parse(JSON.stringify(answersToSave))
+				: null;
+			const snapshotReview = reviewState
+				? Array.isArray(reviewState)
+					? reviewState.map(String)
+					: []
+				: null;
+
 			if (saving) {
-				pendingSave.current = { answers: answersToSave, reviewState };
+				pendingSave.current = { answers: snapshotAnswers, reviewState: snapshotReview };
 				return;
 			}
 
 			if (
-				!answersToSave &&
-				!reviewState &&
+				!snapshotAnswers &&
+				!snapshotReview &&
 				!hasUnsavedChanges.current &&
 				!pendingSave.current
 			)
@@ -211,9 +237,10 @@ export const useExamLogic = submissionId => {
 			setSaving(true);
 			try {
 				const finalAnswers =
-					answersToSave || pendingSave.current?.answers || currentSubmission.answers;
+					snapshotAnswers || pendingSave.current?.answers || currentSubmission.answers;
 				const finalReview =
-					reviewState || pendingSave.current?.reviewState || markedForReview;
+					snapshotReview || pendingSave.current?.reviewState || markedForReview;
+				// clear pending copy before network call to avoid infinite loop
 				pendingSave.current = null;
 
 				const updated = await safeApiCall(saveSubmissionAnswers, currentSubmission.id, {
@@ -222,8 +249,15 @@ export const useExamLogic = submissionId => {
 				});
 
 				if (updated?.id) {
-					setSubmission(prev => ({ ...prev, ...updated }));
-					submissionRef.current = updated;
+					// updated is normalized by service; ensure IDs are strings
+					updated.answers = Array.isArray(updated.answers)
+						? updated.answers.map(a => ({
+								...a,
+								question: String(a.question),
+								responseOption: a.responseOption ? String(a.responseOption) : null,
+						  }))
+						: updated.answers;
+					setSubmissionState({ ...currentSubmission, ...updated });
 					hasUnsavedChanges.current = false;
 					setLastSaved(new Date());
 				}
@@ -232,12 +266,13 @@ export const useExamLogic = submissionId => {
 				console.error('Auto-save failed', e);
 			} finally {
 				setSaving(false);
+				// If another pending save was queued while saving, flush it
 				if (pendingSave.current) {
 					handleQuickSave(pendingSave.current.answers, pendingSave.current.reviewState);
 				}
 			}
 		},
-		[saving, isOnline, markedForReview],
+		[saving, isOnline, markedForReview, setSubmissionState],
 	);
 
 	const debouncedSave = useCallback(
@@ -255,13 +290,10 @@ export const useExamLogic = submissionId => {
 	const handleStartExam = async () => {
 		// Try to enter fullscreen before marking started. If user denies, still allow start but notify.
 		try {
-			// Request fullscreen and wait for the promise to settle
 			await document.documentElement.requestFullscreen?.();
 		} catch (err) {
-			// show a friendly toast - allow exam to start anyway
 			toastError('Could not enter fullscreen. Please enable fullscreen for best experience.');
 		} finally {
-			// mark started regardless of fullscreen outcome so timer begins
 			setIsStarted(true);
 		}
 	};
@@ -269,36 +301,41 @@ export const useExamLogic = submissionId => {
 	const handleAnswerChange = (questionId, value, type) => {
 		hasUnsavedChanges.current = true;
 		let newAnswersForSave;
-		setSubmission(prev => {
-			if (!prev) return null;
-			const newAnswers = [...(prev.answers || [])];
-			const idx = newAnswers.findIndex(a => String(a.question) === String(questionId));
+		setSubmissionState(prev => {
+			if (!prev) return prev;
+			const newAnswers = Array.isArray(prev.answers) ? [...prev.answers] : [];
+			const qid = String(questionId);
+			const idx = newAnswers.findIndex(a => String(a.question) === qid);
 
 			if (idx === -1) {
-				newAnswers.push({
-					question: String(questionId),
+				const newAns = {
+					question: qid,
 					responseText: type === 'multiple-choice' ? '' : String(value || ''),
 					responseOption: type === 'multiple-choice' ? String(value || null) : null,
-				});
+				};
+				newAnswers.push(newAns);
 			} else {
 				newAnswers[idx] = {
 					...newAnswers[idx],
-					[type === 'multiple-choice' ? 'responseOption' : 'responseText']: value,
+					[type === 'multiple-choice' ? 'responseOption' : 'responseText']:
+						type === 'multiple-choice' ? String(value || null) : String(value || ''),
 				};
 			}
-			newAnswersForSave = newAnswers;
+			newAnswersForSave = JSON.parse(JSON.stringify(newAnswers));
 			return { ...prev, answers: newAnswers };
 		});
 		debouncedSave(newAnswersForSave, null);
 	};
 
 	const toggleReview = () => {
-		const qId = submission?.questions?.[currentQuestionIndex]?.id;
+		const qId = String(submission?.questions?.[currentQuestionIndex]?.id);
 		if (!qId) return;
 		const newReview = markedForReview.includes(qId)
 			? markedForReview.filter(id => id !== qId)
 			: [...markedForReview, qId];
 		setMarkedForReview(newReview);
+		// keep submission.markedForReview in sync so sidebar/readers see it
+		setSubmissionState(prev => (prev ? { ...prev, markedForReview: newReview } : prev));
 		debouncedSave(null, newReview);
 	};
 
