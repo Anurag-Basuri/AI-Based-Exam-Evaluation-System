@@ -152,21 +152,66 @@ export const useExamLogic = submissionId => {
 		}
 	}, [timer.remainingMs, isStarted, autoSubmitting, finalSubmit]);
 
+	// --- Violation Handling (moved up so effects can reference it safely) ---
+	const handleViolation = useCallback(
+		type => {
+			// guard: no double-handling while autoSubmitting
+			if (autoSubmitting) return;
+			setViolations(prev => {
+				const newCount = (prev?.count || 0) + 1;
+				// show overlay immediately
+				setViolationOverlay(type);
+				// try to notify server but don't await; ignore network errors
+				if (submissionId && typeof window !== 'undefined') {
+					try {
+						apiClient
+							.post(`/api/submissions/${submissionId}/violation`, { type })
+							.catch(() => {});
+					} catch {
+						// ignore network errors
+					}
+				}
+				// trigger auto-submit only when exceeding threshold
+				if (newCount > MAX_VIOLATIONS) {
+					// finalSubmit is stable via deps; call non-blocking
+					finalSubmit(true, `Exceeded warning limit (${MAX_VIOLATIONS} violations).`);
+				}
+				return { count: newCount, lastType: type };
+			});
+		},
+		[submissionId, autoSubmitting, finalSubmit],
+	);
+
 	// --- Environment Monitoring ---
 	useEffect(() => {
 		if (!isStarted || autoSubmitting) return;
 
 		const handleFullscreenChange = () => {
-			if (!document.fullscreenElement) handleViolation('fullscreen');
+			try {
+				if (!document.fullscreenElement) handleViolation('fullscreen');
+			} catch (err) {
+				console.debug('fullscreen handler error', err);
+			}
 		};
 		const handleVisibilityChange = () => {
-			if (document.hidden) handleViolation('visibility');
+			try {
+				if (document.hidden) handleViolation('visibility');
+			} catch (err) {
+				console.debug('visibility handler error', err);
+			}
 		};
 		const handleContextMenu = e => {
-			const t = e.target;
-			if (t && (['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName) || t.isContentEditable))
-				return;
-			e.preventDefault();
+			try {
+				const t = e.target;
+				if (
+					t &&
+					(['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName) || t.isContentEditable)
+				)
+					return;
+				e.preventDefault();
+			} catch {
+				/* noop */
+			}
 		};
 
 		// NOTE: removed history.pushState / popstate listener to avoid accidental navigation/restart issues
@@ -181,8 +226,21 @@ export const useExamLogic = submissionId => {
 		};
 	}, [isStarted, autoSubmitting, handleViolation]);
 
+	// --- Cleanup on unmount: clear pending timers / saves ---
+	useEffect(() => {
+		return () => {
+			try {
+				if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+				// do not attempt network calls on unmount; just clear pending
+				pendingSave.current = null;
+			} catch {
+				/* noop */
+			}
+		};
+	}, []);
+
 	// --- Violation Handling (hardened) ---
-	const handleViolation = useCallback(
+	const handleViolationHardened = useCallback(
 		type => {
 			// guard: no double-handling while autoSubmitting
 			if (autoSubmitting) return;
