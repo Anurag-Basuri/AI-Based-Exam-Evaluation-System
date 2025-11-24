@@ -13,6 +13,34 @@ import TakeExamSkeleton from './components/TakeExamSkeleton.jsx';
 const MAX_VIOLATIONS = 5;
 const AUTO_SAVE_INTERVAL = 30000; // 30 seconds
 
+// --- Small Screen Warning Component ---
+const SmallScreenWarning = ({ onDismiss }) => (
+    <div style={styles.warningOverlay}>
+        <div style={styles.warningModal}>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>📱</div>
+            <h2 style={{ margin: '0 0 12px 0', color: '#1e293b' }}>Small Screen Detected</h2>
+            <p style={{ color: '#64748b', lineHeight: 1.6, marginBottom: 24 }}>
+                We strongly recommend using a <strong>laptop or desktop computer</strong> for the best exam experience. 
+                Small screens may make it difficult to view questions and type answers comfortably.
+            </p>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+                <button 
+                    onClick={() => window.history.back()}
+                    style={{ ...styles.button.secondary, width: 'auto' }}
+                >
+                    Go Back
+                </button>
+                <button 
+                    onClick={onDismiss}
+                    style={{ ...styles.button.primary, width: 'auto' }}
+                >
+                    Continue Anyway
+                </button>
+            </div>
+        </div>
+    </div>
+);
+
 // --- Environment Hook ---
 const useExamEnvironment = (isExamActive, onViolation) => {
 	useEffect(() => {
@@ -93,11 +121,19 @@ const TakeExam = () => {
 		typeof navigator !== 'undefined' ? navigator.onLine : true,
 	);
 	const [isPaletteOpen, setIsPaletteOpen] = useState(false);
+    const [showSmallScreenWarning, setShowSmallScreenWarning] = useState(false);
 
 	const hasUnsavedChanges = useRef(false);
 	const saveTimeoutRef = useRef(null);
 	const questionPanelRef = useRef(null);
 	const submissionRef = useRef(submission); // <-- Create a ref to hold the latest submission state
+
+    // Check screen size on mount
+    useEffect(() => {
+        if (window.innerWidth < 768) {
+            setShowSmallScreenWarning(true);
+        }
+    }, []);
 
 	// Keep the ref updated whenever the submission state changes
 	useEffect(() => {
@@ -490,13 +526,19 @@ const TakeExam = () => {
 	if (!submission) return <div style={styles.centeredMessage}>Submission not found.</div>;
 
 	if (!isStarted) {
-		return <StartScreen submission={submission} onStart={handleStartExam} />;
+		return (
+            <>
+                {showSmallScreenWarning && <SmallScreenWarning onDismiss={() => setShowSmallScreenWarning(false)} />}
+                <StartScreen submission={submission} onStart={handleStartExam} />
+            </>
+        );
 	}
 
 	const currentQuestion = submission.questions[currentQuestionIndex];
 
 	return (
 		<div style={styles.examLayout} className="examLayout">
+            {showSmallScreenWarning && <SmallScreenWarning onDismiss={() => setShowSmallScreenWarning(false)} />}
 			{violationOverlay && (
 				<ViolationOverlay type={violationOverlay} onAcknowledge={acknowledgeViolation} />
 			)}
@@ -805,479 +847,534 @@ const QuestionPaletteModal = ({ stats, currentIndex, onSelect, onClose }) => (
 	</>
 );
 
-const ViolationOverlay = ({ type, onAcknowledge }) => {
-	const messages = {
-		fullscreen: 'You have exited fullscreen mode. This is a violation of the exam rules.',
-		visibility:
-			'You have switched to another tab or window. This is not allowed during the exam.',
-		navigation: 'Navigating away from the exam is not allowed.',
-	};
-	return (
-		<div style={styles.modalBackdrop}>
-			<div style={styles.violationBox}>
-				<h2 style={{ margin: '0 0 16px 0', color: '#ef4444' }}>⚠️ Warning</h2>
-				<p style={{ margin: '0 0 24px 0' }}>
-					{messages[type] || 'An exam rule was violated.'}
-				</p>
-				<button onClick={onAcknowledge} style={styles.violationButton}>
-					Return to Exam
-				</button>
-			</div>
-		</div>
-	);
-};
-
-const SubmitConfirmation = ({ stats, onConfirm, onCancel }) => (
-	<div style={styles.modalBackdrop}>
-		<div style={styles.violationBox}>
-			<h2 style={{ margin: '0 0 16px 0' }}>Confirm Submission</h2>
-			<p style={{ margin: '0 0 16px 0' }}>
-				Are you sure you want to submit? Here is a summary of your attempt:
-			</p>
-			<div style={styles.submitSummary}>
-				<div style={styles.summaryItem}>
-					<span>Answered:</span>
-					<strong>
-						{stats.answered} / {stats.total}
-					</strong>
-				</div>
-				<div style={styles.summaryItem}>
-					<span>Not Answered:</span>
-					<strong>
-						{stats.unanswered} / {stats.total}
-					</strong>
-				</div>
-				<div style={styles.summaryItem}>
-					<span>Marked for Review:</span>
-					<strong>{stats.review}</strong>
-				</div>
-			</div>
-			<div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginTop: 24 }}>
-				<button onClick={onCancel} style={styles.cancelButton}>
-					Cancel
-				</button>
-				<button onClick={onConfirm} style={styles.confirmButton}>
-					Submit Now
-				</button>
-			</div>
-		</div>
-	</div>
-);
-
 const QuestionCard = ({ question, index, answer, onAnswerChange, disabled }) => {
 	const isMCQ = question.type === 'multiple-choice';
-	const wordCount = useMemo(
-		() => (answer?.responseText || '').trim().split(/\s+/).filter(Boolean).length,
-		[answer?.responseText],
-	);
 	return (
 		<div style={styles.questionCard}>
 			<div style={styles.questionHeader}>
-				<p style={styles.questionNumber}>Question {index + 1}</p>
-				<p style={styles.questionText}>{question.text}</p>
-				<span style={styles.marksBadge}>{question.max_marks} Marks</span>
+				<span style={styles.questionNumber}>Question {index + 1}</span>
+				<span style={styles.questionMarks}>
+					{question.max_marks} Mark{question.max_marks !== 1 ? 's' : ''}
+				</span>
 			</div>
-			<div style={styles.answerArea}>
+			<div style={styles.questionText}>{question.text}</div>
+			<div style={styles.answerSection}>
 				{isMCQ ? (
-					<div style={{ display: 'grid', gap: 12 }}>
-						{(question.options || []).map(opt => {
-							const isChecked = String(answer?.responseOption) === String(opt.id);
+					<div style={styles.optionsGrid}>
+						{question.options?.map((opt, i) => {
+							const isSelected = String(answer?.responseOption) === String(i);
 							return (
 								<label
-									key={opt.id}
+									key={i}
 									style={{
-										...styles.mcqOption,
-										...(isChecked ? styles.mcqOptionChecked : {}),
+										...styles.optionLabel,
+										...(isSelected ? styles.optionSelected : {}),
 									}}
 								>
 									<input
 										type="radio"
-										name={`q_${question.id}`}
-										value={opt.id}
-										checked={isChecked}
-										onChange={e =>
-											onAnswerChange(
-												question.id,
-												e.target.value,
-												'multiple-choice',
-											)
+										name={`q-${question.id}`}
+										value={i}
+										checked={isSelected}
+										onChange={() =>
+											onAnswerChange(question.id, String(i), 'multiple-choice')
 										}
 										disabled={disabled}
-										style={{ opacity: 0, position: 'absolute' }}
+										style={styles.radioInput}
 									/>
-									<span
-										style={{
-											...styles.mcqRadioBubble,
-											...(isChecked ? styles.mcqRadioBubbleChecked : {}),
-										}}
-									/>
-									<span style={{ flex: 1 }}>{opt.text}</span>
+									<span style={styles.optionText}>{opt.text}</span>
 								</label>
 							);
 						})}
 					</div>
 				) : (
-					<div style={{ position: 'relative' }}>
-						<textarea
-							value={answer?.responseText || ''}
-							onChange={e =>
-								onAnswerChange(question.id, e.target.value, 'descriptive')
-							}
-							disabled={disabled}
-							rows={10}
-							placeholder="Type your answer here..."
-							style={styles.textarea}
-						/>
-						<span style={styles.wordCount}>{wordCount} words</span>
-					</div>
+					<textarea
+						value={answer?.responseText || ''}
+						onChange={e =>
+							onAnswerChange(question.id, e.target.value, 'subjective')
+						}
+						disabled={disabled}
+						placeholder="Type your answer here..."
+						style={styles.textArea}
+					/>
 				)}
 			</div>
 		</div>
 	);
 };
 
+const ViolationOverlay = ({ type, onAcknowledge }) => (
+	<div style={styles.overlay}>
+		<div style={styles.overlayCard}>
+			<div style={{ fontSize: 48, marginBottom: 16 }}>⚠️</div>
+			<h2 style={{ margin: '0 0 12px 0', color: '#ef4444' }}>Warning: Violation Detected</h2>
+			<p style={{ color: '#4b5563', marginBottom: 24 }}>
+				{type === 'fullscreen'
+					? 'You exited fullscreen mode. Please return to fullscreen to continue.'
+					: type === 'visibility'
+					? 'You switched tabs or minimized the window.'
+					: 'Navigation attempt detected.'}
+			</p>
+			<button onClick={onAcknowledge} style={styles.button.primary}>
+				I Understand, Return to Exam
+			</button>
+		</div>
+	</div>
+);
+
+const SubmitConfirmation = ({ stats, onConfirm, onCancel }) => (
+	<div style={styles.overlay}>
+		<div style={styles.overlayCard}>
+			<h2 style={{ margin: '0 0 16px 0' }}>Submit Exam?</h2>
+			<div style={styles.confirmStats}>
+				<div style={styles.confirmStatItem}>
+					<strong>{stats.answered}</strong> Answered
+				</div>
+				<div style={styles.confirmStatItem}>
+					<strong>{stats.review}</strong> Marked for Review
+				</div>
+				<div style={styles.confirmStatItem}>
+					<strong>{stats.unanswered}</strong> Unanswered
+				</div>
+			</div>
+			<p style={{ color: '#64748b', marginBottom: 24 }}>
+				Are you sure you want to submit? You cannot change your answers after submission.
+			</p>
+			<div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+				<button onClick={onCancel} style={styles.button.secondary}>
+					Cancel
+				</button>
+				<button onClick={onConfirm} style={styles.button.primary}>
+					Yes, Submit Exam
+				</button>
+			</div>
+		</div>
+	</div>
+);
+
 // --- Styles ---
 const styles = {
-	// Layouts
-	centeredMessage: {
-		display: 'grid',
-		placeContent: 'center',
-		textAlign: 'center',
-		minHeight: '100vh',
-		padding: 16,
-		background: 'var(--bg)',
-	},
 	examLayout: {
-		display: 'grid',
-		gridTemplateColumns: '1fr 320px',
-		gap: '1.5rem',
+		display: 'flex',
 		height: '100vh',
-		padding: '1.5rem',
-		background: 'var(--bg-alt)',
+		background: 'var(--bg)',
+		overflow: 'hidden',
+		position: 'relative',
 	},
 	questionPanel: {
+		flex: 1,
+		overflowY: 'auto',
+		padding: '24px 24px 100px 24px', // bottom padding for mobile nav
+		scrollBehavior: 'smooth',
+	},
+	questionPanelHeader: {
+		display: 'flex',
+		justifyContent: 'space-between',
+		alignItems: 'center',
+		marginBottom: 24,
+		paddingBottom: 16,
+		borderBottom: '1px solid var(--border)',
+	},
+	examTitle: { fontSize: 24, fontWeight: 700, color: 'var(--text)', margin: 0 },
+	desktopTimer: {
+		fontSize: 20,
+		fontWeight: 700,
+		color: 'var(--primary)',
+		background: 'var(--surface)',
+		padding: '8px 16px',
+		borderRadius: 8,
+		boxShadow: 'var(--shadow-sm)',
+		display: 'none', // hidden on mobile, shown via media query or logic if needed. Actually we use CSS class for this usually.
+        // For simplicity in inline styles, we'll assume desktop first but add media query support via classNames in real app.
+        // Here we'll just leave it as flex for desktop.
+        display: 'flex',
+	},
+	statusBar: {
+		width: 300,
+		background: 'var(--surface)',
+		borderLeft: '1px solid var(--border)',
+		padding: 24,
 		display: 'flex',
 		flexDirection: 'column',
-		background: 'var(--surface)',
-		borderRadius: '16px',
-		border: '1px solid var(--border)',
-		overflow: 'hidden',
-		// ensure content isn't hidden by bottom nav on mobile
-		paddingBottom: 92,
-	},
-	questionCard: {
-		flex: 1,
-		padding: '1.5rem',
+		gap: 24,
 		overflowY: 'auto',
-		minHeight: 0, // allow correct flex scrolling
+        // Hide on mobile
+        display: 'none', 
 	},
-	questionHeader: {
-		marginBottom: '1.5rem',
-		borderBottom: '1px solid var(--border)',
-		paddingBottom: '1rem',
+	bottomNav: {
+		position: 'fixed',
+		bottom: 0,
+		left: 0,
+		right: 0,
+		background: 'var(--surface)',
+		borderTop: '1px solid var(--border)',
+		padding: '12px 24px',
+		display: 'flex',
+		justifyContent: 'space-between',
+		alignItems: 'center',
+		boxShadow: '0 -4px 6px -1px rgba(0, 0, 0, 0.1)',
+		zIndex: 50,
 	},
-	questionNumber: {
-		fontSize: 13,
-		fontWeight: 600,
-		color: 'var(--text-muted)',
-		margin: '0 0 8px 0',
-	},
-	questionText: {
-		fontSize: '1.1rem',
-		lineHeight: 1.6,
-		margin: 0,
-		color: 'var(--text)',
-	},
-	marksBadge: {
-		float: 'right',
-		background: 'var(--bg-alt)',
-		color: 'var(--primary)',
-		borderRadius: 20,
-		padding: '4px 10px',
-		fontSize: 12,
-		fontWeight: 700,
-	},
-	answerArea: { paddingTop: '1rem' },
-	// MCQ
-	mcqOption: {
+	navButton: {
 		display: 'flex',
 		alignItems: 'center',
-		gap: 12,
-		padding: '14px 16px',
-		cursor: 'pointer',
-		background: 'var(--bg-alt)',
+		gap: 8,
+		padding: '10px 20px',
+		borderRadius: 8,
 		border: '1px solid var(--border)',
-		borderRadius: '12px',
+		background: 'var(--bg)',
+		color: 'var(--text)',
+		fontWeight: 600,
+		cursor: 'pointer',
+		fontSize: 14,
+	},
+	nextBtn: {
+		background: 'var(--primary)',
+		color: 'white',
+		border: 'none',
+	},
+	reviewBtnActive: {
+		background: '#fef9c3',
+		color: '#854d0e',
+		borderColor: '#fcd34d',
+	},
+	mobileCenterNav: {
+		display: 'flex',
+		gap: 12,
+	},
+	mobileTimer: {
+		background: 'var(--bg)',
+		border: '1px solid var(--border)',
+		borderRadius: 8,
+		padding: '8px 12px',
+		fontWeight: 700,
+		fontSize: 14,
+	},
+	mobilePaletteBtn: {
+		background: 'var(--bg)',
+		border: '1px solid var(--border)',
+		borderRadius: 8,
+		padding: '8px 12px',
+		fontWeight: 600,
+		fontSize: 14,
+	},
+	questionCard: {
+		background: 'var(--surface)',
+		borderRadius: 16,
+		padding: 32,
+		boxShadow: 'var(--shadow-sm)',
+		border: '1px solid var(--border)',
+		maxWidth: 900,
+		margin: '0 auto',
+	},
+	questionHeader: {
+		display: 'flex',
+		justifyContent: 'space-between',
+		marginBottom: 20,
+		color: 'var(--text-muted)',
+		fontSize: 14,
+		fontWeight: 600,
+		textTransform: 'uppercase',
+		letterSpacing: 1,
+	},
+	questionText: {
+		fontSize: 20,
+		lineHeight: 1.6,
+		color: 'var(--text)',
+		marginBottom: 32,
+		fontWeight: 500,
+	},
+	optionsGrid: {
+		display: 'grid',
+		gap: 16,
+	},
+	optionLabel: {
+		display: 'flex',
+		alignItems: 'center',
+		gap: 16,
+		padding: 20,
+		borderRadius: 12,
+		border: '2px solid var(--border)',
+		cursor: 'pointer',
 		transition: 'all 0.2s',
 	},
-	mcqOptionChecked: {
-		background: 'var(--primary-bg)',
-		borderColor: 'var(--primary-border)',
-		boxShadow: '0 0 0 1px var(--primary)',
+	optionSelected: {
+		borderColor: 'var(--primary)',
+		background: 'var(--primary-light)',
 	},
-	mcqRadioBubble: {
+	radioInput: {
 		width: 20,
 		height: 20,
-		borderRadius: 999,
-		border: '2px solid var(--border)',
-		background: 'var(--surface)',
-		transition: 'all 0.2s',
-		flexShrink: 0,
+		accentColor: 'var(--primary)',
 	},
-	mcqRadioBubbleChecked: {
-		borderColor: 'var(--primary)',
-		background: 'var(--primary)',
-		boxShadow: '0 0 0 3px var(--surface) inset',
-	},
-	// Subjective
-	textarea: {
-		width: '100%',
-		padding: '12px',
-		background: 'var(--bg-alt)',
+	optionText: {
+		fontSize: 16,
 		color: 'var(--text)',
+	},
+	textArea: {
+		width: '100%',
+		minHeight: 200,
+		padding: 20,
+		borderRadius: 12,
 		border: '1px solid var(--border)',
-		borderRadius: '8px',
-		fontFamily: 'inherit',
-		fontSize: '1rem',
-		lineHeight: 1.7,
+		fontSize: 16,
+		lineHeight: 1.6,
 		resize: 'vertical',
-		minHeight: '200px',
+		fontFamily: 'inherit',
 	},
-	wordCount: {
-		textAlign: 'right',
-		fontSize: 12,
-		fontWeight: 600,
-		color: 'var(--text-muted)',
-		padding: '4px 0',
-	},
-	// Sidebar
 	paletteContainer: {
-		border: '1px solid var(--border)',
-		borderRadius: '12px',
-		padding: '1rem',
-		background: 'var(--surface)',
-		overflowY: 'auto',
-		flex: 1,
+		display: 'flex',
+		flexDirection: 'column',
+		gap: 16,
 	},
 	paletteGrid: {
 		display: 'grid',
-		gridTemplateColumns: 'repeat(auto-fill, minmax(42px, 1fr))',
-		gap: '10px',
+		gridTemplateColumns: 'repeat(5, 1fr)',
+		gap: 8,
 	},
 	paletteButton: {
 		aspectRatio: '1',
-		border: '1px solid var(--border)',
-		borderRadius: '8px',
+		borderRadius: 8,
+		border: '1px solid',
+		fontWeight: 700,
 		cursor: 'pointer',
 		fontSize: 14,
-		fontWeight: 700,
-		transition: 'all 0.2s',
-	},
-	paletteCurrent: {
-		outline: '3px solid var(--primary)',
-		outlineOffset: '2px',
-		transform: 'scale(1.05)',
-	},
-	legend: {
-		display: 'grid',
-		gridTemplateColumns: '1fr 1fr',
-		gap: '0.5rem',
-		fontSize: '12px',
-		marginTop: '1rem',
-		color: 'var(--text-muted)',
-	},
-	legendItem: { display: 'flex', alignItems: 'center', gap: '6px' },
-	legendColor: {
-		width: '12px',
-		height: '12px',
-		borderRadius: '3px',
-		border: '1px solid var(--border)',
-	},
-	statusInfo: {
-		background: 'var(--surface)',
-		border: '1px solid var(--border)',
-		borderRadius: '12px',
-		padding: '1rem',
-	},
-	statusText: { margin: '4px 0', fontSize: 13, color: 'var(--text-muted)' },
-	submitButton: {
-		padding: '16px',
-		fontSize: '1rem',
-		fontWeight: 'bold',
-		cursor: 'pointer',
-		background: 'var(--danger)',
-		color: 'white',
-		border: 'none',
-		borderRadius: '12px',
-		boxShadow: 'var(--shadow-md)',
-	},
-	// Bottom Nav
-	navButton: {
-		padding: '10px 16px',
-		fontSize: '14px',
-		fontWeight: 700,
-		cursor: 'pointer',
-		background: 'var(--bg-alt)',
-		color: 'var(--text)',
-		border: '1px solid var(--border)',
-		borderRadius: '10px',
 		display: 'flex',
 		alignItems: 'center',
 		justifyContent: 'center',
-		gap: '8px',
 	},
-	arrow: { fontSize: '1.2rem', lineHeight: 1 },
-	nextBtn: { background: 'var(--primary)', color: 'white' },
-	reviewBtnActive: { background: 'var(--review)', color: 'white' },
-	mobileCenterNav: { display: 'none' },
-	// Modals & Overlays
+	paletteCurrent: {
+		ring: '2px solid var(--primary)',
+		ringOffset: '2px',
+	},
+	legend: {
+		display: 'flex',
+		flexWrap: 'wrap',
+		gap: 12,
+		fontSize: 12,
+		color: 'var(--text-muted)',
+	},
+	legendItem: {
+		display: 'flex',
+		alignItems: 'center',
+		gap: 6,
+	},
+	legendColor: {
+		width: 12,
+		height: 12,
+		borderRadius: 4,
+		border: '1px solid',
+	},
+	statusInfo: {
+		background: 'var(--bg)',
+		padding: 16,
+		borderRadius: 12,
+		display: 'flex',
+		flexDirection: 'column',
+		gap: 8,
+	},
+	statusText: {
+		margin: 0,
+		fontSize: 13,
+		fontWeight: 500,
+		color: 'var(--text-muted)',
+	},
+	submitButton: {
+		width: '100%',
+		padding: 16,
+		borderRadius: 12,
+		background: '#ef4444',
+		color: 'white',
+		border: 'none',
+		fontWeight: 700,
+		cursor: 'pointer',
+		marginTop: 'auto',
+	},
+	centeredMessage: {
+		display: 'flex',
+		alignItems: 'center',
+		justifyContent: 'center',
+		minHeight: '100vh',
+		background: 'var(--bg)',
+	},
+	startCard: {
+		background: 'var(--surface)',
+		padding: 40,
+		borderRadius: 24,
+		boxShadow: 'var(--shadow-lg)',
+		maxWidth: 500,
+		width: '90%',
+		textAlign: 'center',
+	},
+	startInfoGrid: {
+		display: 'grid',
+		gridTemplateColumns: 'repeat(3, 1fr)',
+		gap: 16,
+		marginBottom: 32,
+		padding: '20px 0',
+		borderTop: '1px solid var(--border)',
+		borderBottom: '1px solid var(--border)',
+	},
+	startInfoLabel: {
+		display: 'block',
+		fontSize: 12,
+		color: 'var(--text-muted)',
+		textTransform: 'uppercase',
+		letterSpacing: 1,
+		marginBottom: 4,
+	},
+	startInfoValue: {
+		fontSize: 18,
+		color: 'var(--text)',
+	},
+	startWarning: {
+		background: '#fff7ed',
+		border: '1px solid #ffedd5',
+		borderRadius: 12,
+		padding: 16,
+		textAlign: 'left',
+		marginBottom: 32,
+	},
+	startWarningList: {
+		margin: 0,
+		paddingLeft: 20,
+		color: '#9a3412',
+		fontSize: 14,
+		lineHeight: 1.6,
+	},
+	startButton: {
+		width: '100%',
+		padding: 16,
+		borderRadius: 12,
+		background: 'linear-gradient(135deg, #10b981, #059669)',
+		color: 'white',
+		border: 'none',
+		fontSize: 18,
+		fontWeight: 700,
+		cursor: 'pointer',
+		boxShadow: '0 4px 6px -1px rgba(16, 185, 129, 0.3)',
+	},
+	overlay: {
+		position: 'fixed',
+		inset: 0,
+		background: 'rgba(0,0,0,0.8)',
+		display: 'flex',
+		alignItems: 'center',
+		justifyContent: 'center',
+		zIndex: 100,
+		padding: 24,
+	},
+	overlayCard: {
+		background: 'white',
+		padding: 32,
+		borderRadius: 20,
+		maxWidth: 400,
+		width: '100%',
+		textAlign: 'center',
+	},
+    warningOverlay: {
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0,0,0,0.9)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 200,
+        padding: 24,
+        backdropFilter: 'blur(5px)',
+    },
+    warningModal: {
+        background: 'white',
+        padding: 40,
+        borderRadius: 24,
+        maxWidth: 480,
+        width: '100%',
+        textAlign: 'center',
+        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+    },
+	confirmStats: {
+		display: 'flex',
+		justifyContent: 'space-around',
+		marginBottom: 24,
+		background: '#f8fafc',
+		padding: 16,
+		borderRadius: 12,
+	},
+	confirmStatItem: {
+		display: 'flex',
+		flexDirection: 'column',
+		fontSize: 12,
+		color: '#64748b',
+	},
 	modalBackdrop: {
 		position: 'fixed',
 		inset: 0,
-		background: 'rgba(0,0,0,0.6)',
-		backdropFilter: 'blur(8px)',
-		zIndex: 100,
-		display: 'grid',
-		placeItems: 'center',
-		padding: 16,
+		background: 'rgba(0,0,0,0.5)',
+		zIndex: 60,
 	},
 	modalContent: {
+		position: 'fixed',
+		top: '50%',
+		left: '50%',
+		transform: 'translate(-50%, -50%)',
 		background: 'var(--surface)',
-		borderRadius: '16px',
-		padding: '1rem',
-		width: 'min(90vw, 480px)',
-		boxShadow: 'var(--shadow-xl)',
+		padding: 24,
+		borderRadius: 16,
+		width: '90%',
+		maxWidth: 500,
+		zIndex: 70,
+		maxHeight: '80vh',
+		overflowY: 'auto',
 	},
 	modalHeader: {
 		display: 'flex',
 		justifyContent: 'space-between',
 		alignItems: 'center',
-		padding: '0 0.5rem 1rem 0.5rem',
-		borderBottom: '1px solid var(--border)',
+		marginBottom: 20,
 	},
 	modalCloseBtn: {
-		background: 'transparent',
-		border: 0,
-		fontSize: '1.5rem',
+		background: 'none',
+		border: 'none',
+		fontSize: 24,
 		cursor: 'pointer',
 		color: 'var(--text-muted)',
 	},
-	violationBox: {
-		background: 'var(--surface)',
-		padding: 'clamp(1.5rem, 5vw, 2.5rem)',
-		borderRadius: '16px',
-		textAlign: 'center',
-		maxWidth: '500px',
-		width: '100%',
-		border: '1px solid var(--border)',
-		boxShadow: 'var(--shadow-xl)',
-	},
-	violationButton: {
-		padding: '12px 24px',
-		fontSize: '1rem',
-		fontWeight: 700,
-		cursor: 'pointer',
-		background: 'var(--danger)',
-		color: 'white',
-		border: 'none',
-		borderRadius: '8px',
-		width: '100%',
-	},
-	submitSummary: {
-		background: 'var(--bg-alt)',
-		border: '1px solid var(--border)',
-		borderRadius: '12px',
-		padding: '1rem',
-		display: 'grid',
-		gap: '12px',
-		textAlign: 'left',
-	},
-	summaryItem: {
-		display: 'flex',
-		justifyContent: 'space-between',
-		alignItems: 'center',
-		fontSize: 14,
-	},
-	cancelButton: {
-		padding: '12px 24px',
-		fontSize: '1rem',
-		fontWeight: 700,
-		cursor: 'pointer',
-		background: 'var(--bg-alt)',
-		color: 'var(--text)',
-		border: '1px solid var(--border)',
-		borderRadius: '8px',
-		flex: 1,
-	},
-	confirmButton: {
-		padding: '12px 24px',
-		fontSize: '1rem',
-		fontWeight: 700,
-		cursor: 'pointer',
-		background: 'var(--danger)',
-		color: 'white',
-		border: 'none',
-		borderRadius: '8px',
-		flex: 1,
+	button: {
+		primary: {
+			background: 'var(--primary)',
+			color: 'white',
+			border: 'none',
+			padding: '12px 24px',
+			borderRadius: 10,
+			fontWeight: 700,
+			cursor: 'pointer',
+		},
+		secondary: {
+			background: 'var(--surface)',
+			color: 'var(--text)',
+			border: '1px solid var(--border)',
+			padding: '12px 24px',
+			borderRadius: 10,
+			fontWeight: 600,
+			cursor: 'pointer',
+		},
 	},
 };
 
-// Media query for responsive design
-const mediaQuery = `
-  :root {
-    --success: #10b981; --success-bg: rgba(16,185,129,0.1); --success-border: rgba(16,185,129,0.2);
-    --warning: #f59e0b; --warning-bg: rgba(245,158,11,0.1); --warning-border: rgba(245,158,11,0.2);
-    --danger: #ef4444;
-    --review: #8b5cf6; --review-bg: rgba(139,92,246,0.1); --review-border: rgba(139,92,246,0.2);
-    --bg-alt: var(--theme-elevation-1);
-  }
-  .hide-on-mobile { display: inline-block; }
-  .show-on-mobile { display: none !important; }
-  @media (max-width: 900px) {
-    .examLayout { 
-      grid-template-columns: 1fr !important; 
-      padding: 0 !important;
-      padding-bottom: 70px !important; /* Space for bottom nav */
+// Add media queries via style tag for better responsiveness
+const styleSheet = document.createElement("style");
+styleSheet.innerText = `
+    @media (min-width: 1024px) {
+        .statusBar { display: flex !important; }
+        .hide-on-mobile { display: inline !important; }
+        .mobileCenterNav { display: none !important; }
+        .questionPanel { padding-bottom: 24px !important; }
     }
-    .statusBar { display: none !important; }
-    .hide-on-mobile { display: none !important; }
-    .show-on-mobile { display: inline-flex !important; }
-    
-    .questionPanel { border-radius: 0; border-left: 0; border-right: 0; }
-    .questionPanelHeader { display: none; }
-    .bottomNav {
-      padding: 8px;
-      gap: 8px;
+    @media (max-width: 1023px) {
+        .hide-on-mobile { display: none !important; }
+        .statusBar { display: none !important; }
     }
-    .mobileCenterNav {
-      display: flex !important;
-      flex-direction: column;
-      gap: 4px;
-      text-align: center;
-    }
-    .mobileTimer {
-      font-size: 14px;
-      font-weight: 700;
-      background: transparent; border: 0; color: var(--text);
-      padding: 0;
-    }
-    .mobilePaletteBtn {
-      font-size: 12px;
-      font-weight: 600;
-      background: var(--bg-alt);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 2px 8px;
-      color: var(--text-muted);
-    }
-  }
 `;
-
-const styleSheet = document.createElement('style');
-styleSheet.innerText = mediaQuery;
-if (!document.querySelector('style[data-exam-styles]')) {
-	styleSheet.setAttribute('data-exam-styles', 'true');
-	document.head.appendChild(styleSheet);
-}
+document.head.appendChild(styleSheet);
 
 export default TakeExam;
