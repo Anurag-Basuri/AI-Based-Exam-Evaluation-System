@@ -105,18 +105,16 @@ const EP = {
 		`/api/submissions/start/${encodeURIComponent(examId)}`, // Preferred: by param
 		'/api/submissions/start', // Fallback: by body
 	],
-	// FIX: Corrected endpoint to match submission.routes.js
 	submissionsMine: ['/api/submissions/my-submissions'],
 	submissionById: id => `/api/submissions/${encodeURIComponent(id)}`,
-	// FIX: This endpoint is for syncing by submission ID, not examId. Renamed for clarity.
 	submissionSyncById: id => `/api/submissions/${encodeURIComponent(id)}/answers`,
 	submissionSubmitById: id => `/api/submissions/${encodeURIComponent(id)}/submit`,
+	submissionForResults: id => `/api/submissions/results/${encodeURIComponent(id)}`,
 
 	// Issues (student-facing)
 	issuesMine: ['/api/issues/student', '/api/issues/me'],
 	issueCreate: ['/api/issues/create'],
 	issueById: id => `/api/issues/${encodeURIComponent(id)}`,
-	// New endpoint for deleting an issue
 	issueDelete: id => `/api/issues/${encodeURIComponent(id)}`,
 	issueReply: id => [
 		`/api/issues/${encodeURIComponent(id)}/reply`,
@@ -284,7 +282,6 @@ export const startExam = async examId => {
 };
 
 // ---------- Student: Submissions ----------
-// --- NEW: Simple in-memory cache for submissions ---
 let submissionsCache = {
 	data: null,
 	timestamp: 0,
@@ -314,33 +311,32 @@ export const getMySubmissions = async (params = {}, forceRefresh = false) => {
 	return normalizedList;
 };
 
-// FIX: This function now uses the new dedicated endpoint for result details.
+// Get submission details for results page
 export const getSubmissionForResults = async submissionId => {
 	const res = await tryGet(EP.submissionForResults(submissionId));
-	// No normalization needed; the backend sends exactly what the modal needs.
+	// server returns already-populated submission; return inner data
 	return res?.data?.data ?? res?.data ?? null;
 };
 
 export const getSubmissionById = async submissionId => {
-    const res = await tryGet(EP.submissionById(submissionId));
-    const data = res?.data?.data ?? res?.data ?? {};
-    return normalizeSubmission(data);
+	const res = await tryGet(EP.submissionById(submissionId));
+	const data = res?.data?.data ?? res?.data ?? {};
+	return normalizeSubmission(data);
 };
 
 export const saveSubmissionAnswers = async (submissionId, payload) => {
-    const res = await tryPatch(() => EP.submissionSyncById(submissionId), payload);
-    const data = res?.data?.data ?? res?.data;
-    return normalizeSubmission(data);
+	const res = await tryPatch(() => EP.submissionSyncById(submissionId), payload);
+	const data = res?.data?.data ?? res?.data;
+	return normalizeSubmission(data);
 };
 
 export const submitSubmission = async (submissionId, payload) => {
-    const res = await tryPost(() => EP.submissionSubmitById(submissionId), payload);
+	const res = await tryPost(() => EP.submissionSubmitById(submissionId), payload);
 	return res?.data?.data ?? res?.data;
 };
 
 // ---------- Issues (Student) ----------
 const normalizeIssue = i => {
-	// CRITICAL FIX: Ensure 'i' itself is not null or undefined.
 	if (!i) {
 		return {
 			id: '',
