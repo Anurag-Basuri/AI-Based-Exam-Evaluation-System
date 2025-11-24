@@ -17,8 +17,14 @@ const TeacherSettings = () => {
 		email: '',
 		phonenumber: '',
 		department: '',
-        // Address is a subdocument
-		address: ''
+        // Address is a subdocument, must be initialized as object
+		address: {
+            street: '',
+            city: '',
+            state: '',
+            postalCode: '',
+            country: ''
+        },
 	};
 
 	const [profile, setProfile] = useState(initialProfileState);
@@ -28,13 +34,26 @@ const TeacherSettings = () => {
     // Load user data
     useEffect(() => {
         if (user) {
+            // Helper to safely parse address
+            const parseAddress = (addr) => {
+                if (!addr) return { street: '', city: '', state: '', postalCode: '', country: '' };
+                if (typeof addr === 'string') return { street: addr, city: '', state: '', postalCode: '', country: '' };
+                return {
+                    street: addr.street || '',
+                    city: addr.city || '',
+                    state: addr.state || '',
+                    postalCode: addr.postalCode || '',
+                    country: addr.country || '',
+                };
+            };
+
             const loadedProfile = {
                 username: user.username || '',
                 fullname: user.fullname || '',
                 email: user.email || '',
                 phonenumber: user.phonenumber || '',
                 department: user.department || '',
-                address: user.address || '',
+                address: parseAddress(user.address),
             };
             setProfile(loadedProfile);
             setOriginalProfile(loadedProfile);
@@ -72,26 +91,25 @@ const TeacherSettings = () => {
             // Top-level fields
             ['username', 'fullname', 'email', 'department'].forEach(key => {
                 if (profile[key] !== originalProfile[key]) {
-                    payload[key] = profile[key].trim();
+                    payload[key] = (profile[key] || '').trim();
                 }
             });
 
             // Phone number: handle empty string as null to satisfy sparse index/validator
             if (profile.phonenumber !== originalProfile.phonenumber) {
-                const phone = profile.phonenumber.trim();
+                const phone = (profile.phonenumber || '').trim();
                 payload.phonenumber = phone === '' ? null : phone;
             }
 
-            // Address: send full object if any part changed (simpler for backend replacement)
-            // or we could send partial. Let's send the full address object if any field changed.
+            // Address: send full object if any part changed
             const addressChanged = JSON.stringify(profile.address) !== JSON.stringify(originalProfile.address);
             if (addressChanged) {
                 payload.address = {
-                    street: profile.address.street.trim(),
-                    city: profile.address.city.trim(),
-                    state: profile.address.state.trim(),
-                    postalCode: profile.address.postalCode.trim(),
-                    country: profile.address.country.trim(),
+                    street: (profile.address.street || '').trim(),
+                    city: (profile.address.city || '').trim(),
+                    state: (profile.address.state || '').trim(),
+                    postalCode: (profile.address.postalCode || '').trim(),
+                    country: (profile.address.country || '').trim(),
                 };
             }
 
@@ -145,7 +163,7 @@ const TeacherSettings = () => {
         setProfile(prev => ({
             ...prev,
             address: {
-                ...prev.address,
+                ...(prev.address || {}), // Ensure prev.address is an object
                 [key]: value
             }
         }));
