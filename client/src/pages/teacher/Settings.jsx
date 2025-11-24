@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../hooks/useAuth.js';
 import {
 	safeApiCall,
@@ -8,37 +8,50 @@ import {
 import './Settings.css';
 
 const TeacherSettings = () => {
-	const { user, login } = useAuth(); // Assuming login updates the user context
-	
-    // Initialize state with user data or defaults
-	const [profile, setProfile] = useState({
+	const { user } = useAuth();
+
+    // Initial state structure matching the backend schema
+    const initialProfileState = {
 		username: '',
 		fullname: '',
 		email: '',
 		phonenumber: '',
 		department: '',
-		address: '',
-	});
+        // Address is a subdocument
+		address: ''
+	};
 
-    // Load user data into state when user object is available
+	const [profile, setProfile] = useState(initialProfileState);
+    const [originalProfile, setOriginalProfile] = useState(initialProfileState);
+    const [isDirty, setIsDirty] = useState(false);
+
+    // Load user data
     useEffect(() => {
         if (user) {
-            setProfile({
+            const loadedProfile = {
                 username: user.username || '',
                 fullname: user.fullname || '',
                 email: user.email || '',
                 phonenumber: user.phonenumber || '',
                 department: user.department || '',
-                address: typeof user.address === 'string' ? user.address : '', // Handle address if it's an object in future
-            });
+                address: user.address || '',
+            };
+            setProfile(loadedProfile);
+            setOriginalProfile(loadedProfile);
         }
     }, [user]);
+
+    // Check for changes
+    useEffect(() => {
+        const isChanged = JSON.stringify(profile) !== JSON.stringify(originalProfile);
+        setIsDirty(isChanged);
+    }, [profile, originalProfile]);
 
 	const [passwords, setPasswords] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
 	const [saving, setSaving] = useState(false);
 	const [message, setMessage] = useState({ type: '', text: '' });
 
-    // Clear message after 5 seconds
+    // Auto-dismiss message
     useEffect(() => {
         if (message.text) {
             const timer = setTimeout(() => setMessage({ type: '', text: '' }), 5000);
@@ -48,19 +61,49 @@ const TeacherSettings = () => {
 
 	const saveProfile = async e => {
 		e.preventDefault();
+        if (!isDirty) return;
+
 		setSaving(true);
 		setMessage({ type: '', text: '' });
 		try {
-            // Clean up payload
-			const payload = Object.fromEntries(
-				Object.entries(profile).map(([k, v]) => [k, typeof v === 'string' ? v.trim() : v]),
-			);
+            // Calculate changed fields only
+            const payload = {};
             
-			const updatedUser = await safeApiCall(updateTeacherProfile, payload);
+            // Top-level fields
+            ['username', 'fullname', 'email', 'department'].forEach(key => {
+                if (profile[key] !== originalProfile[key]) {
+                    payload[key] = profile[key].trim();
+                }
+            });
+
+            // Phone number: handle empty string as null to satisfy sparse index/validator
+            if (profile.phonenumber !== originalProfile.phonenumber) {
+                const phone = profile.phonenumber.trim();
+                payload.phonenumber = phone === '' ? null : phone;
+            }
+
+            // Address: send full object if any part changed (simpler for backend replacement)
+            // or we could send partial. Let's send the full address object if any field changed.
+            const addressChanged = JSON.stringify(profile.address) !== JSON.stringify(originalProfile.address);
+            if (addressChanged) {
+                payload.address = {
+                    street: profile.address.street.trim(),
+                    city: profile.address.city.trim(),
+                    state: profile.address.state.trim(),
+                    postalCode: profile.address.postalCode.trim(),
+                    country: profile.address.country.trim(),
+                };
+            }
+
+            if (Object.keys(payload).length === 0) {
+                setSaving(false);
+                return;
+            }
+
+			await safeApiCall(updateTeacherProfile, payload);
             
-            // Update local user context if possible (assuming login/updateUser function exists)
-            // If useAuth doesn't expose a way to update user without reload, we might need to reload or just rely on the response
-            
+            // Update original profile to match new state
+            setOriginalProfile(JSON.parse(JSON.stringify(profile)));
 			setMessage({ type: 'success', text: 'Profile updated successfully.' });
 		} catch (err) {
 			setMessage({ type: 'error', text: err?.message || 'Failed to update profile.' });
@@ -94,7 +137,19 @@ const TeacherSettings = () => {
 		}
 	};
 
-	const onProfileChange = (key, value) => setProfile(prev => ({ ...prev, [key]: value }));
+	const onProfileChange = (key, value) => {
+        setProfile(prev => ({ ...prev, [key]: value }));
+    };
+
+    const onAddressChange = (key, value) => {
+        setProfile(prev => ({
+            ...prev,
+            address: {
+                ...prev.address,
+                [key]: value
+            }
+        }));
+    };
 
 	return (
 		<div className="settings-container">
@@ -168,31 +223,83 @@ const TeacherSettings = () => {
                         </div>
                     </div>
 
+                    <div className="form-group">
+                        <label className="form-label">Department <span className="form-hint">(Optional)</span></label>
+                        <input
+                            type="text"
+                            className="form-input"
+                            value={profile.department}
+                            onChange={e => onProfileChange('department', e.target.value)}
+                            placeholder="Computer Science"
+                        />
+                    </div>
+
+                    <div className="section-divider" style={{ margin: '16px 0', borderTop: '1px solid var(--border)' }}></div>
+                    <h3 className="form-label" style={{ fontSize: '1rem', marginBottom: '16px' }}>Address Details</h3>
+
                     <div className="form-grid">
                         <div className="form-group">
-                            <label className="form-label">Department <span className="form-hint">(Optional)</span></label>
+                            <label className="form-label">Street</label>
                             <input
                                 type="text"
                                 className="form-input"
-                                value={profile.department}
-                                onChange={e => onProfileChange('department', e.target.value)}
-                                placeholder="Computer Science"
+                                value={profile.address.street}
+                                onChange={e => onAddressChange('street', e.target.value)}
+                                placeholder="123 Campus Dr"
                             />
                         </div>
                         <div className="form-group">
-                            <label className="form-label">Address <span className="form-hint">(Optional)</span></label>
+                            <label className="form-label">City</label>
                             <input
                                 type="text"
                                 className="form-input"
-                                value={profile.address}
-                                onChange={e => onProfileChange('address', e.target.value)}
-                                placeholder="123 Campus Dr, City, State"
+                                value={profile.address.city}
+                                onChange={e => onAddressChange('city', e.target.value)}
+                                placeholder="New York"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="form-grid">
+                        <div className="form-group">
+                            <label className="form-label">State / Province</label>
+                            <input
+                                type="text"
+                                className="form-input"
+                                value={profile.address.state}
+                                onChange={e => onAddressChange('state', e.target.value)}
+                                placeholder="NY"
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label className="form-label">Postal Code</label>
+                            <input
+                                type="text"
+                                className="form-input"
+                                value={profile.address.postalCode}
+                                onChange={e => onAddressChange('postalCode', e.target.value)}
+                                placeholder="10001"
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label className="form-label">Country</label>
+                            <input
+                                type="text"
+                                className="form-input"
+                                value={profile.address.country}
+                                onChange={e => onAddressChange('country', e.target.value)}
+                                placeholder="USA"
                             />
                         </div>
                     </div>
 
 					<div className="form-actions">
-						<button type="submit" className="btn-save" disabled={saving}>
+						<button 
+                            type="submit" 
+                            className="btn-save" 
+                            disabled={saving || !isDirty}
+                            title={!isDirty ? "No changes to save" : "Save changes"}
+                        >
 							{saving ? 'Saving...' : 'Save Changes'}
 						</button>
 					</div>
