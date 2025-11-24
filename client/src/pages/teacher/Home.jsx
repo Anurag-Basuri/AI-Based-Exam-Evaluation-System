@@ -5,19 +5,31 @@ import { useAuth } from '../../hooks/useAuth.js';
 import { getTeacherDashboardStats, safeApiCall } from '../../services/teacherServices.js';
 import { API_BASE_URL } from '../../services/api.js';
 
-// --- Reusable Components ---
+// --- Utilities & defaults ---
+const DEFAULT_DASH = {
+	exams: { live: 0, scheduled: 0, draft: 0 },
+	issues: { open: 0 },
+	submissions: { pending: 0 },
+	examsToReview: [],
+	recentSubmissions: [],
+};
 
-const ProfileSection = ({ user, stats }) => {
-	const getInitials = name => {
-		return (
-			name
-				?.split(' ')
-				.map(n => n[0])
-				.join('')
-				.toUpperCase()
-				.slice(0, 2) || 'T'
-		);
-	};
+const safePercent = (num, den) => {
+	const n = Number(num || 0);
+	const d = Number(den || 0);
+	if (!d || d <= 0) return 0;
+	return Math.round((n / d) * 100);
+};
+
+// --- Reusable Components ---
+const ProfileSection = ({ user }) => {
+	const getInitials = name =>
+		name
+			?.split(' ')
+			.map(n => n[0])
+			.join('')
+			.toUpperCase()
+			.slice(0, 2) || 'T';
 
 	return (
 		<div style={styles.profileCard.container}>
@@ -53,15 +65,15 @@ const ProfileSection = ({ user, stats }) => {
 };
 
 const StatCard = ({ icon, label, value, loading, color = '#6366f1', trend }) => (
-	<div style={styles.statCard.container}>
+	<div style={styles.statCard.container} aria-live="polite">
 		<div style={{ ...styles.statCard.iconContainer, background: `${color}15`, color }}>
 			{icon}
 		</div>
 		<div style={styles.statCard.content}>
 			<div style={styles.statCard.label}>{label}</div>
 			<div style={styles.statCard.valueWrapper}>
-				<div style={styles.statCard.value}>{loading ? '...' : value}</div>
-				{trend && (
+				<div style={styles.statCard.value}>{loading ? '…' : value}</div>
+				{trend !== undefined && (
 					<div
 						style={{
 							...styles.statCard.trend,
@@ -77,38 +89,34 @@ const StatCard = ({ icon, label, value, loading, color = '#6366f1', trend }) => 
 	</div>
 );
 
-const ActionButton = ({ icon, label, description, onClick, variant = 'primary' }) => {
-	return (
-		<button onClick={onClick} style={styles.actionButton.container} className="hover-scale">
-			<div
-				style={{
-					...styles.actionButton.icon,
-					background:
-						variant === 'primary' ? 'var(--primary-light)' : 'var(--bg-secondary)',
-				}}
-			>
-				{icon}
-			</div>
-			<div style={styles.actionButton.text}>
-				<span style={styles.actionButton.label}>{label}</span>
-				<span style={styles.actionButton.description}>{description}</span>
-			</div>
-			<div style={styles.actionButton.arrow}>→</div>
-		</button>
-	);
-};
+const ActionButton = ({ icon, label, description, onClick }) => (
+	<button
+		onClick={onClick}
+		style={styles.actionButton.container}
+		className="hover-scale"
+		type="button"
+	>
+		<div style={{ ...styles.actionButton.icon, background: 'var(--primary-light)' }}>
+			{icon}
+		</div>
+		<div style={styles.actionButton.text}>
+			<span style={styles.actionButton.label}>{label}</span>
+			<span style={styles.actionButton.description}>{description}</span>
+		</div>
+		<div style={styles.actionButton.arrow}>→</div>
+	</button>
+);
 
 const Skeleton = ({ height = '100%', width = '100%', borderRadius = 8 }) => (
 	<div style={{ ...styles.skeleton, height, width, borderRadius }} />
 );
 
-// --- UI Components ---
-
-const ExamsToReview = ({ exams, loading, navigate }) => (
+// --- UI Components (defensive) ---
+const ExamsToReview = ({ exams = [], loading, navigate }) => (
 	<div style={styles.listCard.container}>
 		<div style={styles.listCard.header}>
 			<h3 style={styles.listCard.title}>Needs Review</h3>
-			<span style={styles.listCard.badge}>{exams?.length || 0}</span>
+			<span style={styles.listCard.badge}>{(exams && exams.length) || 0}</span>
 		</div>
 		<div style={styles.listCard.list}>
 			{loading &&
@@ -117,51 +125,52 @@ const ExamsToReview = ({ exams, loading, navigate }) => (
 						<Skeleton height={50} />
 					</div>
 				))}
-			{!loading && exams?.length === 0 && (
+			{!loading && (!exams || exams.length === 0) && (
 				<div style={styles.emptyState.container}>
 					<span style={styles.emptyState.icon}>🎉</span>
 					<p style={styles.emptyState.text}>All caught up! No pending reviews.</p>
 				</div>
 			)}
-			{exams?.map(exam => (
-				<div
-					key={exam._id}
-					style={styles.reviewItem.container}
-					className="hover-effect"
-					onClick={() => navigate(`/teacher/results/${exam._id}`)}
-				>
-					<div style={styles.reviewItem.content}>
-						<span style={styles.reviewItem.title}>{exam.title}</span>
-						<div style={styles.reviewItem.meta}>
-							<span>👥 {exam.submissionsCount} Submissions</span>
-							<span>•</span>
-							<span style={{ color: 'var(--primary)' }}>
-								{exam.submissionsCount - exam.evaluatedCount} Pending
+			{(exams || []).map(exam => {
+				const id = exam._id || exam.id || '';
+				const submissionsCount = Number(exam.submissionsCount || exam.submissions || 0);
+				const evaluatedCount = Number(exam.evaluatedCount || 0);
+				const pct = safePercent(evaluatedCount, submissionsCount);
+				return (
+					<div
+						key={id || Math.random()}
+						style={styles.reviewItem.container}
+						className="hover-effect"
+						onClick={() => id && navigate(`/teacher/results/${id}`)}
+					>
+						<div style={styles.reviewItem.content}>
+							<span style={styles.reviewItem.title}>
+								{exam.title || 'Untitled Exam'}
 							</span>
+							<div style={styles.reviewItem.meta}>
+								<span>👥 {submissionsCount}</span>
+								<span>•</span>
+								<span style={{ color: 'var(--primary)' }}>
+									{Math.max(0, submissionsCount - evaluatedCount)} Pending
+								</span>
+							</div>
+						</div>
+						<div style={styles.reviewItem.progress}>
+							<div style={styles.reviewItem.progressText}>{pct}%</div>
+							<div style={styles.reviewItem.progressBarBg}>
+								<div
+									style={{ ...styles.reviewItem.progressBarFg, width: `${pct}%` }}
+								/>
+							</div>
 						</div>
 					</div>
-					<div style={styles.reviewItem.progress}>
-						<div style={styles.reviewItem.progressText}>
-							{Math.round((exam.evaluatedCount / exam.submissionsCount) * 100)}%
-						</div>
-						<div style={styles.reviewItem.progressBarBg}>
-							<div
-								style={{
-									...styles.reviewItem.progressBarFg,
-									width: `${
-										(exam.evaluatedCount / exam.submissionsCount) * 100
-									}%`,
-								}}
-							/>
-						</div>
-					</div>
-				</div>
-			))}
+				);
+			})}
 		</div>
 	</div>
 );
 
-const RecentSubmissions = ({ submissions, loading, navigate }) => (
+const RecentSubmissions = ({ submissions = [], loading, navigate }) => (
 	<div style={styles.listCard.container}>
 		<h3 style={styles.listCard.title}>Recent Activity</h3>
 		<div style={styles.listCard.list}>
@@ -171,58 +180,60 @@ const RecentSubmissions = ({ submissions, loading, navigate }) => (
 						<Skeleton height={40} />
 					</div>
 				))}
-			{!loading && submissions?.length === 0 && (
+			{!loading && (!submissions || submissions.length === 0) && (
 				<div style={styles.emptyState.container}>
 					<span style={styles.emptyState.icon}>📂</span>
 					<p style={styles.emptyState.text}>No recent submissions.</p>
 				</div>
 			)}
-			{submissions?.map(sub => (
-				<div
-					key={sub._id}
-					style={styles.activityItem.container}
-					className="hover-effect"
-					onClick={() => navigate(`/teacher/grade/${sub._id}`)}
-				>
-					<div style={styles.activityItem.avatar}>
-						{(sub.student?.fullname || 'S')[0]}
-					</div>
-					<div style={styles.activityItem.details}>
-						<div style={styles.activityItem.header}>
-							<span style={styles.activityItem.name}>
-								{sub.student?.fullname || 'Student'}
-							</span>
-							<span style={styles.activityItem.time}>
-								{new Date(sub.createdAt).toLocaleDateString(undefined, {
-									month: 'short',
-									day: 'numeric',
-									hour: '2-digit',
-									minute: '2-digit',
-								})}
-							</span>
+			{(submissions || []).map(sub => {
+				const id = sub._id || sub.id || '';
+				const studentName = sub.student?.fullname || sub.student?.username || 'Student';
+				const examTitle = sub.exam?.title || sub.examTitle || 'Exam';
+				const createdAt = sub.createdAt || sub.submittedAt || sub.startedAt || '';
+				let timeLabel = '';
+				try {
+					timeLabel = createdAt ? new Date(createdAt).toLocaleString() : '';
+				} catch {
+					timeLabel = '';
+				}
+				return (
+					<div
+						key={id || Math.random()}
+						style={styles.activityItem.container}
+						className="hover-effect"
+						onClick={() => id && navigate(`/teacher/grade/${id}`)}
+					>
+						<div style={styles.activityItem.avatar}>{(studentName || 'S')[0]}</div>
+						<div style={styles.activityItem.details}>
+							<div style={styles.activityItem.header}>
+								<span style={styles.activityItem.name}>{studentName}</span>
+								<span style={styles.activityItem.time}>{timeLabel}</span>
+							</div>
+							<div style={styles.activityItem.action}>
+								Submitted <strong>{examTitle}</strong>
+							</div>
 						</div>
-						<div style={styles.activityItem.action}>
-							Submitted <strong>{sub.exam?.title}</strong>
-						</div>
 					</div>
-				</div>
-			))}
+				);
+			})}
 		</div>
 	</div>
 );
 
-// --- Main TeacherHome Component ---
-
+// --- Main Component ---
 const MOBILE_BREAKPOINT = 1024;
 
 const TeacherHome = () => {
 	const navigate = useNavigate();
 	const { user } = useAuth();
 
-	const [data, setData] = React.useState(null);
+	const [data, setData] = React.useState(DEFAULT_DASH);
 	const [loading, setLoading] = React.useState(true);
 	const [error, setError] = React.useState('');
-	const [isMobile, setIsMobile] = React.useState(window.innerWidth < MOBILE_BREAKPOINT);
+	const [isMobile, setIsMobile] = React.useState(
+		typeof window !== 'undefined' ? window.innerWidth < MOBILE_BREAKPOINT : false,
+	);
 
 	React.useEffect(() => {
 		const handleResize = () => setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
@@ -234,10 +245,19 @@ const TeacherHome = () => {
 		setLoading(true);
 		setError('');
 		try {
+			// safeApiCall wrapper returns normalized or throws ApiError
 			const response = await safeApiCall(getTeacherDashboardStats);
-			setData(response);
+			// defensive merge with defaults so UI always has shape
+			if (!response || typeof response !== 'object') {
+				console.warn('Unexpected dashboard payload', response);
+				setData(DEFAULT_DASH);
+			} else {
+				setData({ ...DEFAULT_DASH, ...response });
+			}
 		} catch (e) {
-			setError(e.message || 'Failed to load dashboard data');
+			console.warn('Failed to load dashboard stats', e);
+			setError(e?.message || 'Failed to load dashboard data');
+			setData(DEFAULT_DASH);
 		} finally {
 			setLoading(false);
 		}
@@ -249,33 +269,34 @@ const TeacherHome = () => {
 
 	// --- REAL-TIME UPDATES ---
 	React.useEffect(() => {
-		if (!user?.id) return;
+		if (!user?.id) return undefined;
 
 		const socket = io(API_BASE_URL, {
 			withCredentials: true,
 			query: { role: 'teacher', userId: user.id },
 		});
 
-		socket.on('new-submission', newSubmission => {
+		const onNewSubmission = newSubmission => {
 			setData(currentData => {
-				if (!currentData) return null;
-				const updatedSubmissions = [newSubmission, ...currentData.recentSubmissions].slice(
+				const recent = [newSubmission, ...(currentData.recentSubmissions || [])].slice(
 					0,
 					5,
 				);
-				const updatedPending = (currentData.submissions.pending || 0) + 1;
+				const pending = (currentData.submissions?.pending || 0) + 1;
 
-				const examId = newSubmission.exam?._id;
-				let needsReviewUpdated = false;
-				const updatedExamsToReview = currentData.examsToReview.map(exam => {
-					if (exam._id === examId) {
-						needsReviewUpdated = true;
-						return { ...exam, submissionsCount: (exam.submissionsCount || 0) + 1 };
+				const examId = newSubmission.exam?._id || newSubmission.exam?.id;
+				let updatedExamsToReview = Array.isArray(currentData.examsToReview)
+					? [...currentData.examsToReview]
+					: [];
+				let found = false;
+				updatedExamsToReview = updatedExamsToReview.map(ex => {
+					if ((ex._id || ex.id) === examId) {
+						found = true;
+						return { ...ex, submissionsCount: (ex.submissionsCount || 0) + 1 };
 					}
-					return exam;
+					return ex;
 				});
-
-				if (!needsReviewUpdated) {
+				if (!found && examId) {
 					updatedExamsToReview.unshift({
 						_id: examId,
 						title: newSubmission.exam?.title || 'New Exam',
@@ -283,40 +304,42 @@ const TeacherHome = () => {
 						evaluatedCount: 0,
 					});
 				}
-
 				return {
 					...currentData,
-					recentSubmissions: updatedSubmissions,
-					submissions: { ...currentData.submissions, pending: updatedPending },
+					recentSubmissions: recent,
+					submissions: { ...(currentData.submissions || {}), pending },
 					examsToReview: updatedExamsToReview.slice(0, 5),
 				};
 			});
-		});
+		};
 
-		return () => socket.disconnect();
-	}, [user]);
+		socket.on('new-submission', onNewSubmission);
+		socket.on('submission-updated', () => loadData()); // refresh on other updates
+
+		return () => {
+			socket.off('new-submission', onNewSubmission);
+			socket.disconnect();
+		};
+	}, [user, loadData]);
 
 	const quickActions = [
 		{
 			label: 'Create New Exam',
 			description: 'Set up a new test',
 			icon: '➕',
-			onClick: () => navigate('exams/create'),
-			variant: 'primary',
+			onClick: () => navigate('/teacher/exams/create'),
 		},
 		{
 			label: 'Question Bank',
 			description: 'Manage questions',
 			icon: '📚',
-			onClick: () => navigate('questions'),
-			variant: 'secondary',
+			onClick: () => navigate('/teacher/questions'),
 		},
 		{
 			label: 'Student Issues',
 			description: 'View reported problems',
 			icon: '🚩',
-			onClick: () => navigate('issues'),
-			variant: 'secondary',
+			onClick: () => navigate('/teacher/issues'),
 		},
 	];
 
@@ -345,6 +368,7 @@ const TeacherHome = () => {
 				<div style={{ flex: isMobile ? '1 1 100%' : '0 0 350px' }}>
 					<ProfileSection user={user} />
 				</div>
+
 				<div style={styles.statsGrid}>
 					{statCards.map(card => (
 						<StatCard key={card.label} {...card} loading={loading} />
@@ -356,21 +380,21 @@ const TeacherHome = () => {
 
 			{/* Main Content Grid */}
 			<div style={styles.mainGrid.container(isMobile)}>
-				{/* Left Column: Activity & Reviews */}
+				{/* Left Column */}
 				<div style={styles.mainGrid.column}>
 					<RecentSubmissions
-						submissions={data?.recentSubmissions}
+						submissions={data?.recentSubmissions ?? []}
 						loading={loading}
 						navigate={navigate}
 					/>
 					<ExamsToReview
-						exams={data?.examsToReview}
+						exams={data?.examsToReview ?? []}
 						loading={loading}
 						navigate={navigate}
 					/>
 				</div>
 
-				{/* Right Column: Quick Actions & More */}
+				{/* Right Column */}
 				<div style={styles.mainGrid.column}>
 					<div style={styles.listCard.container}>
 						<h3 style={styles.listCard.title}>Quick Actions</h3>
@@ -381,7 +405,6 @@ const TeacherHome = () => {
 						</div>
 					</div>
 
-					{/* Optional: System Status or Tips could go here */}
 					<div
 						style={{
 							...styles.listCard.container,

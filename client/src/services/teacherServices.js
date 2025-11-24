@@ -523,10 +523,6 @@ export const changeTeacherPassword = async ({ currentPassword, newPassword }) =>
 export const getTeacherDashboardStats = async () => {
 	const res = await tryGet(EP.teacherDashboardStats);
 
-	// Support multiple response envelopes:
-	// - axios res.data = { success: true, data: stats }
-	// - axios res.data = stats
-	// - res may already be stats object if safe wrapper returns inner data
 	const payload = res?.data?.data ?? res?.data ?? res;
 
 	// Defensive normalization to ensure UI always gets the same fields
