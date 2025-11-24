@@ -7,11 +7,12 @@ import { API_BASE_URL } from '../../services/api.js';
 
 // --- Utilities & defaults ---
 const DEFAULT_DASH = {
-	exams: { live: 0, scheduled: 0, draft: 0 },
+	exams: { total: 0, live: 0, scheduled: 0, draft: 0, totalEnrolled: 0 },
 	issues: { open: 0 },
 	submissions: { pending: 0 },
 	examsToReview: [],
 	recentSubmissions: [],
+	teacher: null,
 };
 
 const safePercent = (num, den) => {
@@ -21,209 +22,29 @@ const safePercent = (num, den) => {
 	return Math.round((n / d) * 100);
 };
 
-// --- Reusable Components ---
-const ProfileSection = ({ user, data }) => {
-	const getInitials = name =>
-		name
-			?.split(' ')
-			.map(n => n[0])
-			.join('')
-			.toUpperCase()
-			.slice(0, 2) || 'T';
-
-	return (
-		<div style={styles.profileCard.container}>
-			<div style={styles.profileCard.header}>
-				<div style={styles.profileCard.avatar}>
-					{getInitials(user?.fullname || user?.username)}
-				</div>
-				<div style={styles.profileCard.info}>
-					<h2 style={styles.profileCard.name}>{user?.fullname || 'Teacher'}</h2>
-					<p style={styles.profileCard.role}>
-						{user?.role
-							? user.role.charAt(0).toUpperCase() + user.role.slice(1)
-							: 'Educator'}
-					</p>
-					<div style={styles.profileCard.details}>
-						{user?.email && (
-							<span style={styles.profileCard.detailItem}>📧 {user.email}</span>
-						)}
-						{user?.department && (
-							<span style={styles.profileCard.detailItem}>🏢 {user.department}</span>
-						)}
-						{/* newly added teacher-level metric */}
-						{(data?.exams?.totalEnrolled ?? 0) > 0 && (
-							<span style={styles.profileCard.detailItem}>
-								👥 {data.exams.totalEnrolled} Enrolled
-							</span>
-						)}
-					</div>
-				</div>
-				<button
-					style={styles.profileCard.editButton}
-					onClick={() => (window.location.href = '/teacher/settings')}
-				>
-					Edit Profile
-				</button>
-			</div>
-		</div>
-	);
+const formatDate = v => {
+	if (!v) return '—';
+	try {
+		const d = new Date(v);
+		if (Number.isNaN(d.getTime())) return String(v);
+		return d.toLocaleString();
+	} catch {
+		return String(v);
+	}
 };
 
-const StatCard = ({ icon, label, value, loading, color = '#6366f1', trend }) => (
-	<div style={styles.statCard.container} aria-live="polite">
-		<div style={{ ...styles.statCard.iconContainer, background: `${color}15`, color }}>
-			{icon}
-		</div>
-		<div style={styles.statCard.content}>
-			<div style={styles.statCard.label}>{label}</div>
-			<div style={styles.statCard.valueWrapper}>
-				<div style={styles.statCard.value}>{loading ? '…' : value}</div>
-				{trend !== undefined && (
-					<div
-						style={{
-							...styles.statCard.trend,
-							color: trend > 0 ? '#10b981' : '#ef4444',
-							background: trend > 0 ? '#10b98115' : '#ef444415',
-						}}
-					>
-						{trend > 0 ? '↑' : '↓'} {Math.abs(trend)}%
-					</div>
-				)}
-			</div>
-		</div>
+// --- Reusable Components ---
+const ProfileField = ({ label, value }) => (
+	<div style={styles.profileField}>
+		<div style={styles.profileFieldLabel}>{label}</div>
+		<div style={styles.profileFieldValue}>{value ?? '—'}</div>
 	</div>
 );
 
-const ActionButton = ({ icon, label, description, onClick }) => (
-	<button
-		onClick={onClick}
-		style={styles.actionButton.container}
-		className="hover-scale"
-		type="button"
-	>
-		<div style={{ ...styles.actionButton.icon, background: 'var(--primary-light)' }}>
-			{icon}
-		</div>
-		<div style={styles.actionButton.text}>
-			<span style={styles.actionButton.label}>{label}</span>
-			<span style={styles.actionButton.description}>{description}</span>
-		</div>
-		<div style={styles.actionButton.arrow}>→</div>
-	</button>
-);
-
-const Skeleton = ({ height = '100%', width = '100%', borderRadius = 8 }) => (
-	<div style={{ ...styles.skeleton, height, width, borderRadius }} />
-);
-
-// --- UI Components (defensive) ---
-const ExamsToReview = ({ exams = [], loading, navigate }) => (
-	<div style={styles.listCard.container}>
-		<div style={styles.listCard.header}>
-			<h3 style={styles.listCard.title}>Needs Review</h3>
-			<span style={styles.listCard.badge}>{(exams && exams.length) || 0}</span>
-		</div>
-		<div style={styles.listCard.list}>
-			{loading &&
-				[...Array(3)].map((_, i) => (
-					<div key={i} style={{ padding: '10px 0' }}>
-						<Skeleton height={50} />
-					</div>
-				))}
-			{!loading && (!exams || exams.length === 0) && (
-				<div style={styles.emptyState.container}>
-					<span style={styles.emptyState.icon}>🎉</span>
-					<p style={styles.emptyState.text}>All caught up! No pending reviews.</p>
-				</div>
-			)}
-			{(exams || []).map(exam => {
-				const id = exam._id || exam.id || '';
-				const submissionsCount = Number(exam.submissionsCount || exam.submissions || 0);
-				const evaluatedCount = Number(exam.evaluatedCount || 0);
-				const pct = safePercent(evaluatedCount, submissionsCount);
-				return (
-					<div
-						key={id || Math.random()}
-						style={styles.reviewItem.container}
-						className="hover-effect"
-						onClick={() => id && navigate(`/teacher/results/${id}`)}
-					>
-						<div style={styles.reviewItem.content}>
-							<span style={styles.reviewItem.title}>
-								{exam.title || 'Untitled Exam'}
-							</span>
-							<div style={styles.reviewItem.meta}>
-								<span>👥 {submissionsCount}</span>
-								<span>•</span>
-								<span style={{ color: 'var(--primary)' }}>
-									{Math.max(0, submissionsCount - evaluatedCount)} Pending
-								</span>
-							</div>
-						</div>
-						<div style={styles.reviewItem.progress}>
-							<div style={styles.reviewItem.progressText}>{pct}%</div>
-							<div style={styles.reviewItem.progressBarBg}>
-								<div
-									style={{ ...styles.reviewItem.progressBarFg, width: `${pct}%` }}
-								/>
-							</div>
-						</div>
-					</div>
-				);
-			})}
-		</div>
-	</div>
-);
-
-const RecentSubmissions = ({ submissions = [], loading, navigate }) => (
-	<div style={styles.listCard.container}>
-		<h3 style={styles.listCard.title}>Recent Activity</h3>
-		<div style={styles.listCard.list}>
-			{loading &&
-				[...Array(4)].map((_, i) => (
-					<div key={i} style={{ padding: '10px 0' }}>
-						<Skeleton height={40} />
-					</div>
-				))}
-			{!loading && (!submissions || submissions.length === 0) && (
-				<div style={styles.emptyState.container}>
-					<span style={styles.emptyState.icon}>📂</span>
-					<p style={styles.emptyState.text}>No recent submissions.</p>
-				</div>
-			)}
-			{(submissions || []).map(sub => {
-				const id = sub._id || sub.id || '';
-				const studentName = sub.student?.fullname || sub.student?.username || 'Student';
-				const examTitle = sub.exam?.title || sub.examTitle || 'Exam';
-				const createdAt = sub.createdAt || sub.submittedAt || sub.startedAt || '';
-				let timeLabel = '';
-				try {
-					timeLabel = createdAt ? new Date(createdAt).toLocaleString() : '';
-				} catch {
-					timeLabel = '';
-				}
-				return (
-					<div
-						key={id || Math.random()}
-						style={styles.activityItem.container}
-						className="hover-effect"
-						onClick={() => id && navigate(`/teacher/grade/${id}`)}
-					>
-						<div style={styles.activityItem.avatar}>{(studentName || 'S')[0]}</div>
-						<div style={styles.activityItem.details}>
-							<div style={styles.activityItem.header}>
-								<span style={styles.activityItem.name}>{studentName}</span>
-								<span style={styles.activityItem.time}>{timeLabel}</span>
-							</div>
-							<div style={styles.activityItem.action}>
-								Submitted <strong>{examTitle}</strong>
-							</div>
-						</div>
-					</div>
-				);
-			})}
-		</div>
+const StatPill = ({ label, value, color = '#6366f1' }) => (
+	<div style={{ ...styles.statPill.container, borderColor: `${color}20` }}>
+		<div style={{ ...styles.statPill.value, color }}>{value}</div>
+		<div style={styles.statPill.label}>{label}</div>
 	</div>
 );
 
@@ -251,15 +72,21 @@ const TeacherHome = () => {
 		setLoading(true);
 		setError('');
 		try {
-			// Call the service directly and handle normalized response
 			const response = await getTeacherDashboardStats();
-
 			if (!response || typeof response !== 'object') {
-				console.debug('Unexpected dashboard payload', response);
 				setData(DEFAULT_DASH);
 			} else {
-				// Merge defensively so UI keys always exist
-				setData(prev => ({ ...DEFAULT_DASH, ...prev, ...response }));
+				// normalize teacher info: prefer server teacher, then auth user
+				const teacher = response.teacher ?? {
+					id: user?.id,
+					username: user?.username,
+					fullname: user?.fullname,
+					email: user?.email,
+					phonenumber: user?.phonenumber,
+					department: user?.department,
+					createdAt: user?.createdAt,
+				};
+				setData(prev => ({ ...DEFAULT_DASH, ...prev, ...response, teacher }));
 			}
 		} catch (e) {
 			console.warn('Failed to load dashboard stats', e);
@@ -268,164 +95,282 @@ const TeacherHome = () => {
 		} finally {
 			setLoading(false);
 		}
-	}, []);
+	}, [user]);
 
 	React.useEffect(() => {
 		loadData();
 	}, [loadData]);
 
-	// --- REAL-TIME UPDATES ---
+	// --- REAL-TIME UPDATES (light) ---
 	React.useEffect(() => {
 		if (!user?.id) return undefined;
-
 		const socket = io(API_BASE_URL, {
 			withCredentials: true,
 			query: { role: 'teacher', userId: user.id },
 		});
-
-		const onNewSubmission = newSubmission => {
-			setData(currentData => {
-				const recent = [newSubmission, ...(currentData.recentSubmissions || [])].slice(
-					0,
-					5,
-				);
-				const pending = (currentData.submissions?.pending || 0) + 1;
-
-				const examId = newSubmission.exam?._id || newSubmission.exam?.id;
-				let updatedExamsToReview = Array.isArray(currentData.examsToReview)
-					? [...currentData.examsToReview]
-					: [];
-				let found = false;
-				updatedExamsToReview = updatedExamsToReview.map(ex => {
-					if ((ex._id || ex.id) === examId) {
-						found = true;
-						return { ...ex, submissionsCount: (ex.submissionsCount || 0) + 1 };
-					}
-					return ex;
-				});
-				if (!found && examId) {
-					updatedExamsToReview.unshift({
-						_id: examId,
-						title: newSubmission.exam?.title || 'New Exam',
-						submissionsCount: 1,
-						evaluatedCount: 0,
-					});
-				}
+		const onNewSubmission = s => {
+			setData(current => {
+				const recent = [s, ...(current.recentSubmissions || [])].slice(0, 5);
+				const pending = (current.submissions?.pending || 0) + 1;
 				return {
-					...currentData,
+					...current,
 					recentSubmissions: recent,
-					submissions: { ...(currentData.submissions || {}), pending },
-					examsToReview: updatedExamsToReview.slice(0, 5),
+					submissions: { ...(current.submissions || {}), pending },
 				};
 			});
 		};
-
 		socket.on('new-submission', onNewSubmission);
-		socket.on('submission-updated', () => loadData()); // refresh on other updates
-
+		socket.on('submission-updated', () => loadData());
 		return () => {
 			socket.off('new-submission', onNewSubmission);
 			socket.disconnect();
 		};
 	}, [user, loadData]);
 
-	const quickActions = [
-		{
-			label: 'Create New Exam',
-			description: 'Set up a new test',
-			icon: '➕',
-			onClick: () => navigate('/teacher/exams/create'),
-		},
-		{
-			label: 'Question Bank',
-			description: 'Manage questions',
-			icon: '📚',
-			onClick: () => navigate('/teacher/questions'),
-		},
-		{
-			label: 'Student Issues',
-			description: 'View reported problems',
-			icon: '🚩',
-			onClick: () => navigate('/teacher/issues'),
-		},
-	];
-
-	// --- stat cards: show total + useful metrics ---
-	const statCards = [
-		{ icon: '📚', label: 'Total Exams', value: data?.exams?.total ?? 0, color: '#6366f1' },
-		{ icon: '🟢', label: 'Live Exams', value: data?.exams?.live ?? 0, color: '#10b981' },
-		{
-			icon: '⏳',
-			label: 'Pending Reviews',
-			value: data?.submissions?.pending ?? 0,
-			color: '#f59e0b',
-		},
-		{ icon: '🚩', label: 'Open Issues', value: data?.issues?.open ?? 0, color: '#ef4444' },
+	// --- Derived display values ---
+	const teacher = data.teacher ?? {};
+	const kpis = [
+		{ label: 'Total Exams', value: data.exams?.total ?? 0, color: '#6366f1' },
+		{ label: 'Live Exams', value: data.exams?.live ?? 0, color: '#10b981' },
+		{ label: 'Pending Reviews', value: data.submissions?.pending ?? 0, color: '#f59e0b' },
+		{ label: 'Open Issues', value: data.issues?.open ?? 0, color: '#ef4444' },
 	];
 
 	return (
 		<div style={styles.pageContainer}>
-			<style>{`
-                .hover-effect:hover { background: var(--bg-hover, #f8fafc); }
-                .hover-scale:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
-                @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
-            `}</style>
-
-			{/* Top Section: Profile & Stats */}
-			<div style={styles.topSection(isMobile)}>
-				<div style={{ flex: isMobile ? '1 1 100%' : '0 0 350px' }}>
-					<ProfileSection user={user} data={data} />
-				</div>
-
-				<div style={styles.statsGrid}>
-					{statCards.map(card => (
-						<StatCard key={card.label} {...card} loading={loading} />
-					))}
+			<div style={styles.headerRow}>
+				<h1 style={styles.title}>
+					Welcome, {teacher?.fullname ?? user?.fullname ?? 'Teacher'}
+				</h1>
+				<div style={styles.headerActions}>
+					<button
+						style={styles.headerBtn}
+						onClick={() => navigate('/teacher/exams/create')}
+					>
+						➕ New Exam
+					</button>
+					<button
+						style={styles.headerBtnOutline}
+						onClick={() => navigate('/teacher/settings')}
+					>
+						⚙️ Settings
+					</button>
 				</div>
 			</div>
 
 			{error && <div style={styles.errorBanner}>⚠️ {error}</div>}
 
-			{/* Main Content Grid */}
-			<div style={styles.mainGrid.container(isMobile)}>
-				{/* Left Column */}
-				<div style={styles.mainGrid.column}>
-					<RecentSubmissions
-						submissions={data?.recentSubmissions ?? []}
-						loading={loading}
-						navigate={navigate}
-					/>
-					<ExamsToReview
-						exams={data?.examsToReview ?? []}
-						loading={loading}
-						navigate={navigate}
-					/>
-				</div>
+			<div style={styles.topSection(isMobile)}>
+				{/* Left: Profile / Contact */}
+				<div style={styles.profileColumn}>
+					<div style={styles.profileCard}>
+						<div style={styles.profileHeader}>
+							<div style={styles.avatar}>
+								{(teacher?.fullname || user?.fullname || 'T')
+									.split(' ')
+									.map(p => p[0])
+									.join('')
+									.slice(0, 2)
+									.toUpperCase()}
+							</div>
+							<div style={styles.profileMain}>
+								<div style={styles.profileName}>
+									{teacher?.fullname ?? user?.fullname}
+								</div>
+								<div style={styles.profileSub}>
+									{teacher?.username ?? user?.username}
+								</div>
+								<div style={styles.profileMeta}>
+									<span style={styles.metaItem}>
+										Joined {formatDate(teacher?.createdAt ?? user?.createdAt)}
+									</span>
+									<span style={styles.metaSep}>•</span>
+									<span style={styles.metaItem}>
+										{teacher?.department ?? user?.department ?? '—'}
+									</span>
+								</div>
+							</div>
+						</div>
 
-				{/* Right Column */}
-				<div style={styles.mainGrid.column}>
-					<div style={styles.listCard.container}>
-						<h3 style={styles.listCard.title}>Quick Actions</h3>
-						<div style={styles.actionsGrid}>
-							{quickActions.map(action => (
-								<ActionButton key={action.label} {...action} />
-							))}
+						<div style={styles.profileBody}>
+							<ProfileField label="Email" value={teacher?.email ?? user?.email} />
+							<ProfileField
+								label="Phone"
+								value={teacher?.phonenumber ?? user?.phonenumber}
+							/>
+							<ProfileField
+								label="Username"
+								value={teacher?.username ?? user?.username}
+							/>
+							<ProfileField label="Address" value={teacher?.address ?? '—'} />
+						</div>
+
+						<div style={styles.profileFooter}>
+							<button
+								style={styles.ctaPrimary}
+								onClick={() => navigate('/teacher/settings')}
+							>
+								Edit Profile
+							</button>
+							<button
+								style={styles.ctaGhost}
+								onClick={() => navigate('/teacher/change-password')}
+							>
+								Change Password
+							</button>
 						</div>
 					</div>
 
+					{/* Compact KPI row for mobile */}
 					<div
 						style={{
-							...styles.listCard.container,
-							background: 'linear-gradient(135deg, #4f46e5, #3b82f6)',
-							color: 'white',
-							border: 'none',
+							marginTop: 16,
+							display: isMobile ? 'grid' : 'none',
+							gridTemplateColumns: 'repeat(2,1fr)',
+							gap: 12,
 						}}
 					>
-						<h3 style={{ ...styles.listCard.title, color: 'white' }}>💡 Pro Tip</h3>
-						<p style={{ opacity: 0.9, lineHeight: '1.5' }}>
-							You can now bulk upload questions from the Question Bank tab. Try it out
-							to save time!
-						</p>
+						{kpis.map(k => (
+							<div
+								key={k.label}
+								style={{
+									background: 'var(--surface)',
+									padding: 12,
+									borderRadius: 12,
+									textAlign: 'center',
+									border: '1px solid var(--border)',
+								}}
+							>
+								<div style={{ fontSize: 14, color: 'var(--text-muted)' }}>
+									{k.label}
+								</div>
+								<div style={{ fontSize: 20, fontWeight: 800, color: k.color }}>
+									{k.value}
+								</div>
+							</div>
+						))}
+					</div>
+				</div>
+
+				{/* Right: KPIs + Activity */}
+				<div style={styles.kpiColumn}>
+					<div style={styles.kpiGrid}>
+						{kpis.map(k => (
+							<StatPill key={k.label} {...k} />
+						))}
+					</div>
+
+					<div style={styles.cardsRow}>
+						<div style={styles.card}>
+							<div style={styles.cardHeader}>
+								<h3 style={styles.cardTitle}>Recent Submissions</h3>
+								<button
+									style={styles.linkBtn}
+									onClick={() => navigate('/teacher/results')}
+								>
+									View all
+								</button>
+							</div>
+							<div style={styles.cardBody}>
+								{loading ? (
+									<div style={styles.emptyState}>Loading…</div>
+								) : (data.recentSubmissions || []).length === 0 ? (
+									<div style={styles.emptyState}>No recent submissions</div>
+								) : (
+									(data.recentSubmissions || []).map(s => (
+										<div
+											key={s._id || s.id}
+											style={styles.activityRow}
+											onClick={() =>
+												navigate(`/teacher/grade/${s._id || s.id}`)
+											}
+										>
+											<div style={styles.activityAvatar}>
+												{(s.student?.fullname || 'S')[0]}
+											</div>
+											<div style={styles.activityText}>
+												<div style={styles.activityTitle}>
+													{s.student?.fullname ??
+														s.student?.username ??
+														'Student'}
+												</div>
+												<div style={styles.activityMeta}>
+													{s.exam?.title ?? s.examTitle} •{' '}
+													{formatDate(s.createdAt)}
+												</div>
+											</div>
+											<div style={styles.activityRight}>
+												{s.grade ?? s.status ?? '—'}
+											</div>
+										</div>
+									))
+								)}
+							</div>
+						</div>
+
+						<div style={{ ...styles.card, minHeight: 160 }}>
+							<div style={styles.cardHeader}>
+								<h3 style={styles.cardTitle}>Exams Needing Review</h3>
+								<button
+									style={styles.linkBtn}
+									onClick={() => navigate('/teacher/exams')}
+								>
+									Manage
+								</button>
+							</div>
+							<div style={styles.cardBody}>
+								{loading ? (
+									<div style={styles.emptyState}>Loading…</div>
+								) : (data.examsToReview || []).length === 0 ? (
+									<div style={styles.emptyState}>All caught up</div>
+								) : (
+									(data.examsToReview || []).map(e => (
+										<div
+											key={e._id || e.id}
+											style={styles.reviewRow}
+											onClick={() =>
+												navigate(`/teacher/results/${e._id || e.id}`)
+											}
+										>
+											<div style={styles.reviewTitle}>{e.title}</div>
+											<div style={styles.reviewMeta}>
+												<strong style={{ color: 'var(--primary)' }}>
+													{e.pendingCount ??
+														Math.max(
+															0,
+															(e.submissionsCount || 0) -
+																(e.evaluatedCount || 0),
+														)}
+												</strong>{' '}
+												pending
+											</div>
+										</div>
+									))
+								)}
+							</div>
+						</div>
+					</div>
+
+					{/* Footer quick actions */}
+					<div style={styles.quickActions}>
+						<button
+							style={styles.actionPrimary}
+							onClick={() => navigate('/teacher/exams/create')}
+						>
+							Create Exam
+						</button>
+						<button
+							style={styles.actionGhost}
+							onClick={() => navigate('/teacher/questions')}
+						>
+							Question Bank
+						</button>
+						<button
+							style={styles.actionGhost}
+							onClick={() => navigate('/teacher/issues')}
+						>
+							Open Issues
+						</button>
 					</div>
 				</div>
 			</div>
@@ -435,291 +380,199 @@ const TeacherHome = () => {
 
 // --- Styles ---
 const styles = {
-	pageContainer: {
-		maxWidth: 1400,
-		margin: '0 auto',
-		padding: '24px',
-		animation: 'fadeIn 0.5s ease-out',
+	pageContainer: { maxWidth: 1400, margin: '0 auto', padding: 24 },
+	headerRow: {
+		display: 'flex',
+		justifyContent: 'space-between',
+		alignItems: 'center',
+		marginBottom: 18,
 	},
+	title: { margin: 0, fontSize: 22, fontWeight: 800 },
+	headerActions: { display: 'flex', gap: 12 },
+	headerBtn: {
+		padding: '8px 12px',
+		borderRadius: 10,
+		background: 'linear-gradient(90deg,#4f46e5,#3b82f6)',
+		color: '#fff',
+		border: 'none',
+		cursor: 'pointer',
+	},
+	headerBtnOutline: {
+		padding: '8px 12px',
+		borderRadius: 10,
+		background: 'transparent',
+		border: '1px solid var(--border)',
+		cursor: 'pointer',
+	},
+
 	topSection: isMobile => ({
 		display: 'flex',
-		flexDirection: isMobile ? 'column' : 'row',
 		gap: 24,
-		marginBottom: 32,
+		flexDirection: isMobile ? 'column' : 'row',
 	}),
-	statsGrid: {
-		display: 'grid',
-		gap: 20,
-		gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-		flex: 1,
-	},
-	mainGrid: {
-		container: isMobile => ({
-			display: 'grid',
-			gap: 24,
-			gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr',
-		}),
-		column: { display: 'flex', flexDirection: 'column', gap: 24 },
-	},
+	profileColumn: { flex: '0 0 360px', display: 'flex', flexDirection: 'column', gap: 16 },
+	kpiColumn: { flex: 1, display: 'flex', flexDirection: 'column', gap: 16 },
 
-	// Profile Card
 	profileCard: {
-		container: {
-			background: 'var(--surface, #ffffff)',
-			borderRadius: 20,
-			padding: 24,
-			border: '1px solid var(--border, #e2e8f0)',
-			boxShadow: 'var(--shadow-sm, 0 1px 2px 0 rgba(0, 0, 0, 0.05))',
-			height: '100%',
-			display: 'flex',
-			flexDirection: 'column',
-			justifyContent: 'center',
-		},
-		header: {
-			display: 'flex',
-			flexDirection: 'column',
-			alignItems: 'center',
-			textAlign: 'center',
-			gap: 16,
-		},
-		avatar: {
-			width: 80,
-			height: 80,
-			borderRadius: '50%',
-			background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-			color: 'white',
-			display: 'flex',
-			alignItems: 'center',
-			justifyContent: 'center',
-			fontSize: 32,
-			fontWeight: 700,
-			boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)',
-		},
-		info: { display: 'flex', flexDirection: 'column', gap: 4 },
-		name: { margin: 0, fontSize: 24, fontWeight: 700, color: 'var(--text, #1e293b)' },
-		role: { margin: 0, color: 'var(--text-muted, #64748b)', fontSize: 14, fontWeight: 500 },
-		details: {
-			display: 'flex',
-			flexDirection: 'column',
-			gap: 8,
-			marginTop: 12,
-			paddingTop: 16,
-			borderTop: '1px solid var(--border, #e2e8f0)',
-			width: '100%',
-		},
-		detailItem: {
-			fontSize: 13,
-			color: 'var(--text-muted, #64748b)',
-			display: 'flex',
-			alignItems: 'center',
-			gap: 8,
-			justifyContent: 'center',
-		},
-		editButton: {
-			marginTop: 16,
-			padding: '8px 16px',
-			borderRadius: 20,
-			border: '1px solid var(--border, #e2e8f0)',
-			background: 'transparent',
-			color: 'var(--text, #1e293b)',
-			fontSize: 13,
-			fontWeight: 600,
-			cursor: 'pointer',
-			transition: 'all 0.2s',
-		},
+		background: 'var(--surface)',
+		borderRadius: 12,
+		padding: 18,
+		border: '1px solid var(--border)',
 	},
-
-	// Stat Card
-	statCard: {
-		container: {
-			background: 'var(--surface, #ffffff)',
-			borderRadius: 16,
-			padding: 20,
-			border: '1px solid var(--border, #e2e8f0)',
-			boxShadow: 'var(--shadow-sm)',
-			display: 'flex',
-			alignItems: 'flex-start',
-			gap: 16,
-			transition: 'transform 0.2s',
-		},
-		iconContainer: {
-			width: 48,
-			height: 48,
-			borderRadius: 12,
-			display: 'flex',
-			alignItems: 'center',
-			justifyContent: 'center',
-			fontSize: 24,
-			flexShrink: 0,
-		},
-		content: { flex: 1 },
-		label: {
-			fontSize: 13,
-			color: 'var(--text-muted, #64748b)',
-			fontWeight: 600,
-			marginBottom: 4,
-			textTransform: 'uppercase',
-			letterSpacing: '0.5px',
-		},
-		valueWrapper: { display: 'flex', alignItems: 'baseline', gap: 8 },
-		value: { fontSize: 28, fontWeight: 800, color: 'var(--text, #1e293b)', lineHeight: 1 },
-		trend: { fontSize: 12, fontWeight: 600, padding: '2px 6px', borderRadius: 4 },
+	profileHeader: { display: 'flex', gap: 12, alignItems: 'center' },
+	avatar: {
+		width: 72,
+		height: 72,
+		borderRadius: 12,
+		background: 'linear-gradient(135deg,#6366f1,#8b5cf6)',
+		color: '#fff',
+		display: 'flex',
+		alignItems: 'center',
+		justifyContent: 'center',
+		fontSize: 28,
+		fontWeight: 800,
 	},
-
-	// Action Button
-	actionButton: {
-		container: {
-			display: 'flex',
-			alignItems: 'center',
-			gap: 16,
-			padding: 16,
-			borderRadius: 12,
-			border: '1px solid var(--border, #e2e8f0)',
-			background: 'var(--surface, #ffffff)',
-			cursor: 'pointer',
-			transition: 'all 0.2s',
-			textAlign: 'left',
-			width: '100%',
-		},
-		icon: {
-			width: 40,
-			height: 40,
-			borderRadius: 10,
-			display: 'flex',
-			alignItems: 'center',
-			justifyContent: 'center',
-			fontSize: 20,
-		},
-		text: { flex: 1 },
-		label: { display: 'block', fontSize: 15, fontWeight: 600, color: 'var(--text, #1e293b)' },
-		description: {
-			display: 'block',
-			fontSize: 12,
-			color: 'var(--text-muted, #64748b)',
-			marginTop: 2,
-		},
-		arrow: { color: 'var(--text-muted, #64748b)', fontSize: 18 },
+	profileMain: { display: 'flex', flexDirection: 'column' },
+	profileName: { fontSize: 18, fontWeight: 800 },
+	profileSub: { color: 'var(--text-muted)', fontSize: 13 },
+	profileMeta: {
+		display: 'flex',
+		gap: 8,
+		marginTop: 6,
+		color: 'var(--text-muted)',
+		fontSize: 13,
 	},
+	metaItem: {},
+	metaSep: { opacity: 0.4 },
 
-	// List/Card Generic
-	listCard: {
-		container: {
-			background: 'var(--surface, #ffffff)',
-			borderRadius: 16,
-			padding: 24,
-			border: '1px solid var(--border, #e2e8f0)',
-			boxShadow: 'var(--shadow-sm)',
-			display: 'flex',
-			flexDirection: 'column',
-			height: '100%',
-		},
-		header: {
-			display: 'flex',
-			justifyContent: 'space-between',
-			alignItems: 'center',
-			marginBottom: 20,
-		},
-		title: { margin: 0, fontSize: 18, fontWeight: 700, color: 'var(--text, #1e293b)' },
-		badge: {
-			background: '#ef4444',
-			color: 'white',
-			padding: '2px 8px',
-			borderRadius: 12,
-			fontSize: 12,
-			fontWeight: 700,
-		},
-		list: { display: 'flex', flexDirection: 'column', gap: 12 },
-	},
-
-	actionsGrid: {
+	profileBody: { marginTop: 12, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 },
+	profileField: {
 		display: 'flex',
 		flexDirection: 'column',
-		gap: 12,
+		gap: 4,
+		padding: 8,
+		borderRadius: 8,
+		background: 'var(--bg-subtle)',
+	},
+	profileFieldLabel: { fontSize: 12, color: 'var(--text-muted)', fontWeight: 700 },
+	profileFieldValue: { fontSize: 14, fontWeight: 700 },
+
+	profileFooter: { display: 'flex', gap: 8, marginTop: 12 },
+	ctaPrimary: {
+		flex: 1,
+		padding: '10px 12px',
+		borderRadius: 10,
+		background: 'linear-gradient(90deg,#10b981,#059669)',
+		color: '#fff',
+		border: 'none',
+		cursor: 'pointer',
+	},
+	ctaGhost: {
+		padding: '10px 12px',
+		borderRadius: 10,
+		background: 'transparent',
+		border: '1px solid var(--border)',
+		cursor: 'pointer',
 	},
 
-	// Review Item
-	reviewItem: {
+	kpiGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 },
+	statPill: {
 		container: {
 			padding: 16,
 			borderRadius: 12,
-			border: '1px solid var(--border, #e2e8f0)',
-			cursor: 'pointer',
-			transition: 'all 0.2s',
-			background: 'var(--bg-subtle, #f8fafc)',
+			border: '1px solid #e6e9f2',
+			background: 'var(--surface)',
 		},
-		content: { marginBottom: 12 },
-		title: {
-			display: 'block',
-			fontWeight: 600,
-			color: 'var(--text, #1e293b)',
-			fontSize: 15,
-			marginBottom: 4,
-		},
-		meta: { display: 'flex', gap: 8, fontSize: 12, color: 'var(--text-muted, #64748b)' },
-		progress: { display: 'flex', alignItems: 'center', gap: 12 },
-		progressText: { fontSize: 12, fontWeight: 700, color: 'var(--text, #1e293b)', width: 32 },
-		progressBarBg: {
-			flex: 1,
-			height: 6,
-			background: 'var(--border, #e2e8f0)',
-			borderRadius: 3,
-			overflow: 'hidden',
-		},
-		progressBarFg: {
-			height: '100%',
-			background: 'linear-gradient(90deg, #6366f1, #8b5cf6)',
-			borderRadius: 3,
-		},
+		value: { fontSize: 22, fontWeight: 800 },
+		label: { fontSize: 12, color: 'var(--text-muted)', marginTop: 6 },
 	},
 
-	// Activity Item
-	activityItem: {
-		container: {
-			display: 'flex',
-			alignItems: 'center',
-			gap: 16,
-			padding: '12px 0',
-			borderBottom: '1px solid var(--border, #f1f5f9)',
-			cursor: 'pointer',
-		},
-		avatar: {
-			width: 40,
-			height: 40,
-			borderRadius: '50%',
-			background: '#e0e7ff',
-			color: '#4338ca',
-			display: 'flex',
-			alignItems: 'center',
-			justifyContent: 'center',
-			fontSize: 16,
-			fontWeight: 700,
-		},
-		details: { flex: 1 },
-		header: { display: 'flex', justifyContent: 'space-between', marginBottom: 4 },
-		name: { fontSize: 14, fontWeight: 600, color: 'var(--text, #1e293b)' },
-		time: { fontSize: 12, color: 'var(--text-muted, #94a3b8)' },
-		action: { fontSize: 13, color: 'var(--text-muted, #64748b)' },
+	cardsRow: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 8 },
+	card: {
+		background: 'var(--surface)',
+		borderRadius: 12,
+		border: '1px solid var(--border)',
+		padding: 12,
+		display: 'flex',
+		flexDirection: 'column',
+	},
+	cardHeader: {
+		display: 'flex',
+		justifyContent: 'space-between',
+		alignItems: 'center',
+		marginBottom: 8,
+	},
+	cardTitle: { margin: 0, fontSize: 15, fontWeight: 800 },
+	linkBtn: {
+		background: 'transparent',
+		border: 'none',
+		color: 'var(--primary)',
+		cursor: 'pointer',
+		fontWeight: 700,
 	},
 
-	emptyState: {
-		container: { padding: '32px 0', textAlign: 'center', color: 'var(--text-muted, #94a3b8)' },
-		icon: { fontSize: 32, display: 'block', marginBottom: 8 },
-		text: { fontSize: 14 },
+	cardBody: { display: 'flex', flexDirection: 'column', gap: 8, overflow: 'auto' },
+	emptyState: { padding: 20, color: 'var(--text-muted)' },
+
+	activityRow: {
+		display: 'flex',
+		alignItems: 'center',
+		gap: 12,
+		padding: '8px 6px',
+		borderRadius: 8,
+		cursor: 'pointer',
+	},
+	activityAvatar: {
+		width: 40,
+		height: 40,
+		borderRadius: 8,
+		background: '#eef2ff',
+		display: 'flex',
+		alignItems: 'center',
+		justifyContent: 'center',
+		fontWeight: 700,
+		color: '#4338ca',
+	},
+	activityText: { flex: 1, display: 'flex', flexDirection: 'column' },
+	activityTitle: { fontWeight: 700 },
+	activityMeta: { fontSize: 12, color: 'var(--text-muted)' },
+	activityRight: { fontWeight: 700, color: 'var(--text-muted)' },
+
+	reviewRow: {
+		display: 'flex',
+		justifyContent: 'space-between',
+		padding: 10,
+		borderRadius: 8,
+		alignItems: 'center',
+		cursor: 'pointer',
+		border: '1px dashed var(--border)',
+	},
+	reviewTitle: { fontWeight: 700 },
+	reviewMeta: { fontSize: 13, color: 'var(--text-muted)' },
+
+	quickActions: { display: 'flex', gap: 8, marginTop: 12 },
+	actionPrimary: {
+		padding: '10px 14px',
+		borderRadius: 10,
+		background: 'linear-gradient(90deg,#4f46e5,#3b82f6)',
+		color: '#fff',
+		border: 'none',
+		cursor: 'pointer',
+	},
+	actionGhost: {
+		padding: '10px 14px',
+		borderRadius: 10,
+		background: 'transparent',
+		border: '1px solid var(--border)',
+		cursor: 'pointer',
 	},
 
 	errorBanner: {
 		background: '#fef2f2',
 		color: '#991b1b',
-		padding: '12px 16px',
+		padding: 12,
 		borderRadius: 8,
-		marginBottom: 24,
-		fontSize: 14,
-		border: '1px solid #fecaca',
-	},
-
-	skeleton: {
-		background: 'var(--skeleton-bg, #e2e8f0)',
-		animation: 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+		marginBottom: 12,
 	},
 };
 
