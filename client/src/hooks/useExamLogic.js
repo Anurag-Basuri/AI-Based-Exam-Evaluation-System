@@ -152,24 +152,6 @@ export const useExamLogic = submissionId => {
 		}
 	}, [timer.remainingMs, isStarted, autoSubmitting, finalSubmit]);
 
-	// --- Violation Handling ---
-	const handleViolation = useCallback(
-		type => {
-			const newCount = violations.count + 1;
-			setViolations({ count: newCount, lastType: type });
-			setViolationOverlay(type);
-
-			apiClient
-				.post(`/api/submissions/${submissionId}/violation`, { type })
-				.catch(console.error);
-
-			if (newCount > MAX_VIOLATIONS) {
-				finalSubmit(true, `Exceeded warning limit (${MAX_VIOLATIONS} violations).`);
-			}
-		},
-		[violations.count, submissionId, finalSubmit],
-	);
-
 	// --- Environment Monitoring ---
 	useEffect(() => {
 		if (!isStarted || autoSubmitting) return;
@@ -180,10 +162,6 @@ export const useExamLogic = submissionId => {
 		const handleVisibilityChange = () => {
 			if (document.hidden) handleViolation('visibility');
 		};
-		const handlePopState = () => {
-			window.history.pushState(null, '', window.location.href);
-			handleViolation('navigation');
-		};
 		const handleContextMenu = e => {
 			const t = e.target;
 			if (t && (['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName) || t.isContentEditable))
@@ -191,19 +169,42 @@ export const useExamLogic = submissionId => {
 			e.preventDefault();
 		};
 
-		window.history.pushState(null, '', window.location.href);
+		// NOTE: removed history.pushState / popstate listener to avoid accidental navigation/restart issues
 		document.addEventListener('fullscreenchange', handleFullscreenChange);
 		document.addEventListener('visibilitychange', handleVisibilityChange);
-		window.addEventListener('popstate', handlePopState);
 		document.addEventListener('contextmenu', handleContextMenu);
 
 		return () => {
 			document.removeEventListener('fullscreenchange', handleFullscreenChange);
 			document.removeEventListener('visibilitychange', handleVisibilityChange);
-			window.removeEventListener('popstate', handlePopState);
 			document.removeEventListener('contextmenu', handleContextMenu);
 		};
 	}, [isStarted, autoSubmitting, handleViolation]);
+
+	// --- Violation Handling (hardened) ---
+	const handleViolation = useCallback(
+		type => {
+			// guard: no double-handling while autoSubmitting
+			if (autoSubmitting) return;
+			setViolations(prev => {
+				const newCount = (prev?.count || 0) + 1;
+				// show overlay immediately
+				setViolationOverlay(type);
+				// try to notify server but don't await; ignore network errors
+				if (submissionId) {
+					apiClient
+						.post(`/api/submissions/${submissionId}/violation`, { type })
+						.catch(() => {});
+				}
+				// trigger auto-submit only when exceeding threshold
+				if (newCount > MAX_VIOLATIONS) {
+					finalSubmit(true, `Exceeded warning limit (${MAX_VIOLATIONS} violations).`);
+				}
+				return { count: newCount, lastType: type };
+			});
+		},
+		[submissionId, autoSubmitting, finalSubmit],
+	);
 
 	// --- Save Logic ---
 	const handleQuickSave = useCallback(
