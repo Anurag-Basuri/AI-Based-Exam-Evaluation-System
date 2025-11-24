@@ -154,17 +154,26 @@ const changePassword = asyncHandler(async (req, res) => {
 	teacher.refreshToken = null;
 	await teacher.save();
 
-	return ApiResponse.success(res, { message: 'Password changed successfully. Please log in again.' });
+	return ApiResponse.success(res, {
+		message: 'Password changed successfully. Please log in again.',
+	});
 });
 
 // Get dashboard statistics for teacher
 const getDashboardStats = asyncHandler(async (req, res) => {
-	const teacherId = req.teacher._id;
+	const teacherId = req.teacher?._id || req.user?.id;
+	if (!teacherId) {
+		throw ApiError.Unauthorized('Teacher identification missing');
+	}
 
-	// 1. Get all exams for the teacher
-	const exams = await Exam.find({ teacher: teacherId }).select(
-		'derivedStatus submissionsCount evaluatedCount title',
-	);
+	// 1. Get all exams for the teacher (lean for faster read-only ops)
+	const exams = await Exam.find({ teacher: teacherId })
+		.select(
+			'derivedStatus submissionsCount evaluatedCount title enrolledCount enrolled startAt startTime duration',
+		)
+		.lean();
+
+	const examIds = exams.map(e => e._id);
 
 	// 2. Get open issues
 	const openIssuesCount = await Issue.countDocuments({
@@ -172,50 +181,75 @@ const getDashboardStats = asyncHandler(async (req, res) => {
 		status: 'open',
 	});
 
-	// 3. Calculate stats from exams
+	// 3. Calculate stats from exams (defensive, numeric)
 	let liveExams = 0;
 	let scheduledExams = 0;
 	let draftExams = 0;
+	let totalExams = exams.length;
 	let pendingSubmissions = 0;
+	let totalEnrolled = 0;
 
 	exams.forEach(exam => {
-		if (exam.derivedStatus === 'live') liveExams++;
-		if (exam.derivedStatus === 'scheduled') scheduledExams++;
-		if (exam.derivedStatus === 'draft') draftExams++;
-		// Correctly calculate pending submissions
-		pendingSubmissions += (exam.submissionsCount || 0) - (exam.evaluatedCount || 0);
+		const status = (exam.derivedStatus || '').toString().toLowerCase();
+		if (status === 'live' || status === 'active') liveExams++;
+		if (status === 'scheduled') scheduledExams++;
+		if (status === 'draft') draftExams++;
+
+		const submissionsCount = Number(exam.submissionsCount || 0);
+		const evaluatedCount = Number(exam.evaluatedCount || 0);
+		const pendingForExam = Math.max(0, submissionsCount - evaluatedCount);
+		pendingSubmissions += pendingForExam;
+
+		// enrolledCount may be stored in different fields; support multiple shapes
+		if (typeof exam.enrolledCount === 'number') {
+			totalEnrolled += Math.max(0, exam.enrolledCount);
+		} else if (Array.isArray(exam.enrolled)) {
+			totalEnrolled += exam.enrolled.length;
+		}
 	});
 
-	// 4. Get exams that need review
+	// 4. Get exams that need review: include pendingCount and keep only >0
 	const examsToReview = exams
-		.filter(exam => (exam.submissionsCount || 0) > (exam.evaluatedCount || 0))
-		.map(exam => ({
-			_id: exam._id,
-			title: exam.title,
-			submissionsCount: exam.submissionsCount,
-			evaluatedCount: exam.evaluatedCount,
-		}))
-		.sort((a, b) => b.submissionsCount - a.submissionsCount) // Sort by most submissions
-		.slice(0, 5); // Limit to top 5
+		.map(exam => {
+			const submissionsCount = Number(exam.submissionsCount || 0);
+			const evaluatedCount = Number(exam.evaluatedCount || 0);
+			const pendingCount = Math.max(0, submissionsCount - evaluatedCount);
+			return {
+				_id: exam._id,
+				title: exam.title || 'Untitled',
+				submissionsCount,
+				evaluatedCount,
+				pendingCount,
+			};
+		})
+		.filter(e => e.pendingCount > 0)
+		.sort((a, b) => b.pendingCount - a.pendingCount)
+		.slice(0, 5);
 
-	// 5. Get recent submissions
-	const recentSubmissions = await Submission.find({ teacher: teacherId })
-		.sort({ createdAt: -1 })
-		.limit(5)
-		.populate('student', 'fullname username')
-		.populate('exam', 'title');
+	// 5. Get recent submissions (query by exam ids to ensure teacher's)
+	let recentSubmissions = [];
+	if (examIds.length > 0) {
+		recentSubmissions = await Submission.find({ exam: { $in: examIds } })
+			.sort({ createdAt: -1 })
+			.limit(5)
+			.populate('student', 'fullname username')
+			.populate('exam', 'title')
+			.lean();
+	}
 
 	const stats = {
 		exams: {
-			live: liveExams,
-			scheduled: scheduledExams,
-			draft: draftExams,
+			total: Number(totalExams || 0),
+			live: Number(liveExams || 0),
+			scheduled: Number(scheduledExams || 0),
+			draft: Number(draftExams || 0),
+			totalEnrolled: Number(totalEnrolled || 0),
 		},
 		issues: {
-			open: openIssuesCount,
+			open: Number(openIssuesCount || 0),
 		},
 		submissions: {
-			pending: pendingSubmissions,
+			pending: Number(pendingSubmissions || 0),
 		},
 		examsToReview,
 		recentSubmissions,
@@ -225,10 +259,10 @@ const getDashboardStats = asyncHandler(async (req, res) => {
 });
 
 export {
-    createTeacher,
-    loginTeacher,
-    logoutTeacher,
-    updateTeacher,
+	createTeacher,
+	loginTeacher,
+	logoutTeacher,
+	updateTeacher,
 	changePassword,
-    getDashboardStats
+	getDashboardStats,
 };
