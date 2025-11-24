@@ -201,7 +201,6 @@ const TeacherSettings = () => {
                                 value={profile.username}
                                 onChange={e => onProfileChange('username', e.target.value)}
                                 placeholder="jdoe"
-                                required
                             />
                         </div>
                         <div className="form-group">
@@ -212,7 +211,6 @@ const TeacherSettings = () => {
                                 value={profile.fullname}
                                 onChange={e => onProfileChange('fullname', e.target.value)}
                                 placeholder="John Doe"
-                                required
                             />
                         </div>
                     </div>
@@ -226,7 +224,6 @@ const TeacherSettings = () => {
                                 value={profile.email}
                                 onChange={e => onProfileChange('email', e.target.value)}
                                 placeholder="john@example.com"
-                                required
                             />
                         </div>
                         <div className="form-group">
