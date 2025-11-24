@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { useAuth } from '../../hooks/useAuth.js';
-import { getTeacherDashboardStats, safeApiCall } from '../../services/teacherServices.js';
+import { getTeacherDashboardStats } from '../../services/teacherServices.js';
 import { API_BASE_URL } from '../../services/api.js';
 
 // --- Utilities & defaults ---
@@ -22,7 +22,7 @@ const safePercent = (num, den) => {
 };
 
 // --- Reusable Components ---
-const ProfileSection = ({ user }) => {
+const ProfileSection = ({ user, data }) => {
 	const getInitials = name =>
 		name
 			?.split(' ')
@@ -50,6 +50,12 @@ const ProfileSection = ({ user }) => {
 						)}
 						{user?.department && (
 							<span style={styles.profileCard.detailItem}>🏢 {user.department}</span>
+						)}
+						{/* newly added teacher-level metric */}
+						{(data?.exams?.totalEnrolled ?? 0) > 0 && (
+							<span style={styles.profileCard.detailItem}>
+								👥 {data.exams.totalEnrolled} Enrolled
+							</span>
 						)}
 					</div>
 				</div>
@@ -245,14 +251,15 @@ const TeacherHome = () => {
 		setLoading(true);
 		setError('');
 		try {
-			// safeApiCall wrapper returns normalized or throws ApiError
-			const response = await safeApiCall(getTeacherDashboardStats);
-			// defensive merge with defaults so UI always has shape
+			// Call the service directly and handle normalized response
+			const response = await getTeacherDashboardStats();
+
 			if (!response || typeof response !== 'object') {
-				console.warn('Unexpected dashboard payload', response);
+				console.debug('Unexpected dashboard payload', response);
 				setData(DEFAULT_DASH);
 			} else {
-				setData({ ...DEFAULT_DASH, ...response });
+				// Merge defensively so UI keys always exist
+				setData(prev => ({ ...DEFAULT_DASH, ...prev, ...response }));
 			}
 		} catch (e) {
 			console.warn('Failed to load dashboard stats', e);
@@ -343,9 +350,10 @@ const TeacherHome = () => {
 		},
 	];
 
+	// --- stat cards: show total + useful metrics ---
 	const statCards = [
+		{ icon: '📚', label: 'Total Exams', value: data?.exams?.total ?? 0, color: '#6366f1' },
 		{ icon: '🟢', label: 'Live Exams', value: data?.exams?.live ?? 0, color: '#10b981' },
-		{ icon: '🗓️', label: 'Scheduled', value: data?.exams?.scheduled ?? 0, color: '#3b82f6' },
 		{
 			icon: '⏳',
 			label: 'Pending Reviews',
@@ -366,7 +374,7 @@ const TeacherHome = () => {
 			{/* Top Section: Profile & Stats */}
 			<div style={styles.topSection(isMobile)}>
 				<div style={{ flex: isMobile ? '1 1 100%' : '0 0 350px' }}>
-					<ProfileSection user={user} />
+					<ProfileSection user={user} data={data} />
 				</div>
 
 				<div style={styles.statsGrid}>
