@@ -522,8 +522,37 @@ export const changeTeacherPassword = async ({ currentPassword, newPassword }) =>
 // ---------- Dashboard (Teacher) ----------
 export const getTeacherDashboardStats = async () => {
 	const res = await tryGet(EP.teacherDashboardStats);
-	// The data from this endpoint is already well-structured, so we can return it directly.
-	return res?.data?.data ?? res?.data ?? {};
+
+	// Support multiple response envelopes:
+	// - axios res.data = { success: true, data: stats }
+	// - axios res.data = stats
+	// - res may already be stats object if safe wrapper returns inner data
+	const payload = res?.data?.data ?? res?.data ?? res;
+
+	// Defensive normalization to ensure UI always gets the same fields
+	const exams = payload?.exams ?? {};
+	const issues = payload?.issues ?? {};
+	const submissions = payload?.submissions ?? {};
+	const examsToReview = Array.isArray(payload?.examsToReview) ? payload.examsToReview : [];
+	const recentSubmissions = Array.isArray(payload?.recentSubmissions)
+		? payload.recentSubmissions
+		: [];
+
+	return {
+		exams: {
+			live: Number(exams?.live ?? 0),
+			scheduled: Number(exams?.scheduled ?? 0),
+			draft: Number(exams?.draft ?? 0),
+		},
+		issues: {
+			open: Number(issues?.open ?? 0),
+		},
+		submissions: {
+			pending: Number(submissions?.pending ?? 0),
+		},
+		examsToReview,
+		recentSubmissions,
+	};
 };
 
 // Ensure cookies if server uses cookie sessions
