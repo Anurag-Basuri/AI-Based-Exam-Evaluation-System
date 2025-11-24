@@ -50,7 +50,8 @@ const TakeExam = () => {
 	const currentAnswer = submission?.answers?.find(
 		a => String(a.question) === String(currentQuestion?.id),
 	);
-	const isReviewing = currentQuestion && markedForReview.includes(currentQuestion.id);
+	// ensure id comparison uses strings
+	const isReviewing = currentQuestion && markedForReview.includes(String(currentQuestion.id));
 
 	const questionStats = useMemo(() => {
 		if (!submission) return { answered: 0, review: 0, unanswered: 0, total: 0 };
@@ -77,7 +78,12 @@ const TakeExam = () => {
 		if (currentQuestionIndex < (submission?.questions?.length || 0) - 1) {
 			setCurrentQuestionIndex(prev => prev + 1);
 		}
-	}, [handleQuickSave, currentQuestionIndex, submission?.questions?.length, setCurrentQuestionIndex]);
+	}, [
+		handleQuickSave,
+		currentQuestionIndex,
+		submission?.questions?.length,
+		setCurrentQuestionIndex,
+	]);
 
 	const handlePrev = useCallback(() => {
 		if (currentQuestionIndex > 0) {
