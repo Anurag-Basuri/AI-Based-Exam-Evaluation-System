@@ -43,8 +43,20 @@ const useExamEnvironment = (isExamActive, onViolation) => {
 		document.addEventListener('visibilitychange', handleVisibilityChange);
 		window.addEventListener('popstate', handlePopState);
 
-		// Block context menu
-		const handleContextMenu = e => e.preventDefault();
+		// Block context menu while exam active
+		const handleContextMenu = e => {
+			// allow inside inputs/selects/etc.
+			const t = e.target;
+			if (
+				t &&
+				(t.tagName === 'INPUT' ||
+					t.tagName === 'TEXTAREA' ||
+					t.tagName === 'SELECT' ||
+					t.isContentEditable)
+			)
+				return;
+			e.preventDefault();
+		};
 		document.addEventListener('contextmenu', handleContextMenu);
 
 		return () => {
@@ -125,9 +137,8 @@ const TakeExam = () => {
 
 				success('Submission successful! Redirecting to results...');
 				setTimeout(() => {
-					// FIX: Navigate to the specific result page for this submission
 					navigate(`/student/results/view/${submission.id}`, { replace: true });
-				}, 1500);
+				}, 800);
 			} catch (e) {
 				toastError(e?.message || 'Failed to submit. Please try again.');
 				setAutoSubmitting(false);
@@ -187,12 +198,15 @@ const TakeExam = () => {
 		const onKey = e => {
 			if (!isStarted || autoSubmitting) return;
 
-			// Do not interfere with typing in inputs/textareas
+			// Do not interfere with typing in inputs/textareas or contenteditable
 			const target = e.target;
-			if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
-				// Allow specific shortcuts even when typing
-				if (!e.altKey) return;
-			}
+			const interactive =
+				target &&
+				(target.tagName === 'INPUT' ||
+					target.tagName === 'TEXTAREA' ||
+					target.tagName === 'SELECT' ||
+					target.isContentEditable);
+			if (interactive && !e.altKey) return;
 
 			const key = `${e.altKey ? 'alt+' : ''}${e.key.toLowerCase()}`;
 			let handled = false;
@@ -211,10 +225,7 @@ const TakeExam = () => {
 				handled = true;
 			}
 
-			// Only prevent default if we actually handled the shortcut
-			if (handled) {
-				e.preventDefault();
-			}
+			if (handled) e.preventDefault();
 		};
 		window.addEventListener('keydown', onKey);
 		return () => window.removeEventListener('keydown', onKey);
@@ -225,7 +236,6 @@ const TakeExam = () => {
 		const load = async () => {
 			setLoading(true);
 			try {
-				// --- FIX: Always fetch data from the API to ensure it's fresh ---
 				if (submissionId) {
 					const subData = await safeApiCall(getSubmissionById, submissionId);
 
@@ -238,8 +248,21 @@ const TakeExam = () => {
 						return;
 					}
 
-					setSubmission(subData);
-					setMarkedForReview(subData.markedForReview || []);
+					// Ensure answers array exists (one slot per question)
+					const normalized = {
+						...(subData || {}),
+						answers:
+							Array.isArray(subData?.answers) && subData.answers.length > 0
+								? subData.answers
+								: (subData.questions || []).map(q => ({
+										question: String(q.id),
+										responseText: '',
+										responseOption: null,
+								  })),
+					};
+
+					setSubmission(normalized);
+					setMarkedForReview(normalized.markedForReview || []);
 				} else {
 					navigate('/student/exams', { replace: true });
 					return;
@@ -258,12 +281,21 @@ const TakeExam = () => {
 
 	// --- Start exam ---
 	const handleStartExam = async () => {
+		// mark started locally immediately so UI is ready
+		setIsStarted(true);
 		try {
+			// attempt fullscreen but don't block start if denied
 			await document.documentElement.requestFullscreen();
-			setIsStarted(true);
 		} catch (err) {
-			toastError('Fullscreen is required to start the exam. Please allow it.');
+			// still allow exam to start but notify user
+			toastError(
+				'Fullscreen was not granted. Exam will continue, please enable fullscreen for best experience.',
+			);
 		}
+		// focus first input if present
+		setTimeout(() => {
+			document.querySelector('textarea')?.focus();
+		}, 200);
 	};
 
 	// --- Acknowledge violation ---
@@ -284,21 +316,30 @@ const TakeExam = () => {
 			if (!answersToSave && !reviewState && !hasUnsavedChanges.current) return;
 
 			setSaving(true);
-			hasUnsavedChanges.current = false;
-
+			// don't clear unsaved flag until save succeeds
 			try {
 				const payload = {
 					answers: answersToSave || currentSubmission.answers,
 					markedForReview: reviewState || markedForReview,
 				};
-				// --- CRITICAL FIX: Update state with the normalized response from the save call ---
 				const updatedSubmission = await safeApiCall(
 					saveSubmissionAnswers,
 					currentSubmission.id,
 					payload,
 				);
-				setSubmission(updatedSubmission); // This ensures the state is always fresh
-				setLastSaved(new Date());
+				// only update state when server returns valid normalized submission
+				if (updatedSubmission && updatedSubmission.id) {
+					setSubmission(prev => {
+						// keep currentQuestionIndex stable by returning merged structure
+						return { ...prev, ...updatedSubmission };
+					});
+					submissionRef.current = updatedSubmission;
+					hasUnsavedChanges.current = false;
+					setLastSaved(new Date());
+				} else {
+					// keep local state if server response unexpected
+					console.warn('Unexpected save response, preserving local state.');
+				}
 			} catch (e) {
 				hasUnsavedChanges.current = true;
 				console.error('Auto-save failed:', e);
@@ -314,9 +355,11 @@ const TakeExam = () => {
 	const debouncedSave = useCallback(
 		(answers, review) => {
 			if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+			// store current answers snapshot if not passed
+			const snapshot = answers || submissionRef.current?.answers || null;
 			saveTimeoutRef.current = setTimeout(() => {
-				handleQuickSave(answers, review);
-			}, 2000);
+				handleQuickSave(snapshot, review);
+			}, 800);
 		},
 		[handleQuickSave],
 	);
@@ -346,8 +389,15 @@ const TakeExam = () => {
 			);
 
 			if (answerIndex === -1) {
-				console.error('Could not find answer slot for question:', questionId);
-				return prev;
+				// create a slot if missing
+				const slot = {
+					question: String(questionId),
+					responseText: type === 'multiple-choice' ? '' : String(value || ''),
+					responseOption: type === 'multiple-choice' ? String(value || null) : null,
+				};
+				newAnswers.push(slot);
+				newAnswersForSave = newAnswers;
+				return { ...prev, answers: newAnswers };
 			}
 
 			const answerToUpdate = { ...newAnswers[answerIndex] };
@@ -366,12 +416,19 @@ const TakeExam = () => {
 
 	// --- Navigation ---
 	const changeQuestion = newIndex => {
-		if (newIndex >= 0 && newIndex < submission.questions.length) {
-			setCurrentQuestionIndex(newIndex);
-			if (questionPanelRef.current) {
-				questionPanelRef.current.scrollTop = 0;
-			}
+		if (!submission?.questions) return;
+		const total = submission.questions.length;
+		const clamped = Math.max(0, Math.min(total - 1, newIndex));
+		setCurrentQuestionIndex(clamped);
+		if (questionPanelRef.current) {
+			questionPanelRef.current.scrollTop = 0;
 		}
+		// focus textarea or first input after change
+		setTimeout(() => {
+			const el =
+				document.querySelector('textarea') || document.querySelector('input[type="radio"]');
+			el?.focus?.();
+		}, 80);
 	};
 
 	const handleSaveAndNext = async () => {
@@ -905,92 +962,14 @@ const styles = {
 		borderRadius: '16px',
 		border: '1px solid var(--border)',
 		overflow: 'hidden',
-	},
-	statusBar: {
-		display: 'flex',
-		flexDirection: 'column',
-		gap: '1rem',
-	},
-	bottomNav: {
-		position: 'fixed',
-		bottom: 0,
-		left: 0,
-		right: 0,
-		display: 'flex',
-		justifyContent: 'space-between',
-		alignItems: 'center',
-		padding: '12px 16px',
-		background: 'var(--surface)',
-		borderTop: '1px solid var(--border)',
-		zIndex: 50,
-	},
-	// Start Screen
-	startCard: {
-		background: 'var(--surface)',
-		border: '1px solid var(--border)',
-		borderRadius: 24,
-		padding: 'clamp(1.5rem, 5vw, 3rem)',
-		maxWidth: 600,
-		width: '100%',
-		boxShadow: 'var(--shadow-lg)',
-	},
-	startInfoGrid: {
-		display: 'grid',
-		gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
-		gap: '1rem',
-		background: 'var(--bg-alt)',
-		border: '1px solid var(--border)',
-		borderRadius: 16,
-		padding: '1.5rem',
-		marginBottom: '1.5rem',
-		textAlign: 'center',
-	},
-	startInfoLabel: {
-		display: 'block',
-		fontSize: 13,
-		color: 'var(--text-muted)',
-		marginBottom: 4,
-	},
-	startInfoValue: { fontSize: '1.25rem', color: 'var(--text)' },
-	startWarning: {
-		background: 'var(--warning-bg)',
-		border: '1px solid var(--warning-border)',
-		borderRadius: 12,
-		padding: '1rem',
-		marginBottom: '1.5rem',
-	},
-	startWarningList: { margin: 0, paddingLeft: 20, fontSize: 14, color: 'var(--warning)' },
-	startButton: {
-		padding: '16px 28px',
-		fontSize: '1rem',
-		fontWeight: 700,
-		cursor: 'pointer',
-		background: 'var(--primary)',
-		color: 'white',
-		border: 'none',
-		borderRadius: '12px',
-		width: '100%',
-		transition: 'transform 0.2s, box-shadow 0.2s',
-		boxShadow: 'var(--shadow-md)',
-	},
-	// Question Panel
-	questionPanelHeader: {
-		padding: '1rem 1.5rem',
-		borderBottom: '1px solid var(--border)',
-		display: 'flex',
-		justifyContent: 'space-between',
-		alignItems: 'center',
-	},
-	examTitle: { margin: 0, fontSize: '1.25rem' },
-	desktopTimer: {
-		fontSize: '1.25rem',
-		fontWeight: 700,
-		fontVariantNumeric: 'tabular-nums',
+		// ensure content isn't hidden by bottom nav on mobile
+		paddingBottom: 92,
 	},
 	questionCard: {
 		flex: 1,
 		padding: '1.5rem',
 		overflowY: 'auto',
+		minHeight: 0, // allow correct flex scrolling
 	},
 	questionHeader: {
 		marginBottom: '1.5rem',
