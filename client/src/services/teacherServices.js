@@ -536,6 +536,11 @@ export const getTeacherDashboardStats = async () => {
 		? payload.recentSubmissions
 		: [];
 
+	// Normalize teacher info if present (server may return teacher object)
+	const teacherPayload = payload?.teacher ?? payload?.teacherInfo ?? payload?.teacherData ?? {};
+	const teacher =
+		typeof normalizeTeacher === 'function' ? normalizeTeacher(teacherPayload) : teacherPayload;
+
 	return {
 		exams: {
 			total: Number(examsPayload?.total ?? examsPayload?.totalExams ?? 0),
@@ -552,6 +557,7 @@ export const getTeacherDashboardStats = async () => {
 		},
 		examsToReview,
 		recentSubmissions,
+		teacher,
 	};
 };
 

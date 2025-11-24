@@ -15,13 +15,6 @@ const DEFAULT_DASH = {
 	teacher: null,
 };
 
-const safePercent = (num, den) => {
-	const n = Number(num || 0);
-	const d = Number(den || 0);
-	if (!d || d <= 0) return 0;
-	return Math.round((n / d) * 100);
-};
-
 const formatDate = v => {
 	if (!v) return '—';
 	try {
@@ -33,18 +26,28 @@ const formatDate = v => {
 	}
 };
 
-// --- Reusable Components ---
-const ProfileField = ({ label, value }) => (
-	<div style={styles.profileField}>
-		<div style={styles.profileFieldLabel}>{label}</div>
-		<div style={styles.profileFieldValue}>{value ?? '—'}</div>
+// --- Small reusable UI pieces ---
+const Field = ({ label, children }) => (
+	<div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+		<div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 700 }}>{label}</div>
+		<div style={{ fontSize: 14 }}>{children ?? '—'}</div>
 	</div>
 );
 
-const StatPill = ({ label, value, color = '#6366f1' }) => (
-	<div style={{ ...styles.statPill.container, borderColor: `${color}20` }}>
-		<div style={{ ...styles.statPill.value, color }}>{value}</div>
-		<div style={styles.statPill.label}>{label}</div>
+const KPI = ({ label, value, color }) => (
+	<div
+		style={{
+			padding: 12,
+			borderRadius: 12,
+			background: 'var(--surface)',
+			display: 'flex',
+			justifyContent: 'space-between',
+			alignItems: 'center',
+			border: '1px solid var(--border)',
+		}}
+	>
+		<div style={{ fontSize: 13, color: 'var(--text-muted)' }}>{label}</div>
+		<div style={{ fontSize: 20, fontWeight: 800, color }}>{value}</div>
 	</div>
 );
 
@@ -63,62 +66,50 @@ const TeacherHome = () => {
 	);
 
 	React.useEffect(() => {
-		const handleResize = () => setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
-		window.addEventListener('resize', handleResize);
-		return () => window.removeEventListener('resize', handleResize);
+		const onResize = () => setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
+		window.addEventListener('resize', onResize);
+		return () => window.removeEventListener('resize', onResize);
 	}, []);
 
 	const loadData = React.useCallback(async () => {
 		setLoading(true);
 		setError('');
 		try {
-			const response = await getTeacherDashboardStats();
-			if (!response || typeof response !== 'object') {
+			const resp = await getTeacherDashboardStats();
+			if (!resp || typeof resp !== 'object') {
 				setData(DEFAULT_DASH);
 			} else {
-				// normalize teacher info: prefer server teacher, then auth user
-				const teacher = response.teacher ?? {
-					id: user?.id,
-					username: user?.username,
-					fullname: user?.fullname,
-					email: user?.email,
-					phonenumber: user?.phonenumber,
-					department: user?.department,
-					createdAt: user?.createdAt,
-				};
-				setData(prev => ({ ...DEFAULT_DASH, ...prev, ...response, teacher }));
+				setData(prev => ({ ...DEFAULT_DASH, ...prev, ...resp }));
 			}
 		} catch (e) {
-			console.warn('Failed to load dashboard stats', e);
-			setError(e?.message || 'Failed to load dashboard data');
+			console.warn('Dashboard load failed', e);
+			setError(e?.message ?? 'Failed to load dashboard');
 			setData(DEFAULT_DASH);
 		} finally {
 			setLoading(false);
 		}
-	}, [user]);
+	}, []);
 
 	React.useEffect(() => {
 		loadData();
 	}, [loadData]);
 
-	// --- REAL-TIME UPDATES (light) ---
+	// Real-time updates (light)
 	React.useEffect(() => {
 		if (!user?.id) return undefined;
 		const socket = io(API_BASE_URL, {
 			withCredentials: true,
 			query: { role: 'teacher', userId: user.id },
 		});
-		const onNewSubmission = s => {
-			setData(current => {
-				const recent = [s, ...(current.recentSubmissions || [])].slice(0, 5);
-				const pending = (current.submissions?.pending || 0) + 1;
-				return {
-					...current,
-					recentSubmissions: recent,
-					submissions: { ...(current.submissions || {}), pending },
-				};
-			});
-		};
+		const onNewSubmission = s =>
+			setData(curr => ({
+				...curr,
+				recentSubmissions: [s, ...(curr.recentSubmissions || [])].slice(0, 5),
+				submissions: {
+					...(curr.submissions || {}),
+					pending: (curr.submissions?.pending || 0) + 1,
+				},
+			}));
 		socket.on('new-submission', onNewSubmission);
 		socket.on('submission-updated', () => loadData());
 		return () => {
@@ -127,179 +118,309 @@ const TeacherHome = () => {
 		};
 	}, [user, loadData]);
 
-	// --- Derived display values ---
-	const teacher = data.teacher ?? {};
-	const kpis = [
-		{ label: 'Total Exams', value: data.exams?.total ?? 0, color: '#6366f1' },
-		{ label: 'Live Exams', value: data.exams?.live ?? 0, color: '#10b981' },
-		{ label: 'Pending Reviews', value: data.submissions?.pending ?? 0, color: '#f59e0b' },
-		{ label: 'Open Issues', value: data.issues?.open ?? 0, color: '#ef4444' },
-	];
+	const teacher =
+		data.teacher ??
+		(user
+			? {
+					id: user.id,
+					fullname: user.fullname,
+					username: user.username,
+					email: user.email,
+					phonenumber: user.phonenumber,
+					department: user.department,
+					createdAt: user.createdAt,
+			  }
+			: null);
 
 	return (
-		<div style={styles.pageContainer}>
-			<div style={styles.headerRow}>
-				<h1 style={styles.title}>
-					Welcome, {teacher?.fullname ?? user?.fullname ?? 'Teacher'}
-				</h1>
-				<div style={styles.headerActions}>
+		<div style={{ maxWidth: 1200, margin: '0 auto', padding: 20 }}>
+			<header
+				style={{
+					display: 'flex',
+					justifyContent: 'space-between',
+					alignItems: 'center',
+					gap: 12,
+				}}
+			>
+				<div>
+					<h1 style={{ margin: 0, fontSize: 22 }}>{teacher?.fullname ?? 'Teacher'}</h1>
+					<div style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+						{teacher?.department ?? 'Department not set'}
+					</div>
+				</div>
+				<div style={{ display: 'flex', gap: 8 }}>
 					<button
-						style={styles.headerBtn}
 						onClick={() => navigate('/teacher/exams/create')}
+						style={{
+							padding: '8px 12px',
+							borderRadius: 8,
+							background: 'var(--primary)',
+							color: '#fff',
+							border: 'none',
+						}}
 					>
-						➕ New Exam
+						New Exam
 					</button>
 					<button
-						style={styles.headerBtnOutline}
 						onClick={() => navigate('/teacher/settings')}
+						style={{
+							padding: '8px 12px',
+							borderRadius: 8,
+							border: '1px solid var(--border)',
+							background: 'transparent',
+						}}
 					>
-						⚙️ Settings
+						Edit Profile
 					</button>
 				</div>
-			</div>
+			</header>
 
-			{error && <div style={styles.errorBanner}>⚠️ {error}</div>}
+			{error && (
+				<div
+					style={{
+						marginTop: 12,
+						padding: 12,
+						borderRadius: 8,
+						background: '#fff4f4',
+						color: '#9b1c1c',
+					}}
+				>
+					{error}
+				</div>
+			)}
 
-			<div style={styles.topSection(isMobile)}>
-				{/* Left: Profile / Contact */}
-				<div style={styles.profileColumn}>
-					<div style={styles.profileCard}>
-						<div style={styles.profileHeader}>
-							<div style={styles.avatar}>
-								{(teacher?.fullname || user?.fullname || 'T')
+			<section
+				style={{
+					display: 'grid',
+					gridTemplateColumns: isMobile ? '1fr' : '360px 1fr',
+					gap: 20,
+					marginTop: 18,
+				}}
+			>
+				{/* Left column: teacher profile */}
+				<aside style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+					<div
+						style={{
+							padding: 16,
+							borderRadius: 12,
+							background: 'var(--surface)',
+							border: '1px solid var(--border)',
+						}}
+					>
+						<div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+							<div
+								style={{
+									width: 64,
+									height: 64,
+									borderRadius: 12,
+									background: 'linear-gradient(135deg,#6366f1,#8b5cf6)',
+									color: '#fff',
+									display: 'flex',
+									alignItems: 'center',
+									justifyContent: 'center',
+									fontWeight: 800,
+									fontSize: 24,
+								}}
+							>
+								{(teacher?.fullname ?? teacher?.username ?? 'T')
 									.split(' ')
 									.map(p => p[0])
 									.join('')
 									.slice(0, 2)
 									.toUpperCase()}
 							</div>
-							<div style={styles.profileMain}>
-								<div style={styles.profileName}>
-									{teacher?.fullname ?? user?.fullname}
+							<div style={{ flex: 1 }}>
+								<div style={{ fontSize: 16, fontWeight: 800 }}>
+									{teacher?.fullname ?? '—'}
 								</div>
-								<div style={styles.profileSub}>
-									{teacher?.username ?? user?.username}
-								</div>
-								<div style={styles.profileMeta}>
-									<span style={styles.metaItem}>
-										Joined {formatDate(teacher?.createdAt ?? user?.createdAt)}
-									</span>
-									<span style={styles.metaSep}>•</span>
-									<span style={styles.metaItem}>
-										{teacher?.department ?? user?.department ?? '—'}
-									</span>
+								<div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+									{teacher?.username ?? '—'}
 								</div>
 							</div>
 						</div>
 
-						<div style={styles.profileBody}>
-							<ProfileField label="Email" value={teacher?.email ?? user?.email} />
-							<ProfileField
-								label="Phone"
-								value={teacher?.phonenumber ?? user?.phonenumber}
-							/>
-							<ProfileField
-								label="Username"
-								value={teacher?.username ?? user?.username}
-							/>
-							<ProfileField label="Address" value={teacher?.address ?? '—'} />
+						<div
+							style={{
+								display: 'grid',
+								gridTemplateColumns: '1fr 1fr',
+								gap: 8,
+								marginTop: 12,
+							}}
+						>
+							<Field label="Email">{teacher?.email}</Field>
+							<Field label="Phone">{teacher?.phonenumber}</Field>
+							<Field label="Joined">{formatDate(teacher?.createdAt)}</Field>
+							<Field label="Gender">{teacher?.gender ?? '—'}</Field>
 						</div>
 
-						<div style={styles.profileFooter}>
+						<div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
 							<button
-								style={styles.ctaPrimary}
-								onClick={() => navigate('/teacher/settings')}
+								onClick={() => navigator.clipboard?.writeText(teacher?.email ?? '')}
+								style={{ flex: 1, padding: '8px 10px', borderRadius: 8 }}
 							>
-								Edit Profile
+								Copy Email
 							</button>
 							<button
-								style={styles.ctaGhost}
+								onClick={() => navigate('/teacher/settings')}
+								style={{
+									padding: '8px 10px',
+									borderRadius: 8,
+									border: '1px solid var(--border)',
+									background: 'transparent',
+								}}
+							>
+								Manage
+							</button>
+						</div>
+					</div>
+
+					{/* Contact & settings */}
+					<div
+						style={{
+							padding: 12,
+							borderRadius: 12,
+							background: 'var(--surface)',
+							border: '1px solid var(--border)',
+						}}
+					>
+						<div style={{ fontWeight: 800, marginBottom: 8 }}>Contact & Security</div>
+						<Field label="Department">{teacher?.department ?? '—'}</Field>
+						<div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
+							<button
 								onClick={() => navigate('/teacher/change-password')}
+								style={{ flex: 1, padding: '8px 10px', borderRadius: 8 }}
 							>
 								Change Password
 							</button>
+							<button
+								onClick={() => navigate('/teacher/profile/export')}
+								style={{
+									padding: '8px 10px',
+									borderRadius: 8,
+									border: '1px solid var(--border)',
+									background: 'transparent',
+								}}
+							>
+								Export
+							</button>
 						</div>
 					</div>
+				</aside>
 
-					{/* Compact KPI row for mobile */}
+				{/* Right column: KPIs + activity */}
+				<main style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+					{/* KPIs */}
 					<div
 						style={{
-							marginTop: 16,
-							display: isMobile ? 'grid' : 'none',
-							gridTemplateColumns: 'repeat(2,1fr)',
+							display: 'grid',
+							gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)',
 							gap: 12,
 						}}
 					>
-						{kpis.map(k => (
+						<KPI label="Total Exams" value={data.exams?.total ?? 0} color="#6366f1" />
+						<KPI label="Live Exams" value={data.exams?.live ?? 0} color="#10b981" />
+						<KPI
+							label="Pending Reviews"
+							value={data.submissions?.pending ?? 0}
+							color="#f59e0b"
+						/>
+						<KPI label="Open Issues" value={data.issues?.open ?? 0} color="#ef4444" />
+					</div>
+
+					{/* Recent submissions & exams to review */}
+					<div
+						style={{
+							display: 'grid',
+							gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr',
+							gap: 12,
+						}}
+					>
+						{/* Recent submissions */}
+						<div
+							style={{
+								padding: 12,
+								borderRadius: 12,
+								background: 'var(--surface)',
+								border: '1px solid var(--border)',
+							}}
+						>
 							<div
-								key={k.label}
 								style={{
-									background: 'var(--surface)',
-									padding: 12,
-									borderRadius: 12,
-									textAlign: 'center',
-									border: '1px solid var(--border)',
+									display: 'flex',
+									justifyContent: 'space-between',
+									alignItems: 'center',
 								}}
 							>
-								<div style={{ fontSize: 14, color: 'var(--text-muted)' }}>
-									{k.label}
-								</div>
-								<div style={{ fontSize: 20, fontWeight: 800, color: k.color }}>
-									{k.value}
-								</div>
-							</div>
-						))}
-					</div>
-				</div>
-
-				{/* Right: KPIs + Activity */}
-				<div style={styles.kpiColumn}>
-					<div style={styles.kpiGrid}>
-						{kpis.map(k => (
-							<StatPill key={k.label} {...k} />
-						))}
-					</div>
-
-					<div style={styles.cardsRow}>
-						<div style={styles.card}>
-							<div style={styles.cardHeader}>
-								<h3 style={styles.cardTitle}>Recent Submissions</h3>
+								<div style={{ fontWeight: 800 }}>Recent Submissions</div>
 								<button
-									style={styles.linkBtn}
 									onClick={() => navigate('/teacher/results')}
+									style={{
+										background: 'transparent',
+										border: 'none',
+										color: 'var(--primary)',
+									}}
 								>
 									View all
 								</button>
 							</div>
-							<div style={styles.cardBody}>
+							<div
+								style={{
+									marginTop: 8,
+									display: 'flex',
+									flexDirection: 'column',
+									gap: 8,
+								}}
+							>
 								{loading ? (
-									<div style={styles.emptyState}>Loading…</div>
+									<div style={{ color: 'var(--text-muted)' }}>Loading…</div>
 								) : (data.recentSubmissions || []).length === 0 ? (
-									<div style={styles.emptyState}>No recent submissions</div>
+									<div style={{ color: 'var(--text-muted)' }}>
+										No recent submissions
+									</div>
 								) : (
 									(data.recentSubmissions || []).map(s => (
 										<div
 											key={s._id || s.id}
-											style={styles.activityRow}
-											onClick={() =>
-												navigate(`/teacher/grade/${s._id || s.id}`)
-											}
+											style={{
+												display: 'flex',
+												alignItems: 'center',
+												gap: 12,
+												padding: 8,
+												borderRadius: 8,
+											}}
 										>
-											<div style={styles.activityAvatar}>
+											<div
+												style={{
+													width: 40,
+													height: 40,
+													borderRadius: 8,
+													background: '#eef2ff',
+													display: 'flex',
+													alignItems: 'center',
+													justifyContent: 'center',
+													fontWeight: 700,
+													color: '#4338ca',
+												}}
+											>
 												{(s.student?.fullname || 'S')[0]}
 											</div>
-											<div style={styles.activityText}>
-												<div style={styles.activityTitle}>
+											<div style={{ flex: 1 }}>
+												<div style={{ fontWeight: 700 }}>
 													{s.student?.fullname ??
 														s.student?.username ??
 														'Student'}
 												</div>
-												<div style={styles.activityMeta}>
+												<div
+													style={{
+														fontSize: 12,
+														color: 'var(--text-muted)',
+													}}
+												>
 													{s.exam?.title ?? s.examTitle} •{' '}
 													{formatDate(s.createdAt)}
 												</div>
 											</div>
-											<div style={styles.activityRight}>
+											<div style={{ fontWeight: 700 }}>
 												{s.grade ?? s.status ?? '—'}
 											</div>
 										</div>
@@ -308,41 +429,69 @@ const TeacherHome = () => {
 							</div>
 						</div>
 
-						<div style={{ ...styles.card, minHeight: 160 }}>
-							<div style={styles.cardHeader}>
-								<h3 style={styles.cardTitle}>Exams Needing Review</h3>
+						{/* Exams to review */}
+						<div
+							style={{
+								padding: 12,
+								borderRadius: 12,
+								background: 'var(--surface)',
+								border: '1px solid var(--border)',
+							}}
+						>
+							<div
+								style={{
+									display: 'flex',
+									justifyContent: 'space-between',
+									alignItems: 'center',
+								}}
+							>
+								<div style={{ fontWeight: 800 }}>Exams Needing Review</div>
 								<button
-									style={styles.linkBtn}
 									onClick={() => navigate('/teacher/exams')}
+									style={{
+										background: 'transparent',
+										border: 'none',
+										color: 'var(--primary)',
+									}}
 								>
 									Manage
 								</button>
 							</div>
-							<div style={styles.cardBody}>
+							<div
+								style={{
+									marginTop: 8,
+									display: 'flex',
+									flexDirection: 'column',
+									gap: 8,
+								}}
+							>
 								{loading ? (
-									<div style={styles.emptyState}>Loading…</div>
+									<div style={{ color: 'var(--text-muted)' }}>Loading…</div>
 								) : (data.examsToReview || []).length === 0 ? (
-									<div style={styles.emptyState}>All caught up</div>
+									<div style={{ color: 'var(--text-muted)' }}>All caught up</div>
 								) : (
 									(data.examsToReview || []).map(e => (
 										<div
 											key={e._id || e.id}
-											style={styles.reviewRow}
-											onClick={() =>
-												navigate(`/teacher/results/${e._id || e.id}`)
-											}
+											style={{
+												display: 'flex',
+												justifyContent: 'space-between',
+												alignItems: 'center',
+												padding: 8,
+												borderRadius: 8,
+												border: '1px dashed var(--border)',
+											}}
 										>
-											<div style={styles.reviewTitle}>{e.title}</div>
-											<div style={styles.reviewMeta}>
-												<strong style={{ color: 'var(--primary)' }}>
-													{e.pendingCount ??
-														Math.max(
-															0,
-															(e.submissionsCount || 0) -
-																(e.evaluatedCount || 0),
-														)}
-												</strong>{' '}
-												pending
+											<div style={{ fontWeight: 700 }}>{e.title}</div>
+											<div
+												style={{ color: 'var(--primary)', fontWeight: 800 }}
+											>
+												{e.pendingCount ??
+													Math.max(
+														0,
+														(e.submissionsCount || 0) -
+															(e.evaluatedCount || 0),
+													)}
 											</div>
 										</div>
 									))
@@ -351,229 +500,53 @@ const TeacherHome = () => {
 						</div>
 					</div>
 
-					{/* Footer quick actions */}
-					<div style={styles.quickActions}>
+					{/* Quick actions */}
+					<div
+						style={{
+							display: 'flex',
+							gap: 8,
+							justifyContent: isMobile ? 'stretch' : 'flex-start',
+						}}
+					>
 						<button
-							style={styles.actionPrimary}
 							onClick={() => navigate('/teacher/exams/create')}
+							style={{
+								padding: '10px 14px',
+								borderRadius: 10,
+								background: 'linear-gradient(90deg,#4f46e5,#3b82f6)',
+								color: '#fff',
+								border: 'none',
+							}}
 						>
 							Create Exam
 						</button>
 						<button
-							style={styles.actionGhost}
 							onClick={() => navigate('/teacher/questions')}
+							style={{
+								padding: '10px 14px',
+								borderRadius: 10,
+								border: '1px solid var(--border)',
+								background: 'transparent',
+							}}
 						>
 							Question Bank
 						</button>
 						<button
-							style={styles.actionGhost}
 							onClick={() => navigate('/teacher/issues')}
+							style={{
+								padding: '10px 14px',
+								borderRadius: 10,
+								border: '1px solid var(--border)',
+								background: 'transparent',
+							}}
 						>
 							Open Issues
 						</button>
 					</div>
-				</div>
-			</div>
+				</main>
+			</section>
 		</div>
 	);
-};
-
-// --- Styles ---
-const styles = {
-	pageContainer: { maxWidth: 1400, margin: '0 auto', padding: 24 },
-	headerRow: {
-		display: 'flex',
-		justifyContent: 'space-between',
-		alignItems: 'center',
-		marginBottom: 18,
-	},
-	title: { margin: 0, fontSize: 22, fontWeight: 800 },
-	headerActions: { display: 'flex', gap: 12 },
-	headerBtn: {
-		padding: '8px 12px',
-		borderRadius: 10,
-		background: 'linear-gradient(90deg,#4f46e5,#3b82f6)',
-		color: '#fff',
-		border: 'none',
-		cursor: 'pointer',
-	},
-	headerBtnOutline: {
-		padding: '8px 12px',
-		borderRadius: 10,
-		background: 'transparent',
-		border: '1px solid var(--border)',
-		cursor: 'pointer',
-	},
-
-	topSection: isMobile => ({
-		display: 'flex',
-		gap: 24,
-		flexDirection: isMobile ? 'column' : 'row',
-	}),
-	profileColumn: { flex: '0 0 360px', display: 'flex', flexDirection: 'column', gap: 16 },
-	kpiColumn: { flex: 1, display: 'flex', flexDirection: 'column', gap: 16 },
-
-	profileCard: {
-		background: 'var(--surface)',
-		borderRadius: 12,
-		padding: 18,
-		border: '1px solid var(--border)',
-	},
-	profileHeader: { display: 'flex', gap: 12, alignItems: 'center' },
-	avatar: {
-		width: 72,
-		height: 72,
-		borderRadius: 12,
-		background: 'linear-gradient(135deg,#6366f1,#8b5cf6)',
-		color: '#fff',
-		display: 'flex',
-		alignItems: 'center',
-		justifyContent: 'center',
-		fontSize: 28,
-		fontWeight: 800,
-	},
-	profileMain: { display: 'flex', flexDirection: 'column' },
-	profileName: { fontSize: 18, fontWeight: 800 },
-	profileSub: { color: 'var(--text-muted)', fontSize: 13 },
-	profileMeta: {
-		display: 'flex',
-		gap: 8,
-		marginTop: 6,
-		color: 'var(--text-muted)',
-		fontSize: 13,
-	},
-	metaItem: {},
-	metaSep: { opacity: 0.4 },
-
-	profileBody: { marginTop: 12, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 },
-	profileField: {
-		display: 'flex',
-		flexDirection: 'column',
-		gap: 4,
-		padding: 8,
-		borderRadius: 8,
-		background: 'var(--bg-subtle)',
-	},
-	profileFieldLabel: { fontSize: 12, color: 'var(--text-muted)', fontWeight: 700 },
-	profileFieldValue: { fontSize: 14, fontWeight: 700 },
-
-	profileFooter: { display: 'flex', gap: 8, marginTop: 12 },
-	ctaPrimary: {
-		flex: 1,
-		padding: '10px 12px',
-		borderRadius: 10,
-		background: 'linear-gradient(90deg,#10b981,#059669)',
-		color: '#fff',
-		border: 'none',
-		cursor: 'pointer',
-	},
-	ctaGhost: {
-		padding: '10px 12px',
-		borderRadius: 10,
-		background: 'transparent',
-		border: '1px solid var(--border)',
-		cursor: 'pointer',
-	},
-
-	kpiGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 },
-	statPill: {
-		container: {
-			padding: 16,
-			borderRadius: 12,
-			border: '1px solid #e6e9f2',
-			background: 'var(--surface)',
-		},
-		value: { fontSize: 22, fontWeight: 800 },
-		label: { fontSize: 12, color: 'var(--text-muted)', marginTop: 6 },
-	},
-
-	cardsRow: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 8 },
-	card: {
-		background: 'var(--surface)',
-		borderRadius: 12,
-		border: '1px solid var(--border)',
-		padding: 12,
-		display: 'flex',
-		flexDirection: 'column',
-	},
-	cardHeader: {
-		display: 'flex',
-		justifyContent: 'space-between',
-		alignItems: 'center',
-		marginBottom: 8,
-	},
-	cardTitle: { margin: 0, fontSize: 15, fontWeight: 800 },
-	linkBtn: {
-		background: 'transparent',
-		border: 'none',
-		color: 'var(--primary)',
-		cursor: 'pointer',
-		fontWeight: 700,
-	},
-
-	cardBody: { display: 'flex', flexDirection: 'column', gap: 8, overflow: 'auto' },
-	emptyState: { padding: 20, color: 'var(--text-muted)' },
-
-	activityRow: {
-		display: 'flex',
-		alignItems: 'center',
-		gap: 12,
-		padding: '8px 6px',
-		borderRadius: 8,
-		cursor: 'pointer',
-	},
-	activityAvatar: {
-		width: 40,
-		height: 40,
-		borderRadius: 8,
-		background: '#eef2ff',
-		display: 'flex',
-		alignItems: 'center',
-		justifyContent: 'center',
-		fontWeight: 700,
-		color: '#4338ca',
-	},
-	activityText: { flex: 1, display: 'flex', flexDirection: 'column' },
-	activityTitle: { fontWeight: 700 },
-	activityMeta: { fontSize: 12, color: 'var(--text-muted)' },
-	activityRight: { fontWeight: 700, color: 'var(--text-muted)' },
-
-	reviewRow: {
-		display: 'flex',
-		justifyContent: 'space-between',
-		padding: 10,
-		borderRadius: 8,
-		alignItems: 'center',
-		cursor: 'pointer',
-		border: '1px dashed var(--border)',
-	},
-	reviewTitle: { fontWeight: 700 },
-	reviewMeta: { fontSize: 13, color: 'var(--text-muted)' },
-
-	quickActions: { display: 'flex', gap: 8, marginTop: 12 },
-	actionPrimary: {
-		padding: '10px 14px',
-		borderRadius: 10,
-		background: 'linear-gradient(90deg,#4f46e5,#3b82f6)',
-		color: '#fff',
-		border: 'none',
-		cursor: 'pointer',
-	},
-	actionGhost: {
-		padding: '10px 14px',
-		borderRadius: 10,
-		background: 'transparent',
-		border: '1px solid var(--border)',
-		cursor: 'pointer',
-	},
-
-	errorBanner: {
-		background: '#fef2f2',
-		color: '#991b1b',
-		padding: 12,
-		borderRadius: 8,
-		marginBottom: 12,
-	},
 };
 
 export default TeacherHome;
