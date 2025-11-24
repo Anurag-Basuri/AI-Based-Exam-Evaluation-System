@@ -140,7 +140,7 @@ const EP = {
 	// Profile
 	teacherUpdate: '/api/teachers/update',
 	teacherChangePassword: '/api/teachers/change-password',
-	teacherDashboardStats: '/api/exams/stats',
+	teacherDashboardStats: '/api/teachers/dashboard-stats',
 };
 
 // ---------- Normalizers ----------
