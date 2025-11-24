@@ -523,12 +523,14 @@ export const changeTeacherPassword = async ({ currentPassword, newPassword }) =>
 export const getTeacherDashboardStats = async () => {
 	const res = await tryGet(EP.teacherDashboardStats);
 
+	// server returns ApiResponse.success -> { success: true, data: {...} }
 	const payload = res?.data?.data ?? res?.data ?? res;
 
-	// Defensive normalization to ensure UI always gets the same fields
-	const exams = payload?.exams ?? {};
-	const issues = payload?.issues ?? {};
-	const submissions = payload?.submissions ?? {};
+	// Defensive extraction supporting multiple server shapes
+	const examsPayload = payload?.exams ?? payload?.examStats ?? {};
+	const submissionsPayload = payload?.submissions ?? payload?.submissionStats ?? {};
+	const issuesPayload = payload?.issues ?? {};
+
 	const examsToReview = Array.isArray(payload?.examsToReview) ? payload.examsToReview : [];
 	const recentSubmissions = Array.isArray(payload?.recentSubmissions)
 		? payload.recentSubmissions
@@ -536,15 +538,17 @@ export const getTeacherDashboardStats = async () => {
 
 	return {
 		exams: {
-			live: Number(exams?.live ?? 0),
-			scheduled: Number(exams?.scheduled ?? 0),
-			draft: Number(exams?.draft ?? 0),
+			total: Number(examsPayload?.total ?? examsPayload?.totalExams ?? 0),
+			live: Number(examsPayload?.live ?? 0),
+			scheduled: Number(examsPayload?.scheduled ?? 0),
+			draft: Number(examsPayload?.draft ?? 0),
+			totalEnrolled: Number(examsPayload?.totalEnrolled ?? 0),
 		},
 		issues: {
-			open: Number(issues?.open ?? 0),
+			open: Number(issuesPayload?.open ?? 0),
 		},
 		submissions: {
-			pending: Number(submissions?.pending ?? 0),
+			pending: Number(submissionsPayload?.pending ?? payload?.pending ?? 0),
 		},
 		examsToReview,
 		recentSubmissions,
