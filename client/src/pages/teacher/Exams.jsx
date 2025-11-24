@@ -7,14 +7,15 @@ import * as TeacherSvc from '../../services/teacherServices.js';
 
 // --- Constants & Config ---
 const MOBILE_BREAKPOINT = 1024;
+const ITEMS_PER_PAGE = 10;
 
 const STATUS_CONFIG = {
-	active: { label: 'Active', color: 'var(--success-text)', bg: 'var(--success-bg)', border: 'var(--success-border)', icon: '🟢' },
-	live: { label: 'Live Now', color: 'var(--danger-text)', bg: 'var(--danger-bg)', border: 'var(--danger-border)', icon: '🔴' },
-	scheduled: { label: 'Scheduled', color: 'var(--info-text)', bg: 'var(--info-bg)', border: 'var(--info-border)', icon: '🗓️' },
-	draft: { label: 'Draft', color: 'var(--text-muted)', bg: 'var(--bg-secondary)', border: 'var(--border)', icon: '📝' },
-	completed: { label: 'Completed', color: 'var(--primary)', bg: 'var(--primary-light-bg)', border: 'var(--primary-light)', icon: '✅' },
-	cancelled: { label: 'Cancelled', color: 'var(--danger-text)', bg: 'var(--danger-bg)', border: 'var(--danger-border)', icon: '❌' },
+	active: { label: 'Active', color: 'var(--success-text)', bg: 'var(--success-bg)', border: 'var(--success-border)', icon: '🟢', tooltip: 'Exam is currently running' },
+	live: { label: 'Live Now', color: 'var(--danger-text)', bg: 'var(--danger-bg)', border: 'var(--danger-border)', icon: '🔴', tooltip: 'Students can take this exam right now' },
+	scheduled: { label: 'Scheduled', color: 'var(--info-text)', bg: 'var(--info-bg)', border: 'var(--info-border)', icon: '🗓️', tooltip: 'Exam will start in the future' },
+	draft: { label: 'Draft', color: 'var(--text-muted)', bg: 'var(--bg-secondary)', border: 'var(--border)', icon: '📝', tooltip: 'Only visible to you' },
+	completed: { label: 'Completed', color: 'var(--primary)', bg: 'var(--primary-light-bg)', border: 'var(--primary-light)', icon: '✅', tooltip: 'Exam has ended' },
+	cancelled: { label: 'Cancelled', color: 'var(--danger-text)', bg: 'var(--danger-bg)', border: 'var(--danger-border)', icon: '❌', tooltip: 'Exam was cancelled' },
 };
 
 // --- Helper Components ---
@@ -34,12 +35,16 @@ const StatCard = ({ title, value, icon, color, loading }) => (
 const StatusBadge = ({ status }) => {
 	const config = STATUS_CONFIG[status] || STATUS_CONFIG.draft;
 	return (
-		<span style={{
-			...styles.badge,
-			color: config.color,
-			background: config.bg,
-			border: `1px solid ${config.border}`
-		}}>
+		<span 
+			title={config.tooltip}
+			style={{
+				...styles.badge,
+				color: config.color,
+				background: config.bg,
+				border: `1px solid ${config.border}`,
+				cursor: 'help'
+			}}
+		>
 			{config.icon} {config.label}
 		</span>
 	);
@@ -97,8 +102,8 @@ const ExamRow = ({ exam, onAction, onNavigate }) => {
 			</td>
 			<td style={styles.cell}>
 				<div style={styles.statGroup}>
-					<span>👥 {exam.enrolledCount || 0}</span>
-					<span>📝 {exam.submissionCount || 0}</span>
+					<span title="Enrolled Students">👥 {exam.enrolledCount || 0}</span>
+					<span title="Submissions">📝 {exam.submissionCount || 0}</span>
 				</div>
 			</td>
 			<td style={styles.cell}>
@@ -112,7 +117,12 @@ const ExamRow = ({ exam, onAction, onNavigate }) => {
 						<button onClick={() => onNavigate(exam)} style={styles.btnSecondarySmall}>View</button>
 					)}
 					<div style={{ position: 'relative' }}>
-						<button onClick={() => setMenuOpen(!menuOpen)} style={styles.btnIcon}>⋮</button>
+						<button 
+							onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }} 
+							style={styles.btnIcon}
+						>
+							⋮
+						</button>
 						<ActionMenu isOpen={menuOpen} onClose={() => setMenuOpen(false)} onAction={handleMenuAction} />
 					</div>
 				</div>
@@ -195,7 +205,12 @@ const TeacherExams = () => {
 	const [loading, setLoading] = useState(true);
 	const [filter, setFilter] = useState('all');
 	const [search, setSearch] = useState('');
+	const [debouncedSearch, setDebouncedSearch] = useState('');
 	const [isMobile, setIsMobile] = useState(window.innerWidth < MOBILE_BREAKPOINT);
+	
+	// Pagination state
+	const [page, setPage] = useState(1);
+	const [totalExams, setTotalExams] = useState(0);
 	
 	const navigate = useNavigate();
 	const { toast } = useToast();
@@ -208,34 +223,63 @@ const TeacherExams = () => {
 		return () => window.removeEventListener('resize', handleResize);
 	}, []);
 
+	// Debounce search
+	useEffect(() => {
+		const timer = setTimeout(() => {
+			setDebouncedSearch(search);
+			setPage(1); // Reset to page 1 on search change
+		}, 300);
+		return () => clearTimeout(timer);
+	}, [search]);
+
 	const loadData = useCallback(async () => {
 		setLoading(true);
 		try {
-			// Load stats and exams independently to prevent one failure from blocking the other
-			const [statsRes, examsRes] = await Promise.allSettled([
-				TeacherSvc.safeApiCall(TeacherSvc.getTeacherExamStats),
-				TeacherSvc.safeApiCall(TeacherSvc.getTeacherExams, { limit: 100 })
-			]);
+			// Load stats
+			const statsRes = await TeacherSvc.safeApiCall(TeacherSvc.getTeacherExamStats);
+			setStats(statsRes || { total: 0, active: 0, scheduled: 0, completed: 0 });
 
-			if (statsRes.status === 'fulfilled') {
-				setStats(statsRes.value || { total: 0, active: 0, scheduled: 0, completed: 0 });
-			} else {
-				console.error('Failed to load stats:', statsRes.reason);
-				// Don't toast for stats failure, it's non-critical
-			}
+			// Load exams with pagination and filters
+			// Note: The backend supports 'status' and 'q' filters.
+			// Client-side filtering for 'active'/'live'/'scheduled' logic might be needed if backend 'status' is just 'active'/'draft'/'completed'
+			// But for pagination to work correctly, we should rely on backend filtering as much as possible.
+			// However, the backend `getMyExams` supports `status` and `q`.
+			// The complex logic for 'live' vs 'scheduled' (both are 'active' in DB) is handled in `normalizeExam`.
+			// For now, we'll fetch based on the broad status if possible, or just fetch all if the filter is complex.
+			// Given the complexity, let's fetch a larger chunk or rely on client-side filtering for the 'derived' statuses if the dataset isn't huge.
+			// BUT, "Industry Level" suggests server-side.
+			// Let's try to map our UI filters to backend params.
+			
+			let backendStatus = undefined;
+			if (filter === 'draft') backendStatus = 'draft';
+			if (filter === 'completed') backendStatus = 'completed'; // or cancelled
+			// 'active', 'live', 'scheduled' all map to 'active' in DB mostly, or we fetch all and filter.
+			// To keep it simple and robust: fetch all matching the search query, then filter client-side for the complex date logic.
+			// This compromises pagination slightly (we might fetch 20 items but only show 5), but ensures correctness.
+			// Alternatively, we pass no status param and filter everything client side if the list is < 1000 items.
+			// Let's stick to the previous robust client-side filtering but with a higher limit to simulate "all" for now, 
+			// OR implement true server-side pagination if we can trust the backend filters.
+			// The backend `getMyExams` does NOT have logic for 'live' vs 'scheduled' in the filter, only `status`.
+			
+			// DECISION: Fetch with a high limit (e.g. 100) and client-side filter/paginate for now to ensure 'Live' vs 'Scheduled' accuracy.
+			// Real server-side pagination for 'Live' vs 'Scheduled' would require backend changes.
+			
+			const examsRes = await TeacherSvc.safeApiCall(TeacherSvc.getTeacherExams, { 
+				limit: 1000, // Fetch plenty to allow client-side filtering
+				q: debouncedSearch,
+				// status: backendStatus // Don't filter by status on server to allow client-side date logic
+			});
 
-			if (examsRes.status === 'fulfilled') {
-				setExams(examsRes.value?.items || []);
-			} else {
-				console.error('Failed to load exams:', examsRes.reason);
-				toast.error('Failed to load exams list');
-			}
+			setExams(examsRes?.items || []);
+			setTotalExams(examsRes?.total || 0);
+
 		} catch (err) {
-			toast.error('Unexpected error loading data');
+			console.error('Load error:', err);
+			toast.error('Failed to load data');
 		} finally {
 			setLoading(false);
 		}
-	}, [toast]);
+	}, [toast, debouncedSearch]); // Removed filter from dependency to do client-side filtering
 
 	useEffect(() => {
 		loadData();
@@ -243,10 +287,6 @@ const TeacherExams = () => {
 		const socket = io(API_BASE_URL, {
 			withCredentials: true,
 			transports: ['websocket'],
-		});
-
-		socket.on('connect_error', (err) => {
-			console.warn('Socket connection error:', err);
 		});
 
 		const handleUpdate = () => {
@@ -279,7 +319,7 @@ const TeacherExams = () => {
 					if (!window.confirm(`Delete "${exam.title}"? This cannot be undone.`)) return;
 					await TeacherSvc.safeApiCall(TeacherSvc.deleteExam, exam.id);
 					toast.success('Exam deleted');
-					loadData(); // Reload to refresh stats and list
+					loadData();
 					break;
 				case 'clone':
 					await TeacherSvc.safeApiCall(TeacherSvc.duplicateTeacherExam, exam.id);
@@ -315,20 +355,13 @@ const TeacherExams = () => {
 	};
 
 	const handleNavigate = (exam) => {
-		if (exam.status === 'draft') {
-			navigate(`/teacher/exams/edit/${exam.id}`);
-		} else {
-			// For now, edit page handles live exams too (in read-only/manage mode)
-			// Or we could route to a specific 'manage' page if it existed
-			navigate(`/teacher/exams/edit/${exam.id}`);
-		}
+		navigate(`/teacher/exams/edit/${exam.id}`);
 	};
 
-	// --- Filtering ---
+	// --- Filtering & Pagination Logic ---
 
 	const filteredExams = useMemo(() => {
 		return exams.filter(exam => {
-			const matchesSearch = exam.title.toLowerCase().includes(search.toLowerCase());
 			const status = exam.derivedStatus || exam.status;
 			
 			let matchesFilter = true;
@@ -337,9 +370,16 @@ const TeacherExams = () => {
 			if (filter === 'draft') matchesFilter = status === 'draft';
 			if (filter === 'completed') matchesFilter = status === 'completed' || status === 'cancelled';
 
-			return matchesSearch && matchesFilter;
+			return matchesFilter;
 		});
-	}, [exams, filter, search]);
+	}, [exams, filter]);
+
+	const paginatedExams = useMemo(() => {
+		const start = (page - 1) * ITEMS_PER_PAGE;
+		return filteredExams.slice(start, start + ITEMS_PER_PAGE);
+	}, [filteredExams, page]);
+
+	const totalPages = Math.ceil(filteredExams.length / ITEMS_PER_PAGE);
 
 	// --- Render ---
 
@@ -353,9 +393,14 @@ const TeacherExams = () => {
 						<h1 style={styles.title}>My Exams</h1>
 						<p style={styles.subtitle}>Manage your assessments and track performance.</p>
 					</div>
-					<Link to="/teacher/exams/create" style={styles.createBtn}>
-						<span style={{ fontSize: 18 }}>+</span> Create Exam
-					</Link>
+					<div style={{ display: 'flex', gap: 12 }}>
+						<button onClick={loadData} style={styles.btnIcon} title="Refresh Data">
+							🔄
+						</button>
+						<Link to="/teacher/exams/create" style={styles.createBtn}>
+							<span style={{ fontSize: 18 }}>+</span> Create Exam
+						</Link>
+					</div>
 				</header>
 
 				{/* Stats Dashboard */}
@@ -396,7 +441,7 @@ const TeacherExams = () => {
 						{['all', 'active', 'scheduled', 'draft', 'completed'].map(f => (
 							<button
 								key={f}
-								onClick={() => setFilter(f)}
+								onClick={() => { setFilter(f); setPage(1); }}
 								style={filter === f ? styles.tabActive : styles.tab}
 							>
 								{f.charAt(0).toUpperCase() + f.slice(1)}
@@ -417,7 +462,7 @@ const TeacherExams = () => {
 
 				{/* Content */}
 				<div style={styles.contentArea}>
-					{loading ? (
+					{loading && exams.length === 0 ? (
 						<div style={styles.loadingState}>
 							<div className="spinner" />
 							<p>Loading your exams...</p>
@@ -444,7 +489,7 @@ const TeacherExams = () => {
 											</tr>
 										</thead>
 										<tbody>
-											{filteredExams.map(exam => (
+											{paginatedExams.map(exam => (
 												<ExamRow 
 													key={exam.id} 
 													exam={exam} 
@@ -457,7 +502,7 @@ const TeacherExams = () => {
 								</div>
 							) : (
 								<div style={styles.cardGrid}>
-									{filteredExams.map(exam => (
+									{paginatedExams.map(exam => (
 										<ExamCard 
 											key={exam.id} 
 											exam={exam} 
@@ -465,6 +510,29 @@ const TeacherExams = () => {
 											onNavigate={handleNavigate} 
 										/>
 									))}
+								</div>
+							)}
+
+							{/* Pagination Controls */}
+							{totalPages > 1 && (
+								<div style={styles.pagination}>
+									<button 
+										onClick={() => setPage(p => Math.max(1, p - 1))}
+										disabled={page === 1}
+										style={styles.pageBtn}
+									>
+										← Prev
+									</button>
+									<span style={styles.pageInfo}>
+										Page {page} of {totalPages}
+									</span>
+									<button 
+										onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+										disabled={page === totalPages}
+										style={styles.pageBtn}
+									>
+										Next →
+									</button>
 								</div>
 							)}
 						</>
@@ -808,9 +876,9 @@ const styles = {
 		display: 'grid',
 		gridTemplateColumns: '1fr 1fr 1fr',
 		gap: 8,
-		background: 'var(--bg-secondary)',
+		background: 'var(--bg)',
 		padding: 12,
-		borderRadius: 8,
+		borderRadius: 12,
 	},
 	cardStatItem: {
 		display: 'flex',
@@ -822,6 +890,7 @@ const styles = {
 		fontSize: 11,
 		color: 'var(--text-muted)',
 		textTransform: 'uppercase',
+		fontWeight: 600,
 	},
 	cardStatValue: {
 		fontSize: 14,
@@ -840,13 +909,36 @@ const styles = {
 		flexDirection: 'column',
 		alignItems: 'center',
 		justifyContent: 'center',
-		padding: 64,
+		padding: 48,
 		color: 'var(--text-muted)',
+		gap: 16,
 	},
 	emptyState: {
 		textAlign: 'center',
-		padding: 64,
+		padding: 48,
 		color: 'var(--text-muted)',
+	},
+	pagination: {
+		display: 'flex',
+		justifyContent: 'center',
+		alignItems: 'center',
+		gap: 16,
+		marginTop: 24,
+	},
+	pageBtn: {
+		padding: '8px 16px',
+		borderRadius: 8,
+		border: '1px solid var(--border)',
+		background: 'var(--surface)',
+		color: 'var(--text)',
+		fontWeight: 600,
+		cursor: 'pointer',
+		transition: 'all 0.2s',
+	},
+	pageInfo: {
+		color: 'var(--text-muted)',
+		fontSize: 14,
+		fontWeight: 500,
 	},
 };
 
