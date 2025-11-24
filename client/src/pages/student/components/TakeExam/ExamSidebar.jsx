@@ -21,7 +21,7 @@ const ExamSidebar = ({
 	const stats = useMemo(() => {
 		const qList = Array.isArray(questions) ? questions : [];
 		const aList = Array.isArray(answers) ? answers : [];
-		const marked = Array.isArray(markedForReview) ? markedForReview : [];
+		const marked = Array.isArray(markedForReview) ? markedForReview.map(String) : [];
 		let answered = 0;
 		const statusMap = qList.map(q => {
 			const qid = String(q?.id ?? q?._id ?? '');
@@ -42,6 +42,20 @@ const ExamSidebar = ({
 
 		return { statusMap, answered, total: qList.length };
 	}, [questions, answers, markedForReview]);
+
+	// map status to color/class used by CSS; keep inline fallback to ensure colors show
+	const statusColor = status => {
+		switch (status) {
+			case 'answered':
+				return { cls: 'answered', color: '#10b981' }; // green
+			case 'review':
+				return { cls: 'review', color: '#f59e0b' }; // amber
+			case 'answered-review':
+				return { cls: 'answered-review', color: '#8b5cf6' }; // purple
+			default:
+				return { cls: 'unanswered', color: '#cbd5e1' }; // gray
+		}
+	};
 
 	const lastSavedText = saving
 		? 'Saving...'
@@ -81,37 +95,72 @@ const ExamSidebar = ({
 
 				<div className="sidebar-content">
 					<div className="palette-grid" role="list">
-						{stats.statusMap.map((status, i) => (
-							<button
-								key={i}
-								className={`palette-btn ${status} ${
-									i === currentIndex ? 'current' : ''
-								}`}
-								onClick={() => {
-									onNavigate(i);
-									if (window.innerWidth < 1024) onClose();
-								}}
-								aria-current={i === currentIndex}
-								role="listitem"
-								aria-label={`Question ${i + 1} ${status}`}
-							>
-								{i + 1}
-							</button>
-						))}
+						{stats.statusMap.map((status, i) => {
+							const s = statusColor(status);
+							return (
+								<button
+									key={i}
+									className={`palette-btn ${s.cls} ${
+										i === currentIndex ? 'current' : ''
+									}`}
+									onClick={() => {
+										onNavigate(i);
+										if (window.innerWidth < 1024) onClose();
+									}}
+									aria-current={i === currentIndex}
+									role="listitem"
+									aria-label={`Question ${i + 1} ${status}`}
+									style={{
+										borderColor:
+											i === currentIndex ? 'var(--primary)' : undefined,
+									}}
+								>
+									<span
+										className="palette-dot"
+										style={{
+											background: s.color,
+											width: 10,
+											height: 10,
+											borderRadius: 6,
+											display: 'inline-block',
+											marginRight: 8,
+										}}
+										aria-hidden="true"
+									/>
+									{i + 1}
+								</button>
+							);
+						})}
 					</div>
 
 					<div className="palette-legend" aria-hidden="false">
 						<div className="legend-item">
-							<span className="legend-dot success" /> Answered
+							<span
+								className="legend-dot success"
+								style={{ background: '#10b981' }}
+							/>{' '}
+							Answered
 						</div>
 						<div className="legend-item">
-							<span className="legend-dot warning" /> Review
+							<span
+								className="legend-dot warning"
+								style={{ background: '#f59e0b' }}
+							/>{' '}
+							Review
 						</div>
 						<div className="legend-item">
-							<span className="legend-dot answered-review" /> Ans & Review
+							<span
+								className="legend-dot answered-review"
+								style={{ background: '#8b5cf6' }}
+							/>{' '}
+							Ans & Review
 						</div>
 						<div className="legend-item">
-							<span className="legend-dot unanswered" /> Unanswered
+							<span
+								className="legend-dot unanswered"
+								style={{ background: '#cbd5e1' }}
+							/>{' '}
+							Unanswered
 						</div>
 					</div>
 
