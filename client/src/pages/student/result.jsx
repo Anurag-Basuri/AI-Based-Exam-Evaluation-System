@@ -1,8 +1,8 @@
 import React from 'react';
 import {
-    safeApiCall,
-    getMySubmissions,
-    getSubmissionForResults,
+	safeApiCall,
+	getMySubmissions,
+	getSubmissionForResults,
 } from '../../services/studentServices.js';
 
 // --- Theme-aware status styles ---
@@ -124,182 +124,208 @@ const AnswerDetail = ({ answer, evaluation }) => {
 
 // --- Result Details Modal ---
 const ResultDetailModal = ({ submissionId, onClose }) => {
-    const [loading, setLoading] = React.useState(true);
-    const [error, setError] = React.useState('');
-    const [submission, setSubmission] = React.useState(null);
+	const [loading, setLoading] = React.useState(true);
+	const [error, setError] = React.useState('');
+	const [submission, setSubmission] = React.useState(null);
 
-    React.useEffect(() => {
-        const loadDetails = async () => {
-            setLoading(true);
-            setError('');
-            try {
-                // FIX: Use the new, correct service function
-                const data = await safeApiCall(getSubmissionForResults, submissionId);
-                setSubmission(data);
-            } catch (e) {
-                setError(e.message || 'Failed to load details.');
-            } finally {
-                setLoading(false);
-            }
-        };
-        loadDetails();
-    }, [submissionId]);
+	React.useEffect(() => {
+		const loadDetails = async () => {
+			setLoading(true);
+			setError('');
+			try {
+				// CALL service directly (it returns the normalized/populated object)
+				const data = await getSubmissionForResults(submissionId);
+				setSubmission(data);
+			} catch (e) {
+				// defensive: support ApiError and plain Error
+				setError(e?.message || 'Failed to load details.');
+			} finally {
+				setLoading(false);
+			}
+		};
+		if (submissionId) loadDetails();
+	}, [submissionId]);
 
-    // FIX: The new endpoint provides `answers` with populated `question` objects,
-    // so we create the map using the nested question ID.
-    const answersMap = React.useMemo(
-        () =>
-            new Map(
-                (submission?.answers || []).map(a => [String(a.question?._id), a]),
-            ),
-        [submission],
-    );
+	// Answers map: support populated answer.question._id OR answer.question (id)
+	const answersMap = React.useMemo(() => {
+		const arr = submission?.answers || [];
+		const map = new Map();
+		for (const a of arr) {
+			const q = a?.question;
+			const qid = q ? String(q._id ?? q.id ?? q) : null;
+			if (qid) map.set(qid, a);
+		}
+		return map;
+	}, [submission]);
 
-    // Improve accessibility: close on ESC
-    React.useEffect(() => {
-        const onKey = e => {
-            if (e.key === 'Escape') onClose();
-        };
-        window.addEventListener('keydown', onKey);
-        return () => window.removeEventListener('keydown', onKey);
-    }, [onClose]);
+	React.useEffect(() => {
+		const onKey = e => {
+			if (e.key === 'Escape') onClose();
+		};
+		window.addEventListener('keydown', onKey);
+		return () => window.removeEventListener('keydown', onKey);
+	}, [onClose]);
 
-    return (
-        <div style={styles.modalBackdrop} onClick={onClose}>
-            <div
-                style={styles.modalContent}
-                onClick={e => e.stopPropagation()}
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="result-detail-title"
-            >
-                <button onClick={onClose} style={styles.modalCloseButton} aria-label="Close details">
-                    ×
-                </button>
-                {loading && <p aria-live="polite">Loading details...</p>}
-                {error && <p style={{ color: 'var(--danger-text)' }} role="alert">{error}</p>}
-                {submission && (
-                    <>
-                        <h3 id="result-detail-title" style={{ marginTop: 0 }}>
-                            {submission.exam.title} - Breakdown
-                        </h3>
-                        <div style={{ maxHeight: '70vh', overflowY: 'auto', paddingRight: 16 }}>
-                            {(submission.evaluations || []).map(ev => {
-                                const answer = answersMap.get(String(ev.question));
-                                return answer ? (
-                                    <AnswerDetail key={ev._id} answer={answer} evaluation={ev} />
-                                ) : null;
-                            })}
-                        </div>
-                    </>
-                )}
-            </div>
-        </div>
-    );
+	return (
+		<div style={styles.modalBackdrop} onClick={onClose}>
+			<div
+				style={styles.modalContent}
+				onClick={e => e.stopPropagation()}
+				role="dialog"
+				aria-modal="true"
+				aria-labelledby="result-detail-title"
+			>
+				<button
+					onClick={onClose}
+					style={styles.modalCloseButton}
+					aria-label="Close details"
+				>
+					×
+				</button>
+				{loading && <p aria-live="polite">Loading details...</p>}
+				{error && (
+					<p style={{ color: 'var(--danger-text)' }} role="alert">
+						{error}
+					</p>
+				)}
+				{submission && (
+					<>
+						<h3 id="result-detail-title" style={{ marginTop: 0 }}>
+							{submission.exam?.title || submission.examTitle || 'Exam'} - Breakdown
+						</h3>
+						<div style={{ maxHeight: '70vh', overflowY: 'auto', paddingRight: 16 }}>
+							{Array.isArray(submission.evaluations) &&
+							submission.evaluations.length > 0 ? (
+								submission.evaluations.map(ev => {
+									const qid = String(ev.question);
+									// ev.question may be ObjectId (string) while answers map uses populated question._id
+									const answer =
+										answersMap.get(qid) ||
+										answersMap.get(String(ev.question?._id));
+									return answer ? (
+										<AnswerDetail
+											key={
+												String(ev.question) +
+												String(ev.evaluation?.evaluatedAt ?? ev._id)
+											}
+											answer={answer}
+											evaluation={ev}
+										/>
+									) : null;
+								})
+							) : (
+								<p style={{ color: 'var(--text-muted)' }}>
+									No evaluations available.
+								</p>
+							)}
+						</div>
+					</>
+				)}
+			</div>
+		</div>
+	);
 };
 
 const ResultCard = ({ result, onViewDetails }) => {
-    const config = statusStyles[result.status] || statusStyles.pending;
-    const isPublished = result.status === 'published';
-    const hasScore = isPublished && result.score !== null && result.score !== undefined;
+	const config = statusStyles[result.status] || statusStyles.pending;
+	const isPublished = result.status === 'published';
+	const hasScore = isPublished && result.score !== null && result.score !== undefined;
 
-    // --- FIX: Calculate percentage on the client-side for reliability ---
-    const percentage =
-        hasScore && result.maxScore > 0
-            ? Math.round((result.score / result.maxScore) * 100)
-            : null;
+	// --- FIX: Calculate percentage on the client-side for reliability ---
+	const percentage =
+		hasScore && result.maxScore > 0 ? Math.round((result.score / result.maxScore) * 100) : null;
 
-    return (
-        <article style={styles.resultCard} className="result-card">
-            <div style={styles.resultCardMain}>
-                <header style={{ marginBottom: '16px' }}>
-                    <div style={styles.resultCardHeader}>
-                        <h3 style={styles.resultCardTitle}>{result.examTitle}</h3>
-                        <span
-                            style={{
-                                ...styles.statusPill,
-                                ...{
-                                    border: `1px solid ${config.border}`,
-                                    background: config.bg,
-                                    color: config.color,
-                                },
-                            }}
-                        >
-                            <span>{config.icon}</span>
-                            {config.label}
-                        </span>
-                    </div>
-                    {result.submittedAt && (
-                        <div style={styles.resultCardSubtitle}>Submitted: {result.submittedAt}</div>
-                    )}
-                </header>
+	return (
+		<article style={styles.resultCard} className="result-card">
+			<div style={styles.resultCardMain}>
+				<header style={{ marginBottom: '16px' }}>
+					<div style={styles.resultCardHeader}>
+						<h3 style={styles.resultCardTitle}>{result.examTitle}</h3>
+						<span
+							style={{
+								...styles.statusPill,
+								...{
+									border: `1px solid ${config.border}`,
+									background: config.bg,
+									color: config.color,
+								},
+							}}
+						>
+							<span>{config.icon}</span>
+							{config.label}
+						</span>
+					</div>
+					{result.submittedAt && (
+						<div style={styles.resultCardSubtitle}>Submitted: {result.submittedAt}</div>
+					)}
+				</header>
 
-                <div style={styles.scoreBox}>
-                    {hasScore ? (
-                        <>
-                            <span style={styles.scoreValue}>{result.score.toFixed(1)}</span>
-                            <span style={styles.scoreMax}>/ {result.maxScore || 100}</span>
-                            {percentage != null && (
-                                <span
-                                    style={{
-                                        ...styles.scorePercent,
-                                        color:
-                                            percentage >= 70
-                                                ? 'var(--success-text)'
-                                                : percentage >= 50
-                                                    ? 'var(--warning-text)'
-                                                    : 'var(--danger-text)',
-                                    }}
-                                >
-                                    ({percentage}%)
-                                </span>
-                            )}
-                        </>
-                    ) : (
-                        <span style={styles.awaitingEvalText}>
-                            {isPublished ? 'Score not available' : '📝 Awaiting evaluation'}
-                        </span>
-                    )}
-                </div>
+				<div style={styles.scoreBox}>
+					{hasScore ? (
+						<>
+							<span style={styles.scoreValue}>{result.score.toFixed(1)}</span>
+							<span style={styles.scoreMax}>/ {result.maxScore || 100}</span>
+							{percentage != null && (
+								<span
+									style={{
+										...styles.scorePercent,
+										color:
+											percentage >= 70
+												? 'var(--success-text)'
+												: percentage >= 50
+												? 'var(--warning-text)'
+												: 'var(--danger-text)',
+									}}
+								>
+									({percentage}%)
+								</span>
+							)}
+						</>
+					) : (
+						<span style={styles.awaitingEvalText}>
+							{isPublished ? 'Score not available' : '📝 Awaiting evaluation'}
+						</span>
+					)}
+				</div>
 
-                {result.remarks && (
-                    <div style={styles.feedbackBox}>
-                        <div style={styles.feedbackTitle}>Feedback</div>
-                        <p style={styles.feedbackText}>{result.remarks}</p>
-                    </div>
-                )}
-            </div>
+				{result.remarks && (
+					<div style={styles.feedbackBox}>
+						<div style={styles.feedbackTitle}>Feedback</div>
+						<p style={styles.feedbackText}>{result.remarks}</p>
+					</div>
+				)}
+			</div>
 
-            <div style={styles.performancePane} id="performance-pane">
-                <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)' }}>
-                    Performance
-                </div>
-                {hasScore && percentage != null && (
-                    <div
-                        style={{
-                            ...styles.donutChart,
-                            background: `conic-gradient(${
-                                percentage >= 70
-                                    ? 'var(--success-text)'
-                                    : percentage >= 50
-                                        ? 'var(--warning-text)'
-                                        : 'var(--danger-text)'
-                            } ${percentage * 3.6}deg, var(--border) 0deg)`,
-                        }}
-                    >
-                        <div style={styles.donutChartInner}>{percentage}%</div>
-                    </div>
-                )}
-                <button
-                    onClick={() => onViewDetails(result.id)}
-                    style={styles.detailsButton}
-                    disabled={!isPublished}
-                >
-                    View Details
-                </button>
-            </div>
-        </article>
-    );
+			<div style={styles.performancePane} id="performance-pane">
+				<div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)' }}>
+					Performance
+				</div>
+				{hasScore && percentage != null && (
+					<div
+						style={{
+							...styles.donutChart,
+							background: `conic-gradient(${
+								percentage >= 70
+									? 'var(--success-text)'
+									: percentage >= 50
+									? 'var(--warning-text)'
+									: 'var(--danger-text)'
+							} ${percentage * 3.6}deg, var(--border) 0deg)`,
+						}}
+					>
+						<div style={styles.donutChartInner}>{percentage}%</div>
+					</div>
+				)}
+				<button
+					onClick={() => onViewDetails(result.id)}
+					style={styles.detailsButton}
+					disabled={!isPublished}
+				>
+					View Details
+				</button>
+			</div>
+		</article>
+	);
 };
 
 const StudentResults = () => {
@@ -311,17 +337,17 @@ const StudentResults = () => {
 	const [viewingResultId, setViewingResultId] = React.useState(null);
 
 	const loadResults = React.useCallback(async (force = false) => {
-        setLoading(true);
-        setError('');
-        try {
-            const data = await safeApiCall(getMySubmissions, {}, force);
-            setResults(Array.isArray(data) ? data : []);
-        } catch (e) {
-            setError(e?.message || 'Failed to load results');
-        } finally {
-            setLoading(false);
-        }
-    }, []);
+		setLoading(true);
+		setError('');
+		try {
+			const data = await safeApiCall(getMySubmissions, {}, force);
+			setResults(Array.isArray(data) ? data : []);
+		} catch (e) {
+			setError(e?.message || 'Failed to load results');
+		} finally {
+			setLoading(false);
+		}
+	}, []);
 
 	React.useEffect(() => {
 		loadResults();
@@ -360,8 +386,8 @@ const StudentResults = () => {
 	];
 
 	return (
-        <div style={styles.pageContainer}>
-            <style>{`
+		<div style={styles.pageContainer}>
+			<style>{`
                 @media (max-width: 768px) {
                     .result-card { grid-template-columns: 1fr; }
                     #performance-pane {
@@ -381,91 +407,97 @@ const StudentResults = () => {
                     * { transition: none !important; animation: none !important; }
                 }
             `}</style>
-            {viewingResultId && (
-                <ResultDetailModal
-                    submissionId={viewingResultId}
-                    onClose={() => setViewingResultId(null)}
-                />
-            )}
-            <header style={styles.pageHeader}>
-                <div>
-                    <h1 style={styles.pageTitle}>Results & Feedback</h1>
-                    <p style={styles.pageSubtitle}>Review your exam scores and teacher feedback.</p>
-                </div>
-                <button onClick={() => loadResults(true)} disabled={loading} style={styles.refreshButton} className="tap" aria-label="Refresh results">
-                    {loading ? '⏳' : '🔄'} Refresh
-                </button>
-            </header>
+			{viewingResultId && (
+				<ResultDetailModal
+					submissionId={viewingResultId}
+					onClose={() => setViewingResultId(null)}
+				/>
+			)}
+			<header style={styles.pageHeader}>
+				<div>
+					<h1 style={styles.pageTitle}>Results & Feedback</h1>
+					<p style={styles.pageSubtitle}>Review your exam scores and teacher feedback.</p>
+				</div>
+				<button
+					onClick={() => loadResults(true)}
+					disabled={loading}
+					style={styles.refreshButton}
+					className="tap"
+					aria-label="Refresh results"
+				>
+					{loading ? '⏳' : '🔄'} Refresh
+				</button>
+			</header>
 
-            <div style={styles.controlsContainer}>
-                <div style={{ position: 'relative', flex: '1 1 300px' }}>
-                    <input
-                        value={query}
-                        onChange={e => setQuery(e.target.value)}
-                        placeholder="Search by exam title..."
-                        style={styles.searchInput}
-                    />
-                    <span style={styles.searchIcon}>🔍</span>
-                </div>
-                <div style={styles.filterGroup}>
-                    {filterOptions.map(option => (
-                        <button
-                            key={option.key}
-                            onClick={() => setStatus(option.key)}
-                            style={
-                                status === option.key
-                                    ? styles.filterButtonActive
-                                    : styles.filterButton
-                            }
-                        >
-                            {option.label}
-                            <span
-                                style={
-                                    status === option.key
-                                        ? styles.filterCountActive
-                                        : styles.filterCount
-                                }
-                            >
-                                {statusCounts[option.key] || 0}
-                            </span>
-                        </button>
-                    ))}
-                </div>
-            </div>
+			<div style={styles.controlsContainer}>
+				<div style={{ position: 'relative', flex: '1 1 300px' }}>
+					<input
+						value={query}
+						onChange={e => setQuery(e.target.value)}
+						placeholder="Search by exam title..."
+						style={styles.searchInput}
+					/>
+					<span style={styles.searchIcon}>🔍</span>
+				</div>
+				<div style={styles.filterGroup}>
+					{filterOptions.map(option => (
+						<button
+							key={option.key}
+							onClick={() => setStatus(option.key)}
+							style={
+								status === option.key
+									? styles.filterButtonActive
+									: styles.filterButton
+							}
+						>
+							{option.label}
+							<span
+								style={
+									status === option.key
+										? styles.filterCountActive
+										: styles.filterCount
+								}
+							>
+								{statusCounts[option.key] || 0}
+							</span>
+						</button>
+					))}
+				</div>
+			</div>
 
-            {error && <div style={styles.errorBox}>❌ {error}</div>}
-            {loading && (
-                <div style={styles.loadingBox}>
-                    <div style={{ fontSize: '32px', marginBottom: 16 }}>⏳</div>
-                    <p style={{ margin: 0, fontWeight: 600 }}>Loading your results...</p>
-                </div>
-            )}
-            {!loading && !error && filteredResults.length === 0 && (
-                <div style={styles.emptyStateBox}>
-                    <div style={{ fontSize: '48px', marginBottom: 16 }}>📊</div>
-                    <h3 style={{ margin: '0 0 8px 0', color: 'var(--text)' }}>
-                        {query || status !== 'all' ? 'No matching results' : 'No results yet'}
-                    </h3>
-                    <p style={{ margin: 0, color: 'var(--text-muted)' }}>
-                        {query || status !== 'all'
+			{error && <div style={styles.errorBox}>❌ {error}</div>}
+			{loading && (
+				<div style={styles.loadingBox}>
+					<div style={{ fontSize: '32px', marginBottom: 16 }}>⏳</div>
+					<p style={{ margin: 0, fontWeight: 600 }}>Loading your results...</p>
+				</div>
+			)}
+			{!loading && !error && filteredResults.length === 0 && (
+				<div style={styles.emptyStateBox}>
+					<div style={{ fontSize: '48px', marginBottom: 16 }}>📊</div>
+					<h3 style={{ margin: '0 0 8px 0', color: 'var(--text)' }}>
+						{query || status !== 'all' ? 'No matching results' : 'No results yet'}
+					</h3>
+					<p style={{ margin: 0, color: 'var(--text-muted)' }}>
+						{query || status !== 'all'
 							? 'Try adjusting your search or filters'
 							: 'Complete some exams to see your results here'}
-                    </p>
-                </div>
-            )}
-            {!loading && !error && filteredResults.length > 0 && (
-                <div style={{ display: 'grid', gap: 24 }}>
-                    {filteredResults.map(result => (
-                        <ResultCard
-                            key={result.id}
-                            result={result}
-                            onViewDetails={setViewingResultId}
-                        />
-                    ))}
-                </div>
-            )}
-        </div>
-    );
+					</p>
+				</div>
+			)}
+			{!loading && !error && filteredResults.length > 0 && (
+				<div style={{ display: 'grid', gap: 24 }}>
+					{filteredResults.map(result => (
+						<ResultCard
+							key={result.id}
+							result={result}
+							onViewDetails={setViewingResultId}
+						/>
+					))}
+				</div>
+			)}
+		</div>
+	);
 };
 
 // --- Centralized, theme-aware styles object ---
@@ -725,7 +757,7 @@ const styles = {
 		fontSize: 24,
 		cursor: 'pointer',
 		color: 'var(--text-muted)',
-	}
+	},
 };
 
 export default StudentResults;
