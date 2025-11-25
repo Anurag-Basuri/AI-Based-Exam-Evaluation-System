@@ -403,6 +403,11 @@ const getSubmission = asyncHandler(async (req, res) => {
 const getExamSubmissions = asyncHandler(async (req, res) => {
 	const examId = req.params.id;
 	if (!examId) throw ApiError.BadRequest('Exam ID required');
+
+	// Fetch exam to calculate total max marks
+	const exam = await Exam.findById(examId).populate('questions', 'max_marks');
+	const maxScore = (exam?.questions || []).reduce((sum, q) => sum + (q.max_marks || 0), 0);
+
 	const submissions = await Submission.find({ exam: examId })
 		.sort({ submittedAt: -1 }) // Sort by latest submission first
 		.populate('student', 'username fullname email')
@@ -418,6 +423,7 @@ const getExamSubmissions = asyncHandler(async (req, res) => {
 		return {
 			...sub,
 			totalMarks, // Add totalMarks field
+			maxScore,   // Add maxScore field
 		};
 	});
 
