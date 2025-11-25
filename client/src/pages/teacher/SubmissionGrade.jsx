@@ -8,28 +8,73 @@ import * as TeacherSvc from '../../services/teacherServices.js';
 
 // --- Icons ---
 const IconCheck = () => (
-	<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+	<svg
+		width="16"
+		height="16"
+		viewBox="0 0 24 24"
+		fill="none"
+		stroke="currentColor"
+		strokeWidth="3"
+		strokeLinecap="round"
+		strokeLinejoin="round"
+	>
 		<polyline points="20 6 9 17 4 12" />
 	</svg>
 );
 const IconX = () => (
-	<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+	<svg
+		width="16"
+		height="16"
+		viewBox="0 0 24 24"
+		fill="none"
+		stroke="currentColor"
+		strokeWidth="3"
+		strokeLinecap="round"
+		strokeLinejoin="round"
+	>
 		<line x1="18" y1="6" x2="6" y2="18" />
 		<line x1="6" y1="6" x2="18" y2="18" />
 	</svg>
 );
 const IconChevronDown = () => (
-	<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+	<svg
+		width="20"
+		height="20"
+		viewBox="0 0 24 24"
+		fill="none"
+		stroke="currentColor"
+		strokeWidth="2"
+		strokeLinecap="round"
+		strokeLinejoin="round"
+	>
 		<polyline points="6 9 12 15 18 9" />
 	</svg>
 );
 const IconChevronUp = () => (
-	<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+	<svg
+		width="20"
+		height="20"
+		viewBox="0 0 24 24"
+		fill="none"
+		stroke="currentColor"
+		strokeWidth="2"
+		strokeLinecap="round"
+		strokeLinejoin="round"
+	>
 		<polyline points="18 15 12 9 6 15" />
 	</svg>
 );
 const IconRobot = () => (
-	<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+	<svg
+		width="18"
+		height="18"
+		viewBox="0 0 24 24"
+		fill="none"
+		stroke="currentColor"
+		strokeWidth="2"
+		strokeLinecap="round"
+		strokeLinejoin="round"
+	>
 		<rect x="3" y="11" width="18" height="10" rx="2" />
 		<circle cx="12" cy="5" r="2" />
 		<path d="M12 7v4" />
@@ -38,7 +83,16 @@ const IconRobot = () => (
 	</svg>
 );
 const IconUsers = () => (
-	<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+	<svg
+		width="18"
+		height="18"
+		viewBox="0 0 24 24"
+		fill="none"
+		stroke="currentColor"
+		strokeWidth="2"
+		strokeLinecap="round"
+		strokeLinejoin="round"
+	>
 		<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
 		<circle cx="9" cy="7" r="4" />
 		<path d="M23 21v-2a4 4 0 0 0-3-3.87" />
@@ -72,7 +126,9 @@ const AiInsight = ({ meta }) => {
 					{items.map((item, i) => (
 						<li key={i} className={`text-sm ${colorClass} flex items-start gap-2`}>
 							<span className="mt-1.5 w-1 h-1 rounded-full bg-[var(--text-muted)] shrink-0 opacity-50" />
-							<span className="text-[var(--text)] leading-relaxed">{typeof item === 'string' ? item : JSON.stringify(item)}</span>
+							<span className="text-[var(--text)] leading-relaxed">
+								{typeof item === 'string' ? item : JSON.stringify(item)}
+							</span>
 						</li>
 					))}
 				</ul>
@@ -81,7 +137,7 @@ const AiInsight = ({ meta }) => {
 	};
 
 	return (
-		<motion.div 
+		<motion.div
 			initial={{ opacity: 0, y: 10 }}
 			animate={{ opacity: 1, y: 0 }}
 			className="mt-4 border border-indigo-500/20 bg-indigo-500/5 rounded-xl overflow-hidden"
@@ -110,8 +166,16 @@ const AiInsight = ({ meta }) => {
 					>
 						<div className="p-4 pt-0 border-t border-indigo-500/10">
 							{renderList('Rubric Breakdown', meta.rubric_breakdown)}
-							{renderList('Keywords Matched', meta.keywords_matched, 'text-emerald-600 dark:text-emerald-400')}
-							{renderList('Penalties Applied', meta.penalties_applied, 'text-rose-600 dark:text-rose-400')}
+							{renderList(
+								'Keywords Matched',
+								meta.keywords_matched,
+								'text-emerald-600 dark:text-emerald-400',
+							)}
+							{renderList(
+								'Penalties Applied',
+								meta.penalties_applied,
+								'text-rose-600 dark:text-rose-400',
+							)}
 							{meta.fallback && (
 								<div className="mt-3 p-3 bg-orange-500/10 border border-orange-500/20 rounded-lg text-sm text-orange-700 dark:text-orange-300">
 									<strong>Fallback Mode:</strong> {meta.reason || 'Not specified'}
@@ -326,9 +390,9 @@ const TeacherSubmissionGrade = () => {
 			try {
 				const [subData, allSubs] = await Promise.all([
 					TeacherSvc.safeApiCall(TeacherSvc.getSubmissionForGrading, submissionId),
-					TeacherSvc.safeApiCall(TeacherSvc.getTeacherSubmissions, examId)
+					TeacherSvc.safeApiCall(TeacherSvc.getTeacherSubmissions, examId),
 				]);
-				
+
 				setSubmission(subData);
 				setAllSubmissions(allSubs || []);
 				setUpdatedEvals({});
@@ -380,7 +444,9 @@ const TeacherSubmissionGrade = () => {
 			<div className="min-h-screen flex items-center justify-center bg-[var(--bg)]">
 				<div className="flex flex-col items-center gap-4">
 					<div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-					<p className="text-[var(--text-muted)] font-medium animate-pulse">Loading submission...</p>
+					<p className="text-[var(--text-muted)] font-medium animate-pulse">
+						Loading submission...
+					</p>
 				</div>
 			</div>
 		);
@@ -390,10 +456,7 @@ const TeacherSubmissionGrade = () => {
 	if (!submission) return <Alert>Submission data could not be found.</Alert>;
 
 	const evalsMap = new Map(
-		(submission.evaluations || []).map(e => [
-			String(e.question?._id || e.question),
-			e
-		])
+		(submission.evaluations || []).map(e => [String(e.question?._id || e.question), e]),
 	);
 
 	let awarded = 0;
@@ -409,7 +472,7 @@ const TeacherSubmissionGrade = () => {
 		const baseEval = evalsMap.get(qid)?.evaluation;
 		const baseMarks = baseEval?.marks ?? 0;
 		const pending = updatedEvals[qid]?.marks;
-		
+
 		if (evalsMap.has(qid) || updatedEvals[qid]) {
 			gradedCount++;
 		}
@@ -423,9 +486,10 @@ const TeacherSubmissionGrade = () => {
 
 	const currentIndex = allSubmissions.findIndex(s => String(s.id) === String(submissionId));
 	const prevSub = currentIndex > 0 ? allSubmissions[currentIndex - 1] : null;
-	const nextSub = currentIndex < allSubmissions.length - 1 ? allSubmissions[currentIndex + 1] : null;
+	const nextSub =
+		currentIndex < allSubmissions.length - 1 ? allSubmissions[currentIndex + 1] : null;
 
-	const navigateToSubmission = (id) => {
+	const navigateToSubmission = id => {
 		if (unsavedCount > 0) {
 			if (!window.confirm('You have unsaved changes. Discard them?')) return;
 		}
@@ -472,9 +536,14 @@ const TeacherSubmissionGrade = () => {
 						</div>
 
 						{submission.violations?.length > 0 && (
-							<motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
+							<motion.div
+								initial={{ opacity: 0, y: -10 }}
+								animate={{ opacity: 1, y: 0 }}
+							>
 								<Alert type="warning">
-									<strong>{submission.violations.length} Violation(s) Logged:</strong>
+									<strong>
+										{submission.violations.length} Violation(s) Logged:
+									</strong>
 									<ul className="mt-2 list-disc pl-5 space-y-1">
 										{submission.violations.map((v, i) => (
 											<li key={i}>
@@ -490,13 +559,15 @@ const TeacherSubmissionGrade = () => {
 							const qid = String(ans.question._id);
 							const baseEval = evalsMap.get(qid);
 							const localUpdate = updatedEvals[qid];
-							
+
 							const compositeEval = {
 								...baseEval,
 								evaluation: {
 									...baseEval?.evaluation,
-									...(localUpdate ? { marks: localUpdate.marks, remarks: localUpdate.remarks } : {}),
-								}
+									...(localUpdate
+										? { marks: localUpdate.marks, remarks: localUpdate.remarks }
+										: {}),
+								},
 							};
 
 							return (
@@ -516,7 +587,7 @@ const TeacherSubmissionGrade = () => {
 					{/* Sidebar: Summary & Navigation */}
 					<aside className="hidden lg:block lg:col-span-4 lg:sticky lg:top-24 space-y-6">
 						{/* Score Card */}
-						<motion.div 
+						<motion.div
 							initial={{ opacity: 0, x: 20 }}
 							animate={{ opacity: 1, x: 0 }}
 							transition={{ delay: 0.2 }}
@@ -524,7 +595,9 @@ const TeacherSubmissionGrade = () => {
 						>
 							<div className="flex justify-between items-start mb-6">
 								<div>
-									<h2 className="text-lg font-bold text-[var(--text)]">Total Score</h2>
+									<h2 className="text-lg font-bold text-[var(--text)]">
+										Total Score
+									</h2>
 									<p className="text-sm text-[var(--text-muted)] mt-1">
 										{gradedCount} of {submission.answers.length} graded
 									</p>
@@ -545,7 +618,7 @@ const TeacherSubmissionGrade = () => {
 									className="bg-gradient-to-r from-indigo-500 to-violet-600 h-full rounded-full"
 									initial={{ width: 0 }}
 									animate={{ width: `${progressPercent}%` }}
-									transition={{ duration: 0.8, ease: "easeOut" }}
+									transition={{ duration: 0.8, ease: 'easeOut' }}
 								/>
 							</div>
 
@@ -583,7 +656,7 @@ const TeacherSubmissionGrade = () => {
 						</motion.div>
 
 						{/* Question Navigator */}
-						<motion.div 
+						<motion.div
 							initial={{ opacity: 0, x: 20 }}
 							animate={{ opacity: 1, x: 0 }}
 							transition={{ delay: 0.3 }}
@@ -601,12 +674,14 @@ const TeacherSubmissionGrade = () => {
 										<a
 											key={qid}
 											href={`#q-${qid}`}
-											onClick={(e) => {
+											onClick={e => {
 												e.preventDefault();
-												document.getElementById(`q-${qid}`)?.scrollIntoView({
-													behavior: 'smooth',
-													block: 'center'
-												});
+												document
+													.getElementById(`q-${qid}`)
+													?.scrollIntoView({
+														behavior: 'smooth',
+														block: 'center',
+													});
 											}}
 											className={`
 												flex items-center justify-center h-10 rounded-lg text-sm font-bold transition-all
@@ -625,7 +700,7 @@ const TeacherSubmissionGrade = () => {
 						</motion.div>
 
 						{/* Student List */}
-						<motion.div 
+						<motion.div
 							initial={{ opacity: 0, x: 20 }}
 							animate={{ opacity: 1, x: 0 }}
 							transition={{ delay: 0.4 }}
@@ -635,12 +710,14 @@ const TeacherSubmissionGrade = () => {
 								<IconUsers /> Class List
 							</h3>
 							<div className="space-y-1">
-								{allSubmissions.map((sub) => {
+								{allSubmissions.map(sub => {
 									const isActive = String(sub.id) === String(submissionId);
 									return (
 										<button
 											key={sub.id}
-											onClick={() => !isActive && navigateToSubmission(sub.id)}
+											onClick={() =>
+												!isActive && navigateToSubmission(sub.id)
+											}
 											className={`w-full text-left px-3 py-2.5 rounded-xl text-sm flex items-center justify-between group transition-all ${
 												isActive
 													? 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 font-bold'
@@ -649,7 +726,10 @@ const TeacherSubmissionGrade = () => {
 										>
 											<span className="truncate">{sub.studentName}</span>
 											{sub.status === 'evaluated' && (
-												<span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]" title="Evaluated" />
+												<span
+													className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]"
+													title="Evaluated"
+												/>
 											)}
 										</button>
 									);
@@ -659,6 +739,46 @@ const TeacherSubmissionGrade = () => {
 					</aside>
 				</div>
 			</div>
+		</div>
+	);
+};
+
+const styles = {
+	bulkToolbar: {
+		display: 'flex',
+		gap: '1rem',
+		margin: '1rem 0',
+		justifyContent: 'center',
+		alignItems: 'center',
+	},
+};
+
+const BulkActionToolbar = ({ selectedIds, onBulkResolve, onClear }) => {
+	if (!selectedIds || selectedIds.length === 0) return null;
+
+	const handleResolveClick = () => {
+		const reply = window.prompt(
+			`Enter a single reply to resolve all ${selectedIds.length} selected issues:`,
+		);
+		if (reply && reply.trim()) {
+			onBulkResolve(reply);
+		}
+	};
+
+	return (
+		<div style={styles.bulkToolbar}>
+			<button
+				onClick={handleResolveClick}
+				className="px-4 py-2 rounded-md bg-green-600 text-white font-semibold hover:bg-green-700 transition-colors"
+			>
+				Resolve Selected
+			</button>
+			<button
+				onClick={onClear}
+				className="px-4 py-2 rounded-md bg-red-600 text-white font-semibold hover:bg-red-700 transition-colors"
+			>
+				Clear Selections
+			</button>
 		</div>
 	);
 };
