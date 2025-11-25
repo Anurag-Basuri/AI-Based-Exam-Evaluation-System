@@ -107,8 +107,11 @@ const StatusBadge = ({ status }) => {
 	);
 };
 
-const ActionMenu = ({ onAction, isOpen, onClose }) => {
+const ActionMenu = ({ exam, onAction, isOpen, onClose }) => {
 	if (!isOpen) return null;
+
+	const status = exam?.derivedStatus || exam?.status;
+
 	return (
 		<>
 			<div style={styles.menuBackdrop} onClick={onClose} />
@@ -126,6 +129,35 @@ const ActionMenu = ({ onAction, isOpen, onClose }) => {
 				>
 					🔄 New Code
 				</button>
+
+				{/* End / Cancel options */}
+				{status === 'live' && (
+					<>
+						<div style={styles.menuDivider} />
+						<button
+							type="button"
+							onClick={() => onAction('end')}
+							style={{ ...styles.menuItem, color: 'var(--danger-text)' }}
+							title="End exam immediately"
+						>
+							🛑 End Now
+						</button>
+					</>
+				)}
+				{status === 'scheduled' && (
+					<>
+						<div style={styles.menuDivider} />
+						<button
+							type="button"
+							onClick={() => onAction('cancel')}
+							style={{ ...styles.menuItem, color: 'var(--danger-text)' }}
+							title="Cancel scheduled exam"
+						>
+							🚫 Cancel
+						</button>
+					</>
+				)}
+
 				<div style={styles.menuDivider} />
 				<button
 					type="button"
@@ -225,6 +257,7 @@ const ExamRow = ({ exam, onAction, onNavigate }) => {
 							⋮
 						</button>
 						<ActionMenu
+							exam={exam}
 							isOpen={menuOpen}
 							onClose={() => setMenuOpen(false)}
 							onAction={handleMenuAction}
@@ -257,6 +290,7 @@ const ExamCard = ({ exam, onAction, onNavigate }) => {
 						⋮
 					</button>
 					<ActionMenu
+						exam={exam}
 						isOpen={menuOpen}
 						onClose={() => setMenuOpen(false)}
 						onAction={a => {
