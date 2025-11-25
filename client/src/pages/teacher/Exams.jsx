@@ -219,15 +219,54 @@ function formatDate(dateVal) {
 	});
 }
 
+// --- Stats Card ---
+function StatsCard({ stats, loading }) {
+	const items = [
+		{ label: 'Total', value: stats?.total ?? 0, color: '#6366f1' },
+		{ label: 'Draft', value: stats?.draft ?? 0, color: '#64748b' },
+		{ label: 'Scheduled', value: stats?.scheduled ?? 0, color: '#2563eb' },
+		{ label: 'Live', value: stats?.live ?? 0, color: '#16a34a' },
+		{ label: 'Completed', value: stats?.completed ?? 0, color: '#6366f1' },
+	];
+	return (
+		<div style={statsWrap}>
+			{items.map(item => (
+				<div key={item.label} style={{ ...statBox, borderColor: item.color }}>
+					<div style={{ fontSize: 13, color: '#64748b', marginBottom: 2 }}>
+						{item.label}
+					</div>
+					<div style={{ fontWeight: 700, fontSize: 22, color: item.color }}>
+						{loading ? <Spinner size={18} /> : item.value}
+					</div>
+				</div>
+			))}
+		</div>
+	);
+}
+
 // --- Main Page ---
 export default function TeacherExams() {
 	const [exams, setExams] = useState([]);
 	const [loading, setLoading] = useState(true);
+	const [stats, setStats] = useState(null);
+	const [statsLoading, setStatsLoading] = useState(true);
 	const [search, setSearch] = useState('');
 	const [filter, setFilter] = useState('all');
 	const [actionLoading, setActionLoading] = useState('');
 	const navigate = useNavigate();
 	const { toast } = useToast();
+
+	const loadStats = useCallback(async () => {
+		setStatsLoading(true);
+		try {
+			const res = await TeacherSvc.getTeacherDashboardStats();
+			setStats(res?.exams || {});
+		} catch (err) {
+			toast?.error?.(err?.message || 'Failed to load stats');
+		} finally {
+			setStatsLoading(false);
+		}
+	}, [toast]);
 
 	const loadData = useCallback(async () => {
 		setLoading(true);
@@ -246,12 +285,22 @@ export default function TeacherExams() {
 
 	useEffect(() => {
 		loadData();
+		loadStats();
 		const socket = io(API_BASE_URL, { withCredentials: true, transports: ['websocket'] });
-		socket.on('exam-updated', loadData);
-		socket.on('exam-created', loadData);
-		socket.on('exam-deleted', loadData);
+		socket.on('exam-updated', () => {
+			loadData();
+			loadStats();
+		});
+		socket.on('exam-created', () => {
+			loadData();
+			loadStats();
+		});
+		socket.on('exam-deleted', () => {
+			loadData();
+			loadStats();
+		});
 		return () => socket.disconnect();
-	}, [loadData]);
+	}, [loadData, loadStats]);
 
 	const handleAction = async (action, exam) => {
 		if (!exam) return;
@@ -264,6 +313,7 @@ export default function TeacherExams() {
 					await TeacherSvc.safeApiCall(TeacherSvc.publishTeacherExam, exam.id);
 					toast.success?.('Exam published');
 					await loadData();
+					await loadStats();
 				}
 			} else if (action === 'end') {
 				if (
@@ -276,12 +326,14 @@ export default function TeacherExams() {
 					await TeacherSvc.endExamNow(exam.id);
 					toast.success?.('Exam ended');
 					await loadData();
+					await loadStats();
 				}
 			} else if (action === 'delete') {
 				if (window.confirm('Delete this exam? This cannot be undone.')) {
 					await TeacherSvc.safeApiCall(TeacherSvc.deleteExam, exam.id);
 					toast.success?.('Exam deleted');
 					await loadData();
+					await loadStats();
 				}
 			}
 		} catch (err) {
@@ -311,6 +363,7 @@ export default function TeacherExams() {
 					+ New Exam
 				</Link>
 			</div>
+			<StatsCard stats={stats} loading={statsLoading} />
 			<div style={toolbarRow}>
 				<select
 					value={filter}
@@ -334,7 +387,10 @@ export default function TeacherExams() {
 				/>
 				<button
 					type="button"
-					onClick={loadData}
+					onClick={() => {
+						loadData();
+						loadStats();
+					}}
 					style={simpleBtn}
 					aria-label="Refresh exams"
 					disabled={loading}
@@ -424,6 +480,22 @@ const headerRow = {
 	justifyContent: 'space-between',
 	alignItems: 'center',
 	marginBottom: 18,
+};
+const statsWrap = {
+	display: 'flex',
+	gap: 18,
+	marginBottom: 18,
+	flexWrap: 'wrap',
+};
+const statBox = {
+	flex: '1 1 120px',
+	minWidth: 100,
+	background: '#f8fafc',
+	border: '2px solid #e5e7eb',
+	borderRadius: 10,
+	padding: '12px 18px',
+	textAlign: 'center',
+	boxShadow: '0 1px 4px #0001',
 };
 const toolbarRow = {
 	display: 'flex',
