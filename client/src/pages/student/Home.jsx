@@ -1,17 +1,17 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth.js';
-import { safeApiCall, getMySubmissions } from '../../services/studentServices.js';
+import { safeApiCall, getMySubmissions, getStudentProfile } from '../../services/studentServices.js';
 
 // --- Utilities ---
 const formatDate = v => {
 	if (!v) return '—';
 	try {
-		const d = new Date(v);
-		if (Number.isNaN(d.getTime())) return String(v);
+		const d = typeof v === 'string' || typeof v === 'number' ? new Date(v) : v;
+		if (!d || Number.isNaN(d.getTime())) return '—';
 		return d.toLocaleDateString();
 	} catch {
-		return String(v);
+		return '—';
 	}
 };
 
@@ -120,8 +120,9 @@ const StatusBadge = ({ status }) => {
 
 const StudentHome = () => {
 	const navigate = useNavigate();
-	const { user } = useAuth();
+	const { user, setUser } = useAuth();
 
+	const [profileData, setProfileData] = React.useState(null);
 	const [stats, setStats] = React.useState({
 		inProgress: 0,
 		submitted: 0,
@@ -145,7 +146,22 @@ const StudentHome = () => {
 		setLoading(true);
 		setError('');
 		try {
-			const submissions = await safeApiCall(getMySubmissions);
+			// Fetch profile and submissions in parallel
+			const [profile, submissions] = await Promise.all([
+				safeApiCall(getStudentProfile),
+				safeApiCall(getMySubmissions),
+			]);
+
+			// Update profile data
+			if (profile) {
+				setProfileData(profile);
+				// Also update auth context
+				if (setUser) {
+					setUser(prev => ({ ...(prev || {}), ...profile }));
+				}
+			}
+
+			// Calculate stats
 			const counts = Array.isArray(submissions)
 				? submissions.reduce(
 						(acc, s) => {
@@ -161,17 +177,29 @@ const StudentHome = () => {
 				: { inProgress: 0, submitted: 0, evaluated: 0, total: 0 };
 
 			setStats(counts);
-			setRecentSubmissions(Array.isArray(submissions) ? submissions.slice(0, 5) : []);
+			// Sort by most recent first
+			const sorted = Array.isArray(submissions)
+				? submissions.sort((a, b) => {
+						const dateA = new Date(a.startedAt || a.createdAt || 0);
+						const dateB = new Date(b.startedAt || b.createdAt || 0);
+						return dateB - dateA;
+				  })
+				: [];
+			setRecentSubmissions(sorted.slice(0, 5));
 		} catch (e) {
+			console.error('Dashboard load error:', e);
 			setError(e?.message || 'Failed to load dashboard data');
 		} finally {
 			setLoading(false);
 		}
-	}, []);
+	}, [setUser]);
 
 	React.useEffect(() => {
 		loadData();
 	}, [loadData]);
+
+	// Use profile data if available, fallback to user from context
+	const displayUser = profileData || user || {};
 
 	return (
 		<div
@@ -202,28 +230,48 @@ const StudentHome = () => {
 			>
 				<div>
 					<h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: 'var(--text)' }}>
-						Welcome back, {user?.fullname || user?.username || 'Student'}! 👋
+						Welcome back, {displayUser.fullname || displayUser.username || 'Student'}! 👋
 					</h1>
 					<div style={{ color: 'var(--text-muted)', fontSize: 14, marginTop: 6 }}>
 						Track your exams, view results, and manage your progress
 					</div>
 				</div>
-				<button
-					onClick={() => navigate('exams')}
-					style={{
-						padding: '10px 18px',
-						borderRadius: 10,
-						background: 'linear-gradient(135deg, #10b981, #059669)',
-						color: '#fff',
-						border: 'none',
-						fontWeight: 700,
-						fontSize: 14,
-						cursor: 'pointer',
-						boxShadow: '0 4px 12px rgba(16,185,129,0.25)',
-					}}
-				>
-					Find Exam
-				</button>
+				<div style={{ display: 'flex', gap: 8 }}>
+					<button
+						onClick={() => navigate('/student/exams')}
+						style={{
+							padding: '10px 18px',
+							borderRadius: 10,
+							background: 'linear-gradient(135deg, #10b981, #059669)',
+							color: '#fff',
+							border: 'none',
+							fontWeight: 700,
+							fontSize: 14,
+							cursor: 'pointer',
+							boxShadow: '0 4px 12px rgba(16,185,129,0.25)',
+						}}
+					>
+						Find Exam
+					</button>
+					<button
+						onClick={loadData}
+						disabled={loading}
+						style={{
+							padding: '10px 14px',
+							borderRadius: 10,
+							background: 'transparent',
+							border: '1px solid var(--border)',
+							color: 'var(--text)',
+							fontWeight: 600,
+							fontSize: 14,
+							cursor: loading ? 'not-allowed' : 'pointer',
+							opacity: loading ? 0.6 : 1,
+						}}
+						title="Refresh data"
+					>
+						🔄
+					</button>
+				</div>
 			</header>
 
 			{error && (
@@ -235,9 +283,25 @@ const StudentHome = () => {
 						color: '#991b1b',
 						marginBottom: 20,
 						border: '1px solid #fecaca',
+						display: 'flex',
+						justifyContent: 'space-between',
+						alignItems: 'center',
 					}}
 				>
-					{error}
+					<span>{error}</span>
+					<button
+						onClick={() => setError('')}
+						style={{
+							background: 'transparent',
+							border: 'none',
+							color: '#991b1b',
+							cursor: 'pointer',
+							fontWeight: 800,
+							fontSize: 18,
+						}}
+					>
+						×
+					</button>
 				</div>
 			)}
 
@@ -278,7 +342,7 @@ const StudentHome = () => {
 									flexShrink: 0,
 								}}
 							>
-								{getInitials(user)}
+								{loading ? '...' : getInitials(displayUser)}
 							</div>
 							<div style={{ flex: 1, minWidth: 0 }}>
 								<div
@@ -291,7 +355,11 @@ const StudentHome = () => {
 										whiteSpace: 'nowrap',
 									}}
 								>
-									{user?.fullname || user?.username || 'Student'}
+									{loading ? (
+										<Skeleton height={18} width={140} />
+									) : (
+										displayUser.fullname || displayUser.username || 'Student'
+									)}
 								</div>
 								<div
 									style={{
@@ -303,7 +371,11 @@ const StudentHome = () => {
 										whiteSpace: 'nowrap',
 									}}
 								>
-									@{user?.username || '—'}
+									{loading ? (
+										<Skeleton height={12} width={100} />
+									) : (
+										'@' + (displayUser.username || '—')
+									)}
 								</div>
 							</div>
 						</div>
@@ -321,29 +393,43 @@ const StudentHome = () => {
 									whiteSpace: 'nowrap',
 								}}
 							>
-								{user?.email || '—'}
+								{loading ? <Skeleton height={14} width="80%" /> : displayUser.email || '—'}
 							</div>
 
-							{user?.phonenumber && (
+							{displayUser.phonenumber && !loading && (
 								<>
-									<div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 700 }}>
+									<div
+										style={{
+											fontSize: 11,
+											color: 'var(--text-muted)',
+											fontWeight: 700,
+											marginTop: 8,
+										}}
+									>
 										PHONE
 									</div>
-									<div style={{ fontSize: 13, color: 'var(--text)' }}>{user.phonenumber}</div>
+									<div style={{ fontSize: 13, color: 'var(--text)' }}>{displayUser.phonenumber}</div>
 								</>
 							)}
 
-							<div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 700 }}>
+							<div
+								style={{
+									fontSize: 11,
+									color: 'var(--text-muted)',
+									fontWeight: 700,
+									marginTop: 8,
+								}}
+							>
 								MEMBER SINCE
 							</div>
 							<div style={{ fontSize: 13, color: 'var(--text)' }}>
-								{formatDate(user?.createdAt)}
+								{loading ? <Skeleton height={14} width="70%" /> : formatDate(displayUser.createdAt)}
 							</div>
 						</div>
 
 						<div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
 							<button
-								onClick={() => navigate('results')}
+								onClick={() => navigate('/student/results')}
 								style={{
 									flex: 1,
 									padding: '10px',
@@ -359,7 +445,7 @@ const StudentHome = () => {
 								Results
 							</button>
 							<button
-								onClick={() => navigate('settings')}
+								onClick={() => navigate('/student/settings')}
 								style={{
 									padding: '10px 14px',
 									borderRadius: 10,
@@ -389,7 +475,7 @@ const StudentHome = () => {
 						<div style={{ fontWeight: 800, marginBottom: 12, fontSize: 14 }}>Quick Actions</div>
 						<div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
 							<button
-								onClick={() => navigate('exams')}
+								onClick={() => navigate('/student/exams')}
 								style={{
 									padding: '10px 12px',
 									borderRadius: 10,
@@ -408,7 +494,7 @@ const StudentHome = () => {
 								<span>🔍</span> Find Exam
 							</button>
 							<button
-								onClick={() => navigate('issues')}
+								onClick={() => navigate('/student/issues')}
 								style={{
 									padding: '10px 12px',
 									borderRadius: 10,
@@ -494,7 +580,7 @@ const StudentHome = () => {
 								Recent Activity
 							</div>
 							<button
-								onClick={() => navigate('results')}
+								onClick={() => navigate('/student/results')}
 								style={{
 									background: 'transparent',
 									border: 'none',
@@ -541,78 +627,84 @@ const StudentHome = () => {
 									No exam attempts yet. Use an exam search ID to start!
 								</div>
 							) : (
-								recentSubmissions.map(sub => (
-									<div
-										key={sub.id}
-										onClick={() => {
-											const status = sub.status?.toLowerCase();
-											if (status === 'in-progress' || status === 'started') {
-												navigate(`/student/take-exam/${sub.id}`);
-											} else if (status === 'evaluated') {
-												navigate(`/student/results/${sub.id}`);
-											}
-										}}
-										style={{
-											display: 'flex',
-											alignItems: 'center',
-											gap: 14,
-											padding: 12,
-											borderRadius: 10,
-											cursor: 'pointer',
-											transition: 'background 0.2s',
-											background: 'transparent',
-										}}
-										onMouseEnter={e => {
-											e.currentTarget.style.background = 'var(--bg-secondary)';
-										}}
-										onMouseLeave={e => {
-											e.currentTarget.style.background = 'transparent';
-										}}
-									>
+								recentSubmissions.map(sub => {
+									const examTitle = sub.examTitle || sub.exam?.title || 'Untitled Exam';
+									const submissionDate = sub.submittedAt || sub.startedAt || sub.createdAt;
+									const hasScore = sub.score !== null && sub.score !== undefined;
+
+									return (
 										<div
+											key={sub.id}
+											onClick={() => {
+												const status = sub.status?.toLowerCase();
+												if (status === 'in-progress' || status === 'started') {
+													navigate(`/student/take-exam/${sub.id}`);
+												} else if (status === 'evaluated') {
+													navigate(`/student/results`);
+												}
+											}}
 											style={{
-												width: 48,
-												height: 48,
-												borderRadius: 10,
-												background: '#eef2ff',
 												display: 'flex',
 												alignItems: 'center',
-												justifyContent: 'center',
-												fontWeight: 800,
-												color: '#4338ca',
-												fontSize: 20,
-												flexShrink: 0,
+												gap: 14,
+												padding: 12,
+												borderRadius: 10,
+												cursor: 'pointer',
+												transition: 'background 0.2s',
+												background: 'transparent',
+											}}
+											onMouseEnter={e => {
+												e.currentTarget.style.background = 'var(--bg-secondary)';
+											}}
+											onMouseLeave={e => {
+												e.currentTarget.style.background = 'transparent';
 											}}
 										>
-											📝
-										</div>
-										<div style={{ flex: 1, minWidth: 0 }}>
 											<div
 												style={{
-													fontWeight: 700,
-													fontSize: 14,
-													color: 'var(--text)',
-													overflow: 'hidden',
-													textOverflow: 'ellipsis',
-													whiteSpace: 'nowrap',
+													width: 48,
+													height: 48,
+													borderRadius: 10,
+													background: '#eef2ff',
+													display: 'flex',
+													alignItems: 'center',
+													justifyContent: 'center',
+													fontWeight: 800,
+													color: '#4338ca',
+													fontSize: 20,
+													flexShrink: 0,
 												}}
 											>
-												{sub.examTitle}
+												📝
 											</div>
-											<div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
-												{formatDate(sub.startedAt || sub.submittedAt)}
-											</div>
-										</div>
-										<div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
-											<StatusBadge status={sub.status} />
-											{sub.score !== null && sub.score !== undefined && (
-												<div style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)' }}>
-													{sub.score}/{sub.maxScore}
+											<div style={{ flex: 1, minWidth: 0 }}>
+												<div
+													style={{
+														fontWeight: 700,
+														fontSize: 14,
+														color: 'var(--text)',
+														overflow: 'hidden',
+														textOverflow: 'ellipsis',
+														whiteSpace: 'nowrap',
+													}}
+												>
+													{examTitle}
 												</div>
-											)}
+												<div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
+													{formatDate(submissionDate)}
+												</div>
+											</div>
+											<div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+												<StatusBadge status={sub.status} />
+												{hasScore && (
+													<div style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)' }}>
+														{sub.score}/{sub.maxScore || '?'}
+													</div>
+												)}
+											</div>
 										</div>
-									</div>
-								))
+									);
+								})
 							)}
 						</div>
 					</div>
