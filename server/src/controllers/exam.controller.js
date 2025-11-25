@@ -638,15 +638,34 @@ const endExamNow = asyncHandler(async (req, res) => {
 	if (!exam) throw ApiError.NotFound('Exam not found');
 	assertOwner(exam, teacherId);
 
-	if (!isLive(exam)) {
-		throw ApiError.Forbidden('Only live exams can be ended now');
+	// compute flags
+	const scheduledFlag = isScheduled(exam);
+	const liveFlag = isLive(exam);
+
+	// log for debugging
+	console.log(
+		`[exam:end-now] teacher=${String(teacherId)} exam=${String(examId)} status=${
+			exam.status
+		} start=${exam.startTime} end=${exam.endTime} live=${liveFlag} scheduled=${scheduledFlag}`,
+	);
+
+	// allow ending if exam is live OR scheduled (teacher wants to end before scheduled start)
+	if (!liveFlag && !scheduledFlag) {
+		throw ApiError.Forbidden('Only live or scheduled exams can be ended/cancelled now');
 	}
 
-	exam.status = 'completed';
-	exam.endTime = new Date();
-	await exam.save();
+	// If live => finalize as completed
+	if (liveFlag) {
+		exam.status = 'completed';
+		exam.endTime = new Date();
+		await exam.save();
+		return ApiResponse.success(res, exam, 'Exam ended');
+	}
 
-	return ApiResponse.success(res, exam, 'Exam ended');
+	// If scheduled => mark cancelled (this prevents it from starting)
+	exam.status = 'cancelled';
+	await exam.save();
+	return ApiResponse.success(res, exam, 'Scheduled exam cancelled (ended)');
 });
 
 // Cancel exam (only if scheduled; keeps as record but unusable)
@@ -776,7 +795,10 @@ const getExamStats = asyncHandler(async (req, res) => {
 					$sum: {
 						$cond: [
 							{
-								$and: [{ $eq: ['$status', 'active'] }, { $gt: ['$startTime', now] }],
+								$and: [
+									{ $eq: ['$status', 'active'] },
+									{ $gt: ['$startTime', now] },
+								],
 							},
 							1,
 							0,
