@@ -81,6 +81,23 @@ const IconRobot = () => (
 		<line x1="16" y1="16" x2="16" y2="16" />
 	</svg>
 );
+const IconUsers = () => (
+	<svg
+		width="18"
+		height="18"
+		viewBox="0 0 24 24"
+		fill="none"
+		stroke="currentColor"
+		strokeWidth="2"
+		strokeLinecap="round"
+		strokeLinejoin="round"
+	>
+		<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+		<circle cx="9" cy="7" r="4" />
+		<path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+		<path d="M16 3.13a4 4 0 0 1 0 7.75" />
+	</svg>
+);
 
 // --- Components ---
 
@@ -154,14 +171,9 @@ const AnswerCard = ({ idx, answer, evaluation, onUpdate, disabled, isUnsaved }) 
 	const aiEval = evaluation?.evaluation;
 	const teacherEval = aiEval?.evaluator === 'teacher';
 
-	const [marks, setMarks] = React.useState(aiEval?.marks ?? 0);
-	const [remarks, setRemarks] = React.useState(aiEval?.remarks ?? '');
-
-	// Sync local state when prop changes (unless we have unsaved local changes, handled by parent but good to be safe)
-	React.useEffect(() => {
-		setMarks(aiEval?.marks ?? 0);
-		setRemarks(aiEval?.remarks ?? '');
-	}, [aiEval]);
+	// Controlled state from props
+	const marks = aiEval?.marks ?? 0;
+	const remarks = aiEval?.remarks ?? '';
 
 	const maxMarks = question.max_marks || 0;
 
@@ -173,19 +185,16 @@ const AnswerCard = ({ idx, answer, evaluation, onUpdate, disabled, isUnsaved }) 
 
 	const handleMarksChange = e => {
 		const newMarks = clampMarks(e.target.value);
-		setMarks(newMarks);
 		onUpdate(question._id, newMarks, remarks);
 	};
 
 	const handleRemarksChange = e => {
 		const newRemarks = e.target.value;
-		setRemarks(newRemarks);
 		onUpdate(question._id, marks, newRemarks);
 	};
 
 	const quickAdjust = delta => {
 		const newMarks = clampMarks((marks || 0) + delta);
-		setMarks(newMarks);
 		onUpdate(question._id, newMarks, remarks);
 	};
 
@@ -349,16 +358,24 @@ const TeacherSubmissionGrade = () => {
 	const [error, setError] = React.useState('');
 	const [submission, setSubmission] = React.useState(null);
 	const [updatedEvals, setUpdatedEvals] = React.useState({});
+	
+	// List of all submissions for this exam (for navigation)
+	const [allSubmissions, setAllSubmissions] = React.useState([]);
 
 	React.useEffect(() => {
 		const loadData = async () => {
 			setLoading(true);
 			try {
-				const data = await TeacherSvc.safeApiCall(
-					TeacherSvc.getSubmissionForGrading,
-					submissionId,
-				);
-				setSubmission(data);
+				// Parallel fetch: current submission + list of all submissions
+				const [subData, allSubs] = await Promise.all([
+					TeacherSvc.safeApiCall(TeacherSvc.getSubmissionForGrading, submissionId),
+					TeacherSvc.safeApiCall(TeacherSvc.getTeacherSubmissions, examId)
+				]);
+				
+				setSubmission(subData);
+				setAllSubmissions(allSubs || []);
+				// Reset local updates when switching submissions
+				setUpdatedEvals({});
 			} catch (e) {
 				setError(e.message || 'Failed to load submission data.');
 			} finally {
@@ -366,7 +383,7 @@ const TeacherSubmissionGrade = () => {
 			}
 		};
 		loadData();
-	}, [submissionId]);
+	}, [submissionId, examId]);
 
 	const handleEvaluationUpdate = (questionId, marks, remarks) => {
 		setUpdatedEvals(prev => ({
@@ -391,7 +408,7 @@ const TeacherSubmissionGrade = () => {
 			success('Grades updated successfully!');
 			// Clear local updates after save
 			setUpdatedEvals({});
-			// Reload data to ensure sync
+			// Reload ONLY the submission data to reflect changes
 			const data = await TeacherSvc.safeApiCall(
 				TeacherSvc.getSubmissionForGrading,
 				submissionId,
@@ -436,8 +453,7 @@ const TeacherSubmissionGrade = () => {
 		const baseMarks = baseEval?.marks ?? 0;
 		const pending = updatedEvals[qid]?.marks;
 		
-		// Determine if this question is "graded" (has marks assigned either in DB or locally)
-		// We consider it graded if there is an evaluation record OR a local update
+		// Determine if this question is "graded"
 		if (evalsMap.has(qid) || updatedEvals[qid]) {
 			gradedCount++;
 		}
@@ -448,6 +464,18 @@ const TeacherSubmissionGrade = () => {
 
 	const progressPercent = Math.min(100, (awarded / Math.max(1, max)) * 100);
 	const unsavedCount = Object.keys(updatedEvals).length;
+
+	// Navigation Logic
+	const currentIndex = allSubmissions.findIndex(s => String(s.id) === String(submissionId));
+	const prevSub = currentIndex > 0 ? allSubmissions[currentIndex - 1] : null;
+	const nextSub = currentIndex < allSubmissions.length - 1 ? allSubmissions[currentIndex + 1] : null;
+
+	const navigateToSubmission = (id) => {
+		if (unsavedCount > 0) {
+			if (!window.confirm('You have unsaved changes. Discard them?')) return;
+		}
+		navigate(`/teacher/submission/${id}/grade/${examId}`);
+	};
 
 	return (
 		<div className="min-h-screen bg-[#f8fafc] pb-20">
@@ -467,6 +495,27 @@ const TeacherSubmissionGrade = () => {
 				<div className="lg:grid lg:grid-cols-12 lg:gap-8 items-start">
 					{/* Main Content: Questions */}
 					<main className="lg:col-span-8 space-y-6">
+						{/* Navigation Header (Mobile/Desktop) */}
+						<div className="flex items-center justify-between bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+							<button
+								onClick={() => prevSub && navigateToSubmission(prevSub.id)}
+								disabled={!prevSub}
+								className="flex items-center gap-2 text-sm font-medium text-gray-600 disabled:opacity-30 hover:text-indigo-600 transition-colors"
+							>
+								← Previous Student
+							</button>
+							<div className="text-sm font-bold text-gray-900">
+								{currentIndex + 1} of {allSubmissions.length}
+							</div>
+							<button
+								onClick={() => nextSub && navigateToSubmission(nextSub.id)}
+								disabled={!nextSub}
+								className="flex items-center gap-2 text-sm font-medium text-gray-600 disabled:opacity-30 hover:text-indigo-600 transition-colors"
+							>
+								Next Student →
+							</button>
+						</div>
+
 						{submission.violations?.length > 0 && (
 							<Alert type="warning">
 								<strong>{submission.violations.length} Violation(s) Logged:</strong>
@@ -580,7 +629,6 @@ const TeacherSubmissionGrade = () => {
 								{submission.answers.map((ans, i) => {
 									const qid = String(ans.question._id);
 									const hasUnsaved = !!updatedEvals[qid];
-									// const isCurrent = false; // Could implement scroll spy later
 
 									return (
 										<a
@@ -609,32 +657,31 @@ const TeacherSubmissionGrade = () => {
 							</div>
 						</div>
 
-						{/* Student Info */}
-						<div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
-							<h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-4">
-								Student Details
+						{/* Student List (New) */}
+						<div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6 max-h-[400px] overflow-y-auto">
+							<h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-4 flex items-center gap-2">
+								<IconUsers /> Class List
 							</h3>
-							<div className="space-y-3">
-								<div>
-									<div className="text-xs text-gray-500">Name</div>
-									<div className="font-medium text-gray-900">
-										{submission.student.fullname}
-									</div>
-								</div>
-								<div>
-									<div className="text-xs text-gray-500">Email</div>
-									<div className="font-medium text-gray-900">
-										{submission.student.email}
-									</div>
-								</div>
-								<div>
-									<div className="text-xs text-gray-500">Submitted At</div>
-									<div className="font-medium text-gray-900">
-										{submission.submittedAt
-											? new Date(submission.submittedAt).toLocaleString()
-											: '—'}
-									</div>
-								</div>
+							<div className="space-y-1">
+								{allSubmissions.map((sub) => {
+									const isActive = String(sub.id) === String(submissionId);
+									return (
+										<button
+											key={sub.id}
+											onClick={() => !isActive && navigateToSubmission(sub.id)}
+											className={`w-full text-left px-3 py-2 rounded-lg text-sm flex items-center justify-between group transition-colors ${
+												isActive
+													? 'bg-indigo-50 text-indigo-700 font-bold'
+													: 'text-gray-600 hover:bg-gray-50'
+											}`}
+										>
+											<span className="truncate">{sub.studentName}</span>
+											{sub.status === 'evaluated' && (
+												<span className="w-2 h-2 rounded-full bg-emerald-400" title="Evaluated" />
+											)}
+										</button>
+									);
+								})}
 							</div>
 						</div>
 					</aside>
