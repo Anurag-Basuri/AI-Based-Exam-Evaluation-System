@@ -513,15 +513,9 @@ export const bulkResolveIssues = async (issueIds, reply) => {
 
 // ---------- Profile & Settings (Teacher) ----------
 export const updateTeacherProfile = async profile => {
-	const payload = {
-		username: profile?.username ?? '',
-		fullname: profile?.fullname ?? '',
-		email: profile?.email ?? '',
-		phonenumber: profile?.phonenumber ?? '',
-		department: profile?.department ?? '',
-		address: profile?.address ?? '',
-	};
-	const res = await tryPut(EP.teacherUpdate, payload);
+	// Allow partial updates by passing the profile object directly.
+	// The backend handles undefined fields by ignoring them (Mongoose behavior).
+	const res = await tryPut(EP.teacherUpdate, profile);
 	const data = res?.data?.data ?? res?.data ?? {};
 	return normalizeTeacher(data);
 };
