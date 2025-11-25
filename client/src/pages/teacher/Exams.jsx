@@ -15,6 +15,7 @@ import {
 	Trash2,
 	CheckCircle2,
 } from 'lucide-react';
+import { Copy as CopyIcon } from 'lucide-react';
 
 // --- Status Map ---
 const STATUS_LABELS = {
@@ -54,7 +55,7 @@ function Spinner({ size = 20 }) {
 }
 
 // --- Exam Row ---
-function ExamRow({ exam, onAction, loading }) {
+function ExamRow({ exam, onAction, loadingAction }) {
 	const status = exam.derivedStatus || exam.status;
 	const [copied, setCopied] = useState(false);
 
@@ -66,11 +67,19 @@ function ExamRow({ exam, onAction, loading }) {
 		}
 	};
 
+	const now = Date.now();
+	const startMs = exam.startMs || (exam.startAt ? new Date(exam.startAt).getTime() : null);
+	const endMs = exam.endMs || (exam.endAt ? new Date(exam.endAt).getTime() : null);
+	const isDraft = status === 'draft';
+	const isScheduled = status === 'scheduled';
+	const isLive = status === 'live';
+	const isCompleted = status === 'completed' || status === 'cancelled';
+
 	return (
 		<tr
 			style={{
-				background: loading ? '#f3f4f6' : '#fff',
-				opacity: loading ? 0.6 : 1,
+				background: loadingAction ? '#f3f4f6' : '#fff',
+				opacity: loadingAction ? 0.6 : 1,
 				transition: 'background 0.2s, opacity 0.2s',
 				cursor: 'pointer',
 			}}
@@ -173,47 +182,18 @@ function ExamRow({ exam, onAction, loading }) {
 				</div>
 			</td>
 			<td>
-				<div style={{ display: 'flex', gap: 6 }}>
+				<div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
 					<button
 						type="button"
 						onClick={() => onAction('view', exam)}
 						style={iconBtn}
 						title="View/Edit"
 						aria-label="View or edit exam"
-						disabled={loading}
+						disabled={!!loadingAction}
 					>
 						<Eye /> View
 					</button>
-					{['live', 'scheduled', 'active'].includes(status) && (
-						<button
-							type="button"
-							onClick={() => onAction('end', exam)}
-							style={{
-								...iconBtn,
-								color: '#dc2626',
-								border: '1px solid #fee2e2',
-								background: '#fff0f0',
-							}}
-							title={
-								status === 'scheduled'
-									? 'Cancel Exam'
-									: status === 'active'
-									? 'End Exam'
-									: 'End Now'
-							}
-							aria-label={
-								status === 'scheduled'
-									? 'Cancel Exam'
-									: status === 'active'
-									? 'End Exam'
-									: 'End Now'
-							}
-							disabled={loading}
-						>
-							{loading ? <Spinner size={14} /> : <StopCircle size={15} />} End
-						</button>
-					)}
-					{status === 'draft' && (
+					{isDraft && (
 						<button
 							type="button"
 							onClick={() => onAction('publish', exam)}
@@ -225,11 +205,102 @@ function ExamRow({ exam, onAction, loading }) {
 							}}
 							title="Publish"
 							aria-label="Publish exam"
-							disabled={loading}
+							disabled={!!loadingAction}
 						>
-							{loading ? <Spinner size={14} /> : <Rocket size={15} />} Publish
+							{loadingAction === 'publish' ? (
+								<Spinner size={14} />
+							) : (
+								<Rocket size={15} />
+							)}{' '}
+							Publish
 						</button>
 					)}
+					{(isLive || isScheduled) && (
+						<button
+							type="button"
+							onClick={() => onAction('end', exam)}
+							style={{
+								...iconBtn,
+								color: '#dc2626',
+								border: '1px solid #fee2e2',
+								background: '#fff0f0',
+							}}
+							title={isScheduled ? 'Cancel Exam' : 'End Exam'}
+							aria-label={isScheduled ? 'Cancel Exam' : 'End Exam'}
+							disabled={!!loadingAction}
+						>
+							{loadingAction === 'end' ? (
+								<Spinner size={14} />
+							) : (
+								<StopCircle size={15} />
+							)}{' '}
+							{isScheduled ? 'Cancel' : 'End'}
+						</button>
+					)}
+					{(isLive || isScheduled) && (
+						<button
+							type="button"
+							onClick={() => onAction('extend', exam)}
+							style={{
+								...iconBtn,
+								color: '#2563eb',
+								border: '1px solid #dbeafe',
+								background: '#f0f7ff',
+							}}
+							title="Extend End Time"
+							aria-label="Extend End Time"
+							disabled={!!loadingAction}
+						>
+							{loadingAction === 'extend' ? (
+								<Spinner size={14} />
+							) : (
+								<RefreshCw size={15} />
+							)}{' '}
+							Extend
+						</button>
+					)}
+					{(isDraft || isScheduled) && (
+						<button
+							type="button"
+							onClick={() => onAction('regenerate', exam)}
+							style={{
+								...iconBtn,
+								color: '#6366f1',
+								border: '1px solid #e0e7ff',
+								background: '#f5f7ff',
+							}}
+							title="Regenerate Code"
+							aria-label="Regenerate Code"
+							disabled={!!loadingAction}
+						>
+							{loadingAction === 'regenerate' ? (
+								<Spinner size={14} />
+							) : (
+								<Clipboard size={15} />
+							)}{' '}
+							Regenerate
+						</button>
+					)}
+					<button
+						type="button"
+						onClick={() => onAction('duplicate', exam)}
+						style={{
+							...iconBtn,
+							color: '#64748b',
+							border: '1px solid #e5e7eb',
+							background: '#f8fafc',
+						}}
+						title="Duplicate Exam"
+						aria-label="Duplicate Exam"
+						disabled={!!loadingAction}
+					>
+						{loadingAction === 'duplicate' ? (
+							<Spinner size={14} />
+						) : (
+							<CopyIcon size={15} />
+						)}{' '}
+						Duplicate
+					</button>
 					<button
 						type="button"
 						onClick={() => onAction('delete', exam)}
@@ -241,9 +312,10 @@ function ExamRow({ exam, onAction, loading }) {
 						}}
 						title="Delete"
 						aria-label="Delete exam"
-						disabled={loading}
+						disabled={!!loadingAction}
 					>
-						{loading ? <Spinner size={14} /> : <Trash2 size={15} />} Delete
+						{loadingAction === 'delete' ? <Spinner size={14} /> : <Trash2 size={15} />}{' '}
+						Delete
 					</button>
 				</div>
 			</td>
@@ -550,7 +622,7 @@ export default function TeacherExams() {
 									key={exam.id}
 									exam={exam}
 									onAction={handleAction}
-									loading={actionLoading.startsWith(exam.id)}
+									loadingAction={actionLoading[exam.id]}
 								/>
 							))
 						)}
