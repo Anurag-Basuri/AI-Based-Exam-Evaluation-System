@@ -119,6 +119,7 @@ const ActionMenu = ({ exam, onAction, isOpen, onClose, busy }) => {
 
 	const isScheduled = status === 'scheduled' || (!!startMs && now < startMs);
 	const isLive = status === 'live' || (!!startMs && !!endMs && now >= startMs && now <= endMs);
+	const canEndNow = isLive || isScheduled;
 
 	return (
 		<>
@@ -150,7 +151,7 @@ const ActionMenu = ({ exam, onAction, isOpen, onClose, busy }) => {
 				</button>
 
 				{/* End / Cancel options */}
-				{isLive && (
+				{canEndNow && (
 					<>
 						<div style={styles.menuDivider} />
 						<button
