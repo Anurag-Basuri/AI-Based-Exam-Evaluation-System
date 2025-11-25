@@ -509,6 +509,25 @@ const TeacherExams = () => {
 					toast.success?.('New code generated');
 					loadData();
 					break;
+
+				// NEW: End live exam immediately
+				case 'end':
+					if (!window.confirm(`End "${exam.title}" now? This will finalize the exam.`))
+						return;
+					await TeacherSvc.safeApiCall(TeacherSvc.endExamNow, exam.id);
+					toast.success?.('Exam ended');
+					loadData();
+					break;
+
+				// NEW: Cancel scheduled exam
+				case 'cancel':
+					if (!window.confirm(`Cancel "${exam.title}"? This will make it unusable.`))
+						return;
+					await TeacherSvc.safeApiCall(TeacherSvc.cancelExam, exam.id);
+					toast.success?.('Exam cancelled');
+					loadData();
+					break;
+
 				case 'rename': {
 					const newName = window.prompt('Enter new name:', exam.title);
 					if (newName && newName !== exam.title) {
