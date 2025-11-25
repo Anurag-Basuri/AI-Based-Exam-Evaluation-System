@@ -41,12 +41,13 @@ const IssueCard = ({ issue, onDelete }) => {
 
 	return (
 		<article
+			className="hover-card"
 			style={{
 				background: 'var(--surface)',
-				borderRadius: 16,
+				borderRadius: '16px',
 				border: '1px solid var(--border)',
 				boxShadow: 'var(--shadow-md)',
-				padding: '24px',
+				padding: 'clamp(16px, 4vw, 24px)',
 				transition: 'transform 0.2s ease, box-shadow 0.2s ease',
 			}}
 		>
@@ -57,15 +58,17 @@ const IssueCard = ({ issue, onDelete }) => {
 						alignItems: 'center',
 						gap: '12px',
 						marginBottom: '8px',
+						flexWrap: 'wrap',
 					}}
 				>
 					<h3
 						style={{
 							margin: 0,
-							fontSize: '18px',
+							fontSize: 'clamp(16px, 3vw, 18px)',
 							fontWeight: 700,
 							color: 'var(--text)',
-							flex: 1,
+							flex: '1 1 200px',
+							wordBreak: 'break-word',
 						}}
 					>
 						{issue.examTitle}
@@ -82,6 +85,8 @@ const IssueCard = ({ issue, onDelete }) => {
 							background: config.bg,
 							color: config.color,
 							fontWeight: 700,
+							flexShrink: 0,
+							whiteSpace: 'nowrap',
 						}}
 					>
 						<span>{config.icon}</span>
@@ -92,9 +97,10 @@ const IssueCard = ({ issue, onDelete }) => {
 				<div
 					style={{
 						display: 'flex',
-						gap: '16px',
+						gap: 'clamp(12px, 3vw, 16px)',
 						color: 'var(--text-muted)',
-						fontSize: '13px',
+						fontSize: 'clamp(12px, 2.5vw, 13px)',
+						flexWrap: 'wrap',
 					}}
 				>
 					<div>
@@ -111,9 +117,9 @@ const IssueCard = ({ issue, onDelete }) => {
 
 			<div
 				style={{
-					background: 'var(--bg)',
-					borderRadius: 12,
-					padding: '16px',
+					background: 'var(--bg-secondary)',
+					borderRadius: '12px',
+					padding: 'clamp(12px, 3vw, 16px)',
 					border: '1px solid var(--border)',
 					marginBottom: '16px',
 				}}
@@ -133,7 +139,7 @@ const IssueCard = ({ issue, onDelete }) => {
 						margin: 0,
 						color: 'var(--text-muted)',
 						lineHeight: 1.5,
-						fontSize: '14px',
+						fontSize: 'clamp(13px, 2.5vw, 14px)',
 					}}
 				>
 					{issue.description}
@@ -144,8 +150,8 @@ const IssueCard = ({ issue, onDelete }) => {
 				<div
 					style={{
 						background: statusStyles.resolved.bg,
-						borderRadius: 12,
-						padding: '16px',
+						borderRadius: '12px',
+						padding: 'clamp(12px, 3vw, 16px)',
 						border: `1px solid ${statusStyles.resolved.border}`,
 					}}
 				>
@@ -167,7 +173,7 @@ const IssueCard = ({ issue, onDelete }) => {
 							margin: 0,
 							color: statusStyles.resolved.color,
 							lineHeight: 1.5,
-							fontSize: '14px',
+							fontSize: 'clamp(13px, 2.5vw, 14px)',
 						}}
 					>
 						{issue.reply}
@@ -189,12 +195,12 @@ const IssueCard = ({ issue, onDelete }) => {
 				<div
 					style={{
 						color: config.color,
-						fontSize: '14px',
+						fontSize: 'clamp(13px, 2.5vw, 14px)',
 						fontWeight: 500,
 						textAlign: 'center',
 						padding: '12px',
 						background: config.bg,
-						borderRadius: 8,
+						borderRadius: '8px',
 						border: `1px solid ${config.border}`,
 					}}
 				>
@@ -219,16 +225,19 @@ const IssueCard = ({ issue, onDelete }) => {
 						style={{
 							background: 'transparent',
 							border: 'none',
-							color: 'var(--danger-text)',
+							color: 'var(--error)',
 							cursor: 'pointer',
-							fontSize: '13px',
+							fontSize: 'clamp(12px, 2.5vw, 13px)',
 							fontWeight: 600,
 							display: 'inline-flex',
 							alignItems: 'center',
 							gap: '6px',
 							padding: '6px 8px',
-							borderRadius: 8,
+							borderRadius: '8px',
+							transition: 'background 0.2s ease',
 						}}
+						onMouseEnter={(e) => e.target.style.background = 'var(--danger-bg)'}
+						onMouseLeave={(e) => e.target.style.background = 'transparent'}
 					>
 						🗑️ Withdraw Issue
 					</button>
@@ -362,27 +371,52 @@ const StudentIssues = () => {
 	const hasSubmissions = submissions.length > 0;
 
 	return (
-		<section style={{ maxWidth: 1000, margin: '0 auto' }}>
+		<div style={{ maxWidth: '1200px', margin: '0 auto', padding: 'clamp(16px, 4vw, 24px)', minHeight: '100vh' }}>
+			<style>{`
+				.hover-card {
+					transition: transform 0.2s, box-shadow 0.2s;
+				}
+				.hover-card:hover {
+					transform: translateY(-2px);
+					box-shadow: var(--shadow-lg);
+				}
+				@media (max-width: 768px) {
+					.hover-card:hover {
+						transform: none;
+					}
+				}
+				button:not(:disabled):hover {
+					filter: brightness(1.05);
+				}
+				button:not(:disabled):active {
+					transform: translateY(1px);
+				}
+			`}</style>
+
 			<header
 				style={{
-					background: 'var(--surface)',
-					padding: '24px',
-					borderRadius: 16,
-					border: '1px solid var(--border)',
-					boxShadow: 'var(--shadow-md)',
-					marginBottom: '24px',
 					display: 'flex',
-					flexWrap: 'wrap',
-					gap: 12,
 					justifyContent: 'space-between',
 					alignItems: 'center',
+					marginBottom: '32px',
+					flexWrap: 'wrap',
+					gap: '16px',
 				}}
 			>
 				<div>
-					<h1 style={{ margin: 0, fontSize: '24px', color: 'var(--text)' }}>
+					<h1 style={{ 
+						margin: 0, 
+						fontSize: 'clamp(24px, 5vw, 32px)', 
+						fontWeight: 800, 
+						color: 'var(--text)' 
+					}}>
 						Support & Issues
 					</h1>
-					<p style={{ margin: '6px 0 0', color: 'var(--text-muted)' }}>
+					<p style={{ 
+						margin: '6px 0 0', 
+						fontSize: 'clamp(14px, 3vw, 16px)', 
+						color: 'var(--text-muted)' 
+					}}>
 						Raise concerns about exam sessions or evaluations.
 					</p>
 				</div>
@@ -395,16 +429,17 @@ const StudentIssues = () => {
 							: 'Create a new support issue'
 					}
 					style={{
-						padding: '10px 16px',
-						borderRadius: 12,
+						padding: 'clamp(10px, 2vw, 12px) clamp(16px, 3vw, 20px)',
+						borderRadius: '12px',
 						border: 'none',
-						background: 'var(--primary-gradient)',
-						color: 'var(--primary-contrast)',
+						background: 'linear-gradient(135deg, #4f46e5, #3b82f6)',
+						color: 'white',
+						fontSize: 'clamp(14px, 3vw, 16px)',
 						fontWeight: 700,
 						cursor: !hasSubmissions || loading ? 'not-allowed' : 'pointer',
-						boxShadow: 'var(--shadow-lg)',
+						boxShadow: 'var(--shadow-md)',
 						opacity: !hasSubmissions || loading ? 0.6 : 1,
-						transition: 'opacity 0.2s ease, transform 0.2s ease',
+						transition: 'all 0.2s ease',
 					}}
 				>
 					➕ Create New Issue
@@ -414,13 +449,14 @@ const StudentIssues = () => {
 			{error && (
 				<div
 					style={{
-						padding: '14px',
-						borderRadius: 12,
+						padding: 'clamp(12px, 3vw, 14px)',
+						borderRadius: '12px',
 						background: 'var(--danger-bg)',
 						border: '1px solid var(--danger-border)',
 						color: 'var(--danger-text)',
 						fontWeight: 600,
 						marginBottom: '16px',
+						fontSize: 'clamp(13px, 2.5vw, 14px)',
 					}}
 				>
 					❌ {error}
@@ -440,24 +476,48 @@ const StudentIssues = () => {
 			)}
 
 			{loading && (
-				<div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '40px' }}>
-					Loading your issues…
+				<div style={{ 
+					textAlign: 'center', 
+					padding: 'clamp(40px, 8vw, 60px) 20px',
+					background: 'var(--surface)',
+					borderRadius: '24px',
+					border: '2px dashed var(--border)',
+				}}>
+					<div style={{ fontSize: '48px', marginBottom: '16px' }}>⏳</div>
+					<p style={{ 
+						color: 'var(--text-muted)', 
+						fontSize: 'clamp(14px, 3vw, 16px)',
+						margin: 0,
+					}}>
+						Loading your issues…
+					</p>
 				</div>
 			)}
 
 			{!loading && !issues.length && (
 				<div
 					style={{
-						padding: '40px',
-						borderRadius: 16,
+						padding: 'clamp(40px, 8vw, 60px) 20px',
+						borderRadius: '24px',
 						border: '2px dashed var(--border)',
 						textAlign: 'center',
-						color: 'var(--text-muted)',
+						background: 'var(--surface)',
 					}}
 				>
 					<div style={{ fontSize: '48px', marginBottom: '16px' }}>📭</div>
-					<h3 style={{ margin: '0 0 8px 0', color: 'var(--text)' }}>No Issues Found</h3>
-					<p style={{ margin: 0 }}>
+					<h3 style={{ 
+						margin: '0 0 8px 0', 
+						fontSize: 'clamp(18px, 4vw, 20px)', 
+						fontWeight: 700, 
+						color: 'var(--text)' 
+					}}>
+						No Issues Found
+					</h3>
+					<p style={{ 
+						margin: 0, 
+						fontSize: 'clamp(14px, 3vw, 16px)', 
+						color: 'var(--text-muted)' 
+					}}>
 						You haven't created any issues yet. Use the button above to create one.
 					</p>
 				</div>
@@ -467,8 +527,7 @@ const StudentIssues = () => {
 				<div
 					style={{
 						display: 'grid',
-						gap: '20px',
-						// Make grid columns responsive: min 320px, max 1fr
+						gap: 'clamp(16px, 4vw, 24px)',
 						gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))',
 					}}
 				>
@@ -477,7 +536,7 @@ const StudentIssues = () => {
 					))}
 				</div>
 			)}
-		</section>
+		</div>
 	);
 };
 
@@ -504,34 +563,46 @@ const IssueFormModal = ({ isOpen, onClose, onSubmit, form, setForm, submissions,
 			style={{
 				position: 'fixed',
 				inset: 0,
-				background: 'rgba(0,0,0,0.5)',
+				background: 'rgba(0,0,0,0.6)',
 				backdropFilter: 'blur(4px)',
 				display: 'flex',
 				alignItems: 'center',
 				justifyContent: 'center',
 				zIndex: 1000,
-				padding: 16,
+				padding: 'clamp(16px, 4vw, 24px)',
 			}}
 		>
 			<form
 				onSubmit={onSubmit}
 				style={{
 					background: 'var(--surface)',
-					borderRadius: 16,
+					borderRadius: '16px',
 					border: '1px solid var(--border)',
 					boxShadow: 'var(--shadow-xl)',
-					padding: '24px',
+					padding: 'clamp(20px, 4vw, 24px)',
 					width: '100%',
 					maxWidth: 'min(500px, 95vw)',
 					display: 'grid',
-					gap: '16px',
+					gap: 'clamp(12px, 3vw, 16px)',
 				}}
 			>
-				<h2 style={{ margin: 0, color: 'var(--text)' }}>Create New Issue</h2>
-				<div style={{ display: 'grid', gap: 8 }}>
+				<h2 style={{ 
+					margin: 0, 
+					fontSize: 'clamp(20px, 4vw, 24px)', 
+					fontWeight: 700, 
+					color: 'var(--text)' 
+				}}>
+					Create New Issue
+				</h2>
+				
+				<div style={{ display: 'grid', gap: '8px' }}>
 					<label
 						htmlFor="issue-submission"
-						style={{ fontWeight: 700, color: 'var(--text)' }}
+						style={{ 
+							fontWeight: 700, 
+							fontSize: 'clamp(13px, 2.5vw, 14px)', 
+							color: 'var(--text)' 
+						}}
 					>
 						Related Exam
 					</label>
@@ -540,12 +611,14 @@ const IssueFormModal = ({ isOpen, onClose, onSubmit, form, setForm, submissions,
 						value={form.submissionId}
 						onChange={e => setForm(s => ({ ...s, submissionId: e.target.value }))}
 						style={{
-							padding: '10px 12px',
-							borderRadius: 10,
+							padding: 'clamp(10px, 2vw, 12px)',
+							borderRadius: '10px',
 							border: '1px solid var(--border)',
-							background: 'var(--bg)',
+							background: 'var(--bg-secondary)',
 							color: 'var(--text)',
+							fontSize: 'clamp(13px, 2.5vw, 14px)',
 							outline: 'none',
+							transition: 'border-color 0.2s ease',
 						}}
 						required
 					>
@@ -558,8 +631,15 @@ const IssueFormModal = ({ isOpen, onClose, onSubmit, form, setForm, submissions,
 					</select>
 				</div>
 
-				<div style={{ display: 'grid', gap: 8 }}>
-					<label htmlFor="issue-type" style={{ fontWeight: 700, color: 'var(--text)' }}>
+				<div style={{ display: 'grid', gap: '8px' }}>
+					<label 
+						htmlFor="issue-type" 
+						style={{ 
+							fontWeight: 700, 
+							fontSize: 'clamp(13px, 2.5vw, 14px)', 
+							color: 'var(--text)' 
+						}}
+					>
 						Issue Type
 					</label>
 					<select
@@ -567,12 +647,14 @@ const IssueFormModal = ({ isOpen, onClose, onSubmit, form, setForm, submissions,
 						value={form.issueType}
 						onChange={e => setForm(s => ({ ...s, issueType: e.target.value }))}
 						style={{
-							padding: '10px 12px',
-							borderRadius: 10,
+							padding: 'clamp(10px, 2vw, 12px)',
+							borderRadius: '10px',
 							border: '1px solid var(--border)',
-							background: 'var(--bg)',
+							background: 'var(--bg-secondary)',
 							color: 'var(--text)',
+							fontSize: 'clamp(13px, 2.5vw, 14px)',
 							outline: 'none',
+							transition: 'border-color 0.2s ease',
 						}}
 						required
 					>
@@ -583,8 +665,15 @@ const IssueFormModal = ({ isOpen, onClose, onSubmit, form, setForm, submissions,
 					</select>
 				</div>
 
-				<div style={{ display: 'grid', gap: 8 }}>
-					<label htmlFor="issue-desc" style={{ fontWeight: 700, color: 'var(--text)' }}>
+				<div style={{ display: 'grid', gap: '8px' }}>
+					<label 
+						htmlFor="issue-desc" 
+						style={{ 
+							fontWeight: 700, 
+							fontSize: 'clamp(13px, 2.5vw, 14px)', 
+							color: 'var(--text)' 
+						}}
+					>
 						Description
 					</label>
 					<textarea
@@ -594,13 +683,17 @@ const IssueFormModal = ({ isOpen, onClose, onSubmit, form, setForm, submissions,
 						placeholder="Please describe the problem in detail."
 						rows={5}
 						style={{
-							padding: '10px 12px',
-							borderRadius: 10,
+							padding: 'clamp(10px, 2vw, 12px)',
+							borderRadius: '10px',
 							border: '1px solid var(--border)',
-							background: 'var(--bg)',
+							background: 'var(--bg-secondary)',
 							color: 'var(--text)',
+							fontSize: 'clamp(13px, 2.5vw, 14px)',
 							outline: 'none',
 							resize: 'vertical',
+							fontFamily: 'inherit',
+							lineHeight: 1.5,
+							transition: 'border-color 0.2s ease',
 						}}
 						required
 					/>
@@ -610,21 +703,24 @@ const IssueFormModal = ({ isOpen, onClose, onSubmit, form, setForm, submissions,
 					style={{
 						display: 'flex',
 						justifyContent: 'flex-end',
-						gap: 10,
+						gap: '10px',
 						marginTop: '8px',
+						flexWrap: 'wrap',
 					}}
 				>
 					<button
 						type="button"
 						onClick={onClose}
 						style={{
-							padding: '10px 14px',
-							borderRadius: 10,
+							padding: 'clamp(10px, 2vw, 12px) clamp(16px, 3vw, 20px)',
+							borderRadius: '10px',
 							border: '1px solid var(--border)',
 							background: 'var(--surface)',
 							color: 'var(--text)',
+							fontSize: 'clamp(14px, 3vw, 16px)',
 							cursor: 'pointer',
-							fontWeight: 700,
+							fontWeight: 600,
+							transition: 'all 0.2s ease',
 						}}
 					>
 						Cancel
@@ -633,15 +729,17 @@ const IssueFormModal = ({ isOpen, onClose, onSubmit, form, setForm, submissions,
 						type="submit"
 						disabled={saving}
 						style={{
-							padding: '10px 14px',
-							borderRadius: 10,
+							padding: 'clamp(10px, 2vw, 12px) clamp(16px, 3vw, 20px)',
+							borderRadius: '10px',
 							border: 'none',
-							background: 'var(--primary-gradient)',
-							color: 'var(--primary-contrast)',
-							cursor: 'pointer',
+							background: 'linear-gradient(135deg, #4f46e5, #3b82f6)',
+							color: 'white',
+							fontSize: 'clamp(14px, 3vw, 16px)',
+							cursor: saving ? 'not-allowed' : 'pointer',
 							fontWeight: 700,
-							boxShadow: 'var(--shadow-lg)',
+							boxShadow: 'var(--shadow-md)',
 							opacity: saving ? 0.7 : 1,
+							transition: 'all 0.2s ease',
 						}}
 					>
 						{saving ? 'Submitting…' : 'Submit Issue'}
