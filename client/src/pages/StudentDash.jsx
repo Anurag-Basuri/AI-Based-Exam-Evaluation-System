@@ -209,41 +209,11 @@ const StudentDash = () => {
 				</ErrorBoundary>
 			)}
 
-			{/* Desktop Sidebar (sticky) */}
-			{!isMobile && (
-				<ErrorBoundary>
-					<aside
-						style={{
-							width: SIDEBAR_WIDTH,
-							position: 'sticky',
-							top: 0,
-							height: '100vh',
-							padding: 16,
-							paddingRight: 8,
-						}}
-					>
-						<Sidebar
-							header={headerEl}
-							footer={footerEl}
-							width={SIDEBAR_WIDTH}
-							collapsedWidth={SIDEBAR_WIDTH}
-							theme={theme}
-							items={items}
-							collapsible={false}
-							expanded={true}
-							mobileBreakpoint={MOBILE_BREAKPOINT}
-						/>
-					</aside>
-				</ErrorBoundary>
-			)}
-
 			{/* Below header: sidebar (sticky) + content */}
 			<div
 				style={{
 					display: 'grid',
 					gridTemplateColumns: isMobile ? '1fr' : `${SIDEBAR_WIDTH}px 1fr`,
-					// gap: 16, // Gap is handled by padding now
-					// padding: 16,
 					alignItems: 'start',
 					minHeight: '100vh', // Ensure it takes full height
 					background:
@@ -272,7 +242,7 @@ const StudentDash = () => {
 								collapsedWidth={SIDEBAR_WIDTH}
 								theme={theme}
 								items={items}
-								collapsible={true}
+								collapsible={false}
 								expanded={true}
 								mobileBreakpoint={MOBILE_BREAKPOINT}
 							/>
@@ -307,6 +277,7 @@ const StudentDash = () => {
 							>
 								<button
 									onClick={() => setSidebarOpen(true)}
+									aria-label="Open menu"
 									style={{
 										padding: '8px 12px',
 										borderRadius: 10,
@@ -335,8 +306,6 @@ const StudentDash = () => {
 								padding: 16,
 								flexGrow: 1,
 								overflowY: 'auto',
-								// On mobile, ensure the content area can shrink and scroll properly
-								// by setting a flexible base height.
 								minHeight: isMobile ? '0' : 'auto',
 							}}
 						>

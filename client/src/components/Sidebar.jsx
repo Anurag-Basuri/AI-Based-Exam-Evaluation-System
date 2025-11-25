@@ -34,6 +34,21 @@ const Sidebar = ({
 	// When in drawer mode, expansion can be controlled; on desktop always expanded
 	const expanded = isDrawer ? (isControlled ? controlledExpanded : internalExpanded) : true;
 
+	// ensure controlled -> internal stays in sync (helps when parent controls expanded)
+	useEffect(() => {
+		if (isControlled) setInternalExpanded(!!controlledExpanded);
+	}, [isControlled, controlledExpanded]);
+
+	// safe handlers to open/close drawer (use onToggle if parent controls)
+	const openDrawer = () => {
+		if (isControlled) onToggle?.(true);
+		else setInternalExpanded(true);
+	};
+	const closeDrawer = () => {
+		if (isControlled) onToggle?.(false);
+		else setInternalExpanded(false);
+	};
+
 	const palette =
 		theme === 'dark'
 			? {
@@ -105,6 +120,10 @@ const Sidebar = ({
 						boxShadow: isActive ? palette.activeGlow : 'none',
 						fontWeight: isActive ? 700 : 600,
 					})}
+					onClick={() => {
+						// if nav in drawer mode close drawer for better UX
+						if (isDrawer) closeDrawer();
+					}}
 				>
 					{({ isActive }) => (
 						<>
@@ -178,7 +197,10 @@ const Sidebar = ({
 					color: item.disabled ? palette.fgMuted : palette.fg,
 					background: 'transparent',
 				}}
-				onClick={item.onClick}
+				onClick={() => {
+					item.onClick?.();
+					if (isDrawer) closeDrawer();
+				}}
 			>
 				<div
 					style={{
@@ -216,10 +238,12 @@ const Sidebar = ({
 						background: 'rgba(0,0,0,0.45)',
 						zIndex: 999,
 					}}
+					aria-hidden="true"
 				/>
 			)}
 
 			<nav
+				aria-hidden={!expanded && isDrawer}
 				style={{
 					position: isDrawer ? 'fixed' : 'sticky',
 					top: topOffset,
