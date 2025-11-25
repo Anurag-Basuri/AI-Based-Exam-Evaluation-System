@@ -305,8 +305,24 @@ const getDashboardStats = asyncHandler(async (req, res) => {
 	};
 
 	// teacher info
-	const details = await Teacher.findById(teacherId).select('username fullname email phonenumber gender address createdAt');
-	stats.teacher = details;
+	const details = await Teacher.findById(teacherId)
+		.select('username fullname email phonenumber gender address createdAt')
+		.lean();
+	// ensure plain object and strip anything unexpected (defensive)
+	if (details) {
+		stats.teacher = {
+			id: String(details._id ?? teacherId),
+			username: details.username ?? '',
+			fullname: details.fullname ?? '',
+			email: details.email ?? '',
+			phonenumber: details.phonenumber ?? '',
+			gender: details.gender ?? '',
+			address: details.address ?? null,
+			createdAt: details.createdAt ?? null,
+		};
+	} else {
+		stats.teacher = null;
+	}
 
 	return ApiResponse.success(res, stats, 'Dashboard stats fetched successfully');
 });
