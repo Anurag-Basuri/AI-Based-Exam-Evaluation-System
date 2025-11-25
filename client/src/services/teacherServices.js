@@ -243,15 +243,28 @@ export const normalizeIssue = i => ({
 	submission: i.submission ? { id: String(i.submission?._id ?? i.submission) } : null,
 });
 
-const normalizeTeacher = t => ({
-	id: String(t?._id ?? t?.id ?? t?.userId ?? ''),
-	username: t?.username ?? '',
-	fullname: t?.fullname ?? t?.name ?? '',
-	email: t?.email ?? '',
-	phonenumber: t?.phonenumber ?? t?.phone ?? '',
-	department: t?.department ?? '',
-	address: typeof t?.address === 'string' ? t.address : '',
-});
+const normalizeTeacher = t => {
+	if (!t) return null;
+	const addr = t?.address;
+	let addressString = '';
+	if (typeof addr === 'string' && addr.trim()) addressString = addr;
+	else if (addr && typeof addr === 'object') {
+		const parts = [addr.street, addr.city, addr.state, addr.postalCode, addr.country].filter(
+			Boolean,
+		);
+		addressString = parts.join(', ');
+	}
+	return {
+		id: String(t?._id ?? t?.id ?? t?.userId ?? ''),
+		username: t?.username ?? '',
+		fullname: t?.fullname ?? t?.name ?? '',
+		email: t?.email ?? '',
+		phonenumber: t?.phonenumber ?? t?.phone ?? '',
+		department: t?.department ?? '',
+		address: addressString,
+		createdAt: t?.createdAt ?? t?.created_at ?? null,
+	};
+};
 
 // Normalizer for Question
 const normalizeQuestion = q => ({
