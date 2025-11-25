@@ -99,7 +99,12 @@ const examSchema = new mongoose.Schema(
 			required: [true, 'Start time is required'],
 			validate: {
 				validator: function (v) {
-					return v && v > new Date();
+					// Only enforce "future" if exam is new or still draft
+					if (this.isNew || this.status === 'draft') {
+						return v && v > new Date();
+					}
+					// Allow past startTime for live/completed/cancelled exams
+					return !!v;
 				},
 				message: 'Start time must be in the future',
 			},

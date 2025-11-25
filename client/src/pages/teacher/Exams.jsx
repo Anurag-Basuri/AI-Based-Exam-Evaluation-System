@@ -153,13 +153,25 @@ function ExamRow({ exam, onAction, loading }) {
 					>
 						View
 					</button>
-					{(status === 'live' || status === 'scheduled') && (
+					{['live', 'scheduled', 'active'].includes(status) && (
 						<button
 							type="button"
 							onClick={() => onAction('end', exam)}
 							style={{ ...simpleBtn, color: '#dc2626', border: '1px solid #fee2e2' }}
-							title={status === 'scheduled' ? 'Cancel Exam' : 'End Now'}
-							aria-label={status === 'scheduled' ? 'Cancel Exam' : 'End Now'}
+							title={
+								status === 'scheduled'
+									? 'Cancel Exam'
+									: status === 'active'
+									? 'End Exam'
+									: 'End Now'
+							}
+							aria-label={
+								status === 'scheduled'
+									? 'Cancel Exam'
+									: status === 'active'
+									? 'End Exam'
+									: 'End Now'
+							}
 							disabled={loading}
 						>
 							{loading ? <Spinner size={14} /> : 'End'}
