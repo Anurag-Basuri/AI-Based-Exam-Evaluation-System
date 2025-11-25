@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { useAuth } from '../../hooks/useAuth.js';
+import { useTheme } from '../../hooks/useTheme.js';
 import { getTeacherDashboardStats } from '../../services/teacherServices.js';
 import { API_BASE_URL } from '../../services/api.js';
 
@@ -111,37 +112,10 @@ const StatusBadge = ({ status }) => {
 // --- Main Component ---
 const MOBILE_BREAKPOINT = 880;
 
-const applyThemeVars = mode => {
-	if (typeof window === 'undefined') return;
-	const prefersDark =
-		window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-	const resolved = mode === 'system' ? (prefersDark ? 'dark' : 'light') : mode;
-	const root = document.documentElement;
-	if (!root) return;
-	if (resolved === 'dark') {
-		root.style.setProperty('--bg', '#0b1220');
-		root.style.setProperty('--surface', '#0f1724');
-		root.style.setProperty('--text', '#e6eef8');
-		root.style.setProperty('--text-muted', '#98a0b3');
-		root.style.setProperty('--primary', '#60a5fa');
-		root.style.setProperty('--border', 'rgba(255,255,255,0.04)');
-		root.style.setProperty('--skeleton', 'linear-gradient(90deg,#0f1724,#0b1220)');
-		root.style.setProperty('--shadow-sm', '0 6px 18px rgba(2,6,23,0.6)');
-	} else {
-		root.style.setProperty('--bg', '#f6f8fb');
-		root.style.setProperty('--surface', '#ffffff');
-		root.style.setProperty('--text', '#0b1220');
-		root.style.setProperty('--text-muted', '#6b7280');
-		root.style.setProperty('--primary', '#3b82f6');
-		root.style.setProperty('--border', 'rgba(2,6,23,0.06)');
-		root.style.setProperty('--skeleton', 'linear-gradient(90deg,#eaeef6,#f6f8fb)');
-		root.style.setProperty('--shadow-sm', '0 6px 18px rgba(15,23,42,0.06)');
-	}
-};
-
 const TeacherHome = () => {
 	const navigate = useNavigate();
 	const { user } = useAuth();
+	const { theme, toggleTheme } = useTheme();
 
 	const [data, setData] = React.useState(DEFAULT_DASH);
 	const [loading, setLoading] = React.useState(true);
@@ -149,11 +123,6 @@ const TeacherHome = () => {
 	const [isMobile, setIsMobile] = React.useState(
 		typeof window !== 'undefined' ? window.innerWidth < MOBILE_BREAKPOINT : false,
 	);
-	const [themeMode, setThemeMode] = React.useState('system'); // 'system' | 'dark' | 'light'
-
-	React.useEffect(() => {
-		applyThemeVars(themeMode);
-	}, [themeMode]);
 
 	React.useEffect(() => {
 		const onResize = () => setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
@@ -294,12 +263,8 @@ const TeacherHome = () => {
 
 					<button
 						type="button"
-						onClick={() =>
-							setThemeMode(mode =>
-								mode === 'dark' ? 'light' : mode === 'light' ? 'system' : 'dark',
-							)
-						}
-						title="Toggle theme (cycles: dark → light → system)"
+						onClick={() => toggleTheme?.()}
+						title="Toggle theme"
 						style={{
 							padding: '8px 10px',
 							borderRadius: 10,
@@ -308,11 +273,7 @@ const TeacherHome = () => {
 							color: 'var(--text)',
 						}}
 					>
-						{themeMode === 'system'
-							? 'Theme: system'
-							: themeMode === 'dark'
-							? 'Theme: dark'
-							: 'Theme: light'}
+						{theme === 'dark' ? 'Theme: dark' : 'Theme: light'}
 					</button>
 
 					<button
