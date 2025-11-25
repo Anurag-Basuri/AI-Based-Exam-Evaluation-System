@@ -32,53 +32,65 @@ const StudentDash = () => {
 		return () => window.removeEventListener('resize', onResize);
 	}, []);
 
-	const headerEl = React.useMemo(
-		() => (
-			<div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-				<img
-					src="/logo192.png"
-					alt="Student Portal"
-					onError={e => {
-						e.currentTarget.onerror = null;
-						e.currentTarget.src = '/logo512.png';
-					}}
-					style={{
-						width: 32,
-						height: 32,
-						borderRadius: 10,
-						objectFit: 'cover',
-						border: '2px solid rgba(16,185,129,0.25)',
-					}}
-				/>
-				<div style={{ display: 'grid', lineHeight: 1.15, minWidth: 0 }}>
-					<strong
-						style={{
-							letterSpacing: 0.3,
-							fontSize: 13,
-							background: 'linear-gradient(135deg, #059669, #3b82f6)',
-							WebkitBackgroundClip: 'text',
-							WebkitTextFillColor: 'transparent',
-							backgroundClip: 'text',
-						}}
-					>
-						Student Portal
-					</strong>
-					<span
-						style={{
-							fontSize: 11,
-							color: 'var(--text-muted)',
-							opacity: 0.9,
-							whiteSpace: 'nowrap',
-							overflow: 'hidden',
-							textOverflow: 'ellipsis',
-						}}
-					>
+	// compact logo used in dashboard headers (match teacher look)
+	const Logo = ({ size = 36, compact = false, label = 'Student Portal' }) => (
+		<div style={{ display: 'flex', alignItems: 'center', gap: compact ? 8 : 12 }}>
+			<div
+				aria-hidden="true"
+				style={{
+					width: size,
+					height: size,
+					borderRadius: 8,
+					display: 'flex',
+					alignItems: 'center',
+					justifyContent: 'center',
+					background: 'linear-gradient(135deg, #3b82f6, #059669)',
+					color: '#fff',
+					fontSize: Math.max(12, Math.floor(size / 3)),
+					flexShrink: 0,
+				}}
+			>
+				{/* simple book icon */}
+				<svg
+					width={size * 0.6}
+					height={size * 0.6}
+					viewBox="0 0 24 24"
+					fill="none"
+					aria-hidden
+				>
+					<path
+						d="M3 5.5A2.5 2.5 0 015.5 3h11A2.5 2.5 0 0119 5.5V19a1 1 0 01-1 1H5.5A2.5 2.5 0 013 17.5v-12z"
+						fill="rgba(255,255,255,0.12)"
+					/>
+					<path
+						d="M7 7h10M7 10h10M7 13h6"
+						stroke="#fff"
+						strokeWidth="1.2"
+						strokeLinecap="round"
+						strokeLinejoin="round"
+					/>
+				</svg>
+			</div>
+			{!compact && (
+				<div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1 }}>
+					<span style={{ fontWeight: 700, color: 'var(--text)', fontSize: 14 }}>
+						{label}
+					</span>
+					<span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
 						Learn • Practice • Excel
 					</span>
 				</div>
+			)}
+		</div>
+	);
+
+	const headerEl = React.useMemo(
+		() => (
+			<div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+				<Logo size={34} compact={isMobile} label="Student Portal" />
 			</div>
 		),
-		[],
+		[isMobile, user],
 	);
 
 	const footerEl = React.useMemo(
