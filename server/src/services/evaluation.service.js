@@ -1,8 +1,17 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import axios from 'axios';
 import { ApiError } from '../utils/ApiError.js';
 
 const api = process.env.HF_API_URL;
 const apiKey = process.env.HF_API_KEY;
+console.log(
+	`[EVAL_SERVICE] HF_API_URL=${api ? '[SET]' : '[MISSING]'} HF_API_KEY=${
+		apiKey ? '[SET]' : '[MISSING]'
+	}`,
+);
+
 const model = 'mistralai/Mistral-7B-Instruct-v0.2:featherless-ai';
 
 const EVAL_TIMEOUT_MS = Number(process.env.EVAL_TIMEOUT_MS || 15000);
@@ -239,20 +248,29 @@ function ensureRubricBreakdown(parsed, rubric) {
  * Extract a JSON object from model output.
  */
 function extractJson(rawOutput) {
-	console.log('[EVAL_SERVICE_EXTRACT] Attempting to find JSON in raw output.');
+	// Keep only essential logs: length and detailed errors
+	if (!rawOutput || !rawOutput.length) {
+		console.error('[EVAL_SERVICE_EXTRACT] Empty rawOutput provided to extractJson.');
+		throw new ApiError(500, 'Empty model response', { rawOutput });
+	}
 	const firstBrace = rawOutput.indexOf('{');
 	const lastBrace = rawOutput.lastIndexOf('}');
 	if (firstBrace === -1 || lastBrace === -1 || lastBrace < firstBrace) {
-		console.error('[EVAL_SERVICE_EXTRACT] No valid JSON object boundaries found.');
+		console.error(
+			'[EVAL_SERVICE_EXTRACT] No JSON boundaries found. firstBrace=',
+			firstBrace,
+			' lastBrace=',
+			lastBrace,
+		);
 		throw new ApiError(500, 'No valid JSON object found in model response', { rawOutput });
 	}
 	const jsonString = rawOutput.substring(firstBrace, lastBrace + 1);
-	console.log(`[EVAL_SERVICE_EXTRACT] Extracted potential JSON string: ${jsonString}`);
 	try {
 		const cleaned = jsonString.replace(/,\s*\]/g, ']').replace(/,\s*\}/g, '}');
 		return JSON.parse(cleaned);
 	} catch (e) {
-		console.error(`[EVAL_SERVICE_EXTRACT] JSON parsing failed: ${e.message}`);
+		console.error('[EVAL_SERVICE_EXTRACT] JSON parsing failed:', e.message);
+		console.error('[EVAL_SERVICE_EXTRACT] jsonString (truncated):', jsonString.slice(0, 1000));
 		throw new ApiError(500, 'Model returned invalid JSON', {
 			originalError: e.message,
 			jsonString,
@@ -286,18 +304,23 @@ function heuristicFallback(studentAnswer, policy, weight) {
 }
 
 export async function evaluateAnswer(
-	questionObj, // Changed from `question` to `questionObj`
+	questionObj,
 	studentAnswer,
 	referenceAnswer = null,
 	weight = 1,
 	policy = null,
 ) {
 	const evalId = createEvalId();
-	// Extract text and remarks from the question object
-	const cleanQ = String(questionObj?.text ?? '').trim();
+	const cleanQ = questionObj ? String(questionObj.text).trim() : '';
 	const qRemarks = String(questionObj?.remarks ?? '').trim();
 	const { text: cleanAns, truncated } = sanitizeAnswer(studentAnswer);
-	console.log(`[EVAL_SERVICE ${evalId}] Start. weight=${weight}, truncated=${truncated}`);
+
+	console.log(
+		`[EVAL_SERVICE ${evalId}] START questionLength=${cleanQ.length} answerLength=${
+			String(cleanAns).length
+		}`,
+	);
+
 	if (!cleanQ) {
 		console.error(`[EVAL_SERVICE ${evalId}] Missing question text.`);
 		return {
@@ -307,19 +330,14 @@ export async function evaluateAnswer(
 		};
 	}
 
-	// Uniform policy based on the model
 	const effectivePolicy = enrichPolicy(policy || {});
-	console.log(`[EVAL_SERVICE ${evalId}] Effective policy:`, effectivePolicy);
 
-	const policySummary = summarizePolicy(effectivePolicy, qRemarks); // Pass remarks
+	const policySummary = summarizePolicy(effectivePolicy, qRemarks);
 	const prompt = buildPrompt(cleanQ, cleanAns, referenceAnswer, policySummary);
-	console.log(`[EVAL_SERVICE ${evalId}] Prompt length=${prompt.length}`);
 
 	// If no AI config is provided, immediately use the heuristic fallback.
 	if (!api || !apiKey) {
-		console.warn(
-			`[EVAL_SERVICE ${evalId}] Missing HF API config. Using deterministic fallback scoring.`,
-		);
+		console.warn(`[EVAL_SERVICE ${evalId}] Missing HF API config. Using fallback scoring.`);
 		const fbHeuristic = heuristicFallback(cleanAns, effectivePolicy, weight);
 		return {
 			score: fbHeuristic.score,
@@ -337,7 +355,8 @@ export async function evaluateAnswer(
 
 	while (attempt <= EVAL_MAX_RETRIES) {
 		try {
-			if (attempt > 0) console.warn(`[EVAL_SERVICE ${evalId}] Retry attempt ${attempt}...`);
+			if (attempt > 0) console.warn(`[EVAL_SERVICE ${evalId}] Retry attempt ${attempt}`);
+			console.log(`[EVAL_SERVICE ${evalId}] Sending request to HF (attempt ${attempt})`);
 			const response = await axios.post(
 				api,
 				{
@@ -345,16 +364,21 @@ export async function evaluateAnswer(
 					messages: [{ role: 'user', content: prompt }],
 					temperature: EVAL_TEMPERATURE,
 					top_p: EVAL_TOP_P,
-					max_tokens: EVAL_MAX_NEW_TOKENS,
+					max_new_tokens: EVAL_MAX_NEW_TOKENS,
 					stream: false,
+					do_sample: EVAL_DO_SAMPLE,
 				},
 				{
-					headers: { Authorization: `Bearer ${apiKey}` },
+					headers: {
+						Authorization: `Bearer ${apiKey}`,
+						'Content-Type': 'application/json',
+					},
 					timeout: EVAL_TIMEOUT_MS,
 				},
 			);
 
-			console.log(`[EVAL_SERVICE ${evalId}] Model responded.`);
+			console.log(`[EVAL_SERVICE ${evalId}] Model responded status=${response.status}`);
+
 			let rawOutput = '';
 			const data = response.data;
 
@@ -364,52 +388,60 @@ export async function evaluateAnswer(
 			} else if (typeof data === 'string') {
 				rawOutput = data;
 			} else if (Array.isArray(data) && data.length > 0) {
-				// Fallback for older text-generation-inference format
 				rawOutput = data[0]?.generated_text || JSON.stringify(data[0]);
 			} else if (typeof data === 'object' && data) {
-				// Fallback for older text-generation-inference format
 				rawOutput = data.generated_text || JSON.stringify(data);
 			} else {
-				console.error(`[EVAL_SERVICE ${evalId}] Unexpected response format:`, data);
-				throw new ApiError(500, 'Unexpected evaluation service response');
+				console.error(`[EVAL_SERVICE ${evalId}] Unexpected response format.`);
+				throw new ApiError(500, 'Unexpected evaluation service response', {
+					responseDataType: typeof data,
+				});
 			}
 
-			console.log(`[EVAL_SERVICE ${evalId}] Raw output normalized:`, rawOutput);
 			const parsed = extractJson(rawOutput);
-			console.log(`[EVAL_SERVICE ${evalId}] Parsed JSON:`, parsed);
 
 			const score100 = toNumber0_100(parsed.score);
 			const finalMarks = Math.round(score100 * (weight || 1));
 			const limitedReview = limitSentences(
 				typeof parsed.review === 'string' ? parsed.review : 'No review provided',
-				3, // Keep review concise
+				3,
 			);
 
-			// Meta object is now much simpler
 			const meta = {
 				evalId,
 				path: 'ai',
 				truncatedInput: truncated || undefined,
 			};
 
-			console.log(`[EVAL_SERVICE ${evalId}] Success. finalMarks=${finalMarks}`);
+			console.log(`[EVAL_SERVICE ${evalId}] Success finalMarks=${finalMarks}`);
 			return { score: finalMarks, review: limitedReview, meta };
 		} catch (err) {
 			lastError = err;
 			console.error(
 				`[EVAL_SERVICE ${evalId}] Attempt ${attempt} failed: ${err?.message || err}`,
 			);
+			if (err?.response) {
+				try {
+					console.error(
+						`[EVAL_SERVICE ${evalId}] Error response status=${err.response.status} dataPreview=`,
+						String(JSON.stringify(err.response.data)).slice(0, 500),
+					);
+				} catch (e) {
+					console.error(
+						`[EVAL_SERVICE ${evalId}] Could not stringify err.response.data:`,
+						e?.message,
+					);
+				}
+			}
 			attempt += 1;
 			if (attempt > EVAL_MAX_RETRIES) break;
 			await delay(EVAL_RETRY_DELAY_MS);
 		}
 	}
 
-	// Fallback path - only heuristic is available now.
 	console.error(`[EVAL_SERVICE ${evalId}] All attempts failed. Applying heuristic fallback.`);
 
 	const fbHeuristic = heuristicFallback(cleanAns, effectivePolicy, weight);
-	console.log(`[EVAL_SERVICE ${evalId}] Heuristic fallback applied.`);
 	return {
 		score: fbHeuristic.score,
 		review: limitSentences(fbHeuristic.review, 3),
