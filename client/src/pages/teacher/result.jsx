@@ -4,6 +4,16 @@ import { useToast } from '../../components/ui/Toaster.jsx';
 import PageHeader from '../../components/ui/PageHeader.jsx';
 import Alert from '../../components/ui/Alert.jsx';
 import * as TeacherSvc from '../../services/teacherServices.js';
+import {
+	BarChart,
+	Bar,
+	XAxis,
+	YAxis,
+	CartesianGrid,
+	Tooltip,
+	ResponsiveContainer,
+	Cell,
+} from 'recharts';
 
 // --- Helper Components ---
 
@@ -49,74 +59,75 @@ const statusConfig = {
 };
 
 const ScoreDistributionChart = ({ submissions }) => {
-	const scoreData = React.useMemo(() => {
+	const data = React.useMemo(() => {
 		const bins = Array(10).fill(0);
 		let total = 0;
 		submissions.forEach(s => {
 			if (s.score !== null && s.maxScore > 0) {
 				const percentage = (s.score / s.maxScore) * 100;
+				// Clamp to 0-9 index
 				const binIndex = Math.min(9, Math.floor(percentage / 10));
 				bins[binIndex]++;
 				total++;
 			}
 		});
-		const maxCount = Math.max(...bins);
-		return { bins, maxCount, total };
+
+		return bins.map((count, i) => ({
+			name: `${i * 10}-${i * 10 + 10}%`,
+			count,
+			label: `${count}`,
+		}));
 	}, [submissions]);
 
-	if (scoreData.total === 0) {
-		return <Alert type="info">No scored submissions available to display a chart.</Alert>;
+	const hasData = data.some(d => d.count > 0);
+
+	if (!hasData) {
+		return (
+			<div className="p-6 bg-white border border-gray-200 rounded-xl flex flex-col items-center justify-center text-gray-500 h-[300px]">
+				<div className="text-4xl mb-2">📊</div>
+				<p>No graded submissions to display yet.</p>
+			</div>
+		);
 	}
 
 	return (
-		<div
-			style={{
-				background: 'var(--surface)',
-				border: '1px solid var(--border)',
-				borderRadius: 12,
-				padding: '16px 20px',
-			}}
-		>
-			<h4 style={{ marginTop: 0, marginBottom: 16, color: 'var(--text)' }}>
-				Score Distribution
-			</h4>
-			<div
-				style={{
-					display: 'grid',
-					gridTemplateColumns: 'repeat(10, 1fr)',
-					gap: '4px',
-					height: 150,
-					alignItems: 'flex-end',
-				}}
-			>
-				{scoreData.bins.map((count, i) => (
-					<div
-						key={i}
-						style={{
-							display: 'flex',
-							flexDirection: 'column',
-							alignItems: 'center',
-							gap: 4,
-						}}
-						title={`${count} student(s)`}
-					>
-						<div
-							style={{
-								width: '80%',
-								height:
-									scoreData.maxCount > 0
-										? `${(count / scoreData.maxCount) * 100}%`
-										: '0%',
-								background: 'var(--primary-gradient)',
-								borderRadius: '4px 4px 0 0',
-								transition: 'height 0.3s ease-out',
+		<div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm h-[350px] flex flex-col">
+			<h4 className="text-lg font-bold text-gray-900 mb-4">Score Distribution</h4>
+			<div className="flex-1 w-full min-h-0">
+				<ResponsiveContainer width="100%" height="100%">
+					<BarChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+						<CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+						<XAxis
+							dataKey="name"
+							axisLine={false}
+							tickLine={false}
+							tick={{ fill: '#64748b', fontSize: 11 }}
+							dy={10}
+						/>
+						<YAxis
+							axisLine={false}
+							tickLine={false}
+							tick={{ fill: '#64748b', fontSize: 11 }}
+							allowDecimals={false}
+						/>
+						<Tooltip
+							cursor={{ fill: '#f8fafc' }}
+							contentStyle={{
+								borderRadius: '8px',
+								border: 'none',
+								boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
 							}}
 						/>
-						<div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>
-							{i * 10}-{i * 10 + 10}
-						</div>
-					</div>
-				))}
+						<Bar dataKey="count" radius={[4, 4, 0, 0]} barSize={40}>
+							{data.map((entry, index) => (
+								<Cell
+									key={`cell-${index}`}
+									fill={`hsl(250, 95%, ${75 - index * 3}%)`} // Gradient effect across bars
+								/>
+							))}
+						</Bar>
+					</BarChart>
+				</ResponsiveContainer>
 			</div>
 		</div>
 	);
