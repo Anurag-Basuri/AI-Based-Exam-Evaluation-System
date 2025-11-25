@@ -37,13 +37,14 @@ const IconMini = ({ children }) => (
 			alignItems: 'center',
 			justifyContent: 'center',
 			background: 'rgba(0,0,0,0.04)',
+			flexShrink: 0,
 		}}
 	>
 		{children}
 	</div>
 );
 
-// Field (was missing) - lightweight label/value pair used in profile card
+// Field - lightweight label/value pair used in profile card
 const Field = ({ label, children }) => (
 	<div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
 		<div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 700 }}>{label}</div>
@@ -55,17 +56,18 @@ const KPI = ({ label, value, color = '#6366f1', subtitle }) => (
 	<div
 		style={{
 			padding: 14,
-			borderRadius: 14,
-			background: 'linear-gradient(180deg, rgba(255,255,255,0.6), rgba(255,255,255,0.02))',
+			borderRadius: 12,
+			background: 'var(--surface)',
 			display: 'flex',
 			alignItems: 'center',
 			gap: 12,
-			border: '1px solid rgba(100,100,120,0.06)',
-			boxShadow: '0 6px 18px rgba(11,15,22,0.04)',
+			border: '1px solid var(--border)',
+			minWidth: 160,
+			flex: '1 1 180px',
 		}}
 	>
 		<IconMini>
-			<svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+			<svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
 				<rect x="3" y="4" width="14" height="16" rx="2" stroke={color} strokeWidth="1.4" />
 			</svg>
 		</IconMini>
@@ -78,16 +80,6 @@ const KPI = ({ label, value, color = '#6366f1', subtitle }) => (
 				)}
 			</div>
 		</div>
-		<svg width="64" height="28" viewBox="0 0 64 28" fill="none" aria-hidden>
-			<path
-				d="M2 20L14 12L28 16L40 10L62 14"
-				stroke={color}
-				strokeWidth="1.6"
-				strokeLinecap="round"
-				strokeLinejoin="round"
-				opacity="0.9"
-			/>
-		</svg>
 	</div>
 );
 
@@ -117,7 +109,7 @@ const StatusBadge = ({ status }) => {
 };
 
 // --- Main Component ---
-const MOBILE_BREAKPOINT = 1024;
+const MOBILE_BREAKPOINT = 880;
 
 const applyThemeVars = mode => {
 	if (typeof window === 'undefined') return;
@@ -177,7 +169,8 @@ const TeacherHome = () => {
 			if (!resp || typeof resp !== 'object') {
 				setData(DEFAULT_DASH);
 			} else {
-				setData(prev => ({ ...DEFAULT_DASH, ...prev, ...resp }));
+				// Merge with defaults so missing fields are safe
+				setData({ ...DEFAULT_DASH, ...(resp || {}) });
 			}
 		} catch (e) {
 			console.warn('Dashboard load failed', e);
@@ -230,22 +223,41 @@ const TeacherHome = () => {
 			  }
 			: null);
 
+	const getInitials = t => {
+		const name = (t?.fullname || t?.username || 'T').trim();
+		const parts = name.split(/\s+/).filter(Boolean);
+		if (parts.length === 0) return 'T';
+		return parts
+			.map(p => p[0])
+			.slice(0, 2)
+			.join('')
+			.toUpperCase();
+	};
+
 	// Small loading skeleton component
 	const Skeleton = ({ height = 12, width = '100%', radius = 8 }) => (
-		<div style={{ background: 'var(--skeleton)', height, width, borderRadius: radius }} />
+		<div
+			style={{
+				background: 'var(--skeleton)',
+				height,
+				width,
+				borderRadius: radius,
+			}}
+		/>
 	);
 
 	return (
 		<div
 			style={{
-				maxWidth: 1200,
+				maxWidth: 1100,
 				margin: '0 auto',
-				padding: 20,
+				padding: isMobile ? 12 : 20,
 				fontFamily:
 					'Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial',
 				background: 'var(--bg)',
 				color: 'var(--text)',
 				minHeight: '100vh',
+				boxSizing: 'border-box',
 			}}
 		>
 			<header
@@ -255,31 +267,33 @@ const TeacherHome = () => {
 					alignItems: 'center',
 					gap: 12,
 					marginBottom: 8,
+					flexWrap: 'wrap',
 				}}
 			>
-				<div>
-					<h1 style={{ margin: 0, fontSize: 24 }}>{teacher?.fullname ?? 'Teacher'}</h1>
+				<div style={{ minWidth: 0 }}>
+					<h1 style={{ margin: 0, fontSize: 20 }}>{teacher?.fullname ?? 'Teacher'}</h1>
 					<div style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 6 }}>
 						{teacher?.department ?? 'Department not set'}
 					</div>
 				</div>
-				<div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+				<div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
 					<button
+						type="button"
 						onClick={() => navigate('/teacher/exams/create')}
 						style={{
-							padding: '10px 14px',
+							padding: '8px 12px',
 							borderRadius: 10,
 							background: 'linear-gradient(90deg,#4f46e5,#3b82f6)',
 							color: '#fff',
 							border: 'none',
 							fontWeight: 700,
-							boxShadow: '0 8px 24px rgba(59,130,246,0.12)',
 						}}
 					>
 						New Exam
 					</button>
 
 					<button
+						type="button"
 						onClick={() =>
 							setThemeMode(mode =>
 								mode === 'dark' ? 'light' : mode === 'light' ? 'system' : 'dark',
@@ -302,6 +316,7 @@ const TeacherHome = () => {
 					</button>
 
 					<button
+						type="button"
 						onClick={() => navigate('/teacher/settings')}
 						style={{
 							padding: '8px 12px',
@@ -332,8 +347,8 @@ const TeacherHome = () => {
 			<section
 				style={{
 					display: 'grid',
-					gridTemplateColumns: isMobile ? '1fr' : '360px 1fr',
-					gap: 20,
+					gridTemplateColumns: isMobile ? '1fr' : '320px 1fr',
+					gap: 18,
 					marginTop: 18,
 				}}
 			>
@@ -342,38 +357,33 @@ const TeacherHome = () => {
 					{/* Profile Card */}
 					<div
 						style={{
-							padding: 18,
-							borderRadius: 14,
+							padding: 16,
+							borderRadius: 12,
 							background: 'var(--surface)',
 							border: '1px solid var(--border)',
-							boxShadow: 'var(--shadow-sm)',
 						}}
 					>
 						<div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
 							<div
 								style={{
-									width: 72,
-									height: 72,
-									borderRadius: 14,
+									width: 64,
+									height: 64,
+									borderRadius: 12,
 									background: 'linear-gradient(135deg,#6366f1,#8b5cf6)',
 									color: '#fff',
 									display: 'flex',
 									alignItems: 'center',
 									justifyContent: 'center',
 									fontWeight: 800,
-									fontSize: 28,
-									boxShadow: '0 8px 20px rgba(99,102,241,0.12)',
+									fontSize: 22,
+									boxShadow: '0 6px 16px rgba(99,102,241,0.08)',
+									flexShrink: 0,
 								}}
-								aria-hidden
+								aria-hidden="true"
 							>
-								{(teacher?.fullname ?? teacher?.username ?? 'T')
-									.split(' ')
-									.map(p => p[0])
-									.join('')
-									.slice(0, 2)
-									.toUpperCase()}
+								{getInitials(teacher)}
 							</div>
-							<div style={{ flex: 1 }}>
+							<div style={{ flex: 1, minWidth: 0 }}>
 								<div style={{ fontSize: 16, fontWeight: 800, letterSpacing: -0.2 }}>
 									{loading ? (
 										<Skeleton height={18} width={160} />
@@ -386,6 +396,9 @@ const TeacherHome = () => {
 										fontSize: 13,
 										color: 'var(--text-muted)',
 										marginTop: 6,
+										overflow: 'hidden',
+										textOverflow: 'ellipsis',
+										whiteSpace: 'nowrap',
 									}}
 								>
 									{loading ? (
@@ -409,7 +422,7 @@ const TeacherHome = () => {
 											height="14"
 											viewBox="0 0 24 24"
 											fill="none"
-											aria-hidden
+											aria-hidden="true"
 										>
 											<path
 												d="M3 8v10a2 2 0 0 0 2 2h14"
@@ -442,7 +455,7 @@ const TeacherHome = () => {
 							style={{
 								display: 'grid',
 								gridTemplateColumns: '1fr 1fr',
-								gap: 8,
+								gap: 10,
 								marginTop: 14,
 							}}
 						>
@@ -472,13 +485,13 @@ const TeacherHome = () => {
 							</Field>
 						</div>
 
-						{/* Actions: removed Copy Email & Export as requested */}
-						<div style={{ marginTop: 14, display: 'flex', gap: 8 }}>
+						<div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
 							<button
+								type="button"
 								onClick={() => navigate('/teacher/activity')}
 								style={{
 									flex: 1,
-									padding: '10px 12px',
+									padding: '8px 10px',
 									borderRadius: 10,
 									border: '1px solid var(--border)',
 									background: 'transparent',
@@ -488,9 +501,10 @@ const TeacherHome = () => {
 								View Activity
 							</button>
 							<button
+								type="button"
 								onClick={() => navigate('/teacher/settings')}
 								style={{
-									padding: '10px 12px',
+									padding: '8px 10px',
 									borderRadius: 10,
 									background: 'linear-gradient(90deg,#eef2ff,#eef6ff)',
 									border: 'none',
@@ -505,7 +519,7 @@ const TeacherHome = () => {
 					{/* Contact & security */}
 					<div
 						style={{
-							padding: 14,
+							padding: 12,
 							borderRadius: 12,
 							background: 'var(--surface)',
 							border: '1px solid var(--border)',
@@ -515,10 +529,11 @@ const TeacherHome = () => {
 						<Field label="Department">{teacher?.department ?? '—'}</Field>
 						<div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
 							<button
+								type="button"
 								onClick={() => navigate('/teacher/change-password')}
 								style={{
 									flex: 1,
-									padding: '10px 12px',
+									padding: '8px 10px',
 									borderRadius: 10,
 									border: '1px solid var(--border)',
 									background: 'transparent',
@@ -527,9 +542,10 @@ const TeacherHome = () => {
 								Change Password
 							</button>
 							<button
+								type="button"
 								onClick={() => navigate('/teacher/contacts')}
 								style={{
-									padding: '10px 12px',
+									padding: '8px 10px',
 									borderRadius: 10,
 									border: '1px solid var(--border)',
 									background: 'transparent',
@@ -546,9 +562,10 @@ const TeacherHome = () => {
 					{/* KPIs */}
 					<div
 						style={{
-							display: 'grid',
-							gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)',
+							display: 'flex',
 							gap: 12,
+							flexWrap: 'wrap',
+							alignItems: 'stretch',
 						}}
 					>
 						<KPI
@@ -588,10 +605,11 @@ const TeacherHome = () => {
 						{/* Recent submissions */}
 						<div
 							style={{
-								padding: 14,
+								padding: 12,
 								borderRadius: 12,
 								background: 'var(--surface)',
 								border: '1px solid var(--border)',
+								overflow: 'hidden',
 							}}
 						>
 							<div
@@ -599,6 +617,7 @@ const TeacherHome = () => {
 									display: 'flex',
 									justifyContent: 'space-between',
 									alignItems: 'center',
+									marginBottom: 8,
 								}}
 							>
 								<div
@@ -620,6 +639,7 @@ const TeacherHome = () => {
 									Recent Submissions
 								</div>
 								<button
+									type="button"
 									onClick={() => navigate('/teacher/results')}
 									style={{
 										background: 'transparent',
@@ -633,10 +653,12 @@ const TeacherHome = () => {
 
 							<div
 								style={{
-									marginTop: 10,
 									display: 'flex',
 									flexDirection: 'column',
 									gap: 10,
+									maxHeight: 320,
+									overflowY: 'auto',
+									paddingRight: 6,
 								}}
 							>
 								{loading ? (
@@ -646,11 +668,10 @@ const TeacherHome = () => {
 											style={{
 												display: 'flex',
 												gap: 12,
-												padding: 12,
+												padding: 10,
 												borderRadius: 10,
 												alignItems: 'center',
-												background:
-													'linear-gradient(90deg, rgba(0,0,0,0.01), transparent)',
+												background: 'transparent',
 											}}
 										>
 											<Skeleton height={48} width={48} radius={8} />
@@ -675,7 +696,7 @@ const TeacherHome = () => {
 											height="42"
 											viewBox="0 0 24 24"
 											fill="none"
-											aria-hidden
+											aria-hidden="true"
 										>
 											<path
 												d="M3 12v6a2 2 0 0 0 2 2h14"
@@ -702,21 +723,12 @@ const TeacherHome = () => {
 												display: 'flex',
 												alignItems: 'center',
 												gap: 12,
-												padding: 12,
+												padding: 10,
 												borderRadius: 10,
 												cursor: 'pointer',
-												transition: 'transform .12s, box-shadow .12s',
-												boxShadow: '0 6px 18px rgba(11,15,22,0.03)',
 											}}
 											onClick={() =>
 												navigate(`/teacher/grade/${s._id || s.id}`)
-											}
-											onMouseEnter={e =>
-												(e.currentTarget.style.transform =
-													'translateY(-3px)')
-											}
-											onMouseLeave={e =>
-												(e.currentTarget.style.transform = 'none')
 											}
 										>
 											<div
@@ -733,10 +745,21 @@ const TeacherHome = () => {
 													fontSize: 18,
 												}}
 											>
-												{(s.student?.fullname || 'S')[0]}
+												{
+													(s.student?.fullname ||
+														s.student?.username ||
+														'S')[0]
+												}
 											</div>
-											<div style={{ flex: 1 }}>
-												<div style={{ fontWeight: 800 }}>
+											<div style={{ flex: 1, minWidth: 0 }}>
+												<div
+													style={{
+														fontWeight: 800,
+														overflow: 'hidden',
+														textOverflow: 'ellipsis',
+														whiteSpace: 'nowrap',
+													}}
+												>
 													{s.student?.fullname ??
 														s.student?.username ??
 														'Student'}
@@ -745,6 +768,7 @@ const TeacherHome = () => {
 													style={{
 														fontSize: 12,
 														color: 'var(--text-muted)',
+														marginTop: 4,
 													}}
 												>
 													{s.exam?.title ?? s.examTitle} •{' '}
@@ -778,7 +802,7 @@ const TeacherHome = () => {
 						{/* Exams to review */}
 						<div
 							style={{
-								padding: 14,
+								padding: 12,
 								borderRadius: 12,
 								background: 'var(--surface)',
 								border: '1px solid var(--border)',
@@ -789,10 +813,12 @@ const TeacherHome = () => {
 									display: 'flex',
 									justifyContent: 'space-between',
 									alignItems: 'center',
+									marginBottom: 8,
 								}}
 							>
 								<div style={{ fontWeight: 800 }}>Exams Needing Review</div>
 								<button
+									type="button"
 									onClick={() => navigate('/teacher/exams')}
 									style={{
 										background: 'transparent',
@@ -803,14 +829,7 @@ const TeacherHome = () => {
 									Manage
 								</button>
 							</div>
-							<div
-								style={{
-									marginTop: 10,
-									display: 'flex',
-									flexDirection: 'column',
-									gap: 10,
-								}}
-							>
+							<div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
 								{loading ? (
 									<Skeleton height={80} width={'100%'} />
 								) : (data.examsToReview || []).length === 0 ? (
@@ -825,24 +844,26 @@ const TeacherHome = () => {
 												display: 'flex',
 												justifyContent: 'space-between',
 												alignItems: 'center',
-												padding: 12,
+												padding: 10,
 												borderRadius: 10,
 												border: '1px dashed rgba(100,100,120,0.06)',
 												cursor: 'pointer',
-												transition: 'background .12s, transform .12s',
 											}}
 											onClick={() =>
 												navigate(`/teacher/results/${e._id || e.id}`)
 											}
-											onMouseEnter={ev =>
-												(ev.currentTarget.style.transform =
-													'translateY(-3px)')
-											}
-											onMouseLeave={ev =>
-												(ev.currentTarget.style.transform = 'none')
-											}
 										>
-											<div style={{ fontWeight: 800 }}>{e.title}</div>
+											<div
+												style={{
+													fontWeight: 800,
+													overflow: 'hidden',
+													textOverflow: 'ellipsis',
+													whiteSpace: 'nowrap',
+													marginRight: 8,
+												}}
+											>
+												{e.title}
+											</div>
 											<div
 												style={{
 													display: 'flex',
@@ -889,12 +910,14 @@ const TeacherHome = () => {
 							display: 'flex',
 							gap: 8,
 							justifyContent: isMobile ? 'stretch' : 'flex-start',
+							flexWrap: 'wrap',
 						}}
 					>
 						<button
+							type="button"
 							onClick={() => navigate('/teacher/exams/create')}
 							style={{
-								padding: '10px 14px',
+								padding: '8px 12px',
 								borderRadius: 10,
 								background: 'linear-gradient(90deg,#4f46e5,#3b82f6)',
 								color: '#fff',
@@ -904,9 +927,10 @@ const TeacherHome = () => {
 							Create Exam
 						</button>
 						<button
+							type="button"
 							onClick={() => navigate('/teacher/questions')}
 							style={{
-								padding: '10px 14px',
+								padding: '8px 12px',
 								borderRadius: 10,
 								border: '1px solid var(--border)',
 								background: 'transparent',
@@ -915,9 +939,10 @@ const TeacherHome = () => {
 							Question Bank
 						</button>
 						<button
+							type="button"
 							onClick={() => navigate('/teacher/issues')}
 							style={{
-								padding: '10px 14px',
+								padding: '8px 12px',
 								borderRadius: 10,
 								border: '1px solid var(--border)',
 								background: 'transparent',
