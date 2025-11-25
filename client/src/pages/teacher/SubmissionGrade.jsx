@@ -11,9 +11,9 @@ const AiInsight = ({ meta }) => {
 	const renderList = (title, items) => {
 		if (!Array.isArray(items) || items.length === 0) return null;
 		return (
-			<div>
-				<strong style={{ fontSize: 13, color: 'var(--text-muted)' }}>{title}</strong>
-				<ul style={{ margin: '4px 0', paddingLeft: 20, fontSize: 14 }}>
+			<div className="sg-ai-list">
+				<div className="sg-ai-title">{title}</div>
+				<ul>
 					{items.map((item, i) => (
 						<li key={i}>{typeof item === 'string' ? item : JSON.stringify(item)}</li>
 					))}
@@ -23,25 +23,13 @@ const AiInsight = ({ meta }) => {
 	};
 
 	return (
-		<div
-			style={{
-				background: 'color-mix(in srgb, var(--primary) 5%, transparent)',
-				border: '1px solid color-mix(in srgb, var(--primary) 20%, transparent)',
-				borderRadius: 8,
-				padding: '12px 16px',
-				marginTop: 12,
-				display: 'grid',
-				gap: 8,
-			}}
-		>
-			<h5 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: 'var(--primary)' }}>
-				🤖 AI Evaluation Insights
-			</h5>
+		<div className="sg-ai-box" role="region" aria-label="AI evaluation insights">
+			<div className="sg-ai-header">🤖 AI Evaluation Insights</div>
 			{renderList('Rubric Breakdown:', meta.rubric_breakdown)}
 			{renderList('Keywords Matched:', meta.keywords_matched)}
 			{renderList('Penalties Applied:', meta.penalties_applied)}
 			{meta.fallback && (
-				<p style={{ fontSize: 13, margin: 0, color: '#f59e0b' }}>
+				<p className="sg-ai-fallback">
 					Fell back to a simpler evaluation model. Reason:{' '}
 					{meta.reason || 'Not specified'}
 				</p>
@@ -50,24 +38,27 @@ const AiInsight = ({ meta }) => {
 	);
 };
 
-const AnswerCard = ({ answer, evaluation, onUpdate, disabled }) => {
+const AnswerCard = ({ idx, answer, evaluation, onUpdate, disabled }) => {
 	const question = answer.question;
 	const isMCQ = question.type === 'multiple-choice';
 	const aiEval = evaluation?.evaluation;
 	const teacherEval = aiEval?.evaluator === 'teacher';
 
-	// FIX: Initialize state from evaluation, ensuring it reflects the most recent data.
 	const [marks, setMarks] = React.useState(aiEval?.marks ?? 0);
 	const [remarks, setRemarks] = React.useState(aiEval?.remarks ?? '');
 
-	// Sync local state if the parent evaluation data changes (e.g., after a save)
 	React.useEffect(() => {
 		setMarks(aiEval?.marks ?? 0);
 		setRemarks(aiEval?.remarks ?? '');
 	}, [aiEval]);
 
+	const clampMarks = value =>
+		Number.isNaN(Number(value))
+			? 0
+			: Math.max(0, Math.min(question.max_marks || 0, Number(value)));
+
 	const handleMarksChange = e => {
-		const newMarks = Math.max(0, Math.min(question.max_marks, Number(e.target.value)));
+		const newMarks = clampMarks(e.target.value);
 		setMarks(newMarks);
 		onUpdate(question._id, newMarks, remarks);
 	};
@@ -78,176 +69,124 @@ const AnswerCard = ({ answer, evaluation, onUpdate, disabled }) => {
 		onUpdate(question._id, marks, newRemarks);
 	};
 
-	let studentResponse = <i style={{ color: 'var(--text-muted)' }}>No answer provided.</i>;
+	const quickAdjust = delta => {
+		const newMarks = clampMarks((marks || 0) + delta);
+		setMarks(newMarks);
+		onUpdate(question._id, newMarks, remarks);
+	};
+
+	let studentResponse = <i className="sg-muted">No answer provided.</i>;
 	if (isMCQ) {
-		const selectedOption = question.options.find(
+		const selectedOption = (question.options || []).find(
 			opt => String(opt._id) === String(answer.responseOption),
 		);
-		const correctOption = question.options.find(opt => opt.isCorrect);
+		const correctOption = (question.options || []).find(opt => opt.isCorrect);
 
 		studentResponse = (
-			<div style={{ display: 'grid', gap: '8px' }}>
+			<div className="sg-mcq">
 				<div>
 					<strong>Student's Answer: </strong>
 					{selectedOption ? (
 						<span
-							style={{
-								color: selectedOption.isCorrect ? '#10b981' : '#ef4444',
-								fontWeight: 700,
-							}}
+							className={`sg-pill ${
+								selectedOption.isCorrect ? 'sg-pill-ok' : 'sg-pill-wrong'
+							}`}
 						>
 							{selectedOption.text}
 						</span>
 					) : (
-						<i style={{ color: 'var(--text-muted)' }}>No option selected.</i>
+						<i className="sg-muted">No option selected.</i>
 					)}
 				</div>
-				<div>
+				<div style={{ marginTop: 6 }}>
 					<strong>Correct Answer: </strong>
-					<span style={{ color: '#10b981', fontWeight: 500 }}>
-						{correctOption?.text ?? 'N/A'}
-					</span>
+					<span className="sg-correct">{correctOption?.text ?? 'N/A'}</span>
 				</div>
 			</div>
 		);
 	} else if (answer.responseText) {
-		studentResponse = (
-			<p style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{answer.responseText}</p>
-		);
+		studentResponse = <pre className="sg-response">{answer.responseText}</pre>;
 	}
 
 	return (
-		<div
-			style={{
-				background: 'var(--surface)',
-				border: '1px solid var(--border)',
-				borderRadius: 16,
-				boxShadow: 'var(--shadow-sm)',
-			}}
-		>
-			<div
-				style={{
-					padding: '16px 20px',
-					borderBottom: '1px solid var(--border)',
-					display: 'flex',
-					flexWrap: 'wrap', // Allow wrapping on small screens
-					justifyContent: 'space-between',
-					alignItems: 'flex-start',
-					gap: 12,
-				}}
-			>
-				<h4
-					style={{
-						margin: 0,
-						fontSize: 16,
-						fontWeight: 700,
-						lineHeight: 1.4,
-						flex: '1 1 300px',
-					}}
-				>
-					{question.text}
-				</h4>
-				<span
-					style={{
-						fontSize: 12,
-						fontWeight: 700,
-						color: 'var(--text)',
-						background: 'var(--bg)',
-						border: '1px solid var(--border)',
-						padding: '4px 8px',
-						borderRadius: 6,
-						whiteSpace: 'nowrap',
-						height: 'fit-content',
-					}}
-				>
-					{question.max_marks} Marks
-				</span>
-			</div>
-			<div style={{ padding: '16px 20px', background: 'var(--bg)' }}>
-				<strong style={{ fontSize: 13, color: 'var(--text-muted)', display: 'block' }}>
-					Student's Answer
-				</strong>
-				<div style={{ marginTop: 8, fontSize: 15 }}>{studentResponse}</div>
-			</div>
-			<div style={{ padding: '16px 20px' }}>
-				<div
-					className="grade-inputs"
-					style={{ display: 'grid', gridTemplateColumns: '1fr 120px', gap: 16 }}
-				>
-					<div>
-						<label
-							style={{
-								fontSize: 13,
-								fontWeight: 600,
-								display: 'block',
-								color: teacherEval ? 'var(--primary)' : 'inherit',
-							}}
-						>
-							Remarks {teacherEval && '(Edited by you)'}
-						</label>
-						<textarea
-							value={remarks}
-							onChange={handleRemarksChange}
-							disabled={disabled}
-							rows="3"
-							style={{
-								width: '100%',
-								marginTop: 4,
-								resize: 'vertical',
-								padding: '8px 12px',
-								borderRadius: 8,
-								border: '1px solid var(--border)',
-							}}
-						/>
+		<article className="answer-card" aria-labelledby={`q-${idx}`}>
+			<div className="answer-header">
+				<div className="answer-meta">
+					<div id={`q-${idx}`} className="answer-title">
+						<span className="answer-index">{idx}.</span>
+						{question.text}
 					</div>
-					<div>
-						<label
-							style={{
-								fontSize: 13,
-								fontWeight: 600,
-								display: 'block',
-								color: teacherEval ? 'var(--primary)' : 'inherit',
-							}}
+					<div className="answer-submeta">
+						<span className="sg-tag">{question.type}</span>
+						<span className="sg-tag">Max {question.max_marks}</span>
+						{teacherEval && <span className="sg-badge">Edited</span>}
+					</div>
+				</div>
+
+				<div className="answer-actions" aria-hidden={disabled}>
+					<div className="marks-control" title="Adjust marks">
+						<button
+							type="button"
+							className="btn btn-ghost"
+							onClick={() => quickAdjust(-1)}
+							disabled={disabled}
+							aria-label="Decrease marks"
 						>
-							Marks
-						</label>
+							−
+						</button>
 						<input
 							type="number"
+							className="marks-input"
 							value={marks}
 							onChange={handleMarksChange}
-							disabled={disabled}
-							max={question.max_marks}
 							min={0}
-							style={{
-								width: '100%',
-								marginTop: 4,
-								textAlign: 'center',
-								padding: '8px 12px',
-								borderRadius: 8,
-								border: `1px solid ${
-									teacherEval ? 'var(--primary)' : 'var(--border)'
-								}`,
-								fontSize: 16,
-								fontWeight: 700,
-							}}
+							max={question.max_marks}
+							disabled={disabled}
+							aria-label={`Marks for question ${idx}`}
 						/>
+						<button
+							type="button"
+							className="btn btn-ghost"
+							onClick={() => quickAdjust(1)}
+							disabled={disabled}
+							aria-label="Increase marks"
+						>
+							+
+						</button>
 					</div>
 				</div>
 			</div>
-			{aiEval?.meta && <AiInsight meta={aiEval.meta} />}
-			<style>{`
-        @media (max-width: 480px) {
-          .grade-inputs {
-            grid-template-columns: 1fr;
-          }
-        }
-      `}</style>
-		</div>
+
+			<div className="answer-body">
+				<div className="answer-section">
+					<div className="section-title">Student's Answer</div>
+					<div>{studentResponse}</div>
+				</div>
+
+				<div className="answer-section">
+					<div className="section-title">Teacher Remarks</div>
+					<textarea
+						value={remarks}
+						onChange={handleRemarksChange}
+						disabled={disabled}
+						rows={3}
+						placeholder="Add or edit remarks for the student..."
+						aria-label={`Remarks for question ${idx}`}
+					/>
+				</div>
+
+				{aiEval?.meta && (
+					<div style={{ marginTop: 10 }}>
+						<AiInsight meta={aiEval.meta} />
+					</div>
+				)}
+			</div>
+		</article>
 	);
 };
 
 const TeacherSubmissionGrade = () => {
-	const { submissionId, examId } = useParams(); // Get examId from URL
+	const { submissionId, examId } = useParams();
 	const navigate = useNavigate();
 	const { success, error: toastError } = useToast();
 
@@ -286,9 +225,8 @@ const TeacherSubmissionGrade = () => {
 		const payload = Object.values(updatedEvals);
 		if (payload.length === 0) {
 			toastError('No changes to save.');
-			return; // Exit early
+			return;
 		}
-
 		setSaving(true);
 		try {
 			await TeacherSvc.safeApiCall(
@@ -297,7 +235,7 @@ const TeacherSubmissionGrade = () => {
 				payload,
 			);
 			success('Grades updated successfully!');
-			// IMPORTANT: Only navigate on success
+			// Refresh page after save to reflect authoritative data
 			navigate(`/teacher/results/${examId}`);
 		} catch (e) {
 			toastError(e.message || 'Failed to save changes.');
@@ -306,86 +244,271 @@ const TeacherSubmissionGrade = () => {
 		}
 	};
 
-	if (loading)
-		return <div style={{ textAlign: 'center', padding: 40 }}>Loading Grading Interface...</div>;
+	if (loading) return <div className="sg-empty">Loading grading interface…</div>;
 	if (error) return <Alert type="error">{error}</Alert>;
 	if (!submission) return <Alert>Submission data could not be found.</Alert>;
 
+	// Build maps for quick lookup
 	const answersMap = new Map(submission.answers.map(a => [String(a.question._id), a]));
 	const evalsMap = new Map(submission.evaluations.map(e => [String(e.question), e]));
 
+	// Utility: compute totals (including unsaved local edits)
+	const computeTotals = () => {
+		let awarded = 0;
+		let max = 0;
+		submission.answers.forEach(ans => {
+			const q = ans.question;
+			const qid = String(q._id);
+			const qMax = Number(q.max_marks || 0);
+			max += qMax;
+
+			const baseEval = evalsMap.get(qid)?.evaluation;
+			const baseMarks = baseEval?.marks ?? 0;
+			const pending = updatedEvals[qid]?.marks;
+			const finalMarks = typeof pending === 'number' ? pending : baseMarks;
+			awarded += Number(finalMarks || 0);
+		});
+		return { awarded, max };
+	};
+
+	const totals = computeTotals();
+	const totalQuestions = submission.answers.length;
+	const gradedCount = submission.evaluations.filter(Boolean).length;
+
 	return (
-		<div>
+		<div className="sg-root">
+			<style>{`
+                :root {
+                    --sg-bg: var(--bg, #f6f8fb);
+                    --sg-surface: var(--surface, #fff);
+                    --sg-border: var(--border, rgba(2,6,23,0.06));
+                    --sg-primary: var(--primary, #2563eb);
+                    --sg-accent: #10b981;
+                    --sg-muted: var(--text-muted, #6b7280);
+                    --sg-shadow: 0 8px 24px rgba(15,23,42,0.06);
+                }
+
+                .sg-root { padding: 20px; max-width: 1100px; margin: 0 auto; color: var(--text, #0b1220); }
+                .sg-grid { display: grid; gap: 20px; grid-template-columns: 1fr 320px; align-items: start; }
+                @media (max-width: 980px) { .sg-grid { grid-template-columns: 1fr; } }
+
+                .sg-empty { padding: 80px 16px; text-align:center; color:var(--sg-muted); }
+
+                /* Answer card */
+                .answer-card { background: var(--sg-surface); border:1px solid var(--sg-border); border-radius:14px; box-shadow: var(--sg-shadow); overflow:hidden; }
+                .answer-header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding:18px 20px; border-bottom:1px solid var(--sg-border); }
+                .answer-title { font-weight:700; font-size:15px; line-height:1.3; display:flex; gap:10px; align-items:center; max-width: calc(100% - 160px); }
+                .answer-index { background: linear-gradient(90deg,#eef2ff,#eef6ff); color:var(--sg-primary); padding:6px 10px; border-radius:10px; font-weight:800; font-size:13px; display:inline-block; }
+                .answer-submeta { display:flex; gap:8px; align-items:center; margin-top:8px; font-size:12px; color:var(--sg-muted); flex-wrap:wrap; }
+                .sg-tag { background: rgba(99,102,241,0.06); padding:6px 8px; border-radius:8px; font-weight:700; }
+                .sg-badge { background:#fff7ed; color:#b45309; padding:6px 8px; border-radius:999px; font-weight:700; font-size:12px; }
+
+                .answer-actions { display:flex; gap:8px; align-items:center; }
+                .marks-control { display:flex; align-items:center; gap:8px; background: linear-gradient(180deg,#fff,#fbfbff); padding:6px; border-radius:10px; border:1px solid var(--sg-border); }
+                .marks-input { width:84px; text-align:center; font-weight:800; font-size:16px; padding:8px 6px; border-radius:8px; border:1px solid transparent; background:transparent; }
+                .btn { display:inline-flex; align-items:center; justify-content:center; border-radius:8px; padding:6px 8px; border:1px solid transparent; cursor:pointer; background:transparent; }
+                .btn-ghost { width:34px; height:34px; border:1px solid var(--sg-border); background:transparent; font-weight:700; }
+
+                .answer-body { padding:18px 20px; display:flex; flex-direction:column; gap:12px; }
+                .answer-section { display:flex; flex-direction:column; gap:8px; }
+                .section-title { font-weight:700; color:var(--sg-muted); font-size:13px; }
+                .sg-response { white-space:pre-wrap; background: #fbfbff; padding:12px; border-radius:8px; border:1px solid var(--sg-border); }
+                .sg-muted { color: var(--sg-muted); }
+
+                /* AI box */
+                .sg-ai-box { border-radius:10px; padding:12px; background: linear-gradient(180deg, rgba(37,99,235,0.04), rgba(37,99,235,0.02)); border:1px solid rgba(37,99,235,0.08); }
+                .sg-ai-header { font-weight:800; color:var(--sg-primary); font-size:14px; }
+                .sg-ai-list { margin-top:6px; }
+                .sg-ai-list .sg-ai-title { font-weight:700; color:var(--sg-muted); font-size:13px; margin-bottom:6px; }
+                .sg-ai-fallback { color:#b45309; margin:0; }
+
+                /* Sidebar */
+                .sg-sidebar { position:relative; top:0; display:flex; flex-direction:column; gap:12px; }
+                .sg-card { background:var(--sg-surface); border-radius:12px; padding:16px; border:1px solid var(--sg-border); box-shadow: var(--sg-shadow); }
+                .sg-summary { display:flex; flex-direction:column; gap:10px; }
+                .sg-score { display:flex; align-items:baseline; gap:8px; font-weight:800; font-size:20px; }
+                .sg-progress { height:10px; background:#eef2f5; border-radius:999px; overflow:hidden; }
+                .sg-progress > i { display:block; height:100%; background:linear-gradient(90deg,var(--sg-primary), #7c3aed); width:30%; }
+
+                .btn-primary { background: linear-gradient(135deg,#10b981,#059669); color:#fff; padding:10px 14px; border-radius:10px; border:none; font-weight:800; cursor:pointer; }
+                .btn-ghost-lg { background:transparent; border:1px solid var(--sg-border); padding:10px 14px; border-radius:10px; font-weight:700; cursor:pointer; }
+
+                .sg-quick-actions { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+                @media (max-width: 980px) { .sg-quick-actions { justify-content:flex-start; } }
+
+            `}</style>
+
 			<PageHeader
 				title={`Grading: ${submission.student.fullname}`}
-				subtitle={`For exam: ${submission.exam.title}`}
+				subtitle={`Exam: ${submission.exam.title}`}
 				breadcrumbs={[
 					{ label: 'Home', to: '/teacher' },
 					{ label: 'Results', to: '/teacher/results' },
 					{ label: submission.exam.title, to: `/teacher/results/${examId}` },
 					{ label: 'Grade' },
 				]}
-				actions={[
-					<button
-						key="back"
-						onClick={() => navigate(`/teacher/results/${examId}`)}
-						className="tap"
-						style={{
-							padding: '10px 16px',
-							background: 'var(--bg)',
-							border: '1px solid var(--border)',
-							borderRadius: 8,
-							fontWeight: 700,
-						}}
-					>
-						← Back
-					</button>,
-					<button
-						key="save"
-						onClick={handleSaveChanges}
-						disabled={saving || Object.keys(updatedEvals).length === 0}
-						className="tap"
-						style={{
-							padding: '10px 16px',
-							background: 'linear-gradient(135deg, #10b981, #059669)',
-							color: '#fff',
-							border: 'none',
-							borderRadius: 8,
-							fontWeight: 700,
-							cursor: 'pointer',
-							opacity: saving || Object.keys(updatedEvals).length === 0 ? 0.6 : 1,
-						}}
-					>
-						{saving ? 'Saving...' : 'Save All Changes'}
-					</button>,
-				]}
+				actions={[]}
 			/>
 
-			{submission.violations?.length > 0 && (
-				<div style={{ marginBottom: 16 }}>
-					<Alert type="warning">
-						<strong>{submission.violations.length} Violation(s) Logged:</strong>
-						<ul style={{ margin: '8px 0 0', paddingLeft: 20 }}>
-							{submission.violations.map((v, i) => (
-								<li key={i}>
-									{v.type} at {new Date(v.at).toLocaleTimeString()}
-								</li>
-							))}
-						</ul>
-					</Alert>
-				</div>
-			)}
+			<div className="sg-grid">
+				<main>
+					{submission.violations?.length > 0 && (
+						<div style={{ marginBottom: 12 }}>
+							<Alert type="warning">
+								<strong>{submission.violations.length} Violation(s) Logged:</strong>
+								<ul style={{ margin: '8px 0 0', paddingLeft: 20 }}>
+									{submission.violations.map((v, i) => (
+										<li key={i}>
+											{v.type} at {new Date(v.at).toLocaleTimeString()}
+										</li>
+									))}
+								</ul>
+							</Alert>
+						</div>
+					)}
 
-			<div style={{ display: 'grid', gap: 24, marginTop: 24 }}>
-				{Array.from(answersMap.keys()).map(questionId => (
-					<AnswerCard
-						key={questionId}
-						answer={answersMap.get(questionId)}
-						evaluation={evalsMap.get(questionId)}
-						onUpdate={handleEvaluationUpdate}
-						disabled={saving}
-					/>
-				))}
+					<div style={{ display: 'grid', gap: 16 }}>
+						{submission.answers.map((ans, i) => {
+							const qid = String(ans.question._id);
+							return (
+								<AnswerCard
+									key={qid}
+									idx={i + 1}
+									answer={ans}
+									evaluation={evalsMap.get(qid)}
+									onUpdate={handleEvaluationUpdate}
+									disabled={saving}
+								/>
+							);
+						})}
+					</div>
+				</main>
+
+				<aside className="sg-sidebar" aria-label="Grading summary">
+					<div className="sg-card sg-summary" role="region">
+						<div
+							style={{
+								display: 'flex',
+								justifyContent: 'space-between',
+								alignItems: 'center',
+							}}
+						>
+							<div>
+								<div style={{ fontSize: 13, color: 'var(--sg-muted)' }}>
+									Student
+								</div>
+								<div style={{ fontWeight: 800 }}>{submission.student.fullname}</div>
+								<div style={{ fontSize: 13, color: 'var(--sg-muted)' }}>
+									{submission.student.email}
+								</div>
+							</div>
+							<div style={{ textAlign: 'right' }}>
+								<div style={{ fontSize: 13, color: 'var(--sg-muted)' }}>Status</div>
+								<div
+									style={{
+										fontWeight: 800,
+										color:
+											submission.status === 'published'
+												? 'var(--sg-accent)'
+												: 'inherit',
+									}}
+								>
+									{submission.status}
+								</div>
+							</div>
+						</div>
+
+						<hr style={{ border: 'none', borderTop: '1px solid var(--sg-border)' }} />
+
+						<div
+							style={{
+								display: 'flex',
+								justifyContent: 'space-between',
+								alignItems: 'baseline',
+							}}
+						>
+							<div style={{ fontSize: 13, color: 'var(--sg-muted)' }}>Score</div>
+							<div className="sg-score">
+								{totals.awarded} / {totals.max}
+							</div>
+						</div>
+
+						<div style={{ marginTop: 8 }}>
+							<div className="sg-progress" aria-hidden="true">
+								<i
+									style={{
+										width: `${Math.min(
+											100,
+											(totals.awarded / Math.max(1, totals.max)) * 100,
+										)}%`,
+									}}
+								/>
+							</div>
+							<div style={{ fontSize: 12, color: 'var(--sg-muted)', marginTop: 6 }}>
+								{gradedCount} of {totalQuestions} questions have evaluations
+							</div>
+						</div>
+
+						<div
+							style={{ display: 'flex', gap: 8, marginTop: 12 }}
+							className="sg-quick-actions"
+						>
+							<button
+								type="button"
+								onClick={() => navigate(`/teacher/results/${examId}`)}
+								className="btn-ghost-lg"
+								aria-label="Back to results"
+							>
+								← Back
+							</button>
+							<button
+								type="button"
+								onClick={handleSaveChanges}
+								className="btn-primary"
+								disabled={saving || Object.keys(updatedEvals).length === 0}
+								aria-disabled={saving || Object.keys(updatedEvals).length === 0}
+							>
+								{saving
+									? 'Saving…'
+									: `Save ${
+											Object.keys(updatedEvals).length
+												? `(${Object.keys(updatedEvals).length})`
+												: ''
+									  }`}
+							</button>
+						</div>
+					</div>
+
+					{/* Helpful info / AI insights */}
+					<div className="sg-card" aria-hidden={false}>
+						<div style={{ fontWeight: 800, marginBottom: 8 }}>Exam Info</div>
+						<div style={{ fontSize: 14 }}>{submission.exam.title}</div>
+						<div style={{ fontSize: 13, color: 'var(--sg-muted)', marginTop: 8 }}>
+							Started:{' '}
+							{submission.startedAt
+								? new Date(submission.startedAt).toLocaleString()
+								: '—'}
+						</div>
+						<div style={{ fontSize: 13, color: 'var(--sg-muted)' }}>
+							Submitted:{' '}
+							{submission.submittedAt
+								? new Date(submission.submittedAt).toLocaleString()
+								: '—'}
+						</div>
+					</div>
+
+					{/* Small CTA */}
+					<div className="sg-card" aria-hidden>
+						<div style={{ fontWeight: 800, marginBottom: 8 }}>Quick actions</div>
+						<button
+							className="btn-ghost-lg"
+							style={{ width: '100%' }}
+							onClick={() => window.print()}
+						>
+							Print report
+						</button>
+					</div>
+				</aside>
 			</div>
 		</div>
 	);
