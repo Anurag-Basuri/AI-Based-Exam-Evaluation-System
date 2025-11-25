@@ -183,7 +183,6 @@ function ExamRow({ exam, onAction, loadingAction, onCodeUpdate, isDark }) {
 				)}
 			</td>
 			<td>{exam.duration} min</td>
-			<td>{exam.questionCount ?? exam.questions.length ?? 0}</td>
 			<td>
 				<div style={{ fontSize: 13, color: isDark ? '#a0aec0' : undefined }}>
 					{formatDate(exam.startAt)}
@@ -743,7 +742,6 @@ export default function TeacherExams() {
 							<th>Status</th>
 							<th>Code</th>
 							<th>Duration</th>
-							<th>Questions</th>
 							<th>Dates</th>
 							<th>Actions</th>
 						</tr>
