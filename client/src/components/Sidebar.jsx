@@ -5,19 +5,17 @@ const Sidebar = ({
 	header = null,
 	items = [],
 	footer = null,
-	collapsible = true,
 	width = 280,
-	collapsedWidth = 80,
 	style = {},
 	theme = 'light',
 	expanded: controlledExpanded,
 	defaultExpanded = true,
 	onToggle,
 	mobileBreakpoint = 1024,
+	overlay = false, // new prop: when true, treat as overlay (useful when parent forces drawer)
 }) => {
 	const [internalExpanded, setInternalExpanded] = useState(defaultExpanded);
 	const isControlled = typeof controlledExpanded === 'boolean';
-	const expanded = isControlled ? controlledExpanded : internalExpanded;
 
 	// Mobile detection for overlay behavior
 	const [isMobile, setIsMobile] = useState(
@@ -26,20 +24,15 @@ const Sidebar = ({
 	useEffect(() => {
 		const onResize = () => setIsMobile(window.innerWidth < mobileBreakpoint);
 		window.addEventListener('resize', onResize);
+		onResize();
 		return () => window.removeEventListener('resize', onResize);
 	}, [mobileBreakpoint]);
 
-	const toggle = () => {
-		if (isControlled) {
-			onToggle?.(!controlledExpanded);
-		} else {
-			setInternalExpanded(v => {
-				const nv = !v;
-				onToggle?.(nv);
-				return nv;
-			});
-		}
-	};
+	// treat as drawer when mobile OR overlay requested by parent
+	const isDrawer = isMobile || overlay;
+
+	// When in drawer mode, expansion can be controlled; on desktop always expanded
+	const expanded = isDrawer ? (isControlled ? controlledExpanded : internalExpanded) : true;
 
 	const palette =
 		theme === 'dark'
@@ -58,7 +51,7 @@ const Sidebar = ({
 						'linear-gradient(135deg, rgba(34,197,94,0.18), rgba(16,185,129,0.12))',
 					activeGlow: '0 0 20px rgba(34,197,94,0.25)',
 					shadow: '0 20px 40px rgba(15,23,42,0.4)',
-				}
+			  }
 			: {
 					bg: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
 					card: 'rgba(255,255,255,0.9)',
@@ -74,9 +67,9 @@ const Sidebar = ({
 						'linear-gradient(135deg, rgba(2,132,199,0.12), rgba(59,130,246,0.08))',
 					activeGlow: '0 0 20px rgba(2,132,199,0.2)',
 					shadow: '0 20px 40px rgba(15,23,42,0.1)',
-				};
+			  };
 
-	const navWidth = isMobile ? Math.min(width, 320) : expanded ? width : collapsedWidth;
+	const navWidth = isDrawer ? Math.min(width, 320) : width;
 	const safeItems = useMemo(() => (Array.isArray(items) ? items : []), [items]);
 
 	const NavItem = ({ item }) => {
@@ -92,7 +85,7 @@ const Sidebar = ({
 			padding: expanded ? '12px 14px' : '12px 8px',
 			borderRadius: 12,
 			border: '1px solid transparent',
-			transition: 'all 0.25s ease',
+			transition: 'all 0.18s ease',
 			overflow: 'hidden',
 			fontSize: 14,
 		};
@@ -110,19 +103,8 @@ const Sidebar = ({
 						color: isActive ? palette.accent : palette.fg,
 						border: isActive ? `1px solid ${palette.accent}` : '1px solid transparent',
 						boxShadow: isActive ? palette.activeGlow : 'none',
-						fontWeight: isActive ? 700 : 500,
+						fontWeight: isActive ? 700 : 600,
 					})}
-					onMouseEnter={e => {
-						e.currentTarget.style.transform = 'translateX(3px)';
-						e.currentTarget.style.background = palette.hover;
-					}}
-					onMouseLeave={e => {
-						e.currentTarget.style.transform = 'translateX(0)';
-						const isActive = e.currentTarget.getAttribute('aria-current') === 'page';
-						e.currentTarget.style.background = isActive
-							? palette.activeBg
-							: 'transparent';
-					}}
 				>
 					{({ isActive }) => (
 						<>
@@ -131,12 +113,12 @@ const Sidebar = ({
 									style={{
 										position: 'absolute',
 										left: 0,
-										top: '20%',
-										width: 3,
-										height: '60%',
+										top: '18%',
+										width: 4,
+										height: '64%',
 										borderRadius: '0 4px 4px 0',
 										background: `linear-gradient(135deg, ${palette.accent}, ${palette.accentStrong})`,
-										boxShadow: `0 0 10px ${palette.accent}`,
+										boxShadow: `0 0 10px ${palette.accent}22`,
 									}}
 								/>
 							)}
@@ -150,7 +132,7 @@ const Sidebar = ({
 									justifyContent: 'center',
 									borderRadius: 6,
 									background: isActive
-										? `linear-gradient(135deg, ${palette.accent}20, ${palette.accentStrong}12)`
+										? `linear-gradient(135deg, ${palette.accent}22, ${palette.accentStrong}12)`
 										: 'transparent',
 								}}
 							>
@@ -172,7 +154,7 @@ const Sidebar = ({
 										fontWeight: 800,
 										minWidth: 18,
 										textAlign: 'center',
-										boxShadow: '0 2px 8px rgba(2,132,199,0.25)',
+										boxShadow: '0 2px 8px rgba(2,132,199,0.18)',
 									}}
 								>
 									{item.badge}
@@ -197,18 +179,6 @@ const Sidebar = ({
 					background: 'transparent',
 				}}
 				onClick={item.onClick}
-				onMouseEnter={e => {
-					if (!item.disabled) {
-						e.currentTarget.style.transform = 'translateX(3px)';
-						e.currentTarget.style.background = palette.hover;
-					}
-				}}
-				onMouseLeave={e => {
-					if (!item.disabled) {
-						e.currentTarget.style.transform = 'translateX(0)';
-						e.currentTarget.style.background = 'transparent';
-					}
-				}}
 			>
 				<div
 					style={{
@@ -228,16 +198,15 @@ const Sidebar = ({
 		);
 	};
 
-	// Drawer (mobile) vs Sticky (desktop)
-	const isDrawer = isMobile;
+	// Drawer (mobile or overlay) vs Sticky (desktop)
 	const topOffset = isDrawer ? 'var(--header-h, 64px)' : 'calc(var(--header-h, 64px) + 12px)';
 
 	return (
 		<>
-			{/* Mobile overlay drawer backdrop (under the header) */}
+			{/* Mobile overlay drawer backdrop */}
 			{isDrawer && expanded && (
 				<div
-					onClick={() => toggle()}
+					onClick={() => closeDrawer()}
 					style={{
 						position: 'fixed',
 						top: 'var(--header-h, 64px)',
@@ -265,9 +234,9 @@ const Sidebar = ({
 					background: palette.bg,
 					border: `1px solid ${palette.borderStrong}`,
 					color: palette.fg,
-					boxShadow: palette.shadow,
+					boxShadow: isDrawer ? '0 30px 60px rgba(2,6,23,0.45)' : palette.shadow,
 					zIndex: isDrawer ? 1000 : 1,
-					transition: 'transform 0.25s ease, width 0.25s ease',
+					transition: 'transform 0.22s ease, width 0.2s ease',
 					transform: isDrawer
 						? expanded
 							? 'translateX(0)'
@@ -292,36 +261,7 @@ const Sidebar = ({
 					}}
 				>
 					{header ? <div style={{ flex: 1, minWidth: 0 }}>{header}</div> : <div />}
-					{collapsible && (
-						<button
-							type="button"
-							onClick={toggle}
-							aria-label={expanded ? 'Collapse sidebar' : 'Expand sidebar'}
-							title={expanded ? 'Collapse' : 'Expand'}
-							style={{
-								marginLeft: 10,
-								border: `1px solid ${palette.border}`,
-								background: palette.card,
-								color: palette.fg,
-								padding: '8px 10px',
-								borderRadius: 10,
-								cursor: 'pointer',
-								fontWeight: 800,
-								fontSize: 12,
-								transition: 'all 0.2s ease',
-							}}
-							onMouseEnter={e => {
-								e.currentTarget.style.background = palette.cardHover;
-								e.currentTarget.style.transform = 'scale(1.05)';
-							}}
-							onMouseLeave={e => {
-								e.currentTarget.style.background = palette.card;
-								e.currentTarget.style.transform = 'scale(1)';
-							}}
-						>
-							{isDrawer ? '✖' : expanded ? '◀' : '▶'}
-						</button>
-					)}
+					{/* collapse button removed for consistent UI */}
 				</div>
 
 				{/* Items */}
