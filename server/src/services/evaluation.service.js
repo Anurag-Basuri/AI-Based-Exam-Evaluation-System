@@ -23,118 +23,6 @@ const EVAL_DO_SAMPLE = String(process.env.EVAL_DO_SAMPLE ?? 'false') === 'true';
 const EVAL_MAX_NEW_TOKENS = Number(process.env.EVAL_MAX_NEW_TOKENS || 150);
 const MAX_ANSWER_CHARS = Number(process.env.EVAL_MAX_ANSWER_CHARS || 1500);
 
-const STOP_WORDS = new Set([
-	'a',
-	'an',
-	'the',
-	'and',
-	'or',
-	'but',
-	'if',
-	'then',
-	'else',
-	'when',
-	'while',
-	'for',
-	'to',
-	'of',
-	'in',
-	'on',
-	'at',
-	'by',
-	'from',
-	'with',
-	'as',
-	'is',
-	'are',
-	'was',
-	'were',
-	'be',
-	'been',
-	'being',
-	'it',
-	'its',
-	'this',
-	'that',
-	'these',
-	'those',
-	'which',
-	'who',
-	'whom',
-	'what',
-	'why',
-	'how',
-	'about',
-	'into',
-	'over',
-	'after',
-	'before',
-	'between',
-	'among',
-	'also',
-	'can',
-	'could',
-	'should',
-	'would',
-	'may',
-	'might',
-	'must',
-	'do',
-	'does',
-	'did',
-	'done',
-	'have',
-	'has',
-	'had',
-	'than',
-	'such',
-	'their',
-	'there',
-	'they',
-	'them',
-	'you',
-	'your',
-	'we',
-	'us',
-	'our',
-	'i',
-	'me',
-	'my',
-	'he',
-	'him',
-	'his',
-	'she',
-	'her',
-	'hers',
-	'itself',
-	'themselves',
-]);
-
-function normalizeText(t = '') {
-	return String(t)
-		.toLowerCase()
-		.replace(/[^a-z0-9\s-]/g, ' ')
-		.replace(/\s+/g, ' ')
-		.trim();
-}
-
-function extractKeywordsFromText(text, { maxTerms = 10 } = {}) {
-	const norm = normalizeText(text);
-	if (!norm) return [];
-	const freq = new Map();
-	for (const token of norm.split(' ')) {
-		if (!token || token.length < 3) continue;
-		if (STOP_WORDS.has(token)) continue;
-		const count = freq.get(token) || 0;
-		freq.set(token, count + 1);
-	}
-	const ranked = [...freq.entries()]
-		.sort((a, b) => b[1] - a[1])
-		.slice(0, maxTerms)
-		.map(([term]) => ({ term, weight: 1 }));
-	return ranked;
-}
-
 // Enrich policy: Set defaults for fields that exist in the model.
 function enrichPolicy(basePolicy = {}) {
 	const policy = { ...(basePolicy || {}) };
@@ -214,7 +102,6 @@ function sanitizeAnswer(text) {
 	return { text: trimmed.slice(0, MAX_ANSWER_CHARS), truncated: true };
 }
 function toNumber0_100(any) {
-	// Accept "85", "85.2", "85/100"
 	if (typeof any === 'number') return Math.max(0, Math.min(100, Math.round(any)));
 	const m = String(any ?? '').match(/([0-9]{1,3})(?:\s*\/\s*100)?/);
 	const n = m ? Number(m[1]) : 0;
@@ -229,26 +116,10 @@ function limitSentences(text, maxSentences) {
 	return parts.slice(0, Math.max(1, maxSentences)).join(' ');
 }
 
-// This is no longer needed as the AI response is simpler.
-function ensureRubricBreakdown(parsed, rubric) {
-	if (!Array.isArray(rubric) || rubric.length === 0) return parsed.rubric_breakdown || [];
-	if (!Array.isArray(parsed.rubric_breakdown) || parsed.rubric_breakdown.length === 0) {
-		// Synthesize neutral breakdown for uniform meta structure
-		return rubric.map(r => ({
-			criterion: r.criterion,
-			weight: Number(r.weight || 0),
-			score: null,
-			notes: '',
-		}));
-	}
-	return parsed.rubric_breakdown;
-}
-
 /**
  * Extract a JSON object from model output.
  */
 function extractJson(rawOutput) {
-	// Keep only essential logs: length and detailed errors
 	if (!rawOutput || !rawOutput.length) {
 		console.error('[EVAL_SERVICE_EXTRACT] Empty rawOutput provided to extractJson.');
 		throw new ApiError(500, 'Empty model response', { rawOutput });
@@ -280,7 +151,6 @@ function extractJson(rawOutput) {
 
 /**
  * Heuristic fallback when no reliable AI signal is available.
- * Gives minimal but fair points for non-empty answers and flags for review.
  */
 function heuristicFallback(studentAnswer, policy, weight) {
 	console.warn('[EVAL_SERVICE_FALLBACK] Applying heuristic fallback scoring.');
@@ -294,7 +164,7 @@ function heuristicFallback(studentAnswer, policy, weight) {
 	let base = 5;
 	if (tokens > 30) base += 3;
 	if (tokens > 60) base += 4;
-	if (sentences >= 2) base += 3; // Check for at least 2 sentences
+	if (sentences >= 2) base += 3;
 
 	const score100 = Math.min(20, base);
 	return {
@@ -331,11 +201,9 @@ export async function evaluateAnswer(
 	}
 
 	const effectivePolicy = enrichPolicy(policy || {});
-
 	const policySummary = summarizePolicy(effectivePolicy, qRemarks);
 	const prompt = buildPrompt(cleanQ, cleanAns, referenceAnswer, policySummary);
 
-	// If no AI config is provided, immediately use the heuristic fallback.
 	if (!api || !apiKey) {
 		console.warn(`[EVAL_SERVICE ${evalId}] Missing HF API config. Using fallback scoring.`);
 		const fbHeuristic = heuristicFallback(cleanAns, effectivePolicy, weight);
@@ -382,7 +250,6 @@ export async function evaluateAnswer(
 			let rawOutput = '';
 			const data = response.data;
 
-			// Handle new chat completions response structure
 			if (data?.choices?.[0]?.message?.content) {
 				rawOutput = data.choices[0].message.content;
 			} else if (typeof data === 'string') {
