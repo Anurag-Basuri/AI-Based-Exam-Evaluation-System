@@ -5,7 +5,7 @@ import { io } from 'socket.io-client';
 import { API_BASE_URL } from '../../services/api.js';
 import * as TeacherSvc from '../../services/teacherServices.js';
 
-// --- Simple Status Map ---
+// --- Status Map ---
 const STATUS_LABELS = {
 	active: 'Active',
 	live: 'Live',
@@ -15,84 +15,196 @@ const STATUS_LABELS = {
 	cancelled: 'Cancelled',
 };
 const STATUS_COLORS = {
-	active: '#22c55e',
-	live: '#ef4444',
-	scheduled: '#3b82f6',
+	active: '#16a34a',
+	live: '#dc2626',
+	scheduled: '#2563eb',
 	draft: '#64748b',
 	completed: '#6366f1',
-	cancelled: '#ef4444',
+	cancelled: '#dc2626',
 };
 
-// --- Exam Row (Table) ---
+// --- Spinner ---
+function Spinner({ size = 20 }) {
+	return (
+		<span
+			style={{
+				display: 'inline-block',
+				width: size,
+				height: size,
+				border: '2px solid #cbd5e1',
+				borderTop: '2px solid #6366f1',
+				borderRadius: '50%',
+				animation: 'spin 1s linear infinite',
+				verticalAlign: 'middle',
+			}}
+			aria-label="Loading"
+		/>
+	);
+}
+
+// --- Exam Row ---
 function ExamRow({ exam, onAction, loading }) {
 	const status = exam.derivedStatus || exam.status;
+	const [copied, setCopied] = useState(false);
+
+	const handleCopy = () => {
+		if (exam.searchId) {
+			navigator.clipboard.writeText(exam.searchId);
+			setCopied(true);
+			setTimeout(() => setCopied(false), 1200);
+		}
+	};
+
 	return (
-		<tr style={{ background: loading ? '#f3f4f6' : '#fff', opacity: loading ? 0.5 : 1 }}>
+		<tr
+			style={{
+				background: loading ? '#f3f4f6' : '#fff',
+				opacity: loading ? 0.6 : 1,
+				transition: 'background 0.2s, opacity 0.2s',
+			}}
+		>
 			<td>
-				<b>{exam.title}</b>
-				<div style={{ fontSize: 12, color: '#64748b' }}>{exam.description}</div>
+				<div style={{ fontWeight: 600, fontSize: 16 }}>{exam.title}</div>
+				{exam.description && (
+					<div style={{ fontSize: 13, color: '#64748b', marginTop: 2 }}>
+						{exam.description}
+					</div>
+				)}
 			</td>
 			<td>
 				<span
 					style={{
-						padding: '2px 10px',
+						display: 'inline-block',
+						padding: '2px 12px',
 						borderRadius: 12,
 						background: STATUS_COLORS[status] + '22',
 						color: STATUS_COLORS[status],
 						fontWeight: 600,
 						fontSize: 13,
+						letterSpacing: 0.2,
+						border: `1px solid ${STATUS_COLORS[status]}33`,
 					}}
+					aria-label={`Status: ${STATUS_LABELS[status] || status}`}
 				>
 					{STATUS_LABELS[status] || status}
 				</span>
 			</td>
 			<td>
-				<span style={{ fontFamily: 'monospace', fontSize: 13 }}>
-					{exam.searchId || '—'}
-				</span>
+				{exam.searchId ? (
+					<span
+						style={{
+							fontFamily: 'monospace',
+							fontSize: 14,
+							cursor: 'pointer',
+							position: 'relative',
+							color: '#2563eb',
+							userSelect: 'all',
+						}}
+						title="Click to copy code"
+						tabIndex={0}
+						role="button"
+						aria-label="Copy exam code"
+						onClick={handleCopy}
+						onKeyDown={e => (e.key === 'Enter' ? handleCopy() : undefined)}
+					>
+						{exam.searchId}
+						{copied && (
+							<span
+								style={{
+									position: 'absolute',
+									top: -22,
+									left: 0,
+									background: '#f1f5f9',
+									color: '#16a34a',
+									fontSize: 12,
+									padding: '2px 8px',
+									borderRadius: 6,
+									boxShadow: '0 1px 4px #0001',
+									whiteSpace: 'nowrap',
+									zIndex: 10,
+								}}
+							>
+								Copied!
+							</span>
+						)}
+					</span>
+				) : (
+					<span style={{ color: '#94a3b8' }}>—</span>
+				)}
 			</td>
 			<td>{exam.duration} min</td>
 			<td>{exam.questionCount ?? exam.questions.length ?? 0}</td>
 			<td>
-				{exam.startAt}
-				<br />
-				{exam.endAt}
+				<div style={{ fontSize: 13 }}>
+					{formatDate(exam.startAt)}
+					<br />
+					<span style={{ color: '#64748b' }}>{formatDate(exam.endAt)}</span>
+				</div>
 			</td>
 			<td>
-				<button onClick={() => onAction('view', exam)} style={simpleBtn} title="View/Edit">
-					View
-				</button>
-				{(status === 'live' || status === 'scheduled') && (
+				<div style={{ display: 'flex', gap: 6 }}>
 					<button
-						onClick={() => onAction('end', exam)}
-						style={{ ...simpleBtn, color: '#ef4444' }}
-						title="End Now"
+						type="button"
+						onClick={() => onAction('view', exam)}
+						style={simpleBtn}
+						title="View/Edit"
+						aria-label="View or edit exam"
 						disabled={loading}
 					>
-						End
+						View
 					</button>
-				)}
-				{status === 'draft' && (
+					{(status === 'live' || status === 'scheduled') && (
+						<button
+							type="button"
+							onClick={() => onAction('end', exam)}
+							style={{ ...simpleBtn, color: '#dc2626', border: '1px solid #fee2e2' }}
+							title={status === 'scheduled' ? 'Cancel Exam' : 'End Now'}
+							aria-label={status === 'scheduled' ? 'Cancel Exam' : 'End Now'}
+							disabled={loading}
+						>
+							{loading ? <Spinner size={14} /> : 'End'}
+						</button>
+					)}
+					{status === 'draft' && (
+						<button
+							type="button"
+							onClick={() => onAction('publish', exam)}
+							style={{ ...simpleBtn, color: '#6366f1', border: '1px solid #e0e7ff' }}
+							title="Publish"
+							aria-label="Publish exam"
+							disabled={loading}
+						>
+							{loading ? <Spinner size={14} /> : 'Publish'}
+						</button>
+					)}
 					<button
-						onClick={() => onAction('publish', exam)}
-						style={{ ...simpleBtn, color: '#6366f1' }}
-						title="Publish"
+						type="button"
+						onClick={() => onAction('delete', exam)}
+						style={{ ...simpleBtn, color: '#dc2626', border: '1px solid #fee2e2' }}
+						title="Delete"
+						aria-label="Delete exam"
 						disabled={loading}
 					>
-						Publish
+						{loading ? <Spinner size={14} /> : 'Delete'}
 					</button>
-				)}
-				<button
-					onClick={() => onAction('delete', exam)}
-					style={{ ...simpleBtn, color: '#ef4444' }}
-					title="Delete"
-					disabled={loading}
-				>
-					Delete
-				</button>
+				</div>
 			</td>
 		</tr>
 	);
+}
+
+// --- Date Formatter ---
+function formatDate(dateVal) {
+	if (!dateVal || dateVal === '—') return '—';
+	const d = new Date(dateVal);
+	if (isNaN(d.getTime())) return '—';
+	return d.toLocaleString(undefined, {
+		year: 'numeric',
+		month: 'short',
+		day: 'numeric',
+		hour: '2-digit',
+		minute: '2-digit',
+	});
 }
 
 // --- Main Page ---
@@ -182,8 +294,8 @@ export default function TeacherExams() {
 	return (
 		<div style={pageWrap}>
 			<div style={headerRow}>
-				<h2 style={{ margin: 0 }}>My Exams</h2>
-				<Link to="/teacher/exams/create" style={createBtn}>
+				<h2 style={{ margin: 0, fontWeight: 700, fontSize: 24 }}>My Exams</h2>
+				<Link to="/teacher/exams/create" style={createBtn} aria-label="Create new exam">
 					+ New Exam
 				</Link>
 			</div>
@@ -192,6 +304,7 @@ export default function TeacherExams() {
 					value={filter}
 					onChange={e => setFilter(e.target.value)}
 					style={simpleInput}
+					aria-label="Filter exams by status"
 				>
 					<option value="all">All</option>
 					<option value="active">Active</option>
@@ -205,12 +318,19 @@ export default function TeacherExams() {
 					value={search}
 					onChange={e => setSearch(e.target.value)}
 					style={simpleInput}
+					aria-label="Search exams"
 				/>
-				<button onClick={loadData} style={simpleBtn}>
-					Refresh
+				<button
+					type="button"
+					onClick={loadData}
+					style={simpleBtn}
+					aria-label="Refresh exams"
+					disabled={loading}
+				>
+					{loading ? <Spinner size={16} /> : 'Refresh'}
 				</button>
 			</div>
-			<div style={{ marginTop: 16 }}>
+			<div style={{ marginTop: 16, overflowX: 'auto' }}>
 				<table style={tableStyle}>
 					<thead>
 						<tr>
@@ -227,12 +347,15 @@ export default function TeacherExams() {
 						{loading ? (
 							<tr>
 								<td colSpan={7} style={{ textAlign: 'center', padding: 40 }}>
-									Loading...
+									<Spinner size={28} />
 								</td>
 							</tr>
 						) : filteredExams.length === 0 ? (
 							<tr>
-								<td colSpan={7} style={{ textAlign: 'center', padding: 40 }}>
+								<td
+									colSpan={7}
+									style={{ textAlign: 'center', padding: 40, color: '#64748b' }}
+								>
 									No exams found.
 								</td>
 							</tr>
@@ -249,57 +372,89 @@ export default function TeacherExams() {
 					</tbody>
 				</table>
 			</div>
+			<style>
+				{`
+                @keyframes spin {
+                    0% { transform: rotate(0deg);}
+                    100% { transform: rotate(360deg);}
+                }
+                table th, table td {
+                    padding: 10px 8px;
+                    text-align: left;
+                    vertical-align: middle;
+                }
+                table thead th {
+                    background: #f1f5f9;
+                    font-weight: 600;
+                    font-size: 14px;
+                    border-bottom: 1px solid #e5e7eb;
+                }
+                table tbody tr:hover {
+                    background: #f9fafb;
+                }
+                `}
+			</style>
 		</div>
 	);
 }
 
-// --- Simple Styles ---
+// --- Styles ---
 const pageWrap = {
-	maxWidth: 900,
+	maxWidth: 1000,
 	margin: '40px auto',
 	background: '#fff',
-	borderRadius: 10,
+	borderRadius: 12,
 	boxShadow: '0 2px 12px #0001',
-	padding: 24,
+	padding: 28,
 };
 const headerRow = {
 	display: 'flex',
 	justifyContent: 'space-between',
 	alignItems: 'center',
-	marginBottom: 16,
+	marginBottom: 18,
 };
 const toolbarRow = {
 	display: 'flex',
 	gap: 12,
-	marginBottom: 16,
+	marginBottom: 18,
 };
 const createBtn = {
 	background: '#6366f1',
 	color: '#fff',
-	padding: '8px 18px',
-	borderRadius: 6,
+	padding: '9px 22px',
+	borderRadius: 7,
 	textDecoration: 'none',
-	fontWeight: 600,
-	fontSize: 15,
+	fontWeight: 700,
+	fontSize: 16,
+	boxShadow: '0 1px 4px #6366f133',
+	transition: 'background 0.2s',
+	border: 'none',
 };
 const simpleInput = {
-	padding: '7px 12px',
-	borderRadius: 6,
+	padding: '8px 13px',
+	borderRadius: 7,
 	border: '1px solid #e5e7eb',
-	fontSize: 14,
+	fontSize: 15,
+	background: '#f8fafc',
 };
 const simpleBtn = {
-	padding: '6px 12px',
-	borderRadius: 6,
+	padding: '7px 14px',
+	borderRadius: 7,
 	border: 'none',
 	background: '#f3f4f6',
 	color: '#222',
 	fontWeight: 500,
 	cursor: 'pointer',
-	marginRight: 6,
+	marginRight: 0,
+	fontSize: 14,
+	transition: 'background 0.2s, color 0.2s',
+	display: 'inline-flex',
+	alignItems: 'center',
+	gap: 4,
 };
 const tableStyle = {
 	width: '100%',
 	borderCollapse: 'collapse',
 	background: '#fff',
+	minWidth: 800,
 };
