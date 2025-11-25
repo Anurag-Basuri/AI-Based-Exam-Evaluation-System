@@ -184,7 +184,7 @@ const TeacherDash = () => {
 						width={SIDEBAR_WIDTH}
 						theme={theme}
 						items={items}
-						collapsible={true}
+						collapsible={false}
 						expanded={sidebarOpen}
 						onToggle={setSidebarOpen}
 						mobileBreakpoint={MOBILE_BREAKPOINT}

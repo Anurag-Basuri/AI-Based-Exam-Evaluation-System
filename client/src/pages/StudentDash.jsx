@@ -1,10 +1,10 @@
 import React, { Suspense } from 'react';
-import { Outlet, useLocation } from 'react-router-dom'; // Import useLocation
-import Sidebar from '../components/Sidebar.jsx';
+import { Outlet, useLocation } from 'react-router-dom';
 import ErrorBoundary from '../components/ErrorBoundary.jsx';
 import RouteFallback from '../components/RouteFallback.jsx';
 import { useTheme } from '../hooks/useTheme.js';
 import { useAuth } from '../hooks/useAuth.js';
+import Sidebar from '../components/Sidebar.jsx';
 
 const SIDEBAR_WIDTH = 280;
 const MOBILE_BREAKPOINT = 1024;
@@ -24,8 +24,7 @@ const StudentDash = () => {
 		const onResize = () => {
 			const mobile = window.innerWidth < MOBILE_BREAKPOINT;
 			setIsMobile(mobile);
-			if (!mobile)
-				setSidebarOpen(true); // open on desktop
+			if (!mobile) setSidebarOpen(true); // open on desktop
 			else setSidebarOpen(false); // closed by default on mobile
 		};
 		onResize();
@@ -201,11 +200,40 @@ const StudentDash = () => {
 						collapsedWidth={SIDEBAR_WIDTH}
 						theme={theme}
 						items={items}
-						collapsible={true}
+						collapsible={false} // no collapse arrow
 						expanded={sidebarOpen}
 						onToggle={setSidebarOpen}
 						mobileBreakpoint={MOBILE_BREAKPOINT}
+						overlay={true} // show as overlay drawer on mobile
 					/>
+				</ErrorBoundary>
+			)}
+
+			{/* Desktop Sidebar (sticky) */}
+			{!isMobile && (
+				<ErrorBoundary>
+					<aside
+						style={{
+							width: SIDEBAR_WIDTH,
+							position: 'sticky',
+							top: 0,
+							height: '100vh',
+							padding: 16,
+							paddingRight: 8,
+						}}
+					>
+						<Sidebar
+							header={headerEl}
+							footer={footerEl}
+							width={SIDEBAR_WIDTH}
+							collapsedWidth={SIDEBAR_WIDTH}
+							theme={theme}
+							items={items}
+							collapsible={false}
+							expanded={true}
+							mobileBreakpoint={MOBILE_BREAKPOINT}
+						/>
+					</aside>
 				</ErrorBoundary>
 			)}
 
