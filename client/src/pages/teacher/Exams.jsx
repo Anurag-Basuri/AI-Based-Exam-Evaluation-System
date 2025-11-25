@@ -14,8 +14,8 @@ import {
 	StopCircle,
 	Trash2,
 	CheckCircle2,
+	Copy as CopyIcon,
 } from 'lucide-react';
-import { Copy as CopyIcon } from 'lucide-react';
 
 // --- Status Map ---
 const STATUS_LABELS = {
@@ -67,9 +67,6 @@ function ExamRow({ exam, onAction, loadingAction }) {
 		}
 	};
 
-	const now = Date.now();
-	const startMs = exam.startMs || (exam.startAt ? new Date(exam.startAt).getTime() : null);
-	const endMs = exam.endMs || (exam.endAt ? new Date(exam.endAt).getTime() : null);
 	const isDraft = status === 'draft';
 	const isScheduled = status === 'scheduled';
 	const isLive = status === 'live';
@@ -393,7 +390,7 @@ export default function TeacherExams() {
 	const [statsLoading, setStatsLoading] = useState(true);
 	const [search, setSearch] = useState('');
 	const [filter, setFilter] = useState('all');
-	const [actionLoading, setActionLoading] = useState('');
+	const [actionLoading, setActionLoading] = useState({});
 	const navigate = useNavigate();
 	const { toast } = useToast();
 
@@ -445,7 +442,7 @@ export default function TeacherExams() {
 
 	const handleAction = async (action, exam) => {
 		if (!exam) return;
-		setActionLoading(exam.id + ':' + action);
+		setActionLoading(prev => ({ ...prev, [exam.id]: action }));
 		try {
 			if (action === 'view') {
 				navigate(`/teacher/exams/edit/${exam.id}`);
@@ -453,8 +450,6 @@ export default function TeacherExams() {
 				if (window.confirm('Publish this exam?')) {
 					await TeacherSvc.safeApiCall(TeacherSvc.publishTeacherExam, exam.id);
 					toast.success?.('Exam published');
-					await loadData();
-					await loadStats();
 				}
 			} else if (action === 'end') {
 				if (
@@ -464,23 +459,38 @@ export default function TeacherExams() {
 							: 'End this exam now?',
 					)
 				) {
-					await TeacherSvc.endExamNow(exam.id);
+					await TeacherSvc.safeApiCall(TeacherSvc.endExamNow, exam.id);
 					toast.success?.('Exam ended');
-					await loadData();
-					await loadStats();
+				}
+			} else if (action === 'extend') {
+				const min = prompt('Extend by how many minutes? (e.g. 10)');
+				const minutes = Number(min);
+				if (minutes > 0) {
+					await TeacherSvc.safeApiCall(TeacherSvc.extendExamEnd, exam.id, { minutes });
+					toast.success?.('Exam end time extended');
+				}
+			} else if (action === 'regenerate') {
+				if (window.confirm('Regenerate exam code? Old code will be invalid.')) {
+					await TeacherSvc.safeApiCall(TeacherSvc.regenerateExamShareCode, exam.id);
+					toast.success?.('Exam code regenerated');
+				}
+			} else if (action === 'duplicate') {
+				if (window.confirm('Duplicate this exam?')) {
+					await TeacherSvc.safeApiCall(TeacherSvc.duplicateTeacherExam, exam.id);
+					toast.success?.('Exam duplicated');
 				}
 			} else if (action === 'delete') {
 				if (window.confirm('Delete this exam? This cannot be undone.')) {
 					await TeacherSvc.safeApiCall(TeacherSvc.deleteExam, exam.id);
 					toast.success?.('Exam deleted');
-					await loadData();
-					await loadStats();
 				}
 			}
+			await loadData();
+			await loadStats();
 		} catch (err) {
 			toast?.error?.(err?.message || 'Action failed');
 		} finally {
-			setActionLoading('');
+			setActionLoading(prev => ({ ...prev, [exam.id]: '' }));
 		}
 	};
 
