@@ -407,6 +407,22 @@ export const getMySubmissionsForIssues = async () => {
 	}));
 };
 
+// ---------- Student Profile Management ----------
+export const getStudentProfile = async () => {
+	const res = await tryGet(EP.me);
+	return res?.data?.data ?? res?.data ?? {};
+};
+
+export const updateStudentProfile = async payload => {
+	const res = await tryPut(EP.updateMe, payload);
+	return res?.data?.data ?? res?.data ?? {};
+};
+
+export const changeStudentPassword = async payload => {
+	const res = await tryPut(EP.changePassword, payload);
+	return res?.data?.data ?? res?.data ?? {};
+};
+
 // Ensure cookies
 try {
 	if (apiClient?.defaults) {
