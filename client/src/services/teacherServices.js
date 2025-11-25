@@ -576,3 +576,9 @@ try {
 } catch {
 	// noop
 }
+
+// Service function to get exam statistics
+export const getExamStats = async () => {
+	const res = await apiClient.get('/api/exams/stats');
+	return res?.data?.data ?? {};
+};

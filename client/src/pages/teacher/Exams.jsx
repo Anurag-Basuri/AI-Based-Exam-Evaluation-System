@@ -259,8 +259,8 @@ export default function TeacherExams() {
 	const loadStats = useCallback(async () => {
 		setStatsLoading(true);
 		try {
-			const res = await TeacherSvc.getTeacherDashboardStats();
-			setStats(res?.exams || {});
+			const res = await TeacherSvc.getExamStats();
+			setStats(res || {});
 		} catch (err) {
 			toast?.error?.(err?.message || 'Failed to load stats');
 		} finally {
