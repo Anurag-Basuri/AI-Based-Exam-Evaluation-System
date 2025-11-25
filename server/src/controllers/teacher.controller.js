@@ -108,11 +108,20 @@ const logoutTeacher = asyncHandler(async (req, res) => {
 // Update teacher details
 const updateTeacher = asyncHandler(async (req, res) => {
 	const teacherId = req.teacher?._id || req.user?.id;
-	const { username, fullname, email, phonenumber, gender, address } = req.body;
+    
+    // Explicitly build update object to support partial updates
+    const updateData = {};
+    const allowedFields = ['username', 'fullname', 'email', 'phonenumber', 'gender', 'address'];
+
+    allowedFields.forEach(field => {
+        if (req.body[field] !== undefined) {
+            updateData[field] = req.body[field];
+        }
+    });
 
 	const updatedTeacher = await Teacher.findByIdAndUpdate(
 		teacherId,
-		{ username, fullname, email, phonenumber, gender, address },
+		updateData,
 		{ new: true, runValidators: true },
 	).select('-password -refreshToken -resetPasswordToken -resetPasswordExpires');
 

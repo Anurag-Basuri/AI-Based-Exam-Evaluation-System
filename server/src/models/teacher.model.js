@@ -37,6 +37,8 @@ const teacherSchema = new mongoose.Schema(
             trim: true,
             validate: {
                 validator: function (v) {
+                    // Allow null or empty string (sparse index handles uniqueness for nulls)
+                    if (!v) return true;
                     return /^\+?[\d\s\-()]{10,15}$/.test(v);
                 },
                 message: 'Please provide a valid phone number',
