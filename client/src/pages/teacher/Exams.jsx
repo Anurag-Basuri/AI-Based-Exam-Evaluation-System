@@ -212,7 +212,7 @@ function ExamRow({ exam, onAction, loadingAction }) {
 							Publish
 						</button>
 					)}
-					{isScheduled && (
+					{(isScheduled || isLive) && (
 						<button
 							type="button"
 							onClick={() => onAction('cancel', exam)}
@@ -222,8 +222,8 @@ function ExamRow({ exam, onAction, loadingAction }) {
 								border: '1px solid #fee2e2',
 								background: '#fff0f0',
 							}}
-							title="Cancel Exam"
-							aria-label="Cancel Exam"
+							title={isLive ? 'Cancel (End) Live Exam' : 'Cancel Exam'}
+							aria-label={isLive ? 'Cancel (End) Live Exam' : 'Cancel Exam'}
 							disabled={!!loadingAction}
 						>
 							{loadingAction === 'cancel' ? (
@@ -331,7 +331,7 @@ function ExamRow({ exam, onAction, loadingAction }) {
 						}}
 						title="Delete"
 						aria-label="Delete exam"
-						disabled={!!loadingAction}
+						disabled={!!loadingAction || isLive || isScheduled}
 					>
 						{loadingAction === 'delete' ? <Spinner size={14} /> : <Trash2 size={15} />}{' '}
 						Delete
@@ -479,7 +479,11 @@ export default function TeacherExams() {
 					toast.success?.('Exam ended');
 				}
 			} else if (action === 'cancel') {
-				if (window.confirm('Cancel this scheduled exam?')) {
+				const msg =
+					exam.derivedStatus === 'live'
+						? 'Cancel (end) this live exam? This will immediately stop the exam for all students.'
+						: 'Cancel this scheduled exam?';
+				if (window.confirm(msg)) {
 					await TeacherSvc.safeApiCall(TeacherSvc.cancelExam, exam.id);
 					toast.success?.('Exam cancelled');
 				}
@@ -494,8 +498,15 @@ export default function TeacherExams() {
 				}
 			} else if (action === 'regenerate') {
 				if (window.confirm('Regenerate exam code? Old code will be invalid.')) {
-					await TeacherSvc.safeApiCall(TeacherSvc.regenerateExamShareCode, exam.id);
-					toast.success?.('Exam code regenerated');
+					const res = await TeacherSvc.safeApiCall(
+						TeacherSvc.regenerateExamShareCode,
+						exam.id,
+					);
+					if (res && res.searchId) {
+						toast.success?.('Exam code regenerated: ' + res.searchId);
+					} else {
+						toast.error?.('Failed to regenerate code.');
+					}
 				}
 			} else if (action === 'duplicate') {
 				if (window.confirm('Duplicate this exam?')) {
@@ -503,7 +514,11 @@ export default function TeacherExams() {
 					toast.success?.('Exam duplicated');
 				}
 			} else if (action === 'delete') {
-				if (window.confirm('Delete this exam? This cannot be undone.')) {
+				if (exam.derivedStatus === 'live' || exam.derivedStatus === 'scheduled') {
+					toast.error?.(
+						'Live or scheduled exams cannot be deleted. Please cancel them first.',
+					);
+				} else if (window.confirm('Delete this exam? This cannot be undone.')) {
 					await TeacherSvc.safeApiCall(TeacherSvc.deleteExam, exam.id);
 					toast.success?.('Exam deleted');
 				}
