@@ -115,18 +115,18 @@ const AiInsight = ({ meta }) => {
 
 	if (!hasContent) return null;
 
-	const renderList = (title, items, colorClass = 'text-gray-600') => {
+	const renderList = (title, items, colorClass = 'text-[var(--text-muted)]') => {
 		if (!Array.isArray(items) || items.length === 0) return null;
 		return (
 			<div className="mt-3">
-				<div className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">
+				<div className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1 opacity-70">
 					{title}
 				</div>
 				<ul className="space-y-1">
 					{items.map((item, i) => (
 						<li key={i} className={`text-sm ${colorClass} flex items-start gap-2`}>
-							<span className="mt-1.5 w-1 h-1 rounded-full bg-gray-400 shrink-0" />
-							<span>{typeof item === 'string' ? item : JSON.stringify(item)}</span>
+							<span className="mt-1.5 w-1 h-1 rounded-full bg-[var(--text-muted)] shrink-0" />
+							<span className="text-[var(--text)]">{typeof item === 'string' ? item : JSON.stringify(item)}</span>
 						</li>
 					))}
 				</ul>
@@ -135,12 +135,12 @@ const AiInsight = ({ meta }) => {
 	};
 
 	return (
-		<div className="mt-4 border border-indigo-100 bg-indigo-50/50 rounded-xl overflow-hidden">
+		<div className="mt-4 border border-indigo-500/20 bg-indigo-500/5 rounded-xl overflow-hidden">
 			<button
 				onClick={() => setExpanded(!expanded)}
-				className="w-full flex items-center justify-between p-3 hover:bg-indigo-50 transition-colors text-left"
+				className="w-full flex items-center justify-between p-3 hover:bg-indigo-500/10 transition-colors text-left"
 			>
-				<div className="flex items-center gap-2 text-indigo-700 font-semibold text-sm">
+				<div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-semibold text-sm">
 					<IconRobot />
 					<span>AI Evaluation Insights</span>
 				</div>
@@ -150,12 +150,12 @@ const AiInsight = ({ meta }) => {
 			</button>
 
 			{expanded && (
-				<div className="p-4 pt-0 border-t border-indigo-100/50">
+				<div className="p-4 pt-0 border-t border-indigo-500/10">
 					{renderList('Rubric Breakdown', meta.rubric_breakdown)}
-					{renderList('Keywords Matched', meta.keywords_matched, 'text-emerald-700')}
-					{renderList('Penalties Applied', meta.penalties_applied, 'text-rose-700')}
+					{renderList('Keywords Matched', meta.keywords_matched, 'text-emerald-600 dark:text-emerald-400')}
+					{renderList('Penalties Applied', meta.penalties_applied, 'text-rose-600 dark:text-rose-400')}
 					{meta.fallback && (
-						<div className="mt-3 p-3 bg-orange-50 border border-orange-100 rounded-lg text-sm text-orange-800">
+						<div className="mt-3 p-3 bg-orange-500/10 border border-orange-500/20 rounded-lg text-sm text-orange-700 dark:text-orange-300">
 							<strong>Fallback Mode:</strong> {meta.reason || 'Not specified'}
 						</div>
 					)}
@@ -199,7 +199,7 @@ const AnswerCard = ({ idx, answer, evaluation, onUpdate, disabled, isUnsaved }) 
 	};
 
 	// --- Render Student Answer ---
-	let studentResponse = <i className="text-gray-400">No answer provided.</i>;
+	let studentResponse = <i className="text-[var(--text-muted)]">No answer provided.</i>;
 	if (isMCQ) {
 		const selectedOption = (question.options || []).find(
 			opt => String(opt._id) === String(answer.responseOption),
@@ -210,30 +210,30 @@ const AnswerCard = ({ idx, answer, evaluation, onUpdate, disabled, isUnsaved }) 
 		studentResponse = (
 			<div className="space-y-3">
 				<div className="flex items-center gap-3">
-					<span className="text-sm font-medium text-gray-500 uppercase tracking-wide w-24 shrink-0">
+					<span className="text-sm font-medium text-[var(--text-muted)] uppercase tracking-wide w-24 shrink-0">
 						Student
 					</span>
 					{selectedOption ? (
 						<div
 							className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-medium ${
 								isCorrect
-									? 'bg-emerald-50 border-emerald-200 text-emerald-700'
-									: 'bg-rose-50 border-rose-200 text-rose-700'
+									? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-700 dark:text-emerald-400'
+									: 'bg-rose-500/10 border-rose-500/20 text-rose-700 dark:text-rose-400'
 							}`}
 						>
 							{isCorrect ? <IconCheck /> : <IconX />}
 							{selectedOption.text}
 						</div>
 					) : (
-						<span className="text-gray-400 italic">No option selected</span>
+						<span className="text-[var(--text-muted)] italic">No option selected</span>
 					)}
 				</div>
 
 				<div className="flex items-center gap-3">
-					<span className="text-sm font-medium text-gray-500 uppercase tracking-wide w-24 shrink-0">
+					<span className="text-sm font-medium text-[var(--text-muted)] uppercase tracking-wide w-24 shrink-0">
 						Correct
 					</span>
-					<div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-200 text-gray-700 text-sm font-medium">
+					<div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text)] text-sm font-medium">
 						<IconCheck />
 						{correctOption?.text ?? 'N/A'}
 					</div>
@@ -242,7 +242,7 @@ const AnswerCard = ({ idx, answer, evaluation, onUpdate, disabled, isUnsaved }) 
 		);
 	} else if (answer.responseText) {
 		studentResponse = (
-			<div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-gray-800 whitespace-pre-wrap font-mono text-sm leading-relaxed">
+			<div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-4 text-[var(--text)] whitespace-pre-wrap font-mono text-sm leading-relaxed">
 				{answer.responseText}
 			</div>
 		);
@@ -251,29 +251,29 @@ const AnswerCard = ({ idx, answer, evaluation, onUpdate, disabled, isUnsaved }) 
 	return (
 		<article
 			id={`q-${question._id}`}
-			className={`scroll-mt-24 bg-white border rounded-xl shadow-sm transition-all duration-200 ${
-				isUnsaved ? 'border-amber-300 ring-1 ring-amber-100' : 'border-gray-200'
+			className={`scroll-mt-24 bg-[var(--surface)] border rounded-xl shadow-sm transition-all duration-200 ${
+				isUnsaved ? 'border-amber-400 ring-1 ring-amber-400/30' : 'border-[var(--border)]'
 			}`}
 		>
 			{/* Header */}
-			<div className="flex items-start justify-between p-5 border-b border-gray-100 bg-gray-50/30">
+			<div className="flex items-start justify-between p-5 border-b border-[var(--border)] bg-[var(--bg-secondary)]/50">
 				<div className="flex gap-4">
-					<div className="flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 font-bold text-sm shrink-0">
+					<div className="flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold text-sm shrink-0">
 						{idx}
 					</div>
 					<div>
-						<h3 className="text-base font-semibold text-gray-900 leading-snug">
+						<h3 className="text-base font-semibold text-[var(--text)] leading-snug">
 							{question.text}
 						</h3>
 						<div className="flex items-center gap-3 mt-2">
-							<span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200 uppercase tracking-wide">
+							<span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[var(--bg)] text-[var(--text-muted)] border border-[var(--border)] uppercase tracking-wide">
 								{question.type}
 							</span>
-							<span className="text-xs text-gray-500 font-medium">
+							<span className="text-xs text-[var(--text-muted)] font-medium">
 								Max Marks: {maxMarks}
 							</span>
 							{teacherEval && (
-								<span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+								<span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
 									Edited
 								</span>
 							)}
@@ -282,12 +282,12 @@ const AnswerCard = ({ idx, answer, evaluation, onUpdate, disabled, isUnsaved }) 
 				</div>
 
 				{/* Marks Control */}
-				<div className="flex items-center bg-white border border-gray-200 rounded-lg p-1 shadow-sm">
+				<div className="flex items-center bg-[var(--bg)] border border-[var(--border)] rounded-lg p-1 shadow-sm">
 					<button
 						type="button"
 						onClick={() => quickAdjust(-1)}
 						disabled={disabled}
-						className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 text-gray-500 disabled:opacity-50 transition-colors"
+						className="w-8 h-8 flex items-center justify-center rounded hover:bg-[var(--bg-secondary)] text-[var(--text-muted)] disabled:opacity-50 transition-colors"
 					>
 						−
 					</button>
@@ -299,9 +299,9 @@ const AnswerCard = ({ idx, answer, evaluation, onUpdate, disabled, isUnsaved }) 
 							min={0}
 							max={maxMarks}
 							disabled={disabled}
-							className="w-12 text-center font-bold text-gray-900 border-none p-0 focus:ring-0 text-lg"
+							className="w-12 text-center font-bold text-[var(--text)] bg-transparent border-none p-0 focus:ring-0 text-lg"
 						/>
-						<div className="absolute -bottom-2 left-0 right-0 text-[10px] text-center text-gray-400 font-medium">
+						<div className="absolute -bottom-2 left-0 right-0 text-[10px] text-center text-[var(--text-muted)] font-medium">
 							/{maxMarks}
 						</div>
 					</div>
@@ -309,7 +309,7 @@ const AnswerCard = ({ idx, answer, evaluation, onUpdate, disabled, isUnsaved }) 
 						type="button"
 						onClick={() => quickAdjust(1)}
 						disabled={disabled}
-						className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 text-gray-500 disabled:opacity-50 transition-colors"
+						className="w-8 h-8 flex items-center justify-center rounded hover:bg-[var(--bg-secondary)] text-[var(--text-muted)] disabled:opacity-50 transition-colors"
 					>
 						+
 					</button>
@@ -320,7 +320,7 @@ const AnswerCard = ({ idx, answer, evaluation, onUpdate, disabled, isUnsaved }) 
 			<div className="p-5 space-y-6">
 				{/* Student Answer Section */}
 				<div>
-					<h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">
+					<h4 className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-3">
 						Student Response
 					</h4>
 					{studentResponse}
@@ -328,7 +328,7 @@ const AnswerCard = ({ idx, answer, evaluation, onUpdate, disabled, isUnsaved }) 
 
 				{/* Remarks Section */}
 				<div>
-					<h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">
+					<h4 className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-3">
 						Teacher Remarks
 					</h4>
 					<textarea
@@ -336,7 +336,7 @@ const AnswerCard = ({ idx, answer, evaluation, onUpdate, disabled, isUnsaved }) 
 						onChange={handleRemarksChange}
 						disabled={disabled}
 						rows={2}
-						className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
+						className="w-full rounded-lg bg-[var(--bg)] border-[var(--border)] text-[var(--text)] shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm placeholder-[var(--text-muted)]"
 						placeholder="Add feedback for the student..."
 					/>
 				</div>
@@ -423,10 +423,10 @@ const TeacherSubmissionGrade = () => {
 
 	if (loading) {
 		return (
-			<div className="min-h-screen flex items-center justify-center bg-gray-50">
+			<div className="min-h-screen flex items-center justify-center bg-[var(--bg)]">
 				<div className="flex flex-col items-center gap-3">
 					<div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-					<p className="text-gray-500 font-medium">Loading submission...</p>
+					<p className="text-[var(--text-muted)] font-medium">Loading submission...</p>
 				</div>
 			</div>
 		);
@@ -481,11 +481,11 @@ const TeacherSubmissionGrade = () => {
 		if (unsavedCount > 0) {
 			if (!window.confirm('You have unsaved changes. Discard them?')) return;
 		}
-		navigate(`/teacher/submission/${id}/grade/${examId}`);
+		navigate(`/teacher/results/${examId}/grade/${id}`);
 	};
 
 	return (
-		<div className="min-h-screen bg-[#f8fafc] pb-20">
+		<div className="min-h-screen bg-[var(--bg-secondary)] pb-20">
 			<PageHeader
 				title={`Grading: ${submission.student.fullname}`}
 				subtitle={`Exam: ${submission.exam.title}`}
@@ -503,21 +503,21 @@ const TeacherSubmissionGrade = () => {
 					{/* Main Content: Questions */}
 					<main className="lg:col-span-8 space-y-6">
 						{/* Navigation Header (Mobile/Desktop) */}
-						<div className="flex items-center justify-between bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+						<div className="flex items-center justify-between bg-[var(--surface)] p-4 rounded-xl border border-[var(--border)] shadow-sm">
 							<button
 								onClick={() => prevSub && navigateToSubmission(prevSub.id)}
 								disabled={!prevSub}
-								className="flex items-center gap-2 text-sm font-medium text-gray-600 disabled:opacity-30 hover:text-indigo-600 transition-colors"
+								className="flex items-center gap-2 text-sm font-medium text-[var(--text-muted)] disabled:opacity-30 hover:text-indigo-600 transition-colors"
 							>
 								← Previous Student
 							</button>
-							<div className="text-sm font-bold text-gray-900">
+							<div className="text-sm font-bold text-[var(--text)]">
 								{currentIndex + 1} of {allSubmissions.length}
 							</div>
 							<button
 								onClick={() => nextSub && navigateToSubmission(nextSub.id)}
 								disabled={!nextSub}
-								className="flex items-center gap-2 text-sm font-medium text-gray-600 disabled:opacity-30 hover:text-indigo-600 transition-colors"
+								className="flex items-center gap-2 text-sm font-medium text-[var(--text-muted)] disabled:opacity-30 hover:text-indigo-600 transition-colors"
 							>
 								Next Student →
 							</button>
@@ -568,18 +568,18 @@ const TeacherSubmissionGrade = () => {
 					{/* Sidebar: Summary & Navigation */}
 					<aside className="hidden lg:block lg:col-span-4 lg:sticky lg:top-6 space-y-6">
 						{/* Score Card */}
-						<div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
+						<div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl shadow-sm p-6">
 							<div className="flex justify-between items-start mb-4">
 								<div>
-									<h2 className="text-lg font-bold text-gray-900">Total Score</h2>
-									<p className="text-sm text-gray-500">
+									<h2 className="text-lg font-bold text-[var(--text)]">Total Score</h2>
+									<p className="text-sm text-[var(--text-muted)]">
 										{gradedCount} of {submission.answers.length} questions graded
 									</p>
 								</div>
 								<div className="text-right">
-									<div className="text-3xl font-extrabold text-indigo-600">
+									<div className="text-3xl font-extrabold text-indigo-600 dark:text-indigo-400">
 										{awarded}
-										<span className="text-lg text-gray-400 font-medium">
+										<span className="text-lg text-[var(--text-muted)] font-medium">
 											/{max}
 										</span>
 									</div>
@@ -587,7 +587,7 @@ const TeacherSubmissionGrade = () => {
 							</div>
 
 							{/* Progress Bar */}
-							<div className="w-full bg-gray-100 rounded-full h-3 mb-6 overflow-hidden">
+							<div className="w-full bg-[var(--bg-secondary)] rounded-full h-3 mb-6 overflow-hidden">
 								<div
 									className="bg-indigo-600 h-3 rounded-full transition-all duration-500 ease-out"
 									style={{ width: `${progressPercent}%` }}
@@ -602,7 +602,7 @@ const TeacherSubmissionGrade = () => {
 									className={`w-full py-2.5 px-4 rounded-lg font-bold text-white shadow-sm transition-all flex items-center justify-center gap-2 ${
 										unsavedCount > 0
 											? 'bg-indigo-600 hover:bg-indigo-700 hover:shadow-md hover:-translate-y-0.5'
-											: 'bg-gray-300 cursor-not-allowed'
+											: 'bg-[var(--border)] cursor-not-allowed text-[var(--text-muted)]'
 									}`}
 								>
 									{saving ? (
@@ -620,7 +620,7 @@ const TeacherSubmissionGrade = () => {
 								</button>
 								<button
 									onClick={() => navigate(`/teacher/results/${examId}`)}
-									className="w-full py-2.5 px-4 rounded-lg font-semibold text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+									className="w-full py-2.5 px-4 rounded-lg font-semibold text-[var(--text-muted)] bg-[var(--bg)] border border-[var(--border)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text)] transition-colors"
 								>
 									Back to Results
 								</button>
@@ -628,8 +628,8 @@ const TeacherSubmissionGrade = () => {
 						</div>
 
 						{/* Question Navigator */}
-						<div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
-							<h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-4">
+						<div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl shadow-sm p-6">
+							<h3 className="text-sm font-bold text-[var(--text)] uppercase tracking-wider mb-4">
 								Question Navigator
 							</h3>
 							<div className="grid grid-cols-5 gap-2">
@@ -652,8 +652,8 @@ const TeacherSubmissionGrade = () => {
 												flex items-center justify-center h-10 rounded-lg text-sm font-bold transition-all
 												${
 													hasUnsaved
-														? 'bg-amber-100 text-amber-700 border border-amber-200'
-														: 'bg-gray-50 text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 border border-transparent'
+														? 'bg-amber-100 text-amber-700 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800'
+														: 'bg-[var(--bg)] text-[var(--text-muted)] hover:bg-indigo-500/10 hover:text-indigo-600 border border-transparent'
 												}
 											`}
 										>
@@ -665,8 +665,8 @@ const TeacherSubmissionGrade = () => {
 						</div>
 
 						{/* Student List (New) */}
-						<div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6 max-h-[400px] overflow-y-auto">
-							<h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-4 flex items-center gap-2">
+						<div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl shadow-sm p-6 max-h-[400px] overflow-y-auto">
+							<h3 className="text-sm font-bold text-[var(--text)] uppercase tracking-wider mb-4 flex items-center gap-2">
 								<IconUsers /> Class List
 							</h3>
 							<div className="space-y-1">
@@ -678,8 +678,8 @@ const TeacherSubmissionGrade = () => {
 											onClick={() => !isActive && navigateToSubmission(sub.id)}
 											className={`w-full text-left px-3 py-2 rounded-lg text-sm flex items-center justify-between group transition-colors ${
 												isActive
-													? 'bg-indigo-50 text-indigo-700 font-bold'
-													: 'text-gray-600 hover:bg-gray-50'
+													? 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 font-bold'
+													: 'text-[var(--text-muted)] hover:bg-[var(--bg-secondary)]'
 											}`}
 										>
 											<span className="truncate">{sub.studentName}</span>
