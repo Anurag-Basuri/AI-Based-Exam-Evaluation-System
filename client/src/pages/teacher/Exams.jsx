@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useToast } from '../../components/ui/Toaster.jsx';
+import { useTheme } from '../../hooks/useTheme.js';
 import { io } from 'socket.io-client';
 import { API_BASE_URL } from '../../services/api.js';
 import * as TeacherSvc from '../../services/teacherServices.js';
@@ -507,31 +508,8 @@ export default function TeacherExams() {
 	const [actionLoading, setActionLoading] = useState({});
 	const navigate = useNavigate();
 	const { toast } = useToast();
-
-	// --- Detect dark mode (using Tailwind or custom class on body) ---
-	const [isDark, setIsDark] = useState(
-		() =>
-			document.documentElement.classList.contains('dark') ||
-			document.body.classList.contains('dark') ||
-			window.matchMedia('(prefers-color-scheme: dark)').matches,
-	);
-	useEffect(() => {
-		const listener = () => {
-			setIsDark(
-				document.documentElement.classList.contains('dark') ||
-					document.body.classList.contains('dark') ||
-					window.matchMedia('(prefers-color-scheme: dark)').matches,
-			);
-		};
-		window.addEventListener('storage', listener);
-		window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', listener);
-		return () => {
-			window.removeEventListener('storage', listener);
-			window
-				.matchMedia('(prefers-color-scheme: dark)')
-				.removeEventListener('change', listener);
-		};
-	}, []);
+	const { theme } = useTheme();
+	const isDark = theme === 'dark';
 
 	const loadStats = useCallback(async () => {
 		setStatsLoading(true);
