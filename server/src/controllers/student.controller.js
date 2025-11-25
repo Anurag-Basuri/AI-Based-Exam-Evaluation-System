@@ -117,14 +117,23 @@ const getStudentProfile = asyncHandler(async (req, res) => {
     );
 });
 
-// Update student details
+// Update student details - supports partial updates
 const updateStudent = asyncHandler(async (req, res) => {
     const studentId = req.student?._id || req.user?.id;
     const { username, fullname, email, phonenumber, gender, address } = req.body;
 
+    // Build update object with only provided fields
+    const updateData = {};
+    if (username !== undefined) updateData.username = username;
+    if (fullname !== undefined) updateData.fullname = fullname;
+    if (email !== undefined) updateData.email = email;
+    if (phonenumber !== undefined) updateData.phonenumber = phonenumber;
+    if (gender !== undefined) updateData.gender = gender;
+    if (address !== undefined) updateData.address = address;
+
     const updatedStudent = await Student.findByIdAndUpdate(
         studentId,
-        { username, fullname, email, phonenumber, gender, address },
+        updateData,
         { new: true, runValidators: true }
     ).select('-password -refreshToken -resetPasswordToken -resetPasswordExpires');
 
