@@ -16,6 +16,30 @@ const useIsMobile = () => {
 	return isMobile;
 };
 
+// --- Helper: data-URL SVG avatar per role (teacher / student) ---
+const getAvatarDataUrl = (role = 'student', name = '') => {
+	const initials = (
+		String(name || '')
+			.split(' ')
+			.map(n => n[0])
+			.join('')
+			.slice(0, 2) || 'U'
+	).toUpperCase();
+	const palette = {
+		teacher: { bg: '#f59e42', fg: '#fff' }, // warm orange for teacher
+		student: { bg: '#06b6d4', fg: '#fff' }, // teal/cyan for student
+	};
+	const p = palette[role === 'teacher' ? 'teacher' : 'student'];
+	const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='128' height='128' viewBox='0 0 128 128'>
+        <rect rx='18' width='100%' height='100%' fill='${p.bg}'/>
+        <g transform='translate(22,20)' fill='${p.fg}'>
+            <path d='M42 12c-9 0-18 6-20 15-1 3 0 7 3 8 6 3 22 6 35 6s29-3 35-6c3-1 4-5 3-8-2-9-11-15-20-15-9 0-16 5-36 0z' opacity='0.08'/>
+        </g>
+        <text x='50%' y='68%' font-family='Inter,Segoe UI,Arial' font-weight='700' font-size='44' text-anchor='middle' fill='${p.fg}'>${initials}</text>
+    </svg>`;
+	return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+};
+
 const Header = ({ transparent = false }) => {
 	const navigate = useNavigate();
 	const isMobile = useIsMobile();
@@ -115,7 +139,7 @@ const Header = ({ transparent = false }) => {
 		}
 	};
 
-	const displayName = user?.username || 'User';
+	const displayName = user?.username || user?.fullname || 'User';
 	const headerPadX = isMobile ? '0.75rem' : '2rem';
 
 	return (
@@ -213,8 +237,8 @@ const Header = ({ transparent = false }) => {
 							}}
 						>
 							<img
-								src="/logo192.png"
-								alt="User avatar"
+								src={getAvatarDataUrl(role, user?.username || user?.fullname)}
+								alt={`${role === 'teacher' ? 'Teacher' : 'Student'} avatar`}
 								style={{
 									width: 36,
 									height: 36,
