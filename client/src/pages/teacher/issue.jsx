@@ -133,7 +133,10 @@ const StatusDropdown = ({ currentStatus, issueId, onUpdate, disabled }) => {
 							onClick={e => handleStatusChange(status, e)}
 							style={{
 								...styles.dropdownItem,
-								background: status === currentStatus ? 'var(--bg-secondary)' : 'transparent',
+								background:
+									status === currentStatus
+										? 'var(--bg-secondary)'
+										: 'transparent',
 							}}
 						>
 							{statusStyles[status].icon} {statusStyles[status].label}
@@ -250,9 +253,9 @@ const IssueDetailPanel = ({ issueId, onClose, onUpdate, isMobile }) => {
 							<div style={styles.section}>
 								<div style={styles.issueTitleBlock}>
 									<h2 style={styles.issueExamTitle}>{issue.examTitle}</h2>
-									<StatusDropdown 
-										currentStatus={issue.status} 
-										issueId={issue.id} 
+									<StatusDropdown
+										currentStatus={issue.status}
+										issueId={issue.id}
 										onUpdate={handleLocalUpdate}
 									/>
 								</div>
@@ -369,7 +372,9 @@ const IssueDetailPanel = ({ issueId, onClose, onUpdate, isMobile }) => {
 											</div>
 											<div style={styles.timelineContent}>
 												<div style={styles.timelineText}>
-													<strong>{log.user?.fullname || 'System'}</strong>{' '}
+													<strong>
+														{log.user?.fullname || 'System'}
+													</strong>{' '}
 													{log.details}
 												</div>
 												<div style={styles.timelineTime}>
@@ -416,9 +421,9 @@ const IssueRow = ({ issue, onSelect, onToggleSelect, isChecked, isSelected, onUp
 			</td>
 			<td style={styles.tableCell}>{issue.examTitle}</td>
 			<td style={styles.tableCell}>
-				<StatusDropdown 
-					currentStatus={issue.status} 
-					issueId={issue.id} 
+				<StatusDropdown
+					currentStatus={issue.status}
+					issueId={issue.id}
 					onUpdate={onUpdate}
 				/>
 			</td>
@@ -457,9 +462,9 @@ const IssueCard = ({ issue, onSelect, onToggleSelect, isChecked, isSelected, onU
 					/>
 					<span style={styles.card.title}>{issue.examTitle}</span>
 				</div>
-				<StatusDropdown 
-					currentStatus={issue.status} 
-					issueId={issue.id} 
+				<StatusDropdown
+					currentStatus={issue.status}
+					issueId={issue.id}
 					onUpdate={onUpdate}
 				/>
 			</div>
@@ -535,7 +540,7 @@ const TeacherIssues = () => {
 			setIssues(prev => prev.map(i => (i.id === normalized.id ? normalized : i)));
 			// Also update selected issue if it matches
 			if (selectedIssueId === normalized.id) {
-				// We don't need to do anything here as the detail panel fetches its own data, 
+				// We don't need to do anything here as the detail panel fetches its own data,
 				// but if we passed data down, we would update it.
 			}
 		});
@@ -643,19 +648,22 @@ const TeacherIssues = () => {
 					</div>
 				</header>
 
-				<div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column' }}>
+				<div
+					style={{
+						position: 'relative',
+						flex: 1,
+						display: 'flex',
+						flexDirection: 'column',
+					}}
+				>
 					<BulkActionToolbar
 						selectedIds={selectedIssueIds}
 						onBulkResolve={handleBulkResolve}
 						onClear={() => setSelectedIssueIds([])}
 					/>
 
-					{error && (
-						<div style={styles.errorBanner}>
-							⚠️ {error}
-						</div>
-					)}
-					
+					{error && <div style={styles.errorBanner}>⚠️ {error}</div>}
+
 					{loading && (
 						<div style={styles.loadingContainer}>
 							<div className="spinner"></div>
@@ -687,9 +695,15 @@ const TeacherIssues = () => {
 									{filteredIssues.length === 0 && (
 										<tr>
 											<td colSpan="6" style={styles.emptyState}>
-												<div style={{ fontSize: 48, marginBottom: 16 }}>🎉</div>
-												<div style={{ fontWeight: 600, fontSize: 18 }}>All caught up!</div>
-												<div style={{ color: 'var(--text-muted)' }}>No issues found matching your filters.</div>
+												<div style={{ fontSize: 48, marginBottom: 16 }}>
+													🎉
+												</div>
+												<div style={{ fontWeight: 600, fontSize: 18 }}>
+													All caught up!
+												</div>
+												<div style={{ color: 'var(--text-muted)' }}>
+													No issues found matching your filters.
+												</div>
 											</td>
 										</tr>
 									)}
@@ -713,8 +727,12 @@ const TeacherIssues = () => {
 							{filteredIssues.length === 0 && (
 								<div style={styles.emptyState}>
 									<div style={{ fontSize: 48, marginBottom: 16 }}>🎉</div>
-									<div style={{ fontWeight: 600, fontSize: 18 }}>All caught up!</div>
-									<div style={{ color: 'var(--text-muted)' }}>No issues found matching your filters.</div>
+									<div style={{ fontWeight: 600, fontSize: 18 }}>
+										All caught up!
+									</div>
+									<div style={{ color: 'var(--text-muted)' }}>
+										No issues found matching your filters.
+									</div>
 								</div>
 							)}
 							{filteredIssues.map(issue => (
@@ -774,7 +792,13 @@ const styles = {
 		gap: 16,
 		alignItems: isMobile ? 'stretch' : 'center',
 	}),
-	title: { margin: 0, fontSize: 28, fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.02em' },
+	title: {
+		margin: 0,
+		fontSize: 28,
+		fontWeight: 800,
+		color: 'var(--text)',
+		letterSpacing: '-0.02em',
+	},
 	subtitle: { margin: '4px 0 0', color: 'var(--text-muted)', fontSize: 15 },
 	filterGroup: {
 		display: 'flex',
