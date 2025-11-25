@@ -436,7 +436,13 @@ const TeacherSubmissionGrade = () => {
 	if (!submission) return <Alert>Submission data could not be found.</Alert>;
 
 	// Build maps for quick lookup
-	const evalsMap = new Map(submission.evaluations.map(e => [String(e.question), e]));
+	// Ensure keys are strings to avoid object reference issues
+	const evalsMap = new Map(
+		(submission.evaluations || []).map(e => [
+			String(e.question?._id || e.question), // Handle both populated and unpopulated cases
+			e
+		])
+	);
 
 	// Compute totals
 	let awarded = 0;
@@ -454,6 +460,7 @@ const TeacherSubmissionGrade = () => {
 		const pending = updatedEvals[qid]?.marks;
 		
 		// Determine if this question is "graded"
+		// We check if we have an evaluation record OR a local update
 		if (evalsMap.has(qid) || updatedEvals[qid]) {
 			gradedCount++;
 		}

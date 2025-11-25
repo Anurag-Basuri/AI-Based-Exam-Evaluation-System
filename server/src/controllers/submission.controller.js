@@ -404,6 +404,7 @@ const getExamSubmissions = asyncHandler(async (req, res) => {
 	const examId = req.params.id;
 	if (!examId) throw ApiError.BadRequest('Exam ID required');
 	const submissions = await Submission.find({ exam: examId })
+		.sort({ submittedAt: -1 }) // Sort by latest submission first
 		.populate('student', 'username fullname email')
 		.select('student status evaluations startedAt submittedAt violations') // Select violations
 		.lean();
