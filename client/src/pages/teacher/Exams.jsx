@@ -391,6 +391,9 @@ const TeacherExams = () => {
 	const [page, setPage] = useState(1);
 	const [totalExams, setTotalExams] = useState(0);
 
+	// track which exam action is in progress to avoid double-clicks
+	const [actionLoading, setActionLoading] = useState(null);
+
 	const navigate = useNavigate();
 	const { toast } = useToast();
 
@@ -417,19 +420,18 @@ const TeacherExams = () => {
 	const loadData = useCallback(async () => {
 		setLoading(true);
 		try {
-			// Load stats (use safeApiCall to get the dashboard stats)
-			const statsRes = await TeacherSvc.safeApiCall(TeacherSvc.getTeacherDashboardStats);
-			// normalize shape defensively
-			const {
-				total = 0,
-				active = 0,
-				scheduled = 0,
-				completed = 0,
-				draft = 0,
-			} = statsRes || {};
+			// Load dashboard stats (server returns nested shape)
+			const dashboard = await TeacherSvc.safeApiCall(TeacherSvc.getTeacherDashboardStats);
+			const examsPayload =
+				(dashboard && (dashboard.exams || dashboard.examStats)) || dashboard || {};
+			const total = Number(examsPayload.total ?? examsPayload.totalExams ?? 0);
+			const active = Number(examsPayload.live ?? examsPayload.active ?? 0);
+			const scheduled = Number(examsPayload.scheduled ?? 0);
+			const completed = Number(examsPayload.completed ?? 0);
+			const draft = Number(examsPayload.draft ?? 0);
 			setStats({ total, active, scheduled, completed, draft });
 
-			// Load exams with a reasonable limit; backend returns paginated items
+			// Load exams list (paginated)
 			const examsRes = await TeacherSvc.safeApiCall(TeacherSvc.getTeacherExams, {
 				limit: 1000,
 				q: debouncedSearch,
@@ -441,9 +443,8 @@ const TeacherExams = () => {
 			);
 		} catch (err) {
 			console.error('Load error:', err);
-			toast && toast.error
-				? toast.error('Failed to load data')
-				: console.warn('Toast not available');
+			const msg = err?.message || 'Failed to load data';
+			toast?.error ? toast.error(msg) : console.warn(msg);
 		} finally {
 			setLoading(false);
 		}
@@ -477,6 +478,10 @@ const TeacherExams = () => {
 	// --- Handlers ---
 
 	const handleAction = async (action, exam) => {
+		if (!exam) return;
+		// prevent duplicate actions
+		if (actionLoading) return;
+		setActionLoading(`${exam.id}:${action}`);
 		try {
 			switch (action) {
 				case 'copy':
@@ -486,46 +491,46 @@ const TeacherExams = () => {
 					}
 					break;
 				case 'delete':
-					if (!window.confirm(`Delete "${exam.title}"? This cannot be undone.`)) return;
+					if (!window.confirm(`Delete "${exam.title}"? This cannot be undone.`)) break;
 					await TeacherSvc.safeApiCall(TeacherSvc.deleteExam, exam.id);
 					toast.success?.('Exam deleted');
-					loadData();
+					await loadData();
 					break;
 				case 'clone':
 					await TeacherSvc.safeApiCall(TeacherSvc.duplicateTeacherExam, exam.id);
 					toast.success?.('Exam cloned');
-					loadData();
+					await loadData();
 					break;
 				case 'publish':
-					if (!window.confirm(`Publish "${exam.title}"?`)) return;
+					if (!window.confirm(`Publish "${exam.title}"?`)) break;
 					await TeacherSvc.safeApiCall(TeacherSvc.publishTeacherExam, exam.id);
 					toast.success?.('Exam published');
-					loadData();
+					await loadData();
 					break;
 				case 'regenerate':
 					if (!window.confirm('Regenerate share code? Old code will stop working.'))
-						return;
+						break;
 					await TeacherSvc.safeApiCall(TeacherSvc.regenerateExamShareCode, exam.id);
 					toast.success?.('New code generated');
-					loadData();
+					await loadData();
 					break;
 
-				// NEW: End live exam immediately
+				// End live exam immediately
 				case 'end':
 					if (!window.confirm(`End "${exam.title}" now? This will finalize the exam.`))
-						return;
+						break;
 					await TeacherSvc.safeApiCall(TeacherSvc.endExamNow, exam.id);
 					toast.success?.('Exam ended');
-					loadData();
+					await loadData();
 					break;
 
-				// NEW: Cancel scheduled exam
+				// Cancel scheduled exam
 				case 'cancel':
 					if (!window.confirm(`Cancel "${exam.title}"? This will make it unusable.`))
-						return;
+						break;
 					await TeacherSvc.safeApiCall(TeacherSvc.cancelExam, exam.id);
 					toast.success?.('Exam cancelled');
-					loadData();
+					await loadData();
 					break;
 
 				case 'rename': {
@@ -535,7 +540,7 @@ const TeacherExams = () => {
 							title: newName,
 						});
 						toast.success?.('Exam renamed');
-						loadData();
+						await loadData();
 					}
 					break;
 				}
@@ -544,7 +549,10 @@ const TeacherExams = () => {
 			}
 		} catch (err) {
 			console.error('Action error:', err);
-			toast.error?.('Action failed');
+			const msg = err?.message || err?.response?.data?.message || 'Action failed';
+			toast?.error ? toast.error(msg) : console.warn(msg);
+		} finally {
+			setActionLoading(null);
 		}
 	};
 
