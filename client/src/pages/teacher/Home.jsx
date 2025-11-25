@@ -119,7 +119,7 @@ const TeacherHome = () => {
 	}, [user, loadData]);
 
 	const teacher =
-		data.teacher ??
+		(data.teacher && Object.keys(data.teacher).length ? data.teacher : null) ||
 		(user
 			? {
 					id: user.id,
@@ -131,6 +131,11 @@ const TeacherHome = () => {
 					createdAt: user.createdAt,
 			  }
 			: null);
+
+	// Small loading skeleton component
+	const Skeleton = ({ height = 12, width = '100%', radius = 8 }) => (
+		<div style={{ background: 'var(--skeleton)', height, width, borderRadius: radius }} />
+	);
 
 	return (
 		<div style={{ maxWidth: 1200, margin: '0 auto', padding: 20 }}>
@@ -231,10 +236,18 @@ const TeacherHome = () => {
 							</div>
 							<div style={{ flex: 1 }}>
 								<div style={{ fontSize: 16, fontWeight: 800 }}>
-									{teacher?.fullname ?? '—'}
+									{loading ? (
+										<Skeleton height={18} width={160} />
+									) : (
+										teacher?.fullname ?? '—'
+									)}
 								</div>
 								<div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-									{teacher?.username ?? '—'}
+									{loading ? (
+										<Skeleton height={12} width={100} />
+									) : (
+										teacher?.username ?? '—'
+									)}
 								</div>
 							</div>
 						</div>
@@ -247,16 +260,43 @@ const TeacherHome = () => {
 								marginTop: 12,
 							}}
 						>
-							<Field label="Email">{teacher?.email}</Field>
-							<Field label="Phone">{teacher?.phonenumber}</Field>
-							<Field label="Joined">{formatDate(teacher?.createdAt)}</Field>
-							<Field label="Gender">{teacher?.gender ?? '—'}</Field>
+							<Field label="Email">
+								{loading ? <Skeleton height={14} width={'80%'} /> : teacher?.email}
+							</Field>
+							<Field label="Phone">
+								{loading ? (
+									<Skeleton height={14} width={'60%'} />
+								) : (
+									teacher?.phonenumber
+								)}
+							</Field>
+							<Field label="Joined">
+								{loading ? (
+									<Skeleton height={14} width={'60%'} />
+								) : (
+									formatDate(teacher?.createdAt)
+								)}
+							</Field>
+							<Field label="Address">
+								{loading ? (
+									<Skeleton height={14} width={'100%'} />
+								) : (
+									teacher?.address ?? '—'
+								)}
+							</Field>
 						</div>
 
 						<div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
 							<button
 								onClick={() => navigator.clipboard?.writeText(teacher?.email ?? '')}
-								style={{ flex: 1, padding: '8px 10px', borderRadius: 8 }}
+								style={{
+									flex: 1,
+									padding: '8px 10px',
+									borderRadius: 8,
+									boxShadow: 'var(--shadow-sm)',
+									border: 'none',
+									background: 'white',
+								}}
 							>
 								Copy Email
 							</button>
@@ -372,7 +412,19 @@ const TeacherHome = () => {
 								}}
 							>
 								{loading ? (
-									<div style={{ color: 'var(--text-muted)' }}>Loading…</div>
+									[...Array(3)].map((_, i) => (
+										<div
+											key={i}
+											style={{ display: 'flex', gap: 12, padding: 8 }}
+										>
+											<Skeleton height={40} width={40} />
+											<div style={{ flex: 1 }}>
+												<Skeleton height={14} width={'60%'} />
+												<div style={{ height: 8 }} />
+												<Skeleton height={12} width={'40%'} />
+											</div>
+										</div>
+									))
 								) : (data.recentSubmissions || []).length === 0 ? (
 									<div style={{ color: 'var(--text-muted)' }}>
 										No recent submissions
@@ -387,7 +439,12 @@ const TeacherHome = () => {
 												gap: 12,
 												padding: 8,
 												borderRadius: 8,
+												cursor: 'pointer',
+												transition: 'background .12s',
 											}}
+											onClick={() =>
+												navigate(`/teacher/grade/${s._id || s.id}`)
+											}
 										>
 											<div
 												style={{
@@ -466,7 +523,7 @@ const TeacherHome = () => {
 								}}
 							>
 								{loading ? (
-									<div style={{ color: 'var(--text-muted)' }}>Loading…</div>
+									<Skeleton height={60} width={'100%'} />
 								) : (data.examsToReview || []).length === 0 ? (
 									<div style={{ color: 'var(--text-muted)' }}>All caught up</div>
 								) : (
@@ -480,7 +537,11 @@ const TeacherHome = () => {
 												padding: 8,
 												borderRadius: 8,
 												border: '1px dashed var(--border)',
+												cursor: 'pointer',
 											}}
+											onClick={() =>
+												navigate(`/teacher/results/${e._id || e.id}`)
+											}
 										>
 											<div style={{ fontWeight: 700 }}>{e.title}</div>
 											<div
