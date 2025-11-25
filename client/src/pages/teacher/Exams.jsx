@@ -212,7 +212,29 @@ function ExamRow({ exam, onAction, loadingAction }) {
 							Publish
 						</button>
 					)}
-					{(isLive || isScheduled) && (
+					{isScheduled && (
+						<button
+							type="button"
+							onClick={() => onAction('cancel', exam)}
+							style={{
+								...iconBtn,
+								color: '#dc2626',
+								border: '1px solid #fee2e2',
+								background: '#fff0f0',
+							}}
+							title="Cancel Exam"
+							aria-label="Cancel Exam"
+							disabled={!!loadingAction}
+						>
+							{loadingAction === 'cancel' ? (
+								<Spinner size={14} />
+							) : (
+								<StopCircle size={15} />
+							)}{' '}
+							Cancel
+						</button>
+					)}
+					{isLive && (
 						<button
 							type="button"
 							onClick={() => onAction('end', exam)}
@@ -222,8 +244,8 @@ function ExamRow({ exam, onAction, loadingAction }) {
 								border: '1px solid #fee2e2',
 								background: '#fff0f0',
 							}}
-							title={isScheduled ? 'Cancel Exam' : 'End Exam'}
-							aria-label={isScheduled ? 'Cancel Exam' : 'End Exam'}
+							title="End Exam"
+							aria-label="End Exam"
 							disabled={!!loadingAction}
 						>
 							{loadingAction === 'end' ? (
@@ -231,7 +253,7 @@ function ExamRow({ exam, onAction, loadingAction }) {
 							) : (
 								<StopCircle size={15} />
 							)}{' '}
-							{isScheduled ? 'Cancel' : 'End'}
+							End
 						</button>
 					)}
 					{(isLive || isScheduled) && (
@@ -452,15 +474,14 @@ export default function TeacherExams() {
 					toast.success?.('Exam published');
 				}
 			} else if (action === 'end') {
-				if (
-					window.confirm(
-						exam.derivedStatus === 'scheduled'
-							? 'Cancel this scheduled exam?'
-							: 'End this exam now?',
-					)
-				) {
+				if (window.confirm('End this exam now?')) {
 					await TeacherSvc.safeApiCall(TeacherSvc.endExamNow, exam.id);
 					toast.success?.('Exam ended');
+				}
+			} else if (action === 'cancel') {
+				if (window.confirm('Cancel this scheduled exam?')) {
+					await TeacherSvc.safeApiCall(TeacherSvc.cancelExam, exam.id);
+					toast.success?.('Exam cancelled');
 				}
 			} else if (action === 'extend') {
 				const min = prompt('Extend by how many minutes? (e.g. 10)');
@@ -468,6 +489,8 @@ export default function TeacherExams() {
 				if (minutes > 0) {
 					await TeacherSvc.safeApiCall(TeacherSvc.extendExamEnd, exam.id, { minutes });
 					toast.success?.('Exam end time extended');
+				} else {
+					toast.error?.('Please enter a valid number of minutes.');
 				}
 			} else if (action === 'regenerate') {
 				if (window.confirm('Regenerate exam code? Old code will be invalid.')) {
@@ -484,6 +507,8 @@ export default function TeacherExams() {
 					await TeacherSvc.safeApiCall(TeacherSvc.deleteExam, exam.id);
 					toast.success?.('Exam deleted');
 				}
+			} else {
+				toast.error?.('Unknown action');
 			}
 			await loadData();
 			await loadStats();
