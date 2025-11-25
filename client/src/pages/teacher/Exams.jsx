@@ -5,16 +5,16 @@ import { io } from 'socket.io-client';
 import { API_BASE_URL } from '../../services/api.js';
 import * as TeacherSvc from '../../services/teacherServices.js';
 import {
-	FaPlus,
-	FaSearch,
-	FaSyncAlt,
-	FaClipboard,
-	FaEye,
-	FaTrash,
-	FaRocket,
-	FaStop,
-	FaCheckCircle,
-} from 'react-icons/fa';
+	Eye,
+	Plus,
+	Search,
+	RefreshCw,
+	Clipboard,
+	Rocket,
+	StopCircle,
+	Trash2,
+	CheckCircle2,
+} from 'lucide-react';
 
 // --- Status Map ---
 const STATUS_LABELS = {
@@ -88,7 +88,7 @@ function ExamRow({ exam, onAction, loading }) {
 						gap: 6,
 					}}
 				>
-					<FaEye style={{ color: '#6366f1', opacity: 0.7 }} title="View/Edit" />
+					<Eye size={18} color="#6366f1" style={{ opacity: 0.7 }} title="View/Edit" />
 					{exam.title}
 				</div>
 				{exam.description && (
@@ -137,7 +137,7 @@ function ExamRow({ exam, onAction, loading }) {
 						onClick={handleCopy}
 						onKeyDown={e => (e.key === 'Enter' ? handleCopy() : undefined)}
 					>
-						<FaClipboard style={{ fontSize: 13, opacity: 0.7 }} />
+						<Clipboard size={15} style={{ opacity: 0.7 }} />
 						{exam.searchId}
 						{copied && (
 							<span
@@ -182,7 +182,7 @@ function ExamRow({ exam, onAction, loading }) {
 						aria-label="View or edit exam"
 						disabled={loading}
 					>
-						<FaEye /> View
+						<Eye /> View
 					</button>
 					{['live', 'scheduled', 'active'].includes(status) && (
 						<button
@@ -210,7 +210,7 @@ function ExamRow({ exam, onAction, loading }) {
 							}
 							disabled={loading}
 						>
-							{loading ? <Spinner size={14} /> : <FaStop />} End
+							{loading ? <Spinner size={14} /> : <StopCircle size={15} />} End
 						</button>
 					)}
 					{status === 'draft' && (
@@ -227,7 +227,7 @@ function ExamRow({ exam, onAction, loading }) {
 							aria-label="Publish exam"
 							disabled={loading}
 						>
-							{loading ? <Spinner size={14} /> : <FaRocket />} Publish
+							{loading ? <Spinner size={14} /> : <Rocket size={15} />} Publish
 						</button>
 					)}
 					<button
@@ -243,7 +243,7 @@ function ExamRow({ exam, onAction, loading }) {
 						aria-label="Delete exam"
 						disabled={loading}
 					>
-						{loading ? <Spinner size={14} /> : <FaTrash />} Delete
+						{loading ? <Spinner size={14} /> : <Trash2 size={15} />} Delete
 					</button>
 				</div>
 			</td>
@@ -268,15 +268,15 @@ function formatDate(dateVal) {
 // --- Stats Card ---
 function StatsCard({ stats, loading }) {
 	const items = [
-		{ label: 'Total', value: stats?.total ?? 0, color: '#6366f1', icon: <FaCheckCircle /> },
-		{ label: 'Draft', value: stats?.draft ?? 0, color: '#64748b', icon: <FaRocket /> },
-		{ label: 'Scheduled', value: stats?.scheduled ?? 0, color: '#2563eb', icon: <FaSyncAlt /> },
-		{ label: 'Live', value: stats?.live ?? 0, color: '#16a34a', icon: <FaEye /> },
+		{ label: 'Total', value: stats?.total ?? 0, color: '#6366f1', icon: <CheckCircle2 /> },
+		{ label: 'Draft', value: stats?.draft ?? 0, color: '#64748b', icon: <Rocket /> },
+		{ label: 'Scheduled', value: stats?.scheduled ?? 0, color: '#2563eb', icon: <RefreshCw /> },
+		{ label: 'Live', value: stats?.live ?? 0, color: '#16a34a', icon: <Eye /> },
 		{
 			label: 'Completed',
 			value: stats?.completed ?? 0,
 			color: '#6366f1',
-			icon: <FaCheckCircle />,
+			icon: <CheckCircle2 />,
 		},
 	];
 	return (
@@ -438,7 +438,7 @@ export default function TeacherExams() {
 							gap: 10,
 						}}
 					>
-						<FaEye style={{ color: '#6366f1', fontSize: 22 }} />
+						<Eye style={{ color: '#6366f1', fontSize: 22 }} />
 						My Exams
 					</h2>
 					<div style={{ color: '#64748b', fontSize: 15, marginTop: 2 }}>
@@ -446,7 +446,7 @@ export default function TeacherExams() {
 					</div>
 				</div>
 				<Link to="/teacher/exams/create" style={createBtn} aria-label="Create new exam">
-					<FaPlus style={{ marginRight: 7, fontSize: 15 }} />
+					<Plus style={{ marginRight: 7, fontSize: 15 }} />
 					New Exam
 				</Link>
 			</div>
@@ -466,7 +466,7 @@ export default function TeacherExams() {
 						<option value="completed">Completed</option>
 					</select>
 					<div style={{ position: 'relative', flex: 1 }}>
-						<FaSearch
+						<Search
 							style={{
 								position: 'absolute',
 								left: 10,
@@ -496,7 +496,7 @@ export default function TeacherExams() {
 					disabled={loading}
 					title="Refresh"
 				>
-					{loading ? <Spinner size={16} /> : <FaSyncAlt />}
+					{loading ? <Spinner size={16} /> : <RefreshCw />}
 				</button>
 			</div>
 			<div style={{ marginTop: 16, overflowX: 'auto' }}>
@@ -564,7 +564,7 @@ export default function TeacherExams() {
 				title="Create new exam"
 				className="fab"
 			>
-				<FaPlus />
+				<Plus />
 			</Link>
 			<style>
 				{`
