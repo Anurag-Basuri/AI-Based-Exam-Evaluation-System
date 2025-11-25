@@ -15,6 +15,7 @@ import {
 	Trash2,
 	CheckCircle2,
 	Copy as CopyIcon,
+	Info,
 } from 'lucide-react';
 
 // --- Status Map ---
@@ -55,7 +56,7 @@ function Spinner({ size = 20 }) {
 }
 
 // --- Exam Row ---
-function ExamRow({ exam, onAction, loadingAction }) {
+function ExamRow({ exam, onAction, loadingAction, onCodeUpdate }) {
 	const status = exam.derivedStatus || exam.status;
 	const [copied, setCopied] = useState(false);
 
@@ -180,165 +181,237 @@ function ExamRow({ exam, onAction, loadingAction }) {
 			</td>
 			<td>
 				<div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-					<button
-						type="button"
-						onClick={() => onAction('view', exam)}
-						style={iconBtn}
-						title="View/Edit"
-						aria-label="View or edit exam"
-						disabled={!!loadingAction}
-					>
-						<Eye /> View
-					</button>
-					{isDraft && (
+					<Tooltip label="View or edit exam">
 						<button
 							type="button"
-							onClick={() => onAction('publish', exam)}
-							style={{
-								...iconBtn,
-								color: '#6366f1',
-								border: '1px solid #e0e7ff',
-								background: '#f5f7ff',
-							}}
-							title="Publish"
-							aria-label="Publish exam"
+							onClick={() => onAction('view', exam)}
+							style={iconBtn}
+							aria-label="View or edit exam"
 							disabled={!!loadingAction}
 						>
-							{loadingAction === 'publish' ? (
-								<Spinner size={14} />
-							) : (
-								<Rocket size={15} />
-							)}{' '}
-							Publish
+							<Eye /> View
 						</button>
+					</Tooltip>
+					{isDraft && (
+						<Tooltip label="Publish exam">
+							<button
+								type="button"
+								onClick={() => onAction('publish', exam)}
+								style={{
+									...iconBtn,
+									color: '#6366f1',
+									border: '1px solid #e0e7ff',
+									background: '#f5f7ff',
+								}}
+								aria-label="Publish exam"
+								disabled={!!loadingAction}
+							>
+								{loadingAction === 'publish' ? (
+									<Spinner size={14} />
+								) : (
+									<Rocket size={15} />
+								)}{' '}
+								Publish
+							</button>
+						</Tooltip>
 					)}
 					{(isScheduled || isLive) && (
-						<button
-							type="button"
-							onClick={() => onAction('cancel', exam)}
-							style={{
-								...iconBtn,
-								color: '#dc2626',
-								border: '1px solid #fee2e2',
-								background: '#fff0f0',
-							}}
-							title={isLive ? 'Cancel (End) Live Exam' : 'Cancel Exam'}
-							aria-label={isLive ? 'Cancel (End) Live Exam' : 'Cancel Exam'}
-							disabled={!!loadingAction}
-						>
-							{loadingAction === 'cancel' ? (
-								<Spinner size={14} />
-							) : (
-								<StopCircle size={15} />
-							)}{' '}
-							Cancel
-						</button>
+						<Tooltip label={isLive ? 'Cancel (End) Live Exam' : 'Cancel Exam'}>
+							<button
+								type="button"
+								onClick={() => onAction('cancel', exam)}
+								style={{
+									...iconBtn,
+									color: '#dc2626',
+									border: '1px solid #fee2e2',
+									background: '#fff0f0',
+								}}
+								aria-label={isLive ? 'Cancel (End) Live Exam' : 'Cancel Exam'}
+								disabled={!!loadingAction}
+							>
+								{loadingAction === 'cancel' ? (
+									<Spinner size={14} />
+								) : (
+									<StopCircle size={15} />
+								)}{' '}
+								Cancel
+							</button>
+						</Tooltip>
 					)}
 					{isLive && (
-						<button
-							type="button"
-							onClick={() => onAction('end', exam)}
-							style={{
-								...iconBtn,
-								color: '#dc2626',
-								border: '1px solid #fee2e2',
-								background: '#fff0f0',
-							}}
-							title="End Exam"
-							aria-label="End Exam"
-							disabled={!!loadingAction}
-						>
-							{loadingAction === 'end' ? (
-								<Spinner size={14} />
-							) : (
-								<StopCircle size={15} />
-							)}{' '}
-							End
-						</button>
+						<Tooltip label="End exam (students can no longer submit)">
+							<button
+								type="button"
+								onClick={() => onAction('end', exam)}
+								style={{
+									...iconBtn,
+									color: '#dc2626',
+									border: '1px solid #fee2e2',
+									background: '#fff0f0',
+								}}
+								aria-label="End Exam"
+								disabled={!!loadingAction}
+							>
+								{loadingAction === 'end' ? (
+									<Spinner size={14} />
+								) : (
+									<StopCircle size={15} />
+								)}{' '}
+								End
+							</button>
+						</Tooltip>
 					)}
 					{(isLive || isScheduled) && (
-						<button
-							type="button"
-							onClick={() => onAction('extend', exam)}
-							style={{
-								...iconBtn,
-								color: '#2563eb',
-								border: '1px solid #dbeafe',
-								background: '#f0f7ff',
-							}}
-							title="Extend End Time"
-							aria-label="Extend End Time"
-							disabled={!!loadingAction}
-						>
-							{loadingAction === 'extend' ? (
-								<Spinner size={14} />
-							) : (
-								<RefreshCw size={15} />
-							)}{' '}
-							Extend
-						</button>
+						<Tooltip label="Extend exam end time">
+							<button
+								type="button"
+								onClick={() => onAction('extend', exam)}
+								style={{
+									...iconBtn,
+									color: '#2563eb',
+									border: '1px solid #dbeafe',
+									background: '#f0f7ff',
+								}}
+								aria-label="Extend End Time"
+								disabled={!!loadingAction}
+							>
+								{loadingAction === 'extend' ? (
+									<Spinner size={14} />
+								) : (
+									<RefreshCw size={15} />
+								)}{' '}
+								Extend
+							</button>
+						</Tooltip>
 					)}
 					{(isDraft || isScheduled) && (
+						<Tooltip label="Regenerate exam code">
+							<button
+								type="button"
+								onClick={async () => {
+									const newCode = await onAction('regenerate', exam);
+									if (newCode && onCodeUpdate) onCodeUpdate(exam.id, newCode);
+								}}
+								style={{
+									...iconBtn,
+									color: '#6366f1',
+									border: '1px solid #e0e7ff',
+									background: '#f5f7ff',
+								}}
+								aria-label="Regenerate Code"
+								disabled={!!loadingAction}
+							>
+								{loadingAction === 'regenerate' ? (
+									<Spinner size={14} />
+								) : (
+									<Clipboard size={15} />
+								)}{' '}
+								Regenerate
+							</button>
+						</Tooltip>
+					)}
+					<Tooltip label="Duplicate exam">
 						<button
 							type="button"
-							onClick={() => onAction('regenerate', exam)}
+							onClick={() => onAction('duplicate', exam)}
 							style={{
 								...iconBtn,
-								color: '#6366f1',
-								border: '1px solid #e0e7ff',
-								background: '#f5f7ff',
+								color: '#64748b',
+								border: '1px solid #e5e7eb',
+								background: '#f8fafc',
 							}}
-							title="Regenerate Code"
-							aria-label="Regenerate Code"
+							aria-label="Duplicate Exam"
 							disabled={!!loadingAction}
 						>
-							{loadingAction === 'regenerate' ? (
+							{loadingAction === 'duplicate' ? (
 								<Spinner size={14} />
 							) : (
-								<Clipboard size={15} />
+								<CopyIcon size={15} />
 							)}{' '}
-							Regenerate
+							Duplicate
 						</button>
+					</Tooltip>
+					{isLive || isScheduled ? (
+						<Tooltip label="Cannot delete live/scheduled exam. Cancel it first.">
+							<button
+								type="button"
+								style={{
+									...iconBtn,
+									color: '#dc2626',
+									border: '1px solid #fee2e2',
+									background: '#fff0f0',
+									opacity: 0.5,
+									cursor: 'not-allowed',
+								}}
+								aria-label="Delete exam (disabled)"
+								disabled
+							>
+								<Trash2 size={15} /> Delete
+							</button>
+						</Tooltip>
+					) : (
+						<Tooltip label="Delete exam">
+							<button
+								type="button"
+								onClick={() => onAction('delete', exam)}
+								style={{
+									...iconBtn,
+									color: '#dc2626',
+									border: '1px solid #fee2e2',
+									background: '#fff0f0',
+								}}
+								aria-label="Delete exam"
+								disabled={!!loadingAction}
+							>
+								{loadingAction === 'delete' ? (
+									<Spinner size={14} />
+								) : (
+									<Trash2 size={15} />
+								)}{' '}
+								Delete
+							</button>
+						</Tooltip>
 					)}
-					<button
-						type="button"
-						onClick={() => onAction('duplicate', exam)}
-						style={{
-							...iconBtn,
-							color: '#64748b',
-							border: '1px solid #e5e7eb',
-							background: '#f8fafc',
-						}}
-						title="Duplicate Exam"
-						aria-label="Duplicate Exam"
-						disabled={!!loadingAction}
-					>
-						{loadingAction === 'duplicate' ? (
-							<Spinner size={14} />
-						) : (
-							<CopyIcon size={15} />
-						)}{' '}
-						Duplicate
-					</button>
-					<button
-						type="button"
-						onClick={() => onAction('delete', exam)}
-						style={{
-							...iconBtn,
-							color: '#dc2626',
-							border: '1px solid #fee2e2',
-							background: '#fff0f0',
-						}}
-						title="Delete"
-						aria-label="Delete exam"
-						disabled={!!loadingAction || isLive || isScheduled}
-					>
-						{loadingAction === 'delete' ? <Spinner size={14} /> : <Trash2 size={15} />}{' '}
-						Delete
-					</button>
 				</div>
 			</td>
 		</tr>
+	);
+}
+
+// --- Tooltip ---
+function Tooltip({ label, children }) {
+	const [show, setShow] = useState(false);
+	return (
+		<span
+			style={{ position: 'relative', display: 'inline-block' }}
+			onMouseEnter={() => setShow(true)}
+			onMouseLeave={() => setShow(false)}
+			onFocus={() => setShow(true)}
+			onBlur={() => setShow(false)}
+		>
+			{children}
+			{show && (
+				<span
+					style={{
+						position: 'absolute',
+						bottom: '120%',
+						left: '50%',
+						transform: 'translateX(-50%)',
+						background: '#222',
+						color: '#fff',
+						padding: '4px 10px',
+						borderRadius: 6,
+						fontSize: 13,
+						whiteSpace: 'nowrap',
+						boxShadow: '0 2px 8px #0002',
+						zIndex: 100,
+					}}
+					role="tooltip"
+				>
+					{label}
+				</span>
+			)}
+		</span>
 	);
 }
 
@@ -462,6 +535,11 @@ export default function TeacherExams() {
 		return () => socket.disconnect();
 	}, [loadData, loadStats]);
 
+	// Update code in UI after regeneration
+	const handleCodeUpdate = (examId, newCode) => {
+		setExams(prev => prev.map(e => (e.id === examId ? { ...e, searchId: newCode } : e)));
+	};
+
 	const handleAction = async (action, exam) => {
 		if (!exam) return;
 		setActionLoading(prev => ({ ...prev, [exam.id]: action }));
@@ -504,6 +582,7 @@ export default function TeacherExams() {
 					);
 					if (res && res.searchId) {
 						toast.success?.('Exam code regenerated: ' + res.searchId);
+						return res.searchId;
 					} else {
 						toast.error?.('Failed to regenerate code.');
 					}
@@ -673,6 +752,7 @@ export default function TeacherExams() {
 									exam={exam}
 									onAction={handleAction}
 									loadingAction={actionLoading[exam.id]}
+									onCodeUpdate={handleCodeUpdate}
 								/>
 							))
 						)}
