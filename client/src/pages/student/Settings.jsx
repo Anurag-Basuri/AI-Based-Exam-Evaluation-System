@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth.js';
 import {
 	safeApiCall,
+	getStudentProfile,
 	updateStudentProfile,
 	changeStudentPassword,
 } from '../../services/studentServices.js';
@@ -30,35 +31,47 @@ const StudentSettings = () => {
 	const [profile, setProfile] = useState(initialProfileState);
 	const [originalProfile, setOriginalProfile] = useState(initialProfileState);
 	const [isDirty, setIsDirty] = useState(false);
+	const [loading, setLoading] = useState(true);
 
-	// Load user data
+	// Load user data from server
 	useEffect(() => {
-		if (user) {
-			// Helper to safely parse address
-			const parseAddress = (addr) => {
-				if (!addr) return { street: '', city: '', state: '', postalCode: '', country: '' };
-				if (typeof addr === 'string') return { street: addr, city: '', state: '', postalCode: '', country: '' };
-				return {
-					street: addr.street || '',
-					city: addr.city || '',
-					state: addr.state || '',
-					postalCode: addr.postalCode || '',
-					country: addr.country || '',
+		const fetchProfile = async () => {
+			try {
+				setLoading(true);
+				const data = await safeApiCall(getStudentProfile);
+				
+				// Helper to safely parse address
+				const parseAddress = (addr) => {
+					if (!addr) return { street: '', city: '', state: '', postalCode: '', country: '' };
+					if (typeof addr === 'string') return { street: addr, city: '', state: '', postalCode: '', country: '' };
+					return {
+						street: addr.street || '',
+						city: addr.city || '',
+						state: addr.state || '',
+						postalCode: addr.postalCode || '',
+						country: addr.country || '',
+					};
 				};
-			};
 
-			const loadedProfile = {
-				username: user.username || '',
-				fullname: user.fullname || '',
-				email: user.email || '',
-				phonenumber: user.phonenumber || '',
-				gender: user.gender || '',
-				address: parseAddress(user.address),
-			};
-			setProfile(loadedProfile);
-			setOriginalProfile(loadedProfile);
-		}
-	}, [user]);
+				const loadedProfile = {
+					username: data.username || '',
+					fullname: data.fullname || '',
+					email: data.email || '',
+					phonenumber: data.phonenumber || '',
+					gender: data.gender || '',
+					address: parseAddress(data.address),
+				};
+				setProfile(loadedProfile);
+				setOriginalProfile(loadedProfile);
+			} catch (err) {
+				setMessage({ type: 'error', text: err?.message || 'Failed to load profile' });
+			} finally {
+				setLoading(false);
+			}
+		};
+
+		fetchProfile();
+	}, []);
 
 	// Check for changes
 	useEffect(() => {
@@ -318,7 +331,7 @@ const StudentSettings = () => {
 						<button 
 							type="submit" 
 							className="btn-save" 
-							disabled={saving || !isDirty}
+							disabled={saving || !isDirty || loading}
 							title={!isDirty ? "No changes to save" : "Save changes"}
 						>
 							{saving ? 'Saving...' : 'Save Changes'}
@@ -374,7 +387,7 @@ const StudentSettings = () => {
 					</div>
 
 					<div className="form-actions">
-						<button type="submit" className="btn-save" disabled={saving}>
+						<button type="submit" className="btn-save" disabled={saving || loading}>
 							{saving ? 'Updating...' : 'Update Password'}
 						</button>
 					</div>
