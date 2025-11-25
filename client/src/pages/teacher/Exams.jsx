@@ -15,7 +15,6 @@ import {
 	Trash2,
 	CheckCircle2,
 	Copy as CopyIcon,
-	Info,
 } from 'lucide-react';
 
 // --- Status Map ---
@@ -56,7 +55,7 @@ function Spinner({ size = 20 }) {
 }
 
 // --- Exam Row ---
-function ExamRow({ exam, onAction, loadingAction, onCodeUpdate }) {
+function ExamRow({ exam, onAction, loadingAction, onCodeUpdate, isDark }) {
 	const status = exam.derivedStatus || exam.status;
 	const [copied, setCopied] = useState(false);
 
@@ -71,12 +70,17 @@ function ExamRow({ exam, onAction, loadingAction, onCodeUpdate }) {
 	const isDraft = status === 'draft';
 	const isScheduled = status === 'scheduled';
 	const isLive = status === 'live';
-	const isCompleted = status === 'completed' || status === 'cancelled';
 
 	return (
 		<tr
 			style={{
-				background: loadingAction ? '#f3f4f6' : '#fff',
+				background: loadingAction
+					? isDark
+						? '#23272e'
+						: '#f3f4f6'
+					: isDark
+					? '#181a20'
+					: '#fff',
 				opacity: loadingAction ? 0.6 : 1,
 				transition: 'background 0.2s, opacity 0.2s',
 				cursor: 'pointer',
@@ -93,13 +97,20 @@ function ExamRow({ exam, onAction, loadingAction, onCodeUpdate }) {
 						display: 'flex',
 						alignItems: 'center',
 						gap: 6,
+						color: isDark ? '#e0e7ef' : '#222',
 					}}
 				>
 					<Eye size={18} color="#6366f1" style={{ opacity: 0.7 }} title="View/Edit" />
 					{exam.title}
 				</div>
 				{exam.description && (
-					<div style={{ fontSize: 13, color: '#64748b', marginTop: 2 }}>
+					<div
+						style={{
+							fontSize: 13,
+							color: isDark ? '#a0aec0' : '#64748b',
+							marginTop: 2,
+						}}
+					>
 						{exam.description}
 					</div>
 				)}
@@ -110,7 +121,7 @@ function ExamRow({ exam, onAction, loadingAction, onCodeUpdate }) {
 						display: 'inline-block',
 						padding: '2px 12px',
 						borderRadius: 12,
-						background: STATUS_COLORS[status] + '22',
+						background: STATUS_COLORS[status] + (isDark ? '33' : '22'),
 						color: STATUS_COLORS[status],
 						fontWeight: 600,
 						fontSize: 13,
@@ -131,7 +142,7 @@ function ExamRow({ exam, onAction, loadingAction, onCodeUpdate }) {
 							fontSize: 14,
 							cursor: 'pointer',
 							position: 'relative',
-							color: '#2563eb',
+							color: isDark ? '#60a5fa' : '#2563eb',
 							userSelect: 'all',
 							display: 'inline-flex',
 							alignItems: 'center',
@@ -152,7 +163,7 @@ function ExamRow({ exam, onAction, loadingAction, onCodeUpdate }) {
 									position: 'absolute',
 									top: -22,
 									left: 0,
-									background: '#f1f5f9',
+									background: isDark ? '#23272e' : '#f1f5f9',
 									color: '#16a34a',
 									fontSize: 12,
 									padding: '2px 8px',
@@ -167,16 +178,18 @@ function ExamRow({ exam, onAction, loadingAction, onCodeUpdate }) {
 						)}
 					</span>
 				) : (
-					<span style={{ color: '#94a3b8' }}>—</span>
+					<span style={{ color: isDark ? '#6b7280' : '#94a3b8' }}>—</span>
 				)}
 			</td>
 			<td>{exam.duration} min</td>
 			<td>{exam.questionCount ?? exam.questions.length ?? 0}</td>
 			<td>
-				<div style={{ fontSize: 13 }}>
+				<div style={{ fontSize: 13, color: isDark ? '#a0aec0' : undefined }}>
 					{formatDate(exam.startAt)}
 					<br />
-					<span style={{ color: '#64748b' }}>{formatDate(exam.endAt)}</span>
+					<span style={{ color: isDark ? '#718096' : '#64748b' }}>
+						{formatDate(exam.endAt)}
+					</span>
 				</div>
 			</td>
 			<td>
@@ -185,7 +198,7 @@ function ExamRow({ exam, onAction, loadingAction, onCodeUpdate }) {
 						<button
 							type="button"
 							onClick={() => onAction('view', exam)}
-							style={iconBtn}
+							style={iconBtn(isDark)}
 							aria-label="View or edit exam"
 							disabled={!!loadingAction}
 						>
@@ -198,10 +211,10 @@ function ExamRow({ exam, onAction, loadingAction, onCodeUpdate }) {
 								type="button"
 								onClick={() => onAction('publish', exam)}
 								style={{
-									...iconBtn,
+									...iconBtn(isDark),
 									color: '#6366f1',
-									border: '1px solid #e0e7ff',
-									background: '#f5f7ff',
+									border: isDark ? '1px solid #3730a3' : '1px solid #e0e7ff',
+									background: isDark ? '#232046' : '#f5f7ff',
 								}}
 								aria-label="Publish exam"
 								disabled={!!loadingAction}
@@ -221,10 +234,10 @@ function ExamRow({ exam, onAction, loadingAction, onCodeUpdate }) {
 								type="button"
 								onClick={() => onAction('cancel', exam)}
 								style={{
-									...iconBtn,
+									...iconBtn(isDark),
 									color: '#dc2626',
-									border: '1px solid #fee2e2',
-									background: '#fff0f0',
+									border: isDark ? '1px solid #7f1d1d' : '1px solid #fee2e2',
+									background: isDark ? '#2d1a1a' : '#fff0f0',
 								}}
 								aria-label={isLive ? 'Cancel (End) Live Exam' : 'Cancel Exam'}
 								disabled={!!loadingAction}
@@ -244,10 +257,10 @@ function ExamRow({ exam, onAction, loadingAction, onCodeUpdate }) {
 								type="button"
 								onClick={() => onAction('end', exam)}
 								style={{
-									...iconBtn,
+									...iconBtn(isDark),
 									color: '#dc2626',
-									border: '1px solid #fee2e2',
-									background: '#fff0f0',
+									border: isDark ? '1px solid #7f1d1d' : '1px solid #fee2e2',
+									background: isDark ? '#2d1a1a' : '#fff0f0',
 								}}
 								aria-label="End Exam"
 								disabled={!!loadingAction}
@@ -267,10 +280,10 @@ function ExamRow({ exam, onAction, loadingAction, onCodeUpdate }) {
 								type="button"
 								onClick={() => onAction('extend', exam)}
 								style={{
-									...iconBtn,
+									...iconBtn(isDark),
 									color: '#2563eb',
-									border: '1px solid #dbeafe',
-									background: '#f0f7ff',
+									border: isDark ? '1px solid #1e40af' : '1px solid #dbeafe',
+									background: isDark ? '#1e293b' : '#f0f7ff',
 								}}
 								aria-label="Extend End Time"
 								disabled={!!loadingAction}
@@ -293,10 +306,10 @@ function ExamRow({ exam, onAction, loadingAction, onCodeUpdate }) {
 									if (newCode && onCodeUpdate) onCodeUpdate(exam.id, newCode);
 								}}
 								style={{
-									...iconBtn,
+									...iconBtn(isDark),
 									color: '#6366f1',
-									border: '1px solid #e0e7ff',
-									background: '#f5f7ff',
+									border: isDark ? '1px solid #3730a3' : '1px solid #e0e7ff',
+									background: isDark ? '#232046' : '#f5f7ff',
 								}}
 								aria-label="Regenerate Code"
 								disabled={!!loadingAction}
@@ -315,10 +328,10 @@ function ExamRow({ exam, onAction, loadingAction, onCodeUpdate }) {
 							type="button"
 							onClick={() => onAction('duplicate', exam)}
 							style={{
-								...iconBtn,
-								color: '#64748b',
-								border: '1px solid #e5e7eb',
-								background: '#f8fafc',
+								...iconBtn(isDark),
+								color: isDark ? '#a3a3a3' : '#64748b',
+								border: isDark ? '1px solid #374151' : '1px solid #e5e7eb',
+								background: isDark ? '#23272e' : '#f8fafc',
 							}}
 							aria-label="Duplicate Exam"
 							disabled={!!loadingAction}
@@ -336,10 +349,10 @@ function ExamRow({ exam, onAction, loadingAction, onCodeUpdate }) {
 							<button
 								type="button"
 								style={{
-									...iconBtn,
+									...iconBtn(isDark),
 									color: '#dc2626',
-									border: '1px solid #fee2e2',
-									background: '#fff0f0',
+									border: isDark ? '1px solid #7f1d1d' : '1px solid #fee2e2',
+									background: isDark ? '#2d1a1a' : '#fff0f0',
 									opacity: 0.5,
 									cursor: 'not-allowed',
 								}}
@@ -355,10 +368,10 @@ function ExamRow({ exam, onAction, loadingAction, onCodeUpdate }) {
 								type="button"
 								onClick={() => onAction('delete', exam)}
 								style={{
-									...iconBtn,
+									...iconBtn(isDark),
 									color: '#dc2626',
-									border: '1px solid #fee2e2',
-									background: '#fff0f0',
+									border: isDark ? '1px solid #7f1d1d' : '1px solid #fee2e2',
+									background: isDark ? '#2d1a1a' : '#fff0f0',
 								}}
 								aria-label="Delete exam"
 								disabled={!!loadingAction}
@@ -430,7 +443,7 @@ function formatDate(dateVal) {
 }
 
 // --- Stats Card ---
-function StatsCard({ stats, loading }) {
+function StatsCard({ stats, loading, isDark }) {
 	const items = [
 		{ label: 'Total', value: stats?.total ?? 0, color: '#6366f1', icon: <CheckCircle2 /> },
 		{ label: 'Draft', value: stats?.draft ?? 0, color: '#64748b', icon: <Rocket /> },
@@ -449,23 +462,29 @@ function StatsCard({ stats, loading }) {
 				<div
 					key={item.label}
 					style={{
-						...statBox,
+						...statBox(isDark),
 						borderColor: item.color,
-						boxShadow: '0 2px 8px #0001',
+						boxShadow: isDark ? '0 2px 8px #0008' : '0 2px 8px #0001',
 						transition: 'box-shadow 0.2s, transform 0.2s',
 						display: 'flex',
 						flexDirection: 'column',
 						alignItems: 'center',
 						justifyContent: 'center',
 						gap: 4,
-						background: '#f8fafc',
+						background: isDark ? '#23272e' : '#f8fafc',
 					}}
 					title={item.label}
 				>
 					<div style={{ fontSize: 18, color: item.color, marginBottom: 2 }}>
 						{item.icon}
 					</div>
-					<div style={{ fontSize: 13, color: '#64748b', marginBottom: 2 }}>
+					<div
+						style={{
+							fontSize: 13,
+							color: isDark ? '#a0aec0' : '#64748b',
+							marginBottom: 2,
+						}}
+					>
 						{item.label}
 					</div>
 					<div style={{ fontWeight: 700, fontSize: 22, color: item.color }}>
@@ -488,6 +507,31 @@ export default function TeacherExams() {
 	const [actionLoading, setActionLoading] = useState({});
 	const navigate = useNavigate();
 	const { toast } = useToast();
+
+	// --- Detect dark mode (using Tailwind or custom class on body) ---
+	const [isDark, setIsDark] = useState(
+		() =>
+			document.documentElement.classList.contains('dark') ||
+			document.body.classList.contains('dark') ||
+			window.matchMedia('(prefers-color-scheme: dark)').matches,
+	);
+	useEffect(() => {
+		const listener = () => {
+			setIsDark(
+				document.documentElement.classList.contains('dark') ||
+					document.body.classList.contains('dark') ||
+					window.matchMedia('(prefers-color-scheme: dark)').matches,
+			);
+		};
+		window.addEventListener('storage', listener);
+		window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', listener);
+		return () => {
+			window.removeEventListener('storage', listener);
+			window
+				.matchMedia('(prefers-color-scheme: dark)')
+				.removeEventListener('change', listener);
+		};
+	}, []);
 
 	const loadStats = useCallback(async () => {
 		setStatsLoading(true);
@@ -582,6 +626,8 @@ export default function TeacherExams() {
 					);
 					if (res && res.searchId) {
 						toast.success?.('Exam code regenerated: ' + res.searchId);
+						await loadData(); // Refresh after regeneration
+						await loadStats();
 						return res.searchId;
 					} else {
 						toast.error?.('Failed to regenerate code.');
@@ -626,7 +672,7 @@ export default function TeacherExams() {
 	}, [exams, filter]);
 
 	return (
-		<div style={pageWrap}>
+		<div style={pageWrap(isDark)}>
 			<div style={headerRow}>
 				<div>
 					<h2
@@ -637,27 +683,38 @@ export default function TeacherExams() {
 							display: 'flex',
 							alignItems: 'center',
 							gap: 10,
+							color: isDark ? '#e0e7ef' : undefined,
 						}}
 					>
 						<Eye style={{ color: '#6366f1', fontSize: 22 }} />
 						My Exams
 					</h2>
-					<div style={{ color: '#64748b', fontSize: 15, marginTop: 2 }}>
+					<div
+						style={{
+							color: isDark ? '#a0aec0' : '#64748b',
+							fontSize: 15,
+							marginTop: 2,
+						}}
+					>
 						Manage, schedule, and monitor your exams here.
 					</div>
 				</div>
-				<Link to="/teacher/exams/create" style={createBtn} aria-label="Create new exam">
+				<Link
+					to="/teacher/exams/create"
+					style={createBtn(isDark)}
+					aria-label="Create new exam"
+				>
 					<Plus style={{ marginRight: 7, fontSize: 15 }} />
 					New Exam
 				</Link>
 			</div>
-			<StatsCard stats={stats} loading={statsLoading} />
+			<StatsCard stats={stats} loading={statsLoading} isDark={isDark} />
 			<div style={toolbarRow}>
 				<div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
 					<select
 						value={filter}
 						onChange={e => setFilter(e.target.value)}
-						style={simpleInput}
+						style={simpleInput(isDark)}
 						aria-label="Filter exams by status"
 					>
 						<option value="all">All</option>
@@ -672,7 +729,7 @@ export default function TeacherExams() {
 								position: 'absolute',
 								left: 10,
 								top: 10,
-								color: '#94a3b8',
+								color: isDark ? '#64748b' : '#94a3b8',
 								fontSize: 15,
 							}}
 						/>
@@ -681,7 +738,7 @@ export default function TeacherExams() {
 							placeholder="Search exams..."
 							value={search}
 							onChange={e => setSearch(e.target.value)}
-							style={{ ...simpleInput, paddingLeft: 32, width: '100%' }}
+							style={{ ...simpleInput(isDark), paddingLeft: 32, width: '100%' }}
 							aria-label="Search exams"
 						/>
 					</div>
@@ -692,7 +749,7 @@ export default function TeacherExams() {
 						loadData();
 						loadStats();
 					}}
-					style={refreshBtn}
+					style={refreshBtn(isDark)}
 					aria-label="Refresh exams"
 					disabled={loading}
 					title="Refresh"
@@ -701,7 +758,7 @@ export default function TeacherExams() {
 				</button>
 			</div>
 			<div style={{ marginTop: 16, overflowX: 'auto' }}>
-				<table style={tableStyle}>
+				<table style={tableStyle(isDark)}>
 					<thead>
 						<tr>
 							<th>Title</th>
@@ -727,7 +784,7 @@ export default function TeacherExams() {
 									style={{
 										textAlign: 'center',
 										padding: 40,
-										color: '#64748b',
+										color: isDark ? '#a0aec0' : '#64748b',
 										fontSize: 17,
 										lineHeight: 1.6,
 									}}
@@ -740,7 +797,12 @@ export default function TeacherExams() {
 									<br />
 									No exams found.
 									<br />
-									<span style={{ fontSize: 14, color: '#94a3b8' }}>
+									<span
+										style={{
+											fontSize: 14,
+											color: isDark ? '#64748b' : '#94a3b8',
+										}}
+									>
 										Click <b>New Exam</b> to create your first exam.
 									</span>
 								</td>
@@ -753,6 +815,7 @@ export default function TeacherExams() {
 									onAction={handleAction}
 									loadingAction={actionLoading[exam.id]}
 									onCodeUpdate={handleCodeUpdate}
+									isDark={isDark}
 								/>
 							))
 						)}
@@ -761,7 +824,7 @@ export default function TeacherExams() {
 			</div>
 			<Link
 				to="/teacher/exams/create"
-				style={fabBtn}
+				style={fabBtn(isDark)}
 				aria-label="Create new exam"
 				title="Create new exam"
 				className="fab"
@@ -780,16 +843,17 @@ export default function TeacherExams() {
                     vertical-align: middle;
                 }
                 table thead th {
-                    background: #f1f5f9;
+                    background: var(--thead-bg, #f1f5f9);
                     font-weight: 600;
                     font-size: 14px;
-                    border-bottom: 1px solid #e5e7eb;
+                    border-bottom: 1px solid var(--thead-border, #e5e7eb);
+                    color: var(--thead-color, #222);
                 }
                 table tbody tr {
                     transition: background 0.18s, box-shadow 0.18s;
                 }
                 table tbody tr:hover, table tbody tr:focus {
-                    background: #f3f6fd;
+                    background: var(--row-hover, #f3f6fd);
                     box-shadow: 0 2px 8px #6366f122;
                     outline: none;
                 }
@@ -803,19 +867,43 @@ export default function TeacherExams() {
                 }
                 `}
 			</style>
+			{/* Dynamic style for dark mode */}
+			<style>
+				{isDark
+					? `
+                    :root {
+                        --thead-bg: #23272e;
+                        --thead-border: #2d3748;
+                        --thead-color: #e0e7ef;
+                        --row-hover: #23272e;
+                    }
+                    body {
+                        background: #181a20;
+                        color: #e0e7ef;
+                    }
+                `
+					: `
+                    :root {
+                        --thead-bg: #f1f5f9;
+                        --thead-border: #e5e7eb;
+                        --thead-color: #222;
+                        --row-hover: #f3f6fd;
+                    }
+                `}
+			</style>
 		</div>
 	);
 }
 
 // --- Styles ---
-const pageWrap = {
+const pageWrap = isDark => ({
 	maxWidth: 1100,
 	margin: '40px auto',
-	background: '#fff',
+	background: isDark ? '#181a20' : '#fff',
 	borderRadius: 14,
-	boxShadow: '0 2px 16px #0001',
+	boxShadow: isDark ? '0 2px 16px #0008' : '0 2px 16px #0001',
 	padding: 28,
-};
+});
 const headerRow = {
 	display: 'flex',
 	justifyContent: 'space-between',
@@ -829,23 +917,23 @@ const statsWrap = {
 	marginBottom: 18,
 	flexWrap: 'wrap',
 };
-const statBox = {
+const statBox = isDark => ({
 	flex: '1 1 120px',
 	minWidth: 120,
-	background: '#f8fafc',
+	background: isDark ? '#23272e' : '#f8fafc',
 	border: '2px solid #e5e7eb',
 	borderRadius: 12,
 	padding: '14px 18px',
 	textAlign: 'center',
-	boxShadow: '0 1px 4px #0001',
-};
+	boxShadow: isDark ? '0 1px 4px #0008' : '0 1px 4px #0001',
+});
 const toolbarRow = {
 	display: 'flex',
 	gap: 12,
 	marginBottom: 18,
 	alignItems: 'center',
 };
-const createBtn = {
+const createBtn = isDark => ({
 	background: '#6366f1',
 	color: '#fff',
 	padding: '10px 26px',
@@ -853,27 +941,28 @@ const createBtn = {
 	textDecoration: 'none',
 	fontWeight: 700,
 	fontSize: 16,
-	boxShadow: '0 1px 4px #6366f133',
+	boxShadow: isDark ? '0 1px 4px #6366f188' : '0 1px 4px #6366f133',
 	transition: 'background 0.2s, box-shadow 0.2s',
 	border: 'none',
 	display: 'inline-flex',
 	alignItems: 'center',
 	gap: 6,
-};
-const simpleInput = {
+});
+const simpleInput = isDark => ({
 	padding: '9px 13px',
 	borderRadius: 7,
-	border: '1px solid #e5e7eb',
+	border: isDark ? '1px solid #374151' : '1px solid #e5e7eb',
 	fontSize: 15,
-	background: '#f8fafc',
+	background: isDark ? '#23272e' : '#f8fafc',
+	color: isDark ? '#e0e7ef' : '#222',
 	outline: 'none',
-};
-const iconBtn = {
+});
+const iconBtn = isDark => ({
 	padding: '7px 14px',
 	borderRadius: 7,
 	border: 'none',
-	background: '#f3f4f6',
-	color: '#222',
+	background: isDark ? '#23272e' : '#f3f4f6',
+	color: isDark ? '#e0e7ef' : '#222',
 	fontWeight: 500,
 	cursor: 'pointer',
 	marginRight: 0,
@@ -882,16 +971,16 @@ const iconBtn = {
 	display: 'inline-flex',
 	alignItems: 'center',
 	gap: 6,
-};
-const refreshBtn = {
-	...iconBtn,
+});
+const refreshBtn = isDark => ({
+	...iconBtn(isDark),
 	padding: '7px 12px',
 	fontSize: 16,
-	background: '#f3f4f6',
+	background: isDark ? '#23272e' : '#f3f4f6',
 	color: '#6366f1',
-	border: '1px solid #e0e7ff',
-};
-const fabBtn = {
+	border: isDark ? '1px solid #3730a3' : '1px solid #e0e7ff',
+});
+const fabBtn = isDark => ({
 	position: 'fixed',
 	bottom: 28,
 	right: 28,
@@ -904,13 +993,13 @@ const fabBtn = {
 	alignItems: 'center',
 	justifyContent: 'center',
 	fontSize: 26,
-	boxShadow: '0 4px 16px #6366f133',
+	boxShadow: isDark ? '0 4px 16px #6366f188' : '0 4px 16px #6366f133',
 	zIndex: 100,
 	border: 'none',
-};
-const tableStyle = {
+});
+const tableStyle = isDark => ({
 	width: '100%',
 	borderCollapse: 'collapse',
-	background: '#fff',
+	background: isDark ? '#181a20' : '#fff',
 	minWidth: 800,
-};
+});
