@@ -362,18 +362,12 @@ const deleteExam = asyncHandler(async (req, res) => {
 
 	// Disallow deletion for live or scheduled exams
 	const now = new Date();
-	const scheduled =
-		String(exam.status).toLowerCase() === 'active' &&
-		exam.startTime &&
-		now < new Date(exam.startTime);
-	const live =
-		String(exam.status).toLowerCase() === 'active' &&
-		exam.startTime &&
-		exam.endTime &&
-		now >= new Date(exam.startTime) &&
-		now <= new Date(exam.endTime);
 
-	if (scheduled || live) {
+	// Use helpers that rely on timestamps rather than fragile status string
+	const scheduledFlag = isScheduled(exam);
+	const liveFlag = isLive(exam);
+
+	if (scheduledFlag || liveFlag) {
 		throw ApiError.Forbidden('Cannot delete a live or scheduled exam. End/cancel it first.');
 	}
 
@@ -618,17 +612,33 @@ const syncStatusesNow = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, result, 'Exam statuses synchronized');
 });
 
-// Helpers for time-based gates
-const isScheduled = exam =>
-	exam?.status === 'active' && exam?.startTime && new Date() < new Date(exam.startTime);
-const isLive = exam =>
-	exam?.status === 'active' &&
-	exam?.startTime &&
-	exam?.endTime &&
-	new Date() >= new Date(exam.startTime) &&
-	new Date() <= new Date(exam.endTime);
+// Helpers to determine if an exam is scheduled or live based on timestamps
+const isScheduled = exam => {
+	if (!exam || !exam.startTime) return false;
+	const now = new Date();
+	const start = new Date(exam.startTime);
+	// scheduled = start in future and not already completed/cancelled
+	const s =
+		now < start &&
+		String(exam.status).toLowerCase() !== 'completed' &&
+		String(exam.status).toLowerCase() !== 'cancelled';
+	return s;
+};
+const isLive = exam => {
+	if (!exam || !exam.startTime || !exam.endTime) return false;
+	const now = new Date();
+	const start = new Date(exam.startTime);
+	const end = new Date(exam.endTime);
+	// live if now within window and not completed/cancelled
+	return (
+		now >= start &&
+		now <= end &&
+		String(exam.status).toLowerCase() !== 'completed' &&
+		String(exam.status).toLowerCase() !== 'cancelled'
+	);
+};
 
-// End exam now (only if live)
+// End exam now (only if live or scheduled) — keep logging and use helpers
 const endExamNow = asyncHandler(async (req, res) => {
 	const examId = req.params.id;
 	const teacherId = req.teacher?._id || req.user?.id;
@@ -678,6 +688,7 @@ const cancelExam = asyncHandler(async (req, res) => {
 	if (!exam) throw ApiError.NotFound('Exam not found');
 	assertOwner(exam, teacherId);
 
+	// Use the improved helper which relies on timestamps
 	if (!isScheduled(exam)) {
 		throw ApiError.Forbidden('Only scheduled (not started) exams can be cancelled');
 	}
