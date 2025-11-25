@@ -669,12 +669,15 @@ const endExamNow = asyncHandler(async (req, res) => {
 		exam.status = 'completed';
 		exam.endTime = new Date();
 		await exam.save();
+		// Emit socket event
+		if (req.app.get('io')) req.app.get('io').emit('exam-updated', { examId });
 		return ApiResponse.success(res, exam, 'Exam ended');
 	}
 
 	// If scheduled => mark cancelled (this prevents it from starting)
 	exam.status = 'cancelled';
 	await exam.save();
+	if (req.app.get('io')) req.app.get('io').emit('exam-updated', { examId });
 	return ApiResponse.success(res, exam, 'Scheduled exam cancelled (ended)');
 });
 
