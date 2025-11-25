@@ -545,14 +545,19 @@ const TeacherExams = () => {
 					break;
 
 				// End live exam immediately
-				case 'end':
-					if (!window.confirm(`End "${exam.title}" now? This will finalize the exam.`))
-						break;
-					// call service directly (already throws normalized errors)
+				case 'end': {
+					const msg =
+						exam.derivedStatus === 'scheduled'
+							? `End "${exam.title}" now? This will cancel the scheduled exam.`
+							: `End "${exam.title}" now? This will finalize the exam.`;
+					if (!window.confirm(msg)) break;
 					await TeacherSvc.endExamNow(exam.id);
-					toast.success?.('Exam ended');
+					toast.success?.(
+						exam.derivedStatus === 'scheduled' ? 'Exam cancelled' : 'Exam ended',
+					);
 					await loadData();
 					break;
+				}
 
 				// Cancel scheduled exam
 				case 'cancel':
