@@ -4,6 +4,17 @@ import { useToast } from '../../components/ui/Toaster.jsx';
 import { io } from 'socket.io-client';
 import { API_BASE_URL } from '../../services/api.js';
 import * as TeacherSvc from '../../services/teacherServices.js';
+import {
+	FaPlus,
+	FaSearch,
+	FaSyncAlt,
+	FaClipboard,
+	FaEye,
+	FaTrash,
+	FaRocket,
+	FaStop,
+	FaCheckCircle,
+} from 'react-icons/fa';
 
 // --- Status Map ---
 const STATUS_LABELS = {
@@ -61,10 +72,25 @@ function ExamRow({ exam, onAction, loading }) {
 				background: loading ? '#f3f4f6' : '#fff',
 				opacity: loading ? 0.6 : 1,
 				transition: 'background 0.2s, opacity 0.2s',
+				cursor: 'pointer',
 			}}
+			tabIndex={0}
+			aria-label={`Exam: ${exam.title}`}
+			onDoubleClick={() => onAction('view', exam)}
 		>
 			<td>
-				<div style={{ fontWeight: 600, fontSize: 16 }}>{exam.title}</div>
+				<div
+					style={{
+						fontWeight: 600,
+						fontSize: 16,
+						display: 'flex',
+						alignItems: 'center',
+						gap: 6,
+					}}
+				>
+					<FaEye style={{ color: '#6366f1', opacity: 0.7 }} title="View/Edit" />
+					{exam.title}
+				</div>
 				{exam.description && (
 					<div style={{ fontSize: 13, color: '#64748b', marginTop: 2 }}>
 						{exam.description}
@@ -84,6 +110,7 @@ function ExamRow({ exam, onAction, loading }) {
 						letterSpacing: 0.2,
 						border: `1px solid ${STATUS_COLORS[status]}33`,
 					}}
+					title={`Status: ${STATUS_LABELS[status] || status}`}
 					aria-label={`Status: ${STATUS_LABELS[status] || status}`}
 				>
 					{STATUS_LABELS[status] || status}
@@ -99,6 +126,9 @@ function ExamRow({ exam, onAction, loading }) {
 							position: 'relative',
 							color: '#2563eb',
 							userSelect: 'all',
+							display: 'inline-flex',
+							alignItems: 'center',
+							gap: 4,
 						}}
 						title="Click to copy code"
 						tabIndex={0}
@@ -107,6 +137,7 @@ function ExamRow({ exam, onAction, loading }) {
 						onClick={handleCopy}
 						onKeyDown={e => (e.key === 'Enter' ? handleCopy() : undefined)}
 					>
+						<FaClipboard style={{ fontSize: 13, opacity: 0.7 }} />
 						{exam.searchId}
 						{copied && (
 							<span
@@ -146,18 +177,23 @@ function ExamRow({ exam, onAction, loading }) {
 					<button
 						type="button"
 						onClick={() => onAction('view', exam)}
-						style={simpleBtn}
+						style={iconBtn}
 						title="View/Edit"
 						aria-label="View or edit exam"
 						disabled={loading}
 					>
-						View
+						<FaEye /> View
 					</button>
 					{['live', 'scheduled', 'active'].includes(status) && (
 						<button
 							type="button"
 							onClick={() => onAction('end', exam)}
-							style={{ ...simpleBtn, color: '#dc2626', border: '1px solid #fee2e2' }}
+							style={{
+								...iconBtn,
+								color: '#dc2626',
+								border: '1px solid #fee2e2',
+								background: '#fff0f0',
+							}}
 							title={
 								status === 'scheduled'
 									? 'Cancel Exam'
@@ -174,30 +210,40 @@ function ExamRow({ exam, onAction, loading }) {
 							}
 							disabled={loading}
 						>
-							{loading ? <Spinner size={14} /> : 'End'}
+							{loading ? <Spinner size={14} /> : <FaStop />} End
 						</button>
 					)}
 					{status === 'draft' && (
 						<button
 							type="button"
 							onClick={() => onAction('publish', exam)}
-							style={{ ...simpleBtn, color: '#6366f1', border: '1px solid #e0e7ff' }}
+							style={{
+								...iconBtn,
+								color: '#6366f1',
+								border: '1px solid #e0e7ff',
+								background: '#f5f7ff',
+							}}
 							title="Publish"
 							aria-label="Publish exam"
 							disabled={loading}
 						>
-							{loading ? <Spinner size={14} /> : 'Publish'}
+							{loading ? <Spinner size={14} /> : <FaRocket />} Publish
 						</button>
 					)}
 					<button
 						type="button"
 						onClick={() => onAction('delete', exam)}
-						style={{ ...simpleBtn, color: '#dc2626', border: '1px solid #fee2e2' }}
+						style={{
+							...iconBtn,
+							color: '#dc2626',
+							border: '1px solid #fee2e2',
+							background: '#fff0f0',
+						}}
 						title="Delete"
 						aria-label="Delete exam"
 						disabled={loading}
 					>
-						{loading ? <Spinner size={14} /> : 'Delete'}
+						{loading ? <Spinner size={14} /> : <FaTrash />} Delete
 					</button>
 				</div>
 			</td>
@@ -222,16 +268,39 @@ function formatDate(dateVal) {
 // --- Stats Card ---
 function StatsCard({ stats, loading }) {
 	const items = [
-		{ label: 'Total', value: stats?.total ?? 0, color: '#6366f1' },
-		{ label: 'Draft', value: stats?.draft ?? 0, color: '#64748b' },
-		{ label: 'Scheduled', value: stats?.scheduled ?? 0, color: '#2563eb' },
-		{ label: 'Live', value: stats?.live ?? 0, color: '#16a34a' },
-		{ label: 'Completed', value: stats?.completed ?? 0, color: '#6366f1' },
+		{ label: 'Total', value: stats?.total ?? 0, color: '#6366f1', icon: <FaCheckCircle /> },
+		{ label: 'Draft', value: stats?.draft ?? 0, color: '#64748b', icon: <FaRocket /> },
+		{ label: 'Scheduled', value: stats?.scheduled ?? 0, color: '#2563eb', icon: <FaSyncAlt /> },
+		{ label: 'Live', value: stats?.live ?? 0, color: '#16a34a', icon: <FaEye /> },
+		{
+			label: 'Completed',
+			value: stats?.completed ?? 0,
+			color: '#6366f1',
+			icon: <FaCheckCircle />,
+		},
 	];
 	return (
 		<div style={statsWrap}>
 			{items.map(item => (
-				<div key={item.label} style={{ ...statBox, borderColor: item.color }}>
+				<div
+					key={item.label}
+					style={{
+						...statBox,
+						borderColor: item.color,
+						boxShadow: '0 2px 8px #0001',
+						transition: 'box-shadow 0.2s, transform 0.2s',
+						display: 'flex',
+						flexDirection: 'column',
+						alignItems: 'center',
+						justifyContent: 'center',
+						gap: 4,
+						background: '#f8fafc',
+					}}
+					title={item.label}
+				>
+					<div style={{ fontSize: 18, color: item.color, marginBottom: 2 }}>
+						{item.icon}
+					</div>
 					<div style={{ fontSize: 13, color: '#64748b', marginBottom: 2 }}>
 						{item.label}
 					</div>
@@ -358,44 +427,76 @@ export default function TeacherExams() {
 	return (
 		<div style={pageWrap}>
 			<div style={headerRow}>
-				<h2 style={{ margin: 0, fontWeight: 700, fontSize: 24 }}>My Exams</h2>
+				<div>
+					<h2
+						style={{
+							margin: 0,
+							fontWeight: 700,
+							fontSize: 24,
+							display: 'flex',
+							alignItems: 'center',
+							gap: 10,
+						}}
+					>
+						<FaEye style={{ color: '#6366f1', fontSize: 22 }} />
+						My Exams
+					</h2>
+					<div style={{ color: '#64748b', fontSize: 15, marginTop: 2 }}>
+						Manage, schedule, and monitor your exams here.
+					</div>
+				</div>
 				<Link to="/teacher/exams/create" style={createBtn} aria-label="Create new exam">
-					+ New Exam
+					<FaPlus style={{ marginRight: 7, fontSize: 15 }} />
+					New Exam
 				</Link>
 			</div>
 			<StatsCard stats={stats} loading={statsLoading} />
 			<div style={toolbarRow}>
-				<select
-					value={filter}
-					onChange={e => setFilter(e.target.value)}
-					style={simpleInput}
-					aria-label="Filter exams by status"
-				>
-					<option value="all">All</option>
-					<option value="active">Active</option>
-					<option value="scheduled">Scheduled</option>
-					<option value="draft">Draft</option>
-					<option value="completed">Completed</option>
-				</select>
-				<input
-					type="text"
-					placeholder="Search exams..."
-					value={search}
-					onChange={e => setSearch(e.target.value)}
-					style={simpleInput}
-					aria-label="Search exams"
-				/>
+				<div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+					<select
+						value={filter}
+						onChange={e => setFilter(e.target.value)}
+						style={simpleInput}
+						aria-label="Filter exams by status"
+					>
+						<option value="all">All</option>
+						<option value="active">Active</option>
+						<option value="scheduled">Scheduled</option>
+						<option value="draft">Draft</option>
+						<option value="completed">Completed</option>
+					</select>
+					<div style={{ position: 'relative', flex: 1 }}>
+						<FaSearch
+							style={{
+								position: 'absolute',
+								left: 10,
+								top: 10,
+								color: '#94a3b8',
+								fontSize: 15,
+							}}
+						/>
+						<input
+							type="text"
+							placeholder="Search exams..."
+							value={search}
+							onChange={e => setSearch(e.target.value)}
+							style={{ ...simpleInput, paddingLeft: 32, width: '100%' }}
+							aria-label="Search exams"
+						/>
+					</div>
+				</div>
 				<button
 					type="button"
 					onClick={() => {
 						loadData();
 						loadStats();
 					}}
-					style={simpleBtn}
+					style={refreshBtn}
 					aria-label="Refresh exams"
 					disabled={loading}
+					title="Refresh"
 				>
-					{loading ? <Spinner size={16} /> : 'Refresh'}
+					{loading ? <Spinner size={16} /> : <FaSyncAlt />}
 				</button>
 			</div>
 			<div style={{ marginTop: 16, overflowX: 'auto' }}>
@@ -422,9 +523,25 @@ export default function TeacherExams() {
 							<tr>
 								<td
 									colSpan={7}
-									style={{ textAlign: 'center', padding: 40, color: '#64748b' }}
+									style={{
+										textAlign: 'center',
+										padding: 40,
+										color: '#64748b',
+										fontSize: 17,
+										lineHeight: 1.6,
+									}}
 								>
+									<img
+										src="https://cdn.jsdelivr.net/gh/edent/SuperTinyIcons/images/svg/clipboard.svg"
+										alt="No exams"
+										style={{ width: 48, opacity: 0.25, marginBottom: 12 }}
+									/>
+									<br />
 									No exams found.
+									<br />
+									<span style={{ fontSize: 14, color: '#94a3b8' }}>
+										Click <b>New Exam</b> to create your first exam.
+									</span>
 								</td>
 							</tr>
 						) : (
@@ -440,6 +557,15 @@ export default function TeacherExams() {
 					</tbody>
 				</table>
 			</div>
+			<Link
+				to="/teacher/exams/create"
+				style={fabBtn}
+				aria-label="Create new exam"
+				title="Create new exam"
+				className="fab"
+			>
+				<FaPlus />
+			</Link>
 			<style>
 				{`
                 @keyframes spin {
@@ -457,8 +583,21 @@ export default function TeacherExams() {
                     font-size: 14px;
                     border-bottom: 1px solid #e5e7eb;
                 }
-                table tbody tr:hover {
-                    background: #f9fafb;
+                table tbody tr {
+                    transition: background 0.18s, box-shadow 0.18s;
+                }
+                table tbody tr:hover, table tbody tr:focus {
+                    background: #f3f6fd;
+                    box-shadow: 0 2px 8px #6366f122;
+                    outline: none;
+                }
+                .fab {
+                    display: none;
+                }
+                @media (max-width: 700px) {
+                    .fab {
+                        display: flex !important;
+                    }
                 }
                 `}
 			</style>
@@ -468,18 +607,19 @@ export default function TeacherExams() {
 
 // --- Styles ---
 const pageWrap = {
-	maxWidth: 1000,
+	maxWidth: 1100,
 	margin: '40px auto',
 	background: '#fff',
-	borderRadius: 12,
-	boxShadow: '0 2px 12px #0001',
+	borderRadius: 14,
+	boxShadow: '0 2px 16px #0001',
 	padding: 28,
 };
 const headerRow = {
 	display: 'flex',
 	justifyContent: 'space-between',
-	alignItems: 'center',
+	alignItems: 'flex-end',
 	marginBottom: 18,
+	gap: 16,
 };
 const statsWrap = {
 	display: 'flex',
@@ -489,11 +629,11 @@ const statsWrap = {
 };
 const statBox = {
 	flex: '1 1 120px',
-	minWidth: 100,
+	minWidth: 120,
 	background: '#f8fafc',
 	border: '2px solid #e5e7eb',
-	borderRadius: 10,
-	padding: '12px 18px',
+	borderRadius: 12,
+	padding: '14px 18px',
 	textAlign: 'center',
 	boxShadow: '0 1px 4px #0001',
 };
@@ -501,27 +641,32 @@ const toolbarRow = {
 	display: 'flex',
 	gap: 12,
 	marginBottom: 18,
+	alignItems: 'center',
 };
 const createBtn = {
 	background: '#6366f1',
 	color: '#fff',
-	padding: '9px 22px',
-	borderRadius: 7,
+	padding: '10px 26px',
+	borderRadius: 8,
 	textDecoration: 'none',
 	fontWeight: 700,
 	fontSize: 16,
 	boxShadow: '0 1px 4px #6366f133',
-	transition: 'background 0.2s',
+	transition: 'background 0.2s, box-shadow 0.2s',
 	border: 'none',
+	display: 'inline-flex',
+	alignItems: 'center',
+	gap: 6,
 };
 const simpleInput = {
-	padding: '8px 13px',
+	padding: '9px 13px',
 	borderRadius: 7,
 	border: '1px solid #e5e7eb',
 	fontSize: 15,
 	background: '#f8fafc',
+	outline: 'none',
 };
-const simpleBtn = {
+const iconBtn = {
 	padding: '7px 14px',
 	borderRadius: 7,
 	border: 'none',
@@ -534,7 +679,32 @@ const simpleBtn = {
 	transition: 'background 0.2s, color 0.2s',
 	display: 'inline-flex',
 	alignItems: 'center',
-	gap: 4,
+	gap: 6,
+};
+const refreshBtn = {
+	...iconBtn,
+	padding: '7px 12px',
+	fontSize: 16,
+	background: '#f3f4f6',
+	color: '#6366f1',
+	border: '1px solid #e0e7ff',
+};
+const fabBtn = {
+	position: 'fixed',
+	bottom: 28,
+	right: 28,
+	width: 52,
+	height: 52,
+	borderRadius: '50%',
+	background: '#6366f1',
+	color: '#fff',
+	display: 'none',
+	alignItems: 'center',
+	justifyContent: 'center',
+	fontSize: 26,
+	boxShadow: '0 4px 16px #6366f133',
+	zIndex: 100,
+	border: 'none',
 };
 const tableStyle = {
 	width: '100%',
