@@ -1,5 +1,5 @@
 import React from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useToast } from '../../components/ui/Toaster.jsx';
 import PageHeader from '../../components/ui/PageHeader.jsx';
 import Alert from '../../components/ui/Alert.jsx';
@@ -18,44 +18,27 @@ import {
 // --- Helper Components ---
 
 const StatCard = ({ label, value, icon, color }) => (
-	<div
-		style={{
-			background: 'var(--bg)',
-			padding: '12px 16px',
-			borderRadius: 12,
-			border: '1px solid var(--border)',
-			display: 'flex',
-			alignItems: 'center',
-			gap: 12,
-		}}
-	>
+	<div className="bg-[var(--bg)] p-4 rounded-xl border border-[var(--border)] flex items-center gap-3 shadow-sm">
 		<div
-			style={{
-				width: 36,
-				height: 36,
-				borderRadius: 8,
-				background: color,
-				color: '#fff',
-				display: 'flex',
-				alignItems: 'center',
-				justifyContent: 'center',
-				fontSize: 16,
-			}}
+			className="w-10 h-10 rounded-lg flex items-center justify-center text-white text-lg font-bold shrink-0"
+			style={{ background: color }}
 		>
 			{icon}
 		</div>
 		<div>
-			<div style={{ fontSize: 20, fontWeight: 800, color: 'var(--text)' }}>{value}</div>
-			<div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>{label}</div>
+			<div className="text-xl font-extrabold text-[var(--text)] leading-tight">{value}</div>
+			<div className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wide">
+				{label}
+			</div>
 		</div>
 	</div>
 );
 
 const statusConfig = {
-	submitted: { label: 'Submitted', color: '#3b82f6', icon: '📥' },
-	evaluated: { label: 'Evaluated', color: '#10b981', icon: '🤖' },
-	published: { label: 'Published', color: '#8b5cf6', icon: '✅' },
-	'in-progress': { label: 'In Progress', color: '#f59e0b', icon: '⏳' },
+	submitted: { label: 'Submitted', color: '#3b82f6', icon: '📥', bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
+	evaluated: { label: 'Evaluated', color: '#10b981', icon: '🤖', bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
+	published: { label: 'Published', color: '#8b5cf6', icon: '✅', bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200' },
+	'in-progress': { label: 'In Progress', color: '#f59e0b', icon: '⏳', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
 };
 
 const ScoreDistributionChart = ({ submissions }) => {
@@ -83,46 +66,49 @@ const ScoreDistributionChart = ({ submissions }) => {
 
 	if (!hasData) {
 		return (
-			<div className="p-6 bg-white border border-gray-200 rounded-xl flex flex-col items-center justify-center text-gray-500 h-[300px]">
-				<div className="text-4xl mb-2">📊</div>
-				<p>No graded submissions to display yet.</p>
+			<div className="p-8 bg-[var(--surface)] border border-[var(--border)] rounded-2xl flex flex-col items-center justify-center text-[var(--text-muted)] h-[350px]">
+				<div className="text-5xl mb-4 opacity-50">📊</div>
+				<p className="font-medium">No graded submissions to display yet.</p>
 			</div>
 		);
 	}
 
 	return (
-		<div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm h-[350px] flex flex-col">
-			<h4 className="text-lg font-bold text-gray-900 mb-4">Score Distribution</h4>
+		<div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6 shadow-sm h-[400px] flex flex-col">
+			<h4 className="text-lg font-bold text-[var(--text)] mb-6">Score Distribution</h4>
 			<div className="flex-1 w-full min-h-0">
 				<ResponsiveContainer width="100%" height="100%">
 					<BarChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-						<CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+						<CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" opacity={0.5} />
 						<XAxis
 							dataKey="name"
 							axisLine={false}
 							tickLine={false}
-							tick={{ fill: '#64748b', fontSize: 11 }}
+							tick={{ fill: 'var(--text-muted)', fontSize: 11, fontWeight: 500 }}
 							dy={10}
 						/>
 						<YAxis
 							axisLine={false}
 							tickLine={false}
-							tick={{ fill: '#64748b', fontSize: 11 }}
+							tick={{ fill: 'var(--text-muted)', fontSize: 11, fontWeight: 500 }}
 							allowDecimals={false}
 						/>
 						<Tooltip
-							cursor={{ fill: '#f8fafc' }}
+							cursor={{ fill: 'var(--bg-secondary)', opacity: 0.5 }}
 							contentStyle={{
-								borderRadius: '8px',
-								border: 'none',
-								boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+								backgroundColor: 'var(--surface)',
+								borderColor: 'var(--border)',
+								borderRadius: '12px',
+								boxShadow: 'var(--shadow-lg)',
+								color: 'var(--text)',
 							}}
+							itemStyle={{ color: 'var(--text)' }}
 						/>
-						<Bar dataKey="count" radius={[4, 4, 0, 0]} barSize={40}>
+						<Bar dataKey="count" radius={[6, 6, 0, 0]} barSize={40}>
 							{data.map((entry, index) => (
 								<Cell
 									key={`cell-${index}`}
-									fill={`hsl(250, 95%, ${75 - index * 3}%)`} // Gradient effect across bars
+									fill={`hsl(250, 95%, ${75 - index * 3}%)`}
 								/>
 							))}
 						</Bar>
@@ -146,7 +132,6 @@ const ExamResultsOverview = () => {
 		const loadExamsWithSubmissions = async () => {
 			setLoading(true);
 			try {
-				// FIX: Pass the 'hasSubmissions: true' parameter to fetch only relevant exams.
 				const res = await TeacherSvc.safeApiCall(TeacherSvc.getTeacherExams, {
 					hasSubmissions: true,
 				});
@@ -161,11 +146,16 @@ const ExamResultsOverview = () => {
 	}, []);
 
 	if (loading)
-		return <div style={{ textAlign: 'center', padding: 40 }}>Loading Exam Results...</div>;
+		return (
+			<div className="min-h-[50vh] flex flex-col items-center justify-center gap-3">
+				<div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+				<p className="text-[var(--text-muted)] font-medium">Loading Exam Results...</p>
+			</div>
+		);
 	if (error) return <Alert type="error">{error}</Alert>;
 
 	return (
-		<div>
+		<div className="space-y-6">
 			<PageHeader
 				title="Exam Results"
 				subtitle="Select an exam to view and manage its submissions."
@@ -174,89 +164,45 @@ const ExamResultsOverview = () => {
 			{exams.length === 0 ? (
 				<Alert>No exams with submissions found.</Alert>
 			) : (
-				<div
-					style={{
-						display: 'grid',
-						gap: 20,
-						gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 450px), 1fr))',
-					}}
-				>
+				<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
 					{exams.map(exam => (
 						<article
 							key={exam.id}
-							style={{
-								background: 'var(--surface)',
-								border: '1px solid var(--border)',
-								borderRadius: 16,
-								display: 'flex',
-								flexDirection: 'column',
-								boxShadow: 'var(--shadow-sm)',
-								transition: 'all .2s ease',
-							}}
-							onMouseEnter={e => {
-								e.currentTarget.style.transform = 'translateY(-2px)';
-								e.currentTarget.style.boxShadow = 'var(--shadow-lg)';
-							}}
-							onMouseLeave={e => {
-								e.currentTarget.style.transform = 'translateY(0)';
-								e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
-							}}
+							className="group bg-[var(--surface)] border border-[var(--border)] rounded-2xl flex flex-col shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden"
 						>
-							<div style={{ padding: '20px 24px', flex: 1 }}>
-								<h3
-									style={{
-										marginTop: 0,
-										fontSize: 18,
-										fontWeight: 800,
-										lineHeight: 1.3,
-									}}
-								>
+							<div className="p-6 flex-1">
+								<h3 className="text-xl font-bold text-[var(--text)] mb-4 leading-snug group-hover:text-indigo-600 transition-colors">
 									{exam.title}
 								</h3>
-								<div
-									style={{
-										display: 'grid',
-										gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-										gap: 12,
-										marginTop: 16,
-									}}
-								>
+								<div className="grid grid-cols-2 gap-3">
 									<StatCard
-										label="Total Submissions"
+										label="Submissions"
 										value={exam.submissions}
 										icon="📋"
 										color="#3b82f6"
 									/>
 									<StatCard
-										label="Ready to Publish"
+										label="Evaluated"
 										value={exam.evaluatedCount}
 										icon="🤖"
 										color="#10b981"
 									/>
-									<StatCard
-										label="Results Published"
-										value={exam.publishedCount}
-										icon="✅"
-										color="#8b5cf6"
-									/>
+									<div className="col-span-2">
+										<StatCard
+											label="Published"
+											value={exam.publishedCount}
+											icon="✅"
+											color="#8b5cf6"
+										/>
+									</div>
 								</div>
 							</div>
-							<div style={{ padding: '0 24px 20px' }}>
+							<div className="p-6 pt-0">
 								<button
 									onClick={() => navigate(`/teacher/results/${exam.id}`)}
-									className="tap"
-									style={{
-										width: '100%',
-										padding: '12px',
-										background: 'var(--bg)',
-										border: '1px solid var(--border)',
-										borderRadius: 10,
-										fontWeight: 700,
-										cursor: 'pointer',
-										fontSize: 14,
-									}}
+									className="w-full py-3 px-4 bg-[var(--bg)] border border-[var(--border)] rounded-xl font-bold text-[var(--text)] hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-700 transition-all flex items-center justify-center gap-2 group-hover:shadow-sm"
 								>
-									View Submissions →
+									View Submissions <span className="text-lg">→</span>
 								</button>
 							</div>
 						</article>
@@ -283,7 +229,6 @@ const ExamSubmissionsDetail = () => {
 		setLoading(true);
 		setError('');
 		try {
-			// Fetch both exam details and submissions
 			const [examData, submissionsData] = await Promise.all([
 				TeacherSvc.safeApiCall(TeacherSvc.getTeacherExamById, examId),
 				TeacherSvc.safeApiCall(TeacherSvc.getTeacherSubmissions, examId),
@@ -306,7 +251,7 @@ const ExamSubmissionsDetail = () => {
 		try {
 			await TeacherSvc.safeApiCall(TeacherSvc.publishSingleResult, submissionId);
 			success('Result published successfully!');
-			await loadSubmissions(); // Refresh list
+			await loadSubmissions();
 		} catch (e) {
 			toastError(e.message || 'Failed to publish result.');
 		} finally {
@@ -319,7 +264,7 @@ const ExamSubmissionsDetail = () => {
 		try {
 			const res = await TeacherSvc.safeApiCall(TeacherSvc.publishAllResults, examId);
 			success(`${res.modifiedCount} results published!`);
-			await loadSubmissions(); // Refresh list
+			await loadSubmissions();
 		} catch (e) {
 			toastError(e.message || 'Failed to publish all results.');
 		} finally {
@@ -329,11 +274,9 @@ const ExamSubmissionsDetail = () => {
 
 	const filteredAndSortedSubmissions = React.useMemo(() => {
 		let items = [...submissions];
-		// Filter
 		if (filters.status !== 'all') {
 			items = items.filter(s => s.status === filters.status);
 		}
-		// Sort
 		switch (filters.sortBy) {
 			case 'name_asc':
 				items.sort((a, b) => a.studentName.localeCompare(b.studentName));
@@ -366,13 +309,18 @@ const ExamSubmissionsDetail = () => {
 	}, [submissions]);
 
 	if (loading)
-		return <div style={{ textAlign: 'center', padding: 40 }}>Loading Submissions...</div>;
+		return (
+			<div className="min-h-[50vh] flex flex-col items-center justify-center gap-3">
+				<div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+				<p className="text-[var(--text-muted)] font-medium">Loading Submissions...</p>
+			</div>
+		);
 	if (error) return <Alert type="error">{error}</Alert>;
 
 	const evaluatedCount = submissions.filter(s => s.status === 'evaluated').length;
 
 	return (
-		<div>
+		<div className="space-y-6">
 			<PageHeader
 				title={examTitle}
 				subtitle={`Managing ${submissions.length} submissions`}
@@ -386,220 +334,149 @@ const ExamSubmissionsDetail = () => {
 						key="publish"
 						onClick={handlePublishAll}
 						disabled={publishing.all || evaluatedCount === 0}
-						className="tap"
-						style={{
-							padding: '10px 16px',
-							background: 'linear-gradient(135deg, #8b5cf6, #6d28d9)',
-							color: 'white',
-							border: 'none',
-							borderRadius: 8,
-							fontWeight: 700,
-							cursor: 'pointer',
-							opacity: publishing.all || evaluatedCount === 0 ? 0.6 : 1,
-						}}
+						className={`
+							px-5 py-2.5 rounded-xl font-bold text-white shadow-lg shadow-indigo-500/30 
+							transition-all active:scale-95 disabled:opacity-60 disabled:shadow-none disabled:cursor-not-allowed
+							bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500
+						`}
 					>
 						{publishing.all ? 'Publishing...' : `Publish All (${evaluatedCount})`}
 					</button>,
 				]}
 			/>
-			<div
-				style={{
-					display: 'grid',
-					gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-					gap: 16,
-					marginBottom: 16,
-				}}
-			>
-				<ScoreDistributionChart submissions={submissions} />
-				<div style={{ display: 'grid', gap: 16 }}>
+
+			<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+				<div className="lg:col-span-2">
+					<ScoreDistributionChart submissions={submissions} />
+				</div>
+				<div className="space-y-4">
 					<StatCard label="Average Score" value={stats.avg} icon="📊" color="#3b82f6" />
 					<StatCard label="Highest Score" value={stats.high} icon="🔼" color="#10b981" />
 					<StatCard label="Lowest Score" value={stats.low} icon="🔽" color="#f97316" />
 				</div>
 			</div>
-			<div
-				style={{
-					display: 'flex',
-					gap: 16,
-					padding: '12px',
-					background: 'var(--surface)',
-					borderRadius: 12,
-					border: '1px solid var(--border)',
-					marginBottom: 16,
-					flexWrap: 'wrap',
-				}}
-			>
-				<select
-					value={filters.status}
-					onChange={e => setFilters(f => ({ ...f, status: e.target.value }))}
-					style={{
-						padding: '8px 12px',
-						borderRadius: 8,
-						border: '1px solid var(--border)',
-						background: 'var(--bg)',
-					}}
-				>
-					<option value="all">Filter by Status</option>
-					<option value="in-progress">In Progress</option>
-					<option value="submitted">Submitted</option>
-					<option value="evaluated">Evaluated</option>
-					<option value="published">Published</option>
-				</select>
-				<select
-					value={filters.sortBy}
-					onChange={e => setFilters(f => ({ ...f, sortBy: e.target.value }))}
-					style={{
-						padding: '8px 12px',
-						borderRadius: 8,
-						border: '1px solid var(--border)',
-						background: 'var(--bg)',
-					}}
-				>
-					<option value="name_asc">Sort by Name (A-Z)</option>
-					<option value="name_desc">Sort by Name (Z-A)</option>
-					<option value="score_desc">Sort by Score (High-Low)</option>
-					<option value="score_asc">Sort by Score (Low-High)</option>
-				</select>
-			</div>
-			<style>{`
-        .sub-row {
-          display: grid;
-          grid-template-columns: 2fr 1fr 1fr auto;
-          align-items: center;
-          gap: 16px;
-          padding: 12px 20px;
-          background: var(--surface);
-          border: 1px solid var(--border);
-          border-radius: 12px;
-        }
-        @media (max-width: 768px) {
-          .sub-row {
-            grid-template-columns: 1fr;
-            gap: 12px;
-            padding: 16px;
-          }
-          .sub-row-actions {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            width: 100%;
-          }
-          .sub-row-actions > button {
-            width: 100%;
-            padding: 10px;
-          }
-        }
-      `}</style>
 
-			{submissions.length === 0 ? (
-				<Alert>No submissions found for this exam yet.</Alert>
-			) : (
-				<div style={{ display: 'grid', gap: 12 }}>
-					{filteredAndSortedSubmissions.map(sub => {
-						const config = statusConfig[sub.status] || {};
-						return (
-							<div key={sub.id} className="sub-row">
-								<div
-									style={{
-										fontWeight: 700,
-										color: 'var(--text)',
-										display: 'flex',
-										alignItems: 'center',
-										gap: 8,
-									}}
-								>
-									{sub.studentName || 'Unknown Student'}
-									{sub.violations?.length > 0 && (
-										<span
-											title={`${sub.violations.length} violation(s) logged`}
-											style={{
-												background: '#fef2f2',
-												color: '#ef4444',
-												padding: '2px 8px',
-												borderRadius: 12,
-												fontSize: 12,
-												fontWeight: 800,
-											}}
-										>
-											⚠️ {sub.violations.length}
-										</span>
-									)}
-								</div>
-								<div>
-									Score:{' '}
-									<strong style={{ color: 'var(--text)' }}>
-										{(sub.score ?? 0).toFixed(1)} / {sub.maxScore ?? 'N/A'}
-									</strong>
-								</div>
-								<div
-									style={{
-										display: 'inline-flex',
-										alignItems: 'center',
-										gap: 6,
-										padding: '4px 10px',
-										borderRadius: 20,
-										background: config.color,
-										color: 'white',
-										fontSize: 12,
-										fontWeight: 700,
-									}}
-								>
-									{config.icon} {config.label}
-								</div>
-								<div
-									className="sub-row-actions"
-									style={{ display: 'flex', gap: 8 }}
-								>
-									<button
-										onClick={() =>
-											navigate(`/teacher/results/${examId}/grade/${sub.id}`)
-										}
-										disabled={sub.status === 'in-progress'}
-										className="tap"
-										style={{
-											padding: '8px 12px',
-											fontWeight: 600,
-											borderRadius: 6,
-											border: '1px solid var(--border)',
-											background: 'var(--bg)',
-										}}
-									>
-										View/Grade
-									</button>
-									{sub.status === 'evaluated' && (
-										<button
-											onClick={() => handlePublishSingle(sub.id)}
-											disabled={publishing.single === sub.id}
-											className="tap"
-											style={{
-												padding: '8px 12px',
-												fontWeight: 600,
-												borderRadius: 6,
-												border: 'none',
-												background: 'var(--primary-gradient)',
-												color: '#fff',
-											}}
-										>
-											{publishing.single === sub.id ? '...' : 'Publish'}
-										</button>
-									)}
-								</div>
-							</div>
-						);
-					})}
+			<div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl shadow-sm overflow-hidden">
+				{/* Filters Toolbar */}
+				<div className="p-4 border-b border-[var(--border)] bg-[var(--bg-secondary)] flex flex-wrap gap-4">
+					<select
+						value={filters.status}
+						onChange={e => setFilters(f => ({ ...f, status: e.target.value }))}
+						className="px-4 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-[var(--text)] text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none"
+					>
+						<option value="all">Filter by Status</option>
+						<option value="in-progress">In Progress</option>
+						<option value="submitted">Submitted</option>
+						<option value="evaluated">Evaluated</option>
+						<option value="published">Published</option>
+					</select>
+					<select
+						value={filters.sortBy}
+						onChange={e => setFilters(f => ({ ...f, sortBy: e.target.value }))}
+						className="px-4 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-[var(--text)] text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none"
+					>
+						<option value="name_asc">Sort by Name (A-Z)</option>
+						<option value="name_desc">Sort by Name (Z-A)</option>
+						<option value="score_desc">Sort by Score (High-Low)</option>
+						<option value="score_asc">Sort by Score (Low-High)</option>
+					</select>
 				</div>
-			)}
+
+				{/* Submissions List */}
+				{submissions.length === 0 ? (
+					<div className="p-8">
+						<Alert>No submissions found for this exam yet.</Alert>
+					</div>
+				) : (
+					<div className="divide-y divide-[var(--border)]">
+						{filteredAndSortedSubmissions.map(sub => {
+							const config = statusConfig[sub.status] || {};
+							// For badges, we might need to handle dark mode colors manually or use opacity
+							// Using inline styles for badges to ensure they pop against the theme
+							const badgeStyle = {
+								backgroundColor: config.color + '20', // 20% opacity
+								color: config.color,
+								borderColor: config.color + '40',
+							};
+
+							return (
+								<div
+									key={sub.id}
+									className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-4 hover:bg-[var(--bg-secondary)] transition-colors"
+								>
+									<div className="flex-1 min-w-0">
+										<div className="flex items-center gap-3 mb-1">
+											<span className="font-bold text-[var(--text)] text-lg truncate">
+												{sub.studentName || 'Unknown Student'}
+											</span>
+											{sub.violations?.length > 0 && (
+												<span
+													className="px-2 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700 border border-red-200"
+													title={`${sub.violations.length} violation(s) logged`}
+												>
+													⚠️ {sub.violations.length}
+												</span>
+											)}
+										</div>
+										<div className="text-sm text-[var(--text-muted)] flex items-center gap-2">
+											<span>Submitted: {sub.submittedAt || 'N/A'}</span>
+										</div>
+									</div>
+
+									<div className="flex items-center gap-6">
+										<div className="text-right">
+											<div className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-0.5">
+												Score
+											</div>
+											<div className="text-lg font-bold text-[var(--text)]">
+												{(sub.score ?? 0).toFixed(1)}
+												<span className="text-[var(--text-muted)] text-sm font-medium ml-1">
+													/ {sub.maxScore ?? 'N/A'}
+												</span>
+											</div>
+										</div>
+
+										<div
+											className="px-3 py-1.5 rounded-full text-xs font-bold border flex items-center gap-1.5"
+											style={badgeStyle}
+										>
+											<span>{config.icon}</span>
+											{config.label}
+										</div>
+
+										<div className="flex items-center gap-2">
+											<button
+												onClick={() =>
+													navigate(`/teacher/results/${examId}/grade/${sub.id}`)
+												}
+												disabled={sub.status === 'in-progress'}
+												className="px-4 py-2 rounded-lg text-sm font-bold bg-[var(--bg)] border border-[var(--border)] text-[var(--text)] hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+											>
+												View/Grade
+											</button>
+											{sub.status === 'evaluated' && (
+												<button
+													onClick={() => handlePublishSingle(sub.id)}
+													disabled={publishing.single === sub.id}
+													className="px-4 py-2 rounded-lg text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors disabled:opacity-70"
+												>
+													{publishing.single === sub.id ? '...' : 'Publish'}
+												</button>
+											)}
+										</div>
+									</div>
+								</div>
+							);
+						})}
+					</div>
+				)}
+			</div>
 		</div>
 	);
 };
 
-// --- Router Component ---
-
 const TeacherResults = () => {
-	const { examId } = useParams(); // Use useParams to get the examId from the URL
-
-	// If an examId is present in the URL, render the detail view.
-	// Otherwise, render the overview of all exams with submissions.
+	const { examId } = useParams();
 	return examId ? <ExamSubmissionsDetail /> : <ExamResultsOverview />;
 };
 
