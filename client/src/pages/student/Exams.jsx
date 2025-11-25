@@ -163,10 +163,53 @@ const StudentExams = () => {
     return (
         <div style={styles.pageContainer}>
             <style>{`
-                .hover-card { transition: transform 0.2s, box-shadow 0.2s; }
-                .hover-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
-                @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-                .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+                .hover-card { 
+                    transition: transform 0.2s, box-shadow 0.2s; 
+                }
+                .hover-card:hover { 
+                    transform: translateY(-2px); 
+                    box-shadow: var(--shadow-lg); 
+                }
+                
+                @keyframes fadeIn { 
+                    from { opacity: 0; transform: translateY(10px); } 
+                    to { opacity: 1; transform: translateY(0); } 
+                }
+                .animate-fade-in { 
+                    animation: fadeIn 0.4s ease-out forwards; 
+                }
+
+                /* Mobile Responsive Adjustments */
+                @media (max-width: 768px) {
+                    .hover-card:hover { 
+                        transform: none; 
+                    }
+                }
+
+                @media (max-width: 640px) {
+                    .hero-decoration {
+                        display: none !important;
+                    }
+                }
+
+                /* Dark mode status badge improvements */
+                [data-theme="dark"] .hover-card {
+                    background: var(--surface);
+                }
+                
+                /* Input placeholder styling */
+                input::placeholder {
+                    color: rgba(255, 255, 255, 0.5);
+                }
+
+                /* Button hover effects */
+                button:not(:disabled):hover {
+                    filter: brightness(1.05);
+                }
+
+                button:not(:disabled):active {
+                    transform: translateY(1px);
+                }
             `}</style>
 
             <header style={styles.header.container}>
@@ -259,7 +302,7 @@ const StudentExams = () => {
                         </div>
                     )}
                 </div>
-                <div style={styles.hero.decoration}>
+                <div style={styles.hero.decoration} className="hero-decoration">
                     📝
                 </div>
             </section>
@@ -292,35 +335,45 @@ const StudentExams = () => {
 
 const styles = {
     pageContainer: {
-        maxWidth: 1200,
+        maxWidth: '1200px',
         margin: '0 auto',
         padding: '24px',
+        minHeight: '100vh',
     },
     header: {
         container: {
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            marginBottom: 32,
+            marginBottom: '32px',
             flexWrap: 'wrap',
-            gap: 16,
+            gap: '16px',
         },
-        title: { fontSize: 32, fontWeight: 800, color: 'var(--text)', margin: 0 },
-        subtitle: { fontSize: 16, color: 'var(--text-muted)', margin: '4px 0 0 0' },
+        title: { 
+            fontSize: 'clamp(24px, 5vw, 32px)', 
+            fontWeight: 800, 
+            color: 'var(--text)', 
+            margin: 0 
+        },
+        subtitle: { 
+            fontSize: 'clamp(14px, 3vw, 16px)', 
+            color: 'var(--text-muted)', 
+            margin: '4px 0 0 0' 
+        },
     },
     sectionTitle: {
-        fontSize: 24,
+        fontSize: 'clamp(20px, 4vw, 24px)',
         fontWeight: 700,
         color: 'var(--text)',
-        marginBottom: 24,
+        marginBottom: '24px',
         borderBottom: '2px solid var(--border)',
-        paddingBottom: 12,
+        paddingBottom: '12px',
     },
     hero: {
         container: {
             background: 'linear-gradient(135deg, #4f46e5, #3b82f6)',
-            borderRadius: 24,
-            padding: 40,
+            borderRadius: 'clamp(16px, 3vw, 24px)',
+            padding: 'clamp(24px, 5vw, 40px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -328,122 +381,220 @@ const styles = {
             boxShadow: '0 10px 25px -5px rgba(59, 130, 246, 0.5)',
             position: 'relative',
             overflow: 'hidden',
+            flexWrap: 'wrap',
+            gap: '24px',
         },
-        content: { flex: 1, zIndex: 1, maxWidth: 600 },
-        title: { fontSize: 36, fontWeight: 800, margin: '0 0 12px 0' },
-        subtitle: { fontSize: 18, opacity: 0.9, margin: '0 0 32px 0', lineHeight: 1.5 },
-        form: { display: 'flex', gap: 12, flexWrap: 'wrap' },
+        content: { 
+            flex: 1, 
+            zIndex: 1, 
+            maxWidth: '600px',
+            minWidth: '100%',
+        },
+        title: { 
+            fontSize: 'clamp(24px, 5vw, 36px)', 
+            fontWeight: 800, 
+            margin: '0 0 12px 0' 
+        },
+        subtitle: { 
+            fontSize: 'clamp(14px, 3vw, 18px)', 
+            opacity: 0.9, 
+            margin: '0 0 32px 0', 
+            lineHeight: 1.5 
+        },
+        form: { 
+            display: 'flex', 
+            gap: '12px', 
+            flexWrap: 'wrap',
+            width: '100%',
+        },
         input: {
-            flex: 1,
-            minWidth: 200,
-            padding: '16px 24px',
-            borderRadius: 12,
+            flex: '1 1 200px',
+            minWidth: '200px',
+            padding: 'clamp(12px, 3vw, 16px) clamp(16px, 4vw, 24px)',
+            borderRadius: '12px',
             border: '2px solid rgba(255,255,255,0.2)',
             background: 'rgba(255,255,255,0.1)',
             color: 'white',
-            fontSize: 20,
+            fontSize: 'clamp(16px, 4vw, 20px)',
             fontWeight: 700,
-            letterSpacing: 2,
+            letterSpacing: '2px',
             outline: 'none',
             backdropFilter: 'blur(10px)',
-            '::placeholder': { color: 'rgba(255,255,255,0.5)' }
         },
         decoration: {
-            fontSize: 200,
+            fontSize: 'clamp(100px, 20vw, 200px)',
             position: 'absolute',
-            right: -40,
-            bottom: -60,
+            right: '-40px',
+            bottom: '-60px',
             opacity: 0.1,
             transform: 'rotate(-15deg)',
             userSelect: 'none',
+            display: 'none',
         },
     },
     foundExam: {
         container: {
-            marginTop: 24,
-            background: 'rgba(255,255,255,0.95)',
-            borderRadius: 16,
-            padding: 24,
+            marginTop: '24px',
+            background: 'var(--surface)',
+            borderRadius: '16px',
+            padding: 'clamp(16px, 4vw, 24px)',
             color: 'var(--text)',
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+            border: '1px solid var(--border)',
+            boxShadow: 'var(--shadow-md)',
         },
-        header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-        title: { fontSize: 20, fontWeight: 700, margin: 0 },
-        badge: { background: '#e0e7ff', color: '#4338ca', padding: '4px 12px', borderRadius: 20, fontSize: 14, fontWeight: 600 },
-        description: { color: '#4b5563', margin: '0 0 20px 0', fontSize: 15 },
-        actions: { display: 'flex', gap: 12, justifyContent: 'flex-end' },
+        header: { 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center', 
+            marginBottom: '8px',
+            flexWrap: 'wrap',
+            gap: '12px',
+        },
+        title: { 
+            fontSize: 'clamp(18px, 4vw, 20px)', 
+            fontWeight: 700, 
+            margin: 0,
+            color: 'var(--text)',
+        },
+        badge: { 
+            background: 'var(--primary-light-bg)', 
+            color: 'var(--primary-strong)', 
+            padding: '4px 12px', 
+            borderRadius: '20px', 
+            fontSize: '14px', 
+            fontWeight: 600 
+        },
+        description: { 
+            color: 'var(--text-muted)', 
+            margin: '0 0 20px 0', 
+            fontSize: '15px' 
+        },
+        actions: { 
+            display: 'flex', 
+            gap: '12px', 
+            justifyContent: 'flex-end',
+            flexWrap: 'wrap',
+        },
     },
     grid: {
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
-        gap: 24,
+        gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))',
+        gap: 'clamp(16px, 4vw, 24px)',
     },
     card: {
         container: {
             background: 'var(--surface)',
-            borderRadius: 16,
+            borderRadius: '16px',
             border: '1px solid var(--border)',
-            padding: 24,
+            padding: 'clamp(16px, 4vw, 24px)',
             display: 'flex',
             flexDirection: 'column',
-            gap: 20,
+            gap: '20px',
             height: '100%',
+            transition: 'transform 0.2s, box-shadow 0.2s',
         },
-        header: { display: 'flex', gap: 16, alignItems: 'flex-start' },
+        header: { 
+            display: 'flex', 
+            gap: '16px', 
+            alignItems: 'flex-start',
+            flexWrap: 'wrap',
+        },
         iconWrapper: {
-            width: 48,
-            height: 48,
-            borderRadius: 12,
-            background: 'var(--bg)',
+            width: '48px',
+            height: '48px',
+            borderRadius: '12px',
+            background: 'var(--bg-secondary)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: 24,
+            fontSize: '24px',
+            flexShrink: 0,
         },
-        title: { fontSize: 18, fontWeight: 700, color: 'var(--text)', margin: '0 0 4px 0', lineHeight: 1.3 },
-        date: { fontSize: 13, color: 'var(--text-muted)', margin: 0 },
+        title: { 
+            fontSize: 'clamp(16px, 3vw, 18px)', 
+            fontWeight: 700, 
+            color: 'var(--text)', 
+            margin: '0 0 4px 0', 
+            lineHeight: 1.3,
+            wordBreak: 'break-word',
+        },
+        date: { 
+            fontSize: '13px', 
+            color: 'var(--text-muted)', 
+            margin: 0 
+        },
         statusBadge: {
             padding: '4px 10px',
-            borderRadius: 20,
-            fontSize: 12,
+            borderRadius: '20px',
+            fontSize: '12px',
             fontWeight: 700,
             border: '1px solid',
             whiteSpace: 'nowrap',
+            flexShrink: 0,
         },
         content: { flex: 1 },
         scoreBox: {
-            background: 'var(--bg)',
-            borderRadius: 12,
-            padding: 16,
+            background: 'var(--bg-secondary)',
+            borderRadius: '12px',
+            padding: '16px',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
+            gap: '12px',
+            flexWrap: 'wrap',
         },
-        scoreValue: { fontSize: 24, fontWeight: 800, color: 'var(--text)' },
-        scoreMax: { fontSize: 14, color: 'var(--text-muted)', fontWeight: 500 },
-        percentageBadge: { padding: '4px 8px', borderRadius: 6, fontSize: 14, fontWeight: 700 },
-        remarks: { fontSize: 14, color: 'var(--text-muted)', fontStyle: 'italic', margin: 0 },
+        scoreValue: { 
+            fontSize: 'clamp(20px, 5vw, 24px)', 
+            fontWeight: 800, 
+            color: 'var(--text)' 
+        },
+        scoreMax: { 
+            fontSize: '14px', 
+            color: 'var(--text-muted)', 
+            fontWeight: 500 
+        },
+        percentageBadge: { 
+            padding: '4px 8px', 
+            borderRadius: '6px', 
+            fontSize: '14px', 
+            fontWeight: 700 
+        },
+        remarks: { 
+            fontSize: '14px', 
+            color: 'var(--text-muted)', 
+            fontStyle: 'italic', 
+            margin: 0 
+        },
         footer: { marginTop: 'auto' },
     },
     emptyState: {
         container: {
             textAlign: 'center',
-            padding: '60px 20px',
+            padding: 'clamp(40px, 8vw, 60px) 20px',
             background: 'var(--surface)',
-            borderRadius: 24,
+            borderRadius: '24px',
             border: '2px dashed var(--border)',
         },
-        icon: { fontSize: 48, marginBottom: 16 },
-        title: { fontSize: 20, fontWeight: 700, color: 'var(--text)', margin: '0 0 8px 0' },
-        text: { color: 'var(--text-muted)' },
+        icon: { fontSize: '48px', marginBottom: '16px' },
+        title: { 
+            fontSize: 'clamp(18px, 4vw, 20px)', 
+            fontWeight: 700, 
+            color: 'var(--text)', 
+            margin: '0 0 8px 0' 
+        },
+        text: { 
+            color: 'var(--text-muted)',
+            fontSize: 'clamp(14px, 3vw, 16px)',
+        },
     },
     button: {
         primary: {
             background: 'linear-gradient(135deg, #4f46e5, #3b82f6)',
             color: 'white',
             border: 'none',
-            borderRadius: 12,
-            padding: '12px 24px',
+            borderRadius: '12px',
+            padding: 'clamp(10px, 2vw, 12px) clamp(20px, 4vw, 24px)',
+            fontSize: 'clamp(14px, 3vw, 16px)',
             fontWeight: 700,
             cursor: 'pointer',
             transition: 'all 0.2s',
@@ -453,8 +604,9 @@ const styles = {
             background: 'var(--surface)',
             color: 'var(--text)',
             border: '1px solid var(--border)',
-            borderRadius: 10,
-            padding: '10px 20px',
+            borderRadius: '10px',
+            padding: 'clamp(8px, 2vw, 10px) clamp(16px, 3vw, 20px)',
+            fontSize: 'clamp(14px, 3vw, 16px)',
             fontWeight: 600,
             cursor: 'pointer',
             transition: 'all 0.2s',
@@ -463,18 +615,22 @@ const styles = {
             background: '#10b981',
             color: 'white',
             border: 'none',
-            borderRadius: 10,
-            padding: '10px 24px',
+            borderRadius: '10px',
+            padding: 'clamp(8px, 2vw, 10px) clamp(20px, 4vw, 24px)',
+            fontSize: 'clamp(14px, 3vw, 16px)',
             fontWeight: 700,
             cursor: 'pointer',
+            transition: 'all 0.2s',
         },
         ghost: {
             background: 'transparent',
-            color: '#6b7280',
+            color: 'var(--text-muted)',
             border: 'none',
-            padding: '10px 20px',
+            padding: 'clamp(8px, 2vw, 10px) clamp(16px, 3vw, 20px)',
+            fontSize: 'clamp(14px, 3vw, 16px)',
             fontWeight: 600,
             cursor: 'pointer',
+            transition: 'all 0.2s',
         },
     },
 };
