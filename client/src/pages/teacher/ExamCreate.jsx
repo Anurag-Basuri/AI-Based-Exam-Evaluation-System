@@ -32,7 +32,11 @@ const Stepper = ({ step }) => {
 							<div
 								style={{
 									...styles.stepCircle,
-									background: done ? 'var(--success)' : active ? 'var(--primary)' : 'var(--surface)',
+									background: done
+										? 'var(--success)'
+										: active
+										? 'var(--primary)'
+										: 'var(--surface)',
 									borderColor: done || active ? 'transparent' : 'var(--border)',
 									color: done || active ? '#fff' : 'var(--text-muted)',
 								}}
@@ -302,7 +306,10 @@ const ExamCreate = () => {
 				)}
 
 				{step === 1 && (
-					<Section title="1. Exam Details" subtitle="Title, description, time window and duration.">
+					<Section
+						title="1. Exam Details"
+						subtitle="Title, description, time window and duration."
+					>
 						<ExamForm
 							value={details}
 							onChange={setDetails}
@@ -322,8 +329,8 @@ const ExamCreate = () => {
 				{step === 2 && (
 					<div style={styles.grid}>
 						<div style={styles.colMain}>
-							<Section 
-								title="2. Select Questions" 
+							<Section
+								title="2. Select Questions"
 								subtitle="Pick from your bank or create new ones."
 								actions={
 									<div style={{ display: 'flex', gap: 8 }}>
@@ -396,23 +403,39 @@ const ExamCreate = () => {
 														onClick={() => toggleSelected(q.id)}
 														style={{
 															...styles.questionCard,
-															borderColor: selected ? 'var(--primary)' : 'var(--border)',
-															background: selected ? 'var(--primary-light-bg)' : 'var(--surface)',
+															borderColor: selected
+																? 'var(--primary)'
+																: 'var(--border)',
+															background: selected
+																? 'var(--primary-light-bg)'
+																: 'var(--surface)',
 														}}
 													>
 														<div style={styles.qHeader}>
-															<div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+															<div
+																style={{
+																	display: 'flex',
+																	gap: 8,
+																	alignItems: 'center',
+																}}
+															>
 																<input
 																	type="checkbox"
 																	checked={selected}
-																	onChange={() => toggleSelected(q.id)}
+																	onChange={() =>
+																		toggleSelected(q.id)
+																	}
 																	style={styles.checkbox}
 																/>
 																<span style={styles.qType}>
-																	{q.type === 'multiple-choice' ? 'MCQ' : 'Subj'}
+																	{q.type === 'multiple-choice'
+																		? 'MCQ'
+																		: 'Subj'}
 																</span>
 															</div>
-															<span style={styles.qMarks}>{q.max_marks}m</span>
+															<span style={styles.qMarks}>
+																{q.max_marks}m
+															</span>
 														</div>
 														<p style={styles.qText}>{q.text}</p>
 														<div style={styles.qFooter}>
@@ -439,16 +462,13 @@ const ExamCreate = () => {
 										<span style={styles.statLabel}>Total Marks</span>
 									</div>
 								</div>
-								
+
 								<div style={styles.sideActions}>
-									<button 
-										onClick={() => setStep(1)} 
-										style={styles.btnSecondary}
-									>
+									<button onClick={() => setStep(1)} style={styles.btnSecondary}>
 										← Back
 									</button>
-									<button 
-										onClick={handleNext} 
+									<button
+										onClick={handleNext}
 										style={styles.btnPrimary}
 										disabled={selectedIds.size === 0}
 									>
@@ -462,7 +482,10 @@ const ExamCreate = () => {
 
 				{step === 3 && (
 					<div style={styles.reviewContainer}>
-						<Section title="3. Review & Create" subtitle="Double check everything before creating.">
+						<Section
+							title="3. Review & Create"
+							subtitle="Double check everything before creating."
+						>
 							<div style={styles.reviewGrid}>
 								<div style={styles.reviewItem}>
 									<span style={styles.reviewLabel}>Title</span>
@@ -474,15 +497,21 @@ const ExamCreate = () => {
 								</div>
 								<div style={styles.reviewItem}>
 									<span style={styles.reviewLabel}>Start Time</span>
-									<span style={styles.reviewValue}>{new Date(details.startTime).toLocaleString()}</span>
+									<span style={styles.reviewValue}>
+										{new Date(details.startTime).toLocaleString()}
+									</span>
 								</div>
 								<div style={styles.reviewItem}>
 									<span style={styles.reviewLabel}>End Time</span>
-									<span style={styles.reviewValue}>{new Date(details.endTime).toLocaleString()}</span>
+									<span style={styles.reviewValue}>
+										{new Date(details.endTime).toLocaleString()}
+									</span>
 								</div>
 								<div style={styles.reviewItem}>
 									<span style={styles.reviewLabel}>Questions</span>
-									<span style={styles.reviewValue}>{selectedIds.size} selected ({totalMarks} marks)</span>
+									<span style={styles.reviewValue}>
+										{selectedIds.size} selected ({totalMarks} marks)
+									</span>
 								</div>
 							</div>
 
@@ -490,8 +519,8 @@ const ExamCreate = () => {
 								<button onClick={() => setStep(2)} style={styles.btnSecondary}>
 									← Back
 								</button>
-								<button 
-									onClick={onSubmitExam} 
+								<button
+									onClick={onSubmitExam}
 									disabled={saving}
 									style={saving ? styles.btnDisabled : styles.btnPrimary}
 								>
