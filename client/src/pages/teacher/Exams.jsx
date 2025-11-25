@@ -107,53 +107,74 @@ const StatusBadge = ({ status }) => {
 	);
 };
 
-const ActionMenu = ({ exam, onAction, isOpen, onClose }) => {
+const ActionMenu = ({ exam, onAction, isOpen, onClose, busy }) => {
 	if (!isOpen) return null;
 
-	const status = exam?.derivedStatus || exam?.status;
+	// Prefer derivedStatus but fallback to timestamp checks when derived may be missing
+	const status = (exam?.derivedStatus || exam?.status || '').toLowerCase();
+	const now = Date.now();
+	const startMs =
+		Number(exam?.startMs) || (exam?.startAt ? new Date(exam.startAt).getTime() : null);
+	const endMs = Number(exam?.endMs) || (exam?.endAt ? new Date(exam.endAt).getTime() : null);
+
+	const isScheduled = status === 'scheduled' || (!!startMs && now < startMs);
+	const isLive = status === 'live' || (!!startMs && !!endMs && now >= startMs && now <= endMs);
 
 	return (
 		<>
 			<div style={styles.menuBackdrop} onClick={onClose} />
 			<div style={styles.actionMenu} role="menu">
-				<button type="button" onClick={() => onAction('clone')} style={styles.menuItem}>
+				<button
+					type="button"
+					onClick={() => !busy && onAction('clone')}
+					style={styles.menuItem}
+					disabled={busy}
+				>
 					📋 Clone
 				</button>
-				<button type="button" onClick={() => onAction('rename')} style={styles.menuItem}>
+				<button
+					type="button"
+					onClick={() => !busy && onAction('rename')}
+					style={styles.menuItem}
+					disabled={busy}
+				>
 					✏️ Rename
 				</button>
 				<button
 					type="button"
-					onClick={() => onAction('regenerate')}
+					onClick={() => !busy && onAction('regenerate')}
 					style={styles.menuItem}
+					disabled={busy}
 				>
 					🔄 New Code
 				</button>
 
 				{/* End / Cancel options */}
-				{status === 'live' && (
+				{isLive && (
 					<>
 						<div style={styles.menuDivider} />
 						<button
 							type="button"
-							onClick={() => onAction('end')}
+							onClick={() => !busy && onAction('end')}
 							style={{ ...styles.menuItem, color: 'var(--danger-text)' }}
 							title="End exam immediately"
+							disabled={busy}
 						>
-							🛑 End Now
+							{busy ? 'Processing…' : '🛑 End Now'}
 						</button>
 					</>
 				)}
-				{status === 'scheduled' && (
+				{isScheduled && (
 					<>
 						<div style={styles.menuDivider} />
 						<button
 							type="button"
-							onClick={() => onAction('cancel')}
+							onClick={() => !busy && onAction('cancel')}
 							style={{ ...styles.menuItem, color: 'var(--danger-text)' }}
 							title="Cancel scheduled exam"
+							disabled={busy}
 						>
-							🚫 Cancel
+							{busy ? 'Processing…' : '🚫 Cancel'}
 						</button>
 					</>
 				)}
@@ -161,8 +182,9 @@ const ActionMenu = ({ exam, onAction, isOpen, onClose }) => {
 				<div style={styles.menuDivider} />
 				<button
 					type="button"
-					onClick={() => onAction('delete')}
+					onClick={() => !busy && onAction('delete')}
 					style={{ ...styles.menuItem, color: 'var(--danger-text)' }}
+					disabled={busy}
 				>
 					🗑️ Delete
 				</button>
@@ -171,7 +193,7 @@ const ActionMenu = ({ exam, onAction, isOpen, onClose }) => {
 	);
 };
 
-const ExamRow = ({ exam, onAction, onNavigate }) => {
+const ExamRow = ({ exam, onAction, onNavigate, actionLoading }) => {
 	const [menuOpen, setMenuOpen] = useState(false);
 	const status = exam.derivedStatus || exam.status;
 
@@ -261,6 +283,9 @@ const ExamRow = ({ exam, onAction, onNavigate }) => {
 							isOpen={menuOpen}
 							onClose={() => setMenuOpen(false)}
 							onAction={handleMenuAction}
+							busy={Boolean(
+								actionLoading && String(actionLoading).startsWith(`${exam.id}:`),
+							)}
 						/>
 					</div>
 				</div>
@@ -269,7 +294,7 @@ const ExamRow = ({ exam, onAction, onNavigate }) => {
 	);
 };
 
-const ExamCard = ({ exam, onAction, onNavigate }) => {
+const ExamCard = ({ exam, onAction, onNavigate, actionLoading }) => {
 	const [menuOpen, setMenuOpen] = useState(false);
 	const status = exam.derivedStatus || exam.status;
 	const qCount =
@@ -297,6 +322,9 @@ const ExamCard = ({ exam, onAction, onNavigate }) => {
 							onAction(a, exam);
 							setMenuOpen(false);
 						}}
+						busy={Boolean(
+							actionLoading && String(actionLoading).startsWith(`${exam.id}:`),
+						)}
 					/>
 				</div>
 			</div>
@@ -519,7 +547,8 @@ const TeacherExams = () => {
 				case 'end':
 					if (!window.confirm(`End "${exam.title}" now? This will finalize the exam.`))
 						break;
-					await TeacherSvc.safeApiCall(TeacherSvc.endExamNow, exam.id);
+					// call service directly (already throws normalized errors)
+					await TeacherSvc.endExamNow(exam.id);
 					toast.success?.('Exam ended');
 					await loadData();
 					break;
@@ -528,7 +557,7 @@ const TeacherExams = () => {
 				case 'cancel':
 					if (!window.confirm(`Cancel "${exam.title}"? This will make it unusable.`))
 						break;
-					await TeacherSvc.safeApiCall(TeacherSvc.cancelExam, exam.id);
+					await TeacherSvc.cancelExam(exam.id);
 					toast.success?.('Exam cancelled');
 					await loadData();
 					break;
@@ -549,7 +578,10 @@ const TeacherExams = () => {
 			}
 		} catch (err) {
 			console.error('Action error:', err);
-			const msg = err?.message || err?.response?.data?.message || 'Action failed';
+			const msg =
+				err?.message ||
+				(err?.response?.data && err.response.data.message) ||
+				'Action failed';
 			toast?.error ? toast.error(msg) : console.warn(msg);
 		} finally {
 			setActionLoading(null);
@@ -708,6 +740,7 @@ const TeacherExams = () => {
 													exam={exam}
 													onAction={handleAction}
 													onNavigate={handleNavigate}
+													actionLoading={actionLoading}
 												/>
 											))}
 										</tbody>
@@ -721,6 +754,7 @@ const TeacherExams = () => {
 											exam={exam}
 											onAction={handleAction}
 											onNavigate={handleNavigate}
+											actionLoading={actionLoading}
 										/>
 									))}
 								</div>
