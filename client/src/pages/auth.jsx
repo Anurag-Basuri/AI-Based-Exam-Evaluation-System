@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import Login from '../components/Login.jsx';
-import Register from '../components/Register.jsx';
+import Login from '../components/Login';
+import Register from '../components/Register';
 import img1 from '../assets/image1.jpg';
 import img2 from '../assets/image2.jpg';
 import img3 from '../assets/image3.jpg';
@@ -269,7 +269,9 @@ const AuthPage = () => {
 							background: isRegister
 								? 'linear-gradient(135deg, color-mix(in srgb, #f97316 16%, transparent), color-mix(in srgb, #fb923c 18%, transparent))'
 								: 'linear-gradient(135deg, color-mix(in srgb, #4f46e5 16%, transparent), color-mix(in srgb, #6366f1 18%, transparent))',
-							border: `1px solid ${isRegister ? 'rgba(251,146,60,0.35)' : 'rgba(99,102,241,0.35)'}`,
+							border: `1px solid ${
+								isRegister ? 'rgba(251,146,60,0.35)' : 'rgba(99,102,241,0.35)'
+							}`,
 							boxShadow: isRegister
 								? '0 20px 60px rgba(249,115,22,0.18)'
 								: '0 20px 60px rgba(79,70,229,0.18)',
@@ -323,10 +325,10 @@ const AuthPage = () => {
 											i === 0
 												? 'rotateY(-8deg) rotateX(6deg)'
 												: i === 1
-													? 'rotateY(8deg) rotateX(-6deg)'
-													: i === 2
-														? 'rotateY(6deg) rotateX(6deg)'
-														: 'rotateY(-6deg) rotateX(-6deg)',
+												? 'rotateY(8deg) rotateX(-6deg)'
+												: i === 2
+												? 'rotateY(6deg) rotateX(6deg)'
+												: 'rotateY(-6deg) rotateX(-6deg)',
 									}}
 								>
 									<img
