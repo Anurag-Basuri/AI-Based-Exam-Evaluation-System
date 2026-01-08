@@ -2,9 +2,7 @@ import cors from 'cors';
 
 const allowedOrigins = [
 	process.env.FRONTEND_URL || 'http://localhost:5173',
-	'https://ai-based-exam-evaluation-system-le3.vercel.app',
-	'https://relying-andale-signature-reed.trycloudflare.com',
-    'https://ai-based-exam-evaluation-system-le35-p9se6jqd0.vercel.app'
+	'https://ai-based-exam-evaluation-system.vercel.app',
 ];
 
 export const corsOptions = {
