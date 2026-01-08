@@ -31,6 +31,15 @@ app.get('/api/health', (req, res) => {
 	res.status(200).json({ status: 'ok', message: 'API is running' });
 });
 
+// Root Route
+app.get('/', (req, res) => {
+	res.status(200).json({
+		status: 'success',
+		message: 'Welcome to the AI-Based Exam Evaluation System API',
+		documentation: 'https://github.com/Anurag-Basuri/AI-Based-Exam-Evaluation-System',
+	});
+});
+
 // Routes
 app.use('/api/students', studentRouter);
 app.use('/api/teachers', teacherRouter);
