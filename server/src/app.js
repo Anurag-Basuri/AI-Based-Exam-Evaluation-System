@@ -19,12 +19,13 @@ import issueRouter from './routes/issue.routes.js';
 const app = express();
 
 // Security & Logging
+app.use(applyCors);
+app.options('*', applyCors);
 app.use(helmet());
 app.use(morgan('dev'));
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 app.use(cookieParser());
-app.use(applyCors);
 
 // Health
 app.get('/api/health', (req, res) => {
