@@ -690,7 +690,7 @@ This project is licensed under the ISC License - see the [LICENSE](./LICENSE) fi
 
 ## 👥 Authors
 
-- **Your Name** - *Initial work*
+- **Anurag Basuri** - *Initial work*
 
 ---
 
@@ -707,7 +707,7 @@ This project is licensed under the ISC License - see the [LICENSE](./LICENSE) fi
 
 For issues, questions, or suggestions:
 - Open an issue on GitHub
-- Contact: your.email@example.com
+- Contact: anuragbasuri@gmail.com
 
 ---
 
