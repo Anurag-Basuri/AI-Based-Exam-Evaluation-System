@@ -4,6 +4,7 @@ import { useToast } from '../../components/ui/Toaster.jsx';
 import PageHeader from '../../components/ui/PageHeader.jsx';
 import Alert from '../../components/ui/Alert.jsx';
 import * as TeacherSvc from '../../services/teacherServices.js';
+import { downloadFile } from '../../utils/exportUtils.js';
 import {
 	BarChart,
 	Bar,
@@ -272,6 +273,15 @@ const ExamSubmissionsDetail = () => {
 		}
 	};
 
+	const handleExportSubmissions = async () => {
+		try {
+			const data = await TeacherSvc.safeApiCall(TeacherSvc.exportExamSubmissionsCsv, examId);
+			downloadFile(data, `exam_submissions_${examId}.csv`);
+		} catch (e) {
+			toastError(e.message || 'Failed to export submissions.');
+		}
+	};
+
 	const filteredAndSortedSubmissions = React.useMemo(() => {
 		let items = [...submissions];
 		if (filters.status !== 'all') {
@@ -330,6 +340,13 @@ const ExamSubmissionsDetail = () => {
 					{ label: examTitle },
 				]}
 				actions={[
+					<button
+						key="export"
+						onClick={handleExportSubmissions}
+						className="px-5 py-2.5 rounded-xl font-bold text-[var(--text)] bg-[var(--surface-light)] border border-[var(--border)] hover:bg-[var(--bg-secondary)] transition-all shadow-sm"
+					>
+						📥 Export Data
+					</button>,
 					<button
 						key="publish"
 						onClick={handlePublishAll}

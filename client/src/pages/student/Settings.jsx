@@ -5,8 +5,11 @@ import {
 	getStudentProfile,
 	updateStudentProfile,
 	changeStudentPassword,
+	exportStudentProfileCsv,
+	exportStudentSubmissionsCsv
 } from '../../services/studentServices.js';
 import { resendStudentVerification } from '../../services/apiServices.js';
+import { downloadFile } from '../../utils/exportUtils.js';
 import './Settings.css';
 
 const StudentSettings = () => {
@@ -434,6 +437,47 @@ const StudentSettings = () => {
 						</button>
 					</div>
 				</form>
+			</section>
+
+			{/* --- Data Export Section --- */}
+			<section className="settings-section">
+				<div className="section-header">
+					<h2 className="section-title">Data Export</h2>
+					<p className="section-desc">Download a copy of your personal data and assessment history.</p>
+				</div>
+				<div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+					<button
+						type="button"
+						className="btn-save"
+						style={{ background: 'var(--surface-light)', color: 'var(--text-1)', border: '1px solid var(--border)' }}
+						onClick={async () => {
+							try {
+								const data = await exportStudentProfileCsv();
+								downloadFile(data, 'student_profile.csv');
+							} catch (err) {
+								setMessage({ type: 'error', text: 'Failed to download profile CSV.' });
+							}
+						}}
+					>
+						📥 Export Profile Data
+					</button>
+
+					<button
+						type="button"
+						className="btn-save"
+						style={{ background: 'var(--surface-light)', color: 'var(--text-1)', border: '1px solid var(--border)' }}
+						onClick={async () => {
+							try {
+								const data = await exportStudentSubmissionsCsv();
+								downloadFile(data, 'student_submissions.csv');
+							} catch (err) {
+								setMessage({ type: 'error', text: 'Failed to download submissions CSV.' });
+							}
+						}}
+					>
+						📥 Export Submissions History
+					</button>
+				</div>
 			</section>
 		</div>
 	);
