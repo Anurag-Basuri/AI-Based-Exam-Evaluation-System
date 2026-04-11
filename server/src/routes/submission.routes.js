@@ -19,6 +19,7 @@ import {
 	publishAllExamResults,
 	getSubmissionForGrading,
 	getSubmissionForResults,
+	exportExamSubmissionsList
 } from '../controllers/submission.controller.js';
 
 const router = Router();
@@ -113,6 +114,9 @@ router.get('/teacher/:id', checkAuth, verifyTeacher, getSubmissionForGrading);
 // --- Result Publishing Routes (Teacher Only) ---
 router.post('/:id/publish', checkAuth, verifyTeacher, publishSingleSubmissionResult);
 router.post('/exam/:examId/publish-all', checkAuth, verifyTeacher, publishAllExamResults);
+
+// --- Export Routes (Teacher Only) ---
+router.get('/exam/:id/export', checkAuth, verifyTeacher, exportExamSubmissionsList);
 
 // --- Testing ---
 router.post('/test-eval', checkAuth, verifyTeacher, testEvaluationService);

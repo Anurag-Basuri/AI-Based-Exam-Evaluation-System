@@ -12,6 +12,7 @@ import {
 	sendPasswordResetEmail,
 	sendPasswordChangedEmail,
 } from '../services/email.service.js';
+import { generateCSV, sendCSVDowload } from '../services/export.service.js';
 
 // ── Helper: strip sensitive fields ────────────────────────────────
 function sanitize(doc) {
@@ -349,6 +350,61 @@ const getDashboardStats = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, stats, 'Dashboard stats fetched successfully');
 });
 
+// ══════════════════════════════════════════════════════════════════
+// DATA EXPORT
+// ══════════════════════════════════════════════════════════════════
+
+const exportTeacherProfile = asyncHandler(async (req, res) => {
+	const teacherId = req.teacher?._id || req.user?.id;
+	const teacher = await Teacher.findById(teacherId).lean();
+	
+	if (!teacher) {
+		throw ApiError.NotFound('Teacher not found');
+	}
+
+	const data = [{
+		'ID': teacher._id.toString(),
+		'Username': teacher.username,
+		'Full Name': teacher.fullname,
+		'Email': teacher.email,
+		'Phone Number': teacher.phonenumber || '',
+		'Department': teacher.department || '',
+		'Gender': teacher.gender || '',
+		'Street': teacher.address?.street || '',
+		'City': teacher.address?.city || '',
+		'State': teacher.address?.state || '',
+		'Postal Code': teacher.address?.postalCode || '',
+		'Country': teacher.address?.country || '',
+		'Verified Email': teacher.isEmailVerified ? 'Yes' : 'No',
+		'Registered On': new Date(teacher.createdAt).toLocaleString(),
+	}];
+
+	const csv = generateCSV(data);
+	return sendCSVDowload(res, `teacher_profile_${teacher.username}.csv`, csv);
+});
+
+const exportTeacherExams = asyncHandler(async (req, res) => {
+	const teacherId = req.teacher?._id || req.user?.id;
+	
+	const exams = await Exam.find({ createdBy: teacherId }).lean();
+
+	const data = exams.map(exam => ({
+		'Exam ID': exam._id.toString(),
+		'Search Code': exam.searchId,
+		'Title': exam.title,
+		'Description': exam.description,
+		'Duration (mins)': exam.duration,
+		'Max Marks': exam.max_marks || 0,
+		'Status': exam.status,
+		'Created At': new Date(exam.createdAt).toLocaleString(),
+		'Start Time': exam.startTime ? new Date(exam.startTime).toLocaleString() : 'Not Set',
+		'End Time': exam.endTime ? new Date(exam.endTime).toLocaleString() : 'Not Set',
+	}));
+
+	const csv = generateCSV(data);
+	return sendCSVDowload(res, `teacher_exams_${teacherId}.csv`, csv);
+});
+
 export {
 	createTeacher,
 	loginTeacher,
@@ -360,6 +416,8 @@ export {
 	resendTeacherVerification,
 	forgotTeacherPassword,
 	resetTeacherPassword,
+	exportTeacherProfile,
+	exportTeacherExams
 };
 
 // ══════════════════════════════════════════════════════════════════

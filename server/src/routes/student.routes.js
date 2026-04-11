@@ -10,6 +10,8 @@ import {
     resendStudentVerification,
     forgotStudentPassword,
     resetStudentPassword,
+    exportStudentProfile,
+    exportStudentSubmissions
 } from '../controllers/student.controller.js';
 import { checkAuth, verifyStudent } from '../middlewares/auth.middleware.js';
 import { authLimiter, emailLimiter, verifyLimiter } from '../middlewares/rateLimit.middleware.js';
@@ -111,13 +113,31 @@ router.put(
     changePassword
 );
 
-// Resend verification email (authenticated — user can resend from their profile)
+// Resend verification email
 router.post(
     '/resend-verification',
     emailLimiter,
     checkAuth,
     verifyStudent,
     resendStudentVerification
+);
+
+// ── Export Routes ────────────────────────────────────────────────
+
+// Export profile to CSV
+router.get(
+    '/export/profile',
+    checkAuth,
+    verifyStudent,
+    exportStudentProfile
+);
+
+// Export submissions to CSV
+router.get(
+    '/export/submissions',
+    checkAuth,
+    verifyStudent,
+    exportStudentSubmissions
 );
 
 export default router;
