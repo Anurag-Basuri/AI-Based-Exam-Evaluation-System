@@ -5,6 +5,7 @@ import RouteFallback from '../components/RouteFallback.jsx';
 import { useTheme } from '../hooks/useTheme.js';
 import { useAuth } from '../hooks/useAuth.js';
 import Sidebar from '../components/Sidebar.jsx';
+import VerificationBanner from '../components/ui/VerificationBanner.jsx';
 
 const SIDEBAR_WIDTH = 280;
 const MOBILE_BREAKPOINT = 1024;
@@ -317,10 +318,14 @@ const StudentDash = () => {
 							style={{
 								padding: 16,
 								flexGrow: 1,
+								display: 'flex',
+								flexDirection: 'column',
+								gap: 16,
 								overflowY: 'auto',
 								minHeight: isMobile ? '0' : 'auto',
 							}}
 						>
+							<VerificationBanner />
 							<ErrorBoundary>
 								<Suspense fallback={<RouteFallback message="Loading page" />}>
 									<Outlet />

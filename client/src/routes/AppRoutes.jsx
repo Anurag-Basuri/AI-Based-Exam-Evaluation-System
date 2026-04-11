@@ -15,6 +15,9 @@ const TeacherDash = lazy(() => import('../pages/TeacherDash.jsx'));
 // Public pages
 const LandingPage = lazy(() => import('../pages/LandingPage.jsx'));
 const AuthPage = lazy(() => import('../pages/auth.jsx'));
+const ForgotPassword = lazy(() => import('../pages/ForgotPassword.jsx'));
+const ResetPassword = lazy(() => import('../pages/ResetPassword.jsx'));
+const VerifyEmail = lazy(() => import('../pages/VerifyEmail.jsx'));
 
 // Student pages
 const StudentHome = lazy(() => import('../pages/student/Home.jsx'));
@@ -63,6 +66,9 @@ const AppRoutes = () => (
 			{/* Public */}
 			<Route path="/" element={withBoundary(<LandingPage />)} />
 			<Route path="/auth" element={withBoundary(<AuthPage />)} />
+			<Route path="/auth/forgot-password" element={withBoundary(<ForgotPassword />)} />
+			<Route path="/auth/reset-password" element={withBoundary(<ResetPassword />)} />
+			<Route path="/auth/verify-email" element={withBoundary(<VerifyEmail />)} />
 
 			{/* Student */}
 			<Route element={<ProtectedRoutes requireRole="student" />}>

@@ -210,7 +210,7 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
 				<button
 					type="button"
 					style={{ ...styles.linkBtn, color: linkColor }}
-					onClick={() => alert('Forgot password flow is not configured.')}
+					onClick={() => navigate('/auth/forgot-password')}
 				>
 					Forgot password?
 				</button>

@@ -35,6 +35,7 @@ export const AuthProvider = ({ children }) => {
 	const [user, setUser] = useState(null);
 	const [isAuthenticated, setIsAuthenticated] = useState(false);
 	const [role, setRole] = useState(null);
+	const [isEmailVerified, setIsEmailVerified] = useState(false);
 	const [loading, setLoading] = useState(true);
 
 	// Check token and user info on mount
@@ -45,10 +46,12 @@ export const AuthProvider = ({ children }) => {
 				const decoded = decodeToken(accessToken);
 				setUser(decoded);
 				setRole(decoded?.role || null);
+				setIsEmailVerified(decoded?.isEmailVerified || false);
 				setIsAuthenticated(true);
 			} else {
 				setUser(null);
 				setRole(null);
+				setIsEmailVerified(false);
 				setIsAuthenticated(false);
 				removeToken();
 			}
@@ -56,6 +59,7 @@ export const AuthProvider = ({ children }) => {
 			// Fallback to a clean state
 			setUser(null);
 			setRole(null);
+			setIsEmailVerified(false);
 			setIsAuthenticated(false);
 			try {
 				removeToken();
@@ -83,6 +87,7 @@ export const AuthProvider = ({ children }) => {
 				const decoded = decodeToken(res.data.authToken);
 				setUser(decoded);
 				setRole(decoded?.role || 'student');
+				setIsEmailVerified(decoded?.isEmailVerified || false);
 				setIsAuthenticated(true);
 				navigateSafe('/student', { replace: true });
 			}
@@ -106,6 +111,7 @@ export const AuthProvider = ({ children }) => {
 				const decoded = decodeToken(res.data.authToken);
 				setUser(decoded);
 				setRole(decoded?.role || 'student');
+				setIsEmailVerified(decoded?.isEmailVerified || false);
 				setIsAuthenticated(true);
 				navigateSafe('/student', { replace: true });
 			}
@@ -113,6 +119,7 @@ export const AuthProvider = ({ children }) => {
 		} catch (err) {
 			setUser(null);
 			setRole(null);
+			setIsEmailVerified(false);
 			setIsAuthenticated(false);
 			throw normalizeError(err);
 		} finally {
@@ -150,6 +157,7 @@ export const AuthProvider = ({ children }) => {
 				const decoded = decodeToken(res.data.authToken);
 				setUser(decoded);
 				setRole(decoded?.role || 'teacher');
+				setIsEmailVerified(decoded?.isEmailVerified || false);
 				setIsAuthenticated(true);
 				navigateSafe('/teacher', { replace: true });
 			}
@@ -173,6 +181,7 @@ export const AuthProvider = ({ children }) => {
 				const decoded = decodeToken(res.data.authToken);
 				setUser(decoded);
 				setRole(decoded?.role || 'teacher');
+				setIsEmailVerified(decoded?.isEmailVerified || false);
 				setIsAuthenticated(true);
 				navigateSafe('/teacher', { replace: true });
 			}
@@ -221,6 +230,7 @@ export const AuthProvider = ({ children }) => {
 		user,
 		isAuthenticated,
 		role,
+		isEmailVerified,
 		loading,
 		registerStudent: handleRegisterStudent,
 		loginStudent: handleLoginStudent,
@@ -233,6 +243,7 @@ export const AuthProvider = ({ children }) => {
 		setUser,
 		setRole,
 		setIsAuthenticated,
+		setIsEmailVerified,
 	};
 
 	return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
