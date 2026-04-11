@@ -6,10 +6,11 @@ import {
 	updateStudentProfile,
 	changeStudentPassword,
 } from '../../services/studentServices.js';
+import { resendStudentVerification } from '../../services/apiServices.js';
 import './Settings.css';
 
 const StudentSettings = () => {
-	const { user } = useAuth();
+	const { user, isEmailVerified } = useAuth();
 
 	// Initial state structure matching the backend schema
 	const initialProfileState = {
@@ -90,6 +91,21 @@ const StudentSettings = () => {
 			return () => clearTimeout(timer);
 		}
 	}, [message]);
+
+	const [resending, setResending] = useState(false);
+
+	const handleResendVerification = async () => {
+		setResending(true);
+		setMessage({ type: '', text: '' });
+		try {
+			await resendStudentVerification();
+			setMessage({ type: 'success', text: 'Verification email sent. Please check your inbox.' });
+		} catch (err) {
+			setMessage({ type: 'error', text: err?.message || 'Failed to send verification email.' });
+		} finally {
+			setResending(false);
+		}
+	};
 
 	const saveProfile = async e => {
 		e.preventDefault();
@@ -232,7 +248,33 @@ const StudentSettings = () => {
 
 					<div className="form-grid">
 						<div className="form-group">
-							<label className="form-label">Email Address</label>
+							<label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+								Email Address
+								{isEmailVerified ? (
+									<span style={{ fontSize: 12, color: '#16a34a', fontWeight: 'bold' }}>✅ Verified</span>
+								) : (
+									<span style={{ fontSize: 12, color: '#dc2626', fontWeight: 'bold', display: 'flex', gap: 8, alignItems: 'center' }}>
+										⚠️ Not Verified
+										<button 
+											type="button" 
+											onClick={handleResendVerification} 
+											disabled={resending}
+											style={{
+												padding: '2px 8px',
+												fontSize: 11,
+												borderRadius: 4,
+												border: '1px solid currentColor',
+												background: 'transparent',
+												color: 'inherit',
+												cursor: resending ? 'default' : 'pointer',
+												opacity: resending ? 0.7 : 1
+											}}
+										>
+											{resending ? 'Sending...' : 'Resend Link'}
+										</button>
+									</span>
+								)}
+							</label>
 							<input
 								type="email"
 								className="form-input"

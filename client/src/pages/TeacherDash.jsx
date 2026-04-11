@@ -8,6 +8,7 @@ import { useTheme } from '../hooks/useTheme.js';
 import { useAuth } from '../hooks/useAuth.js';
 import { safeApiCall, getTeacherIssues } from '../services/teacherServices.js';
 import { API_BASE_URL } from '../services/api.js';
+import VerificationBanner from '../components/ui/VerificationBanner.jsx';
 
 const SIDEBAR_WIDTH = 280;
 const MOBILE_BREAKPOINT = 1024;
@@ -262,10 +263,14 @@ const TeacherDash = () => {
 							style={{
 								padding: isMobile ? 12 : 18,
 								flexGrow: 1,
+								display: 'flex',
+								flexDirection: 'column',
+								gap: 16,
 								overflowY: 'auto',
 								minHeight: 0,
 							}}
 						>
+							<VerificationBanner />
 							<ErrorBoundary>
 								<Suspense fallback={<RouteFallback message="Loading page…" />}>
 									<Outlet />
