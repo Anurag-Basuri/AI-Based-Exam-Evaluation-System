@@ -5,16 +5,24 @@ import {
     logoutStudent,
     getStudentProfile,
     updateStudent,
-    changePassword
+    changePassword,
+    verifyStudentEmail,
+    resendStudentVerification,
+    forgotStudentPassword,
+    resetStudentPassword,
 } from '../controllers/student.controller.js';
 import { checkAuth, verifyStudent } from '../middlewares/auth.middleware.js';
+import { authLimiter, emailLimiter, verifyLimiter } from '../middlewares/rateLimit.middleware.js';
 import { body } from 'express-validator';
 
 const router = Router();
 
+// ── Public: Auth ──────────────────────────────────────────────────
+
 // Register a new student
 router.post(
     '/register',
+    authLimiter,
     body('username').notEmpty().withMessage('Username is required'),
     body('fullname').notEmpty().withMessage('Full name is required'),
     body('email').isEmail().withMessage('Valid email is required'),
@@ -25,11 +33,43 @@ router.post(
 // Student login
 router.post(
     '/login',
+    authLimiter,
     body('username').optional(),
     body('email').optional().isEmail(),
     body('password').notEmpty().withMessage('Password is required'),
     loginStudent
 );
+
+// ── Public: Email verification & Password reset ──────────────────
+
+// Verify email with token (from email link)
+router.post(
+    '/verify-email',
+    verifyLimiter,
+    body('token').notEmpty().withMessage('Verification token is required'),
+    verifyStudentEmail
+);
+
+// Forgot password — sends reset email
+router.post(
+    '/forgot-password',
+    emailLimiter,
+    body('email').isEmail().withMessage('Valid email is required'),
+    forgotStudentPassword
+);
+
+// Reset password with token
+router.post(
+    '/reset-password',
+    verifyLimiter,
+    body('token').notEmpty().withMessage('Reset token is required'),
+    body('newPassword')
+        .isLength({ min: 8 })
+        .withMessage('Password must be at least 8 characters'),
+    resetStudentPassword
+);
+
+// ── Authenticated routes ─────────────────────────────────────────
 
 // Student logout
 router.post(
@@ -69,6 +109,15 @@ router.put(
     body('currentPassword').notEmpty().withMessage('Current password is required'),
     body('newPassword').notEmpty().withMessage('New password is required'),
     changePassword
+);
+
+// Resend verification email (authenticated — user can resend from their profile)
+router.post(
+    '/resend-verification',
+    emailLimiter,
+    checkAuth,
+    verifyStudent,
+    resendStudentVerification
 );
 
 export default router;

@@ -70,6 +70,18 @@ const teacherSchema = new mongoose.Schema(
             },
             country: { type: String, trim: true },
         },
+        isEmailVerified: {
+            type: Boolean,
+            default: false,
+        },
+        emailVerificationToken: {
+            type: String,
+            select: false,
+        },
+        emailVerificationExpires: {
+            type: Date,
+            select: false,
+        },
         refreshToken: {
             type: String,
             select: false,
@@ -106,10 +118,17 @@ teacherSchema.methods.createPasswordResetToken = function () {
     return resetToken;
 };
 
+teacherSchema.methods.createEmailVerificationToken = function () {
+    const token = crypto.randomBytes(32).toString('hex');
+    this.emailVerificationToken = crypto.createHash('sha256').update(token).digest('hex');
+    this.emailVerificationExpires = Date.now() + 60 * 60 * 1000; // 1 hour
+    return token;
+};
+
 // Generate JWT
 teacherSchema.methods.generateAuthToken = function () {
 	return jwt.sign(
-        { id: this._id, role: 'teacher', username: this.username },
+        { id: this._id, role: 'teacher', username: this.username, isEmailVerified: this.isEmailVerified },
         process.env.ACCESS_TOKEN_SECRET,
         { expiresIn: process.env.ACCESS_TOKEN_EXPIRY || '24h' },
     );

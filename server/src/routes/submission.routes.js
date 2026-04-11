@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { body, param, query } from 'express-validator';
-import { checkAuth, verifyStudent, verifyTeacher } from '../middlewares/auth.middleware.js';
+import { checkAuth, verifyStudent, verifyTeacher, requireVerifiedEmail } from '../middlewares/auth.middleware.js';
 import {
 	startSubmission,
 	submitSubmission,
@@ -50,6 +50,7 @@ router.post(
 	'/start',
 	checkAuth,
 	verifyStudent,
+	requireVerifiedEmail,
 	body('examId').notEmpty().withMessage('Exam ID is required'),
 	startSubmission,
 );
@@ -59,6 +60,7 @@ router.post(
 	'/start/:id',
 	checkAuth,
 	verifyStudent,
+	requireVerifiedEmail,
 	param('id').notEmpty().withMessage('Exam ID is required'),
 	startSubmissionByParam,
 );

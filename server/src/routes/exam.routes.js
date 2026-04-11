@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { body } from 'express-validator';
-import { checkAuth, verifyStudent, verifyTeacher } from '../middlewares/auth.middleware.js';
+import { checkAuth, verifyStudent, verifyTeacher, requireVerifiedEmail } from '../middlewares/auth.middleware.js';
 import {
 	createExam,
 	addQuestionsToExam,
@@ -31,6 +31,7 @@ router.post(
 	'/create',
 	checkAuth,
 	verifyTeacher,
+	requireVerifiedEmail,
 	body('title').notEmpty().withMessage('Title is required'),
 	body('description').notEmpty().withMessage('Description is required'),
 	createExam,
@@ -80,7 +81,7 @@ router.put('/:id/update', checkAuth, verifyTeacher, updateExam);
 router.delete('/:id', checkAuth, verifyTeacher, deleteExam);
 
 // Publish (draft -> active)
-router.post('/:id/publish', checkAuth, verifyTeacher, publishExam);
+router.post('/:id/publish', checkAuth, verifyTeacher, requireVerifiedEmail, publishExam);
 
 // End live exam immediately
 router.post('/:id/end-now', checkAuth, verifyTeacher, endExamNow);
