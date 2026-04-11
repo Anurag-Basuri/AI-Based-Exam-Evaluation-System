@@ -1,6 +1,8 @@
 import crypto from 'crypto';
 import Student from '../models/student.model.js';
+import Submission from '../models/submission.model.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import { generateCSV, sendCSVDowload } from '../services/export.service.js';
 import { ApiError } from '../utils/ApiError.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import {
@@ -309,6 +311,63 @@ const resetStudentPassword = asyncHandler(async (req, res) => {
 	);
 });
 
+// ══════════════════════════════════════════════════════════════════
+// DATA EXPORT
+// ══════════════════════════════════════════════════════════════════
+
+// ── Export Profile (CSV) ─────────────────────────────────────────
+const exportStudentProfile = asyncHandler(async (req, res) => {
+	const studentId = req.student?._id || req.user?.id;
+	const student = await Student.findById(studentId).lean();
+	
+	if (!student) {
+		throw ApiError.NotFound('Student not found');
+	}
+
+	const data = [{
+		'ID': student._id.toString(),
+		'Username': student.username,
+		'Full Name': student.fullname,
+		'Email': student.email,
+		'Phone Number': student.phonenumber || '',
+		'Gender': student.gender || '',
+		'Street': student.address?.street || '',
+		'City': student.address?.city || '',
+		'State': student.address?.state || '',
+		'Postal Code': student.address?.postalCode || '',
+		'Country': student.address?.country || '',
+		'Verified Email': student.isEmailVerified ? 'Yes' : 'No',
+		'Registered On': new Date(student.createdAt).toLocaleString(),
+	}];
+
+	const csv = generateCSV(data);
+	return sendCSVDowload(res, `student_profile_${student.username}.csv`, csv);
+});
+
+// ── Export Submissions (CSV) ─────────────────────────────────────
+const exportStudentSubmissions = asyncHandler(async (req, res) => {
+	const studentId = req.student?._id || req.user?.id;
+	
+	const submissions = await Submission.find({ student: studentId })
+		.populate('exam', 'title searchId max_marks')
+		.lean();
+
+	const data = submissions.map(sub => ({
+		'Submission ID': sub._id.toString(),
+		'Exam Title': sub.exam?.title || 'Unknown Exam',
+		'Exam Code': sub.exam?.searchId || 'Unknown',
+		'Status': sub.status,
+		'Score': sub.totalMarks || 0,
+		'Max Score': sub.exam?.max_marks || 0,
+		'Submitted At': sub.submittedAt ? new Date(sub.submittedAt).toLocaleString() : 'Not Submitted',
+		'Evaluated At': sub.evaluationDate ? new Date(sub.evaluationDate).toLocaleString() : 'N/A',
+		'Type': sub.submissionType || 'manual'
+	}));
+
+	const csv = generateCSV(data);
+	return sendCSVDowload(res, `student_submissions_${studentId}.csv`, csv);
+});
+
 export {
 	createStudent,
 	loginStudent,
@@ -320,4 +379,6 @@ export {
 	resendStudentVerification,
 	forgotStudentPassword,
 	resetStudentPassword,
+	exportStudentProfile,
+	exportStudentSubmissions
 };

@@ -10,6 +10,8 @@ import {
     resendTeacherVerification,
     forgotTeacherPassword,
     resetTeacherPassword,
+    exportTeacherProfile,
+    exportTeacherExams
 } from '../controllers/teacher.controller.js';
 import { checkAuth, verifyTeacher } from '../middlewares/auth.middleware.js';
 import { authLimiter, emailLimiter, verifyLimiter } from '../middlewares/rateLimit.middleware.js';
@@ -111,13 +113,31 @@ router.get(
     getDashboardStats
 );
 
-// Resend verification email (authenticated — user can resend from their profile)
+// Resend verification email
 router.post(
     '/resend-verification',
     emailLimiter,
     checkAuth,
     verifyTeacher,
     resendTeacherVerification
+);
+
+// ── Export Routes ────────────────────────────────────────────────
+
+// Export profile to CSV
+router.get(
+    '/export/profile',
+    checkAuth,
+    verifyTeacher,
+    exportTeacherProfile
+);
+
+// Export created exams to CSV
+router.get(
+    '/export/exams',
+    checkAuth,
+    verifyTeacher,
+    exportTeacherExams
 );
 
 export default router;
