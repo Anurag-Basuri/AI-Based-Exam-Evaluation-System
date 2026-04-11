@@ -194,3 +194,93 @@ export const updateTeacherProfile = async profileData => {
 		throw apiErr;
 	}
 };
+
+// ══════════════════════════════════════════════════════════════════
+// EMAIL VERIFICATION
+// ══════════════════════════════════════════════════════════════════
+
+export const verifyStudentEmail = async (token) => {
+	try {
+		const response = await publicClient.post('/api/students/verify-email', { token });
+		return response.data;
+	} catch (err) {
+		throw parseAxiosError(err);
+	}
+};
+
+export const verifyTeacherEmail = async (token) => {
+	try {
+		const response = await publicClient.post('/api/teachers/verify-email', { token });
+		return response.data;
+	} catch (err) {
+		throw parseAxiosError(err);
+	}
+};
+
+export const resendStudentVerification = async () => {
+	try {
+		const response = await apiClient.post('/api/students/resend-verification');
+		return response.data;
+	} catch (err) {
+		const apiErr = parseAxiosError(err);
+		maybeInvalidateToken(apiErr);
+		throw apiErr;
+	}
+};
+
+export const resendTeacherVerification = async () => {
+	try {
+		const response = await apiClient.post('/api/teachers/resend-verification');
+		return response.data;
+	} catch (err) {
+		const apiErr = parseAxiosError(err);
+		maybeInvalidateToken(apiErr);
+		throw apiErr;
+	}
+};
+
+// ══════════════════════════════════════════════════════════════════
+// PASSWORD RESET
+// ══════════════════════════════════════════════════════════════════
+
+export const forgotStudentPassword = async (email) => {
+	try {
+		const response = await publicClient.post('/api/students/forgot-password', { email });
+		return response.data;
+	} catch (err) {
+		throw parseAxiosError(err);
+	}
+};
+
+export const forgotTeacherPassword = async (email) => {
+	try {
+		const response = await publicClient.post('/api/teachers/forgot-password', { email });
+		return response.data;
+	} catch (err) {
+		throw parseAxiosError(err);
+	}
+};
+
+export const resetStudentPassword = async (token, newPassword) => {
+	try {
+		const response = await publicClient.post('/api/students/reset-password', {
+			token,
+			newPassword,
+		});
+		return response.data;
+	} catch (err) {
+		throw parseAxiosError(err);
+	}
+};
+
+export const resetTeacherPassword = async (token, newPassword) => {
+	try {
+		const response = await publicClient.post('/api/teachers/reset-password', {
+			token,
+			newPassword,
+		});
+		return response.data;
+	} catch (err) {
+		throw parseAxiosError(err);
+	}
+};

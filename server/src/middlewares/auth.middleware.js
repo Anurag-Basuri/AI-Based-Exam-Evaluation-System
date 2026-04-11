@@ -45,8 +45,22 @@ const verifyTeacher = asyncHandler(async (req, res, next) => {
     next();
 });
 
+const requireVerifiedEmail = asyncHandler(async (req, res, next) => {
+    const user = req.student || req.teacher;
+    if (!user) {
+        return next(ApiError.Unauthorized('Authentication required'));
+    }
+    if (!user.isEmailVerified) {
+        return next(ApiError.Forbidden(
+            'Please verify your email address before performing this action. Check your inbox or resend the verification email from your profile.'
+        ));
+    }
+    next();
+});
+
 export {
     checkAuth,
     verifyStudent,
-    verifyTeacher
+    verifyTeacher,
+    requireVerifiedEmail
 };

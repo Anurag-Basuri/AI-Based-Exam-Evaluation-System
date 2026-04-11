@@ -5,16 +5,24 @@ import {
     logoutTeacher,
     updateTeacher,
     changePassword,
-    getDashboardStats
+    getDashboardStats,
+    verifyTeacherEmail,
+    resendTeacherVerification,
+    forgotTeacherPassword,
+    resetTeacherPassword,
 } from '../controllers/teacher.controller.js';
 import { checkAuth, verifyTeacher } from '../middlewares/auth.middleware.js';
+import { authLimiter, emailLimiter, verifyLimiter } from '../middlewares/rateLimit.middleware.js';
 import { body } from 'express-validator';
 
 const router = Router();
 
+// ── Public: Auth ──────────────────────────────────────────────────
+
 // Register a new teacher
 router.post(
     '/register',
+    authLimiter,
     body('username').notEmpty().withMessage('Username is required'),
     body('fullname').notEmpty().withMessage('Full name is required'),
     body('email').isEmail().withMessage('Valid email is required'),
@@ -25,11 +33,43 @@ router.post(
 // Teacher login
 router.post(
     '/login',
+    authLimiter,
     body('username').optional(),
     body('email').optional().isEmail(),
     body('password').notEmpty().withMessage('Password is required'),
     loginTeacher
 );
+
+// ── Public: Email verification & Password reset ──────────────────
+
+// Verify email with token (from email link)
+router.post(
+    '/verify-email',
+    verifyLimiter,
+    body('token').notEmpty().withMessage('Verification token is required'),
+    verifyTeacherEmail
+);
+
+// Forgot password — sends reset email
+router.post(
+    '/forgot-password',
+    emailLimiter,
+    body('email').isEmail().withMessage('Valid email is required'),
+    forgotTeacherPassword
+);
+
+// Reset password with token
+router.post(
+    '/reset-password',
+    verifyLimiter,
+    body('token').notEmpty().withMessage('Reset token is required'),
+    body('newPassword')
+        .isLength({ min: 8 })
+        .withMessage('Password must be at least 8 characters'),
+    resetTeacherPassword
+);
+
+// ── Authenticated routes ─────────────────────────────────────────
 
 // Teacher logout
 router.post(
@@ -69,6 +109,15 @@ router.get(
     checkAuth,
     verifyTeacher,
     getDashboardStats
+);
+
+// Resend verification email (authenticated — user can resend from their profile)
+router.post(
+    '/resend-verification',
+    emailLimiter,
+    checkAuth,
+    verifyTeacher,
+    resendTeacherVerification
 );
 
 export default router;

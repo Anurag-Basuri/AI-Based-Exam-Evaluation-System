@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import mongoose from 'mongoose';
 import Teacher from '../models/teacher.model.js';
 import Exam from '../models/exam.model.js';
@@ -6,6 +7,23 @@ import Submission from '../models/submission.model.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
+import {
+	sendVerificationEmail,
+	sendPasswordResetEmail,
+	sendPasswordChangedEmail,
+} from '../services/email.service.js';
+
+// ── Helper: strip sensitive fields ────────────────────────────────
+function sanitize(doc) {
+	const obj = doc.toObject ? doc.toObject() : { ...doc };
+	delete obj.password;
+	delete obj.refreshToken;
+	delete obj.resetPasswordToken;
+	delete obj.resetPasswordExpires;
+	delete obj.emailVerificationToken;
+	delete obj.emailVerificationExpires;
+	return obj;
+}
 
 // Create a new teacher
 const createTeacher = asyncHandler(async (req, res) => {
@@ -21,25 +39,28 @@ const createTeacher = asyncHandler(async (req, res) => {
 	}
 
 	const newTeacher = new Teacher({ username, fullname, email, password });
+
+	// Generate email verification token
+	const verifyToken = newTeacher.createEmailVerificationToken();
+
 	const authToken = newTeacher.generateAuthToken();
 	const refreshToken = newTeacher.generateRefreshToken();
 	await newTeacher.save();
 
-	// Remove sensitive fields before sending response
-	const teacherData = newTeacher.toObject();
-	delete teacherData.password;
-	delete teacherData.refreshToken;
-	delete teacherData.resetPasswordToken;
-	delete teacherData.resetPasswordExpires;
+	// Send verification email (fire & forget)
+	sendVerificationEmail(email, fullname, verifyToken, 'teacher').catch(err =>
+		console.error('[REGISTER] Failed to send verification email:', err.message),
+	);
 
 	return ApiResponse.success(
 		res,
 		{
-			teacher: newTeacher,
+			teacher: sanitize(newTeacher),
 			authToken,
 			refreshToken,
+			emailVerificationSent: true,
 		},
-		'Teacher created successfully',
+		'Teacher registered successfully. Please check your email to verify your account.',
 		201,
 	);
 });
@@ -74,21 +95,13 @@ const loginTeacher = asyncHandler(async (req, res) => {
 	const authToken = teacher.generateAuthToken();
 	const refreshToken = teacher.generateRefreshToken();
 
-	// Save refresh token to DB for logout/invalidation
 	teacher.refreshToken = refreshToken;
 	await teacher.save();
-
-	// Remove sensitive fields before sending response
-	const teacherData = teacher.toObject();
-	delete teacherData.password;
-	delete teacherData.refreshToken;
-	delete teacherData.resetPasswordToken;
-	delete teacherData.resetPasswordExpires;
 
 	return ApiResponse.success(
 		res,
 		{
-			teacher: teacherData,
+			teacher: sanitize(teacher),
 			authToken,
 			refreshToken,
 		},
@@ -343,4 +356,135 @@ export {
 	updateTeacher,
 	changePassword,
 	getDashboardStats,
+	verifyTeacherEmail,
+	resendTeacherVerification,
+	forgotTeacherPassword,
+	resetTeacherPassword,
 };
+
+// ══════════════════════════════════════════════════════════════════
+// EMAIL VERIFICATION
+// ══════════════════════════════════════════════════════════════════
+
+const verifyTeacherEmail = asyncHandler(async (req, res) => {
+	const { token } = req.body;
+	if (!token) throw ApiError.BadRequest('Verification token is required');
+
+	const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+	const teacher = await Teacher.findOne({
+		emailVerificationToken: hashedToken,
+		emailVerificationExpires: { $gt: Date.now() },
+	}).select('+emailVerificationToken +emailVerificationExpires');
+
+	if (!teacher) {
+		throw ApiError.BadRequest('Invalid or expired verification link. Please request a new one.');
+	}
+
+	teacher.isEmailVerified = true;
+	teacher.emailVerificationToken = undefined;
+	teacher.emailVerificationExpires = undefined;
+	await teacher.save({ validateBeforeSave: false });
+
+	return ApiResponse.success(
+		res,
+		{ isEmailVerified: true },
+		'Email verified successfully! You now have full access.',
+	);
+});
+
+const resendTeacherVerification = asyncHandler(async (req, res) => {
+	const teacherId = req.teacher?._id || req.user?.id;
+
+	const teacher = await Teacher.findById(teacherId).select(
+		'+emailVerificationToken +emailVerificationExpires',
+	);
+	if (!teacher) throw ApiError.NotFound('Teacher not found');
+
+	if (teacher.isEmailVerified) {
+		return ApiResponse.success(res, { isEmailVerified: true }, 'Email is already verified');
+	}
+
+	const verifyToken = teacher.createEmailVerificationToken();
+	await teacher.save({ validateBeforeSave: false });
+
+	await sendVerificationEmail(teacher.email, teacher.fullname, verifyToken, 'teacher');
+
+	return ApiResponse.success(
+		res,
+		{ emailVerificationSent: true },
+		'Verification email sent. Please check your inbox.',
+	);
+});
+
+// ══════════════════════════════════════════════════════════════════
+// PASSWORD RESET
+// ══════════════════════════════════════════════════════════════════
+
+const forgotTeacherPassword = asyncHandler(async (req, res) => {
+	const { email } = req.body;
+	if (!email) throw ApiError.BadRequest('Email address is required');
+
+	const genericMsg = 'If an account with that email exists, a password reset link has been sent.';
+
+	const teacher = await Teacher.findOne({ email: email.toLowerCase().trim() });
+	if (!teacher) {
+		return ApiResponse.success(res, null, genericMsg);
+	}
+
+	const resetToken = teacher.createPasswordResetToken();
+	await teacher.save({ validateBeforeSave: false });
+
+	const result = await sendPasswordResetEmail(
+		teacher.email,
+		teacher.fullname,
+		resetToken,
+		'teacher',
+	);
+
+	if (!result.success) {
+		teacher.resetPasswordToken = undefined;
+		teacher.resetPasswordExpires = undefined;
+		await teacher.save({ validateBeforeSave: false });
+		throw ApiError.InternalServerError('There was an error sending the email. Please try again.');
+	}
+
+	return ApiResponse.success(res, null, genericMsg);
+});
+
+const resetTeacherPassword = asyncHandler(async (req, res) => {
+	const { token, newPassword } = req.body;
+	if (!token || !newPassword) {
+		throw ApiError.BadRequest('Token and new password are required');
+	}
+	if (newPassword.length < 8) {
+		throw ApiError.BadRequest('Password must be at least 8 characters');
+	}
+
+	const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+	const teacher = await Teacher.findOne({
+		resetPasswordToken: hashedToken,
+		resetPasswordExpires: { $gt: Date.now() },
+	}).select('+password');
+
+	if (!teacher) {
+		throw ApiError.BadRequest(
+			'Invalid or expired reset link. Please request a new password reset.',
+		);
+	}
+
+	teacher.password = newPassword;
+	teacher.resetPasswordToken = undefined;
+	teacher.resetPasswordExpires = undefined;
+	teacher.refreshToken = undefined;
+	await teacher.save();
+
+	sendPasswordChangedEmail(teacher.email, teacher.fullname).catch(() => {});
+
+	return ApiResponse.success(
+		res,
+		null,
+		'Password reset successfully. You can now log in with your new password.',
+	);
+});
