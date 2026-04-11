@@ -4,8 +4,11 @@ import {
 	safeApiCall,
 	updateTeacherProfile,
 	changeTeacherPassword,
+	exportTeacherProfileCsv,
+	exportTeacherExamsCsv
 } from '../../services/teacherServices.js';
 import { resendTeacherVerification } from '../../services/apiServices.js';
+import { downloadFile } from '../../utils/exportUtils.js';
 import './Settings.css';
 
 const TeacherSettings = () => {
@@ -416,6 +419,47 @@ const TeacherSettings = () => {
 					</div>
 				</form>
 			</section>
+
+			{/* --- Data Export Section --- */}
+			<section className="settings-section">
+                <div className="section-header">
+                    <h2 className="section-title">Data Export</h2>
+                    <p className="section-desc">Download a copy of your personal data and complete exam portfolio.</p>
+                </div>
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                    <button
+                        type="button"
+                        className="btn-save"
+                        style={{ background: 'var(--surface-light)', color: 'var(--text-1)', border: '1px solid var(--border)' }}
+                        onClick={async () => {
+                            try {
+                                const data = await exportTeacherProfileCsv();
+                                downloadFile(data, 'teacher_profile.csv');
+                            } catch (err) {
+                                setMessage({ type: 'error', text: 'Failed to download profile CSV.' });
+                            }
+                        }}
+                    >
+                        📥 Export Profile Data
+                    </button>
+
+                    <button
+                        type="button"
+                        className="btn-save"
+                        style={{ background: 'var(--surface-light)', color: 'var(--text-1)', border: '1px solid var(--border)' }}
+                        onClick={async () => {
+                            try {
+                                const data = await exportTeacherExamsCsv();
+                                downloadFile(data, 'teacher_exams.csv');
+                            } catch (err) {
+                                setMessage({ type: 'error', text: 'Failed to download exams CSV.' });
+                            }
+                        }}
+                    >
+                        📥 Export All Created Exams
+                    </button>
+                </div>
+            </section>
 		</div>
 	);
 };

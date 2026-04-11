@@ -568,6 +568,11 @@ export const getTeacherDashboardStats = async () => {
 	};
 };
 
+// ---------- Export ----------
+export const exportTeacherProfileCsv = () => apiClient.get('/api/teachers/export/profile', { responseType: 'blob' });
+export const exportTeacherExamsCsv = () => apiClient.get('/api/teachers/export/exams', { responseType: 'blob' });
+export const exportExamSubmissionsCsv = examId => apiClient.get(`/api/submissions/exam/${examId}/export`, { responseType: 'blob' });
+
 // Ensure cookies if server uses cookie sessions
 try {
 	if (apiClient?.defaults) {

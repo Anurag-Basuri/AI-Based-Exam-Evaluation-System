@@ -5,6 +5,7 @@ import { evaluateAnswer } from '../services/evaluation.service.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
+import { generateCSV, sendCSVDowload } from '../services/export.service.js';
 
 // Helper: Evaluate all answers in a submission
 async function evaluateSubmissionAnswers(submission) {
@@ -748,6 +749,48 @@ const publishAllExamResults = asyncHandler(async (req, res) => {
 	);
 });
 
+// ══════════════════════════════════════════════════════════════════
+// DATA EXPORT
+// ══════════════════════════════════════════════════════════════════
+
+const exportExamSubmissionsList = asyncHandler(async (req, res) => {
+	const teacherId = req.teacher?._id || req.user?.id;
+	const { id: examId } = req.params;
+
+	if (!examId) throw ApiError.BadRequest('Exam ID is required');
+
+	const exam = await Exam.findById(examId);
+	if (!exam) throw ApiError.NotFound('Exam not found');
+	if (exam.createdBy.toString() !== teacherId.toString()) {
+		throw ApiError.Forbidden('Access denied');
+	}
+
+	const submissions = await Submission.find({ exam: examId })
+		.populate('student', 'fullname email username')
+		.lean();
+
+	const data = submissions.map(sub => {
+		const student = sub.student || {};
+		return {
+			'Student Name': student.fullname || student.username || 'Unknown',
+			'Student Email': student.email || 'N/A',
+			'Status': sub.status,
+			'Score': sub.totalMarks || 0,
+			'Max Score': exam.max_marks || 0,
+			'Started At': sub.startedAt ? new Date(sub.startedAt).toLocaleString() : 'N/A',
+			'Submitted At': sub.submittedAt ? new Date(sub.submittedAt).toLocaleString() : 'N/A',
+			'Evaluated At': sub.evaluationDate ? new Date(sub.evaluationDate).toLocaleString() : 'N/A',
+			'Violations': sub.violations?.length || 0,
+			'Needs Review': sub.markedForReview?.length > 0 ? 'Yes' : 'No'
+		};
+	});
+
+	const csv = generateCSV(data);
+	// Format filename replacing non alpha-numeric characters
+	const safeExamTitle = exam.title.replace(/[^a-z0-9]/gi, '_').substring(0, 30);
+	return sendCSVDowload(res, `submissions_exam_${safeExamTitle}.csv`, csv);
+});
+
 export {
 	startSubmission,
 	submitSubmission,
@@ -766,4 +809,5 @@ export {
 	publishAllExamResults,
 	getSubmissionForGrading,
 	getSubmissionForResults,
+	exportExamSubmissionsList
 };

@@ -423,6 +423,10 @@ export const changeStudentPassword = async payload => {
 	return res?.data?.data ?? res?.data ?? {};
 };
 
+// ---------- Export ----------
+export const exportStudentProfileCsv = () => apiClient.get('/api/students/export/profile', { responseType: 'blob' });
+export const exportStudentSubmissionsCsv = () => apiClient.get('/api/students/export/submissions', { responseType: 'blob' });
+
 // Ensure cookies
 try {
 	if (apiClient?.defaults) {
