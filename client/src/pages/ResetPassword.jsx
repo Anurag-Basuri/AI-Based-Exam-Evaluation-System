@@ -37,7 +37,7 @@ const ResetPassword = () => {
 		return { level: score, ...levels[Math.max(0, idx)] };
 	}, [password]);
 
-	const handleSubmit = async (e) => {
+	const handleSubmit = async e => {
 		e.preventDefault();
 		setError('');
 
@@ -81,9 +81,15 @@ const ResetPassword = () => {
 						<div style={{ textAlign: 'center', marginBottom: 16 }}>
 							<span style={{ fontSize: 48 }}>✅</span>
 						</div>
-						<h2 className="auth-title" style={{ textAlign: 'center' }}>Password Reset!</h2>
-						<p className="auth-subtitle" style={{ textAlign: 'center', marginBottom: 24 }}>
-							Your password has been securely changed. You will be automatically redirected to login...
+						<h2 className="auth-title" style={{ textAlign: 'center' }}>
+							Password Reset!
+						</h2>
+						<p
+							className="auth-subtitle"
+							style={{ textAlign: 'center', marginBottom: 24 }}
+						>
+							Your password has been securely changed. You will be automatically
+							redirected to login...
 						</p>
 						<button
 							type="button"
@@ -102,7 +108,9 @@ const ResetPassword = () => {
 
 						<form onSubmit={handleSubmit} noValidate>
 							<div className="input-group">
-								<label className="floating-label" htmlFor="rp-password">New Password</label>
+								<label className="floating-label" htmlFor="rp-password">
+									New Password
+								</label>
 								<div style={{ position: 'relative' }}>
 									<input
 										id="rp-password"
@@ -111,15 +119,17 @@ const ResetPassword = () => {
 										type={showPassword ? 'text' : 'password'}
 										placeholder="Minimum 8 characters"
 										value={password}
-										onChange={(e) => setPassword(e.target.value)}
+										onChange={e => setPassword(e.target.value)}
 										autoComplete="new-password"
 										autoFocus
 									/>
 									<button
 										type="button"
-										onClick={() => setShowPassword((s) => !s)}
+										onClick={() => setShowPassword(s => !s)}
 										className="eye-btn"
-										aria-label={showPassword ? 'Hide password' : 'Show password'}
+										aria-label={
+											showPassword ? 'Hide password' : 'Show password'
+										}
 									>
 										{showPassword ? '🙈' : '👁️'}
 									</button>
@@ -128,7 +138,15 @@ const ResetPassword = () => {
 								{/* Strength bar */}
 								{password && (
 									<div style={{ marginTop: 8 }}>
-										<div style={{ height: 4, borderRadius: 2, background: 'var(--border)', overflow: 'hidden', marginBottom: 4 }}>
+										<div
+											style={{
+												height: 4,
+												borderRadius: 2,
+												background: 'var(--border)',
+												overflow: 'hidden',
+												marginBottom: 4,
+											}}
+										>
 											<div
 												style={{
 													height: '100%',
@@ -139,15 +157,25 @@ const ResetPassword = () => {
 												}}
 											/>
 										</div>
-										<span style={{ fontSize: 12, color: strength.color, fontWeight: 600 }}>
+										<span
+											style={{
+												fontSize: 12,
+												color: strength.color,
+												fontWeight: 600,
+											}}
+										>
 											{strength.text}
 										</span>
 									</div>
 								)}
 							</div>
 
-							<div className={`input-group ${confirmPassword && confirmPassword !== password ? 'has-error' : ''}`}>
-								<label className="floating-label" htmlFor="rp-confirm">Confirm Password</label>
+							<div
+								className={`input-group ${confirmPassword && confirmPassword !== password ? 'has-error' : ''}`}
+							>
+								<label className="floating-label" htmlFor="rp-confirm">
+									Confirm Password
+								</label>
 								<div style={{ position: 'relative' }}>
 									<input
 										id="rp-confirm"
@@ -156,7 +184,7 @@ const ResetPassword = () => {
 										type={showPassword ? 'text' : 'password'}
 										placeholder="Re-enter your password"
 										value={confirmPassword}
-										onChange={(e) => setConfirmPassword(e.target.value)}
+										onChange={e => setConfirmPassword(e.target.value)}
 										autoComplete="new-password"
 									/>
 								</div>
@@ -166,7 +194,11 @@ const ResetPassword = () => {
 							</div>
 
 							{error && (
-								<div className="top-error-banner" role="alert" aria-live="assertive">
+								<div
+									className="top-error-banner"
+									role="alert"
+									aria-live="assertive"
+								>
 									<span>⚠️</span>
 									<div>{error}</div>
 								</div>

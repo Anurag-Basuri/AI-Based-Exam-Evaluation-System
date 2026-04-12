@@ -70,15 +70,28 @@ const NotFound = () => {
 	const dashLabel = isAuthenticated ? 'Back to Dashboard' : 'Back to Home';
 
 	return (
-		<div style={{
-			minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-			padding: 24, color: 'var(--text)',
-		}}>
-			<div style={{
-				background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 20,
-				padding: '48px 32px', boxShadow: '0 8px 24px rgba(15,23,42,0.08)', textAlign: 'center',
-				maxWidth: 480, width: '100%',
-			}}>
+		<div
+			style={{
+				minHeight: '80vh',
+				display: 'flex',
+				alignItems: 'center',
+				justifyContent: 'center',
+				padding: 24,
+				color: 'var(--text)',
+			}}
+		>
+			<div
+				style={{
+					background: 'var(--surface)',
+					border: '1px solid var(--border)',
+					borderRadius: 20,
+					padding: '48px 32px',
+					boxShadow: '0 8px 24px rgba(15,23,42,0.08)',
+					textAlign: 'center',
+					maxWidth: 480,
+					width: '100%',
+				}}
+			>
 				<div style={{ fontSize: 56, marginBottom: 16 }}>🔍</div>
 				<h1 style={{ margin: '0 0 8px', fontSize: 28, fontWeight: 800 }}>
 					404 — Page Not Found
@@ -86,13 +99,21 @@ const NotFound = () => {
 				<p style={{ margin: '0 0 24px', color: 'var(--text-muted)', lineHeight: 1.6 }}>
 					The page you're looking for doesn't exist or has been moved.
 				</p>
-				<div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+				<div
+					style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}
+				>
 					<a
 						href={dashPath}
 						style={{
-							padding: '10px 24px', borderRadius: 10, background: 'var(--primary)',
-							color: '#fff', fontWeight: 700, fontSize: 14, textDecoration: 'none',
-							border: 'none', cursor: 'pointer',
+							padding: '10px 24px',
+							borderRadius: 10,
+							background: 'var(--primary)',
+							color: '#fff',
+							fontWeight: 700,
+							fontSize: 14,
+							textDecoration: 'none',
+							border: 'none',
+							cursor: 'pointer',
 						}}
 					>
 						{dashLabel}
@@ -100,8 +121,13 @@ const NotFound = () => {
 					<button
 						onClick={() => window.history.back()}
 						style={{
-							padding: '10px 24px', borderRadius: 10, background: 'var(--surface)',
-							color: 'var(--text)', fontWeight: 600, fontSize: 14, cursor: 'pointer',
+							padding: '10px 24px',
+							borderRadius: 10,
+							background: 'var(--surface)',
+							color: 'var(--text)',
+							fontWeight: 600,
+							fontSize: 14,
+							cursor: 'pointer',
 							border: '1px solid var(--border)',
 						}}
 					>
@@ -118,12 +144,14 @@ const AppRoutes = () => (
 	<Suspense fallback={<RouteFallback />}>
 		<Routes>
 			{/* ─── Public (redirect to dashboard if already logged in) ─── */}
-			<Route path="/" element={
-				<RedirectIfAuth>{withBoundary(<LandingPage />)}</RedirectIfAuth>
-			} />
-			<Route path="/auth" element={
-				<RedirectIfAuth>{withBoundary(<AuthPage />)}</RedirectIfAuth>
-			} />
+			<Route
+				path="/"
+				element={<RedirectIfAuth>{withBoundary(<LandingPage />)}</RedirectIfAuth>}
+			/>
+			<Route
+				path="/auth"
+				element={<RedirectIfAuth>{withBoundary(<AuthPage />)}</RedirectIfAuth>}
+			/>
 			<Route path="/auth/forgot-password" element={withBoundary(<ForgotPassword />)} />
 			<Route path="/auth/reset-password" element={withBoundary(<ResetPassword />)} />
 			<Route path="/auth/verify-email" element={withBoundary(<VerifyEmail />)} />
@@ -154,8 +182,14 @@ const AppRoutes = () => (
 					<Route path="results/:examId" element={withBoundary(<TeacherResults />)} />
 					{/* Grade route: supports both /teacher/grade/:submissionId (shortcut)
 					    and /teacher/results/:examId/grade/:submissionId (canonical) */}
-					<Route path="grade/:submissionId" element={withBoundary(<TeacherSubmissionGrade />)} />
-					<Route path="results/:examId/grade/:submissionId" element={withBoundary(<TeacherSubmissionGrade />)} />
+					<Route
+						path="grade/:submissionId"
+						element={withBoundary(<TeacherSubmissionGrade />)}
+					/>
+					<Route
+						path="results/:examId/grade/:submissionId"
+						element={withBoundary(<TeacherSubmissionGrade />)}
+					/>
 					<Route path="issues" element={withBoundary(<TeacherIssues />)} />
 					<Route path="settings" element={withBoundary(<TeacherSettings />)} />
 					{/* Catch unmatched teacher URLs → redirect to teacher home */}

@@ -151,10 +151,26 @@ const TeacherDash = () => {
 						pointerEvents: loggingOutFooter ? 'none' : 'auto',
 					}}
 				>
-					<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+					<div
+						style={{
+							display: 'flex',
+							alignItems: 'center',
+							justifyContent: 'center',
+							gap: 8,
+						}}
+					>
 						{loggingOutFooter ? (
 							<>
-								<div style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+								<div
+									style={{
+										width: 14,
+										height: 14,
+										border: '2px solid rgba(255,255,255,0.4)',
+										borderTopColor: '#fff',
+										borderRadius: '50%',
+										animation: 'spin 0.8s linear infinite',
+									}}
+								/>
 								<span>Logging out...</span>
 							</>
 						) : (
