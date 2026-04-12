@@ -11,6 +11,7 @@ import {
 import Alert from '../../components/ui/Alert.jsx';
 import { useToast } from '../../components/ui/Toaster.jsx';
 import PageHeader from '../../components/ui/PageHeader.jsx';
+import { useTheme } from '../../hooks/useTheme.js';
 
 // --- UI Components ---
 
@@ -118,6 +119,8 @@ const Pill = ({ children, variant = 'default', onClick }) => {
 const ExamCreate = () => {
 	const navigate = useNavigate();
 	const { success, error: toastError } = useToast();
+	const { theme } = useTheme();
+	const isDark = theme === 'dark';
 
 	const [step, setStep] = useState(1);
 	const [saving, setSaving] = useState(false);
@@ -258,6 +261,7 @@ const ExamCreate = () => {
 			setTimeout(() => navigate('/teacher/exams'), 500);
 		} catch (e) {
 			setErrorBanner(e?.message || 'Failed to create exam');
+			window.scrollTo({ top: 0, behavior: 'smooth' });
 		} finally {
 			setSaving(false);
 		}
@@ -265,11 +269,23 @@ const ExamCreate = () => {
 
 	const handleNext = () => {
 		if (step === 1) {
-			if (validateDetails()) setStep(2);
-			else setErrorBanner('Please fix the errors before continuing.');
+			if (validateDetails()) {
+				setStep(2);
+				setErrorBanner('');
+				window.scrollTo({ top: 0, behavior: 'smooth' });
+			} else {
+				setErrorBanner('Please fix the highlighted errors before continuing.');
+				window.scrollTo({ top: 0, behavior: 'smooth' });
+			}
 		} else if (step === 2) {
-			if (selectedIds.size > 0) setStep(3);
-			else setErrorBanner('Please select at least one question.');
+			if (selectedIds.size > 0) {
+				setStep(3);
+				setErrorBanner('');
+				window.scrollTo({ top: 0, behavior: 'smooth' });
+			} else {
+				setErrorBanner('Please select at least one question.');
+				window.scrollTo({ top: 0, behavior: 'smooth' });
+			}
 		}
 	};
 
@@ -317,6 +333,7 @@ const ExamCreate = () => {
 							disabled={saving}
 							aiPolicy={aiPolicy}
 							onAiPolicyChange={setAiPolicy}
+							isDark={isDark}
 						/>
 						<div style={styles.footerActions}>
 							<button onClick={handleNext} style={styles.btnPrimary}>

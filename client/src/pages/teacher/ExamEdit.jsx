@@ -13,6 +13,7 @@ import {
 import Alert from '../../components/ui/Alert.jsx';
 import { useToast } from '../../components/ui/Toaster.jsx';
 import PageHeader from '../../components/ui/PageHeader.jsx';
+import { useTheme } from '../../hooks/useTheme.js';
 
 // --- UI Components ---
 
@@ -61,6 +62,8 @@ const ExamEdit = () => {
 	const { id } = useParams();
 	const navigate = useNavigate();
 	const { success, error: toastError } = useToast();
+	const { theme } = useTheme();
+	const isDark = theme === 'dark';
 
 	const [loading, setLoading] = useState(true);
 	const [saving, setSaving] = useState(false);
@@ -190,6 +193,7 @@ const ExamEdit = () => {
 		}
 		if (!validateDetails()) {
 			setErrorBanner('Please fix the highlighted errors in the details section.');
+			window.scrollTo({ top: 0, behavior: 'smooth' });
 			return;
 		}
 		setSaving(true);
@@ -213,6 +217,7 @@ const ExamEdit = () => {
 			setTimeout(() => navigate('/teacher/exams'), 500);
 		} catch (e) {
 			setErrorBanner(e?.message || 'Failed to update exam');
+			window.scrollTo({ top: 0, behavior: 'smooth' });
 		} finally {
 			setSaving(false);
 		}
@@ -297,6 +302,7 @@ const ExamEdit = () => {
 								disabled={saving || isLocked}
 								aiPolicy={aiPolicy}
 								onAiPolicyChange={setAiPolicy}
+								isDark={isDark}
 							/>
 						</Section>
 					</div>
