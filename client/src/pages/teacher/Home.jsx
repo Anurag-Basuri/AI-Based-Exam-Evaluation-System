@@ -426,7 +426,7 @@ const TeacherHome = () => {
 				>
 					✨ Create Exam
 				</button>
-				<button className="dash-action" onClick={() => navigate('/teacher/questions')}>
+				<button className="dash-action" onClick={() => navigate('/teacher/exams')}>
 					📚 Question Bank
 				</button>
 				<button className="dash-action" onClick={() => navigate('/teacher/results')}>

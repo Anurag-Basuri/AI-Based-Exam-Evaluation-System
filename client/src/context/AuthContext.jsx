@@ -29,6 +29,20 @@ const navigateSafe = (path, opts = { replace: false }) => {
 	}
 };
 
+/**
+ * After login, check if the current URL has ?redirect= param.
+ * If so, go there instead of the default dashboard path.
+ */
+const getRedirectPath = (defaultPath) => {
+	try {
+		const sp = new URLSearchParams(window.location.search);
+		const redirect = sp.get('redirect');
+		// Only allow internal redirects (starting with /)
+		if (redirect && redirect.startsWith('/')) return redirect;
+	} catch { /* fallback */ }
+	return defaultPath;
+};
+
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
@@ -89,7 +103,7 @@ export const AuthProvider = ({ children }) => {
 				setRole(decoded?.role || 'student');
 				setIsEmailVerified(decoded?.isEmailVerified || false);
 				setIsAuthenticated(true);
-				navigateSafe('/student', { replace: true });
+				navigateSafe(getRedirectPath('/student'), { replace: true });
 			}
 			return res;
 		} catch (err) {
@@ -113,7 +127,7 @@ export const AuthProvider = ({ children }) => {
 				setRole(decoded?.role || 'student');
 				setIsEmailVerified(decoded?.isEmailVerified || false);
 				setIsAuthenticated(true);
-				navigateSafe('/student', { replace: true });
+				navigateSafe(getRedirectPath('/student'), { replace: true });
 			}
 			return res;
 		} catch (err) {
@@ -159,7 +173,7 @@ export const AuthProvider = ({ children }) => {
 				setRole(decoded?.role || 'teacher');
 				setIsEmailVerified(decoded?.isEmailVerified || false);
 				setIsAuthenticated(true);
-				navigateSafe('/teacher', { replace: true });
+				navigateSafe(getRedirectPath('/teacher'), { replace: true });
 			}
 			return res;
 		} catch (err) {
@@ -183,7 +197,7 @@ export const AuthProvider = ({ children }) => {
 				setRole(decoded?.role || 'teacher');
 				setIsEmailVerified(decoded?.isEmailVerified || false);
 				setIsAuthenticated(true);
-				navigateSafe('/teacher', { replace: true });
+				navigateSafe(getRedirectPath('/teacher'), { replace: true });
 			}
 			return res;
 		} catch (err) {
