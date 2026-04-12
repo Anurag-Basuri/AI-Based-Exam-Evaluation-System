@@ -1,12 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../hooks/useAuth.js';
 
 const Login = ({ onLogin, onSwitchToRegister }) => {
 	const navigate = useNavigate();
 	const location = useLocation();
 	const returnTo = location?.state?.from || null;
-	const { loginStudent, loginTeacher } = useAuth();
+	const { loginStudent, loginTeacher, googleLoginStudent, googleLoginTeacher } = useAuth();
 
 	const [role, setRole] = useState('student'); // "student" | "teacher"
 	const [identifier, setIdentifier] = useState(''); // username or email
@@ -78,6 +79,31 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
 
 			if (typeof onLogin === 'function') {
 				onLogin({ role, user: res?.data?.user || null });
+			}
+
+			const dashboard = role === 'teacher' ? '/teacher' : '/student';
+			navigate(returnTo || dashboard, { replace: true });
+		} catch (err) {
+			setTopError(extractError(err));
+		} finally {
+			setLoading(false);
+		}
+	};
+
+	const handleGoogleSuccess = async credentialResponse => {
+		setTopError('');
+		setLoading(true);
+		try {
+			const { credential } = credentialResponse;
+			if (role === 'student') await googleLoginStudent(credential);
+			else await googleLoginTeacher(credential);
+
+			if (remember) {
+				try { localStorage.setItem('preferredRole', role); } catch {}
+			}
+			
+			if (typeof onLogin === 'function') {
+				onLogin({ role, user: null });
 			}
 
 			const dashboard = role === 'teacher' ? '/teacher' : '/student';
@@ -203,6 +229,23 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
 					`Sign in as ${role}`
 				)}
 			</button>
+
+			<div style={{ display: 'flex', alignItems: 'center', margin: '20px 0', gap: '10px' }}>
+				<div style={{ flex: 1, height: '1px', backgroundColor: 'var(--border)' }} />
+				<span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>OR</span>
+				<div style={{ flex: 1, height: '1px', backgroundColor: 'var(--border)' }} />
+			</div>
+
+			<div style={{ display: 'flex', justifyContent: 'center' }}>
+				<GoogleLogin
+					onSuccess={handleGoogleSuccess}
+					onError={() => setTopError('Google Sign-In failed.')}
+					text="signin_with"
+					shape="rectangular"
+					size="large"
+					theme="outline"
+				/>
+			</div>
 
 			<div
 				style={{

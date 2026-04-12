@@ -54,6 +54,19 @@ export const loginStudent = async credentials => {
 	}
 };
 
+export const googleLoginStudent = async idToken => {
+	try {
+		const response = await publicClient.post('/api/students/google-login', { idToken });
+		const hasTokens = applyTokensFromResponse(response);
+		if (!hasTokens) removeToken();
+		return response.data;
+	} catch (err) {
+		const apiErr = parseAxiosError(err);
+		maybeInvalidateToken(apiErr);
+		throw apiErr;
+	}
+};
+
 export const logoutStudent = async () => {
 	try {
 		const response = await apiClient.post('/api/students/logout');
@@ -108,6 +121,19 @@ export const registerTeacher = async teacherData => {
 export const loginTeacher = async credentials => {
 	try {
 		const response = await publicClient.post('/api/teachers/login', credentials);
+		const hasTokens = applyTokensFromResponse(response);
+		if (!hasTokens) removeToken();
+		return response.data;
+	} catch (err) {
+		const apiErr = parseAxiosError(err);
+		maybeInvalidateToken(apiErr);
+		throw apiErr;
+	}
+};
+
+export const googleLoginTeacher = async idToken => {
+	try {
+		const response = await publicClient.post('/api/teachers/google-login', { idToken });
 		const hasTokens = applyTokensFromResponse(response);
 		if (!hasTokens) removeToken();
 		return response.data;
