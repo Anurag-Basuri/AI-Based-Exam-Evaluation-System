@@ -5,6 +5,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { generateCSV, sendCSVDowload } from '../services/export.service.js';
 import { ApiError } from '../utils/ApiError.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
+import { verifyGoogleIdToken } from '../utils/googleAuth.js';
 import {
 	sendVerificationEmail,
 	sendPasswordResetEmail,
@@ -106,6 +107,49 @@ const loginStudent = asyncHandler(async (req, res) => {
 	);
 });
 
+// ── Google Login ─────────────────────────────────────────────────
+const googleLoginStudent = asyncHandler(async (req, res) => {
+	const { idToken } = req.body;
+	if (!idToken) throw ApiError.BadRequest('Google ID token is required');
+
+	const payload = await verifyGoogleIdToken(idToken);
+	const { email, name, picture, sub: googleId } = payload;
+
+	let student = await Student.findOne({ email });
+
+	if (student) {
+		// Existing user.
+		if (!student.googleId) {
+			student.googleId = googleId;
+			if (picture && !student.profilePicture) student.profilePicture = picture;
+			student.isEmailVerified = true;
+			await student.save();
+		}
+	} else {
+		// New user created via Google
+		student = await Student.create({
+			username: email.split('@')[0] + '_' + Math.floor(Math.random() * 10000),
+			fullname: name,
+			email,
+			googleId,
+			profilePicture: picture || '',
+			isEmailVerified: true,
+		});
+	}
+
+	const authToken = student.generateAuthToken();
+	const refreshToken = student.generateRefreshToken();
+
+	student.refreshToken = refreshToken;
+	await student.save();
+
+	return ApiResponse.success(
+		res,
+		{ student: sanitize(student), authToken, refreshToken },
+		'Logged in with Google successfully',
+	);
+});
+
 // ── Logout ───────────────────────────────────────────────────────
 const logoutStudent = asyncHandler(async (req, res) => {
 	const studentId = req.student?._id || req.user?.id;
@@ -194,7 +238,9 @@ const verifyStudentEmail = asyncHandler(async (req, res) => {
 	}).select('+emailVerificationToken +emailVerificationExpires');
 
 	if (!student) {
-		throw ApiError.BadRequest('Invalid or expired verification link. Please request a new one.');
+		throw ApiError.BadRequest(
+			'Invalid or expired verification link. Please request a new one.',
+		);
 	}
 
 	student.isEmailVerified = true;
@@ -266,7 +312,9 @@ const forgotStudentPassword = asyncHandler(async (req, res) => {
 		student.resetPasswordToken = undefined;
 		student.resetPasswordExpires = undefined;
 		await student.save({ validateBeforeSave: false });
-		throw ApiError.InternalServerError('There was an error sending the email. Please try again.');
+		throw ApiError.InternalServerError(
+			'There was an error sending the email. Please try again.',
+		);
 	}
 
 	return ApiResponse.success(res, null, genericMsg);
@@ -319,26 +367,28 @@ const resetStudentPassword = asyncHandler(async (req, res) => {
 const exportStudentProfile = asyncHandler(async (req, res) => {
 	const studentId = req.student?._id || req.user?.id;
 	const student = await Student.findById(studentId).lean();
-	
+
 	if (!student) {
 		throw ApiError.NotFound('Student not found');
 	}
 
-	const data = [{
-		'ID': student._id.toString(),
-		'Username': student.username,
-		'Full Name': student.fullname,
-		'Email': student.email,
-		'Phone Number': student.phonenumber || '',
-		'Gender': student.gender || '',
-		'Street': student.address?.street || '',
-		'City': student.address?.city || '',
-		'State': student.address?.state || '',
-		'Postal Code': student.address?.postalCode || '',
-		'Country': student.address?.country || '',
-		'Verified Email': student.isEmailVerified ? 'Yes' : 'No',
-		'Registered On': new Date(student.createdAt).toLocaleString(),
-	}];
+	const data = [
+		{
+			ID: student._id.toString(),
+			Username: student.username,
+			'Full Name': student.fullname,
+			Email: student.email,
+			'Phone Number': student.phonenumber || '',
+			Gender: student.gender || '',
+			Street: student.address?.street || '',
+			City: student.address?.city || '',
+			State: student.address?.state || '',
+			'Postal Code': student.address?.postalCode || '',
+			Country: student.address?.country || '',
+			'Verified Email': student.isEmailVerified ? 'Yes' : 'No',
+			'Registered On': new Date(student.createdAt).toLocaleString(),
+		},
+	];
 
 	const csv = generateCSV(data);
 	return sendCSVDowload(res, `student_profile_${student.username}.csv`, csv);
@@ -347,7 +397,7 @@ const exportStudentProfile = asyncHandler(async (req, res) => {
 // ── Export Submissions (CSV) ─────────────────────────────────────
 const exportStudentSubmissions = asyncHandler(async (req, res) => {
 	const studentId = req.student?._id || req.user?.id;
-	
+
 	const submissions = await Submission.find({ student: studentId })
 		.populate('exam', 'title searchId max_marks')
 		.lean();
@@ -356,12 +406,14 @@ const exportStudentSubmissions = asyncHandler(async (req, res) => {
 		'Submission ID': sub._id.toString(),
 		'Exam Title': sub.exam?.title || 'Unknown Exam',
 		'Exam Code': sub.exam?.searchId || 'Unknown',
-		'Status': sub.status,
-		'Score': sub.totalMarks || 0,
+		Status: sub.status,
+		Score: sub.totalMarks || 0,
 		'Max Score': sub.exam?.max_marks || 0,
-		'Submitted At': sub.submittedAt ? new Date(sub.submittedAt).toLocaleString() : 'Not Submitted',
+		'Submitted At': sub.submittedAt
+			? new Date(sub.submittedAt).toLocaleString()
+			: 'Not Submitted',
 		'Evaluated At': sub.evaluationDate ? new Date(sub.evaluationDate).toLocaleString() : 'N/A',
-		'Type': sub.submissionType || 'manual'
+		Type: sub.submissionType || 'manual',
 	}));
 
 	const csv = generateCSV(data);
@@ -371,6 +423,7 @@ const exportStudentSubmissions = asyncHandler(async (req, res) => {
 export {
 	createStudent,
 	loginStudent,
+	googleLoginStudent,
 	logoutStudent,
 	getStudentProfile,
 	updateStudent,
@@ -380,5 +433,5 @@ export {
 	forgotStudentPassword,
 	resetStudentPassword,
 	exportStudentProfile,
-	exportStudentSubmissions
+	exportStudentSubmissions,
 };

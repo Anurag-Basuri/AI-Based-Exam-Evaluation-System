@@ -47,9 +47,24 @@ const studentSchema = new mongoose.Schema(
 		},
 		password: {
 			type: String,
-			required: [true, 'Password is required'],
+			required: [
+				function () {
+					return !this.googleId;
+				},
+				'Password is required for standard email registration',
+			],
 			minlength: [8, 'Password must be at least 8 characters long'],
 			select: false,
+		},
+		googleId: {
+			type: String,
+			unique: true,
+			sparse: true,
+			select: false,
+		},
+		profilePicture: {
+			type: String,
+			default: '',
 		},
 		gender: {
 			type: String,
@@ -128,7 +143,12 @@ studentSchema.methods.createEmailVerificationToken = function () {
 
 studentSchema.methods.generateAuthToken = function () {
 	return jwt.sign(
-		{ id: this._id, role: 'student', username: this.username, isEmailVerified: this.isEmailVerified },
+		{
+			id: this._id,
+			role: 'student',
+			username: this.username,
+			isEmailVerified: this.isEmailVerified,
+		},
 		process.env.ACCESS_TOKEN_SECRET,
 		{ expiresIn: process.env.ACCESS_TOKEN_EXPIRY || '24h' },
 	);
