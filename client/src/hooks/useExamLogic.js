@@ -12,6 +12,17 @@ import { apiClient } from '../services/api.js';
 const MAX_VIOLATIONS = 5;
 const AUTO_SAVE_INTERVAL = 30000; // 30 seconds
 
+// ── Blocked keyboard shortcuts ────────────────────────────────────
+const BLOCKED_SHORTCUTS = new Set([
+	'c', 'v', 'x', 'a',    // copy, paste, cut, select-all
+	'p',                     // print
+	's',                     // save
+	'u',                     // view source
+]);
+const BLOCKED_KEYS = new Set([
+	'F12', 'PrintScreen',
+]);
+
 export const useExamLogic = submissionId => {
 	const navigate = useNavigate();
 	const { success, error: toastError, info } = useToast();
@@ -39,6 +50,7 @@ export const useExamLogic = submissionId => {
 	const saveTimeoutRef = useRef(null);
 	const submissionRef = useRef(submission);
 	const pendingSave = useRef(null);
+	const violationThrottleRef = useRef(0); // timestamp of last violation
 
 	// Keep ref updated
 	useEffect(() => {
@@ -148,121 +160,228 @@ export const useExamLogic = submissionId => {
 	// --- Auto-Submit on Time Expiry ---
 	useEffect(() => {
 		if (timer.remainingMs === 0 && isStarted && !autoSubmitting) {
-			finalSubmit(true, 'Time expired.');
+			finalSubmit(true, 'Time expired — your exam has been auto-submitted.');
 		}
 	}, [timer.remainingMs, isStarted, autoSubmitting, finalSubmit]);
 
-	// --- Violation Handling (moved up so effects can reference it safely) ---
+	// ═══════════════════════════════════════════════════════════════
+	// VIOLATION HANDLING
+	// ═══════════════════════════════════════════════════════════════
 	const handleViolation = useCallback(
 		type => {
-			// guard: no double-handling while autoSubmitting
 			if (autoSubmitting) return;
+
+			// Throttle: max 1 violation per 2 seconds to prevent spam
+			const now = Date.now();
+			if (now - violationThrottleRef.current < 2000) return;
+			violationThrottleRef.current = now;
+
 			setViolations(prev => {
 				const newCount = (prev?.count || 0) + 1;
-				// show overlay immediately
+
+				// Show overlay immediately
 				setViolationOverlay(type);
-				// try to notify server but don't await; ignore network errors
-				if (submissionId && typeof window !== 'undefined') {
-					try {
-						apiClient
-							.post(`/api/submissions/${submissionId}/violation`, { type })
-							.catch(() => {});
-					} catch {
-						// ignore network errors
-					}
+
+				// Notify server (fire-and-forget)
+				if (submissionId) {
+					apiClient
+						.post(`/api/submissions/${submissionId}/violation`, { type })
+						.catch(() => {});
 				}
-				// trigger auto-submit only when exceeding threshold
+
+				// Auto-submit when exceeding threshold
 				if (newCount > MAX_VIOLATIONS) {
-					// finalSubmit is stable via deps; call non-blocking
-					finalSubmit(true, `Exceeded warning limit (${MAX_VIOLATIONS} violations).`);
+					finalSubmit(true, `Exceeded warning limit (${MAX_VIOLATIONS} violations). Auto-submitting.`);
 				}
+
 				return { count: newCount, lastType: type };
 			});
 		},
 		[submissionId, autoSubmitting, finalSubmit],
 	);
 
-	// --- Environment Monitoring ---
+	// ═══════════════════════════════════════════════════════════════
+	// ENVIRONMENT MONITORING — Full security suite
+	// ═══════════════════════════════════════════════════════════════
 	useEffect(() => {
 		if (!isStarted || autoSubmitting) return;
 
-		const handleFullscreenChange = () => {
+		// 1. Fullscreen exit detection
+		const onFullscreenChange = () => {
 			try {
 				if (!document.fullscreenElement) handleViolation('fullscreen');
-			} catch (err) {
-				console.debug('fullscreen handler error', err);
-			}
+			} catch { /* noop */ }
 		};
-		const handleVisibilityChange = () => {
+
+		// 2. Tab visibility change detection
+		const onVisibilityChange = () => {
 			try {
-				if (document.hidden) handleViolation('visibility');
-			} catch (err) {
-				console.debug('visibility handler error', err);
-			}
+				if (document.hidden) handleViolation('tab-switch');
+			} catch { /* noop */ }
 		};
-		const handleContextMenu = e => {
+
+		// 3. Window blur detection (catches pop-over windows that visibilitychange misses)
+		const onWindowBlur = () => {
+			try {
+				// Only fire if document is NOT hidden (visibilitychange handles that case)
+				if (!document.hidden) handleViolation('window-blur');
+			} catch { /* noop */ }
+		};
+
+		// 4. Right-click prevention
+		const onContextMenu = e => {
 			try {
 				const t = e.target;
-				if (
-					t &&
-					(['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName) || t.isContentEditable)
-				)
-					return;
+				// Allow right-click on inputs for accessibility
+				if (t && (['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName) || t.isContentEditable)) return;
 				e.preventDefault();
-			} catch {
-				/* noop */
+			} catch { /* noop */ }
+		};
+
+		// 5. Copy / Cut / Paste event interception
+		const onCopyEvent = e => {
+			e.preventDefault();
+			handleViolation('copy-attempt');
+		};
+		const onCutEvent = e => {
+			e.preventDefault();
+			handleViolation('copy-attempt');
+		};
+		const onPasteEvent = e => {
+			// Allow paste only inside textarea/input answer fields
+			const t = e.target;
+			if (t && (t.tagName === 'TEXTAREA' || t.tagName === 'INPUT') && t.classList.contains('subjective-input')) {
+				// Allow paste in answer boxes — it's the student's choice to type or paste their own draft
+				return;
+			}
+			e.preventDefault();
+			handleViolation('paste-attempt');
+		};
+
+		// 6. Keyboard shortcut blocking
+		const onKeyDown = e => {
+			const key = e.key;
+			const mod = e.ctrlKey || e.metaKey;
+			const shift = e.shiftKey;
+
+			// Block F12 and PrintScreen globally
+			if (BLOCKED_KEYS.has(key)) {
+				e.preventDefault();
+				e.stopPropagation();
+				if (key === 'F12') handleViolation('devtools-attempt');
+				if (key === 'PrintScreen') handleViolation('screenshot-attempt');
+				return;
+			}
+
+			// Block Ctrl/Cmd + Shift + I/J/C (DevTools)
+			if (mod && shift && ['I', 'i', 'J', 'j', 'C', 'c'].includes(key)) {
+				e.preventDefault();
+				e.stopPropagation();
+				handleViolation('devtools-attempt');
+				return;
+			}
+
+			// Block Ctrl/Cmd + U (view source)
+			if (mod && (key === 'u' || key === 'U')) {
+				e.preventDefault();
+				e.stopPropagation();
+				handleViolation('devtools-attempt');
+				return;
+			}
+
+			// Block Ctrl/Cmd + P (print)
+			if (mod && (key === 'p' || key === 'P')) {
+				e.preventDefault();
+				e.stopPropagation();
+				return; // just block, not a major violation
+			}
+
+			// Block Ctrl/Cmd + S (save page)
+			if (mod && (key === 's' || key === 'S')) {
+				e.preventDefault();
+				return;
+			}
+
+			// Block Ctrl+A (select all) outside of text inputs
+			if (mod && (key === 'a' || key === 'A')) {
+				const t = e.target;
+				if (t && (t.tagName === 'TEXTAREA' || t.tagName === 'INPUT')) return; // allow in answer fields
+				e.preventDefault();
+				return;
+			}
+
+			// Block Ctrl+C/X outside of text inputs
+			if (mod && ['c', 'C', 'x', 'X'].includes(key)) {
+				const t = e.target;
+				if (t && (t.tagName === 'TEXTAREA' || t.tagName === 'INPUT')) {
+					// Even in inputs, log but don't block (they might be rearranging their own answer)
+					return;
+				}
+				e.preventDefault();
+				handleViolation('copy-attempt');
+				return;
 			}
 		};
 
-		// NOTE: removed history.pushState / popstate listener to avoid accidental navigation/restart issues
-		document.addEventListener('fullscreenchange', handleFullscreenChange);
-		document.addEventListener('visibilitychange', handleVisibilityChange);
-		document.addEventListener('contextmenu', handleContextMenu);
+		// 7. DevTools size heuristic (check periodically)
+		const devtoolsCheckId = setInterval(() => {
+			const widthDiff = window.outerWidth - window.innerWidth;
+			const heightDiff = window.outerHeight - window.innerHeight;
+			// Typical browser chrome is ~0-100px; DevTools adds 200+
+			if (widthDiff > 200 || heightDiff > 200) {
+				handleViolation('devtools-open');
+			}
+		}, 5000);
+
+		// --- Register all listeners ---
+		document.addEventListener('fullscreenchange', onFullscreenChange);
+		document.addEventListener('visibilitychange', onVisibilityChange);
+		window.addEventListener('blur', onWindowBlur);
+		document.addEventListener('contextmenu', onContextMenu);
+		document.addEventListener('copy', onCopyEvent);
+		document.addEventListener('cut', onCutEvent);
+		document.addEventListener('paste', onPasteEvent);
+		document.addEventListener('keydown', onKeyDown, true); // capture phase
 
 		return () => {
-			document.removeEventListener('fullscreenchange', handleFullscreenChange);
-			document.removeEventListener('visibilitychange', handleVisibilityChange);
-			document.removeEventListener('contextmenu', handleContextMenu);
+			document.removeEventListener('fullscreenchange', onFullscreenChange);
+			document.removeEventListener('visibilitychange', onVisibilityChange);
+			window.removeEventListener('blur', onWindowBlur);
+			document.removeEventListener('contextmenu', onContextMenu);
+			document.removeEventListener('copy', onCopyEvent);
+			document.removeEventListener('cut', onCutEvent);
+			document.removeEventListener('paste', onPasteEvent);
+			document.removeEventListener('keydown', onKeyDown, true);
+			clearInterval(devtoolsCheckId);
 		};
 	}, [isStarted, autoSubmitting, handleViolation]);
+
+	// ═══════════════════════════════════════════════════════════════
+	// BEFOREUNLOAD GUARD — Prevent accidental refresh/close
+	// ═══════════════════════════════════════════════════════════════
+	useEffect(() => {
+		if (!isStarted || autoSubmitting) return;
+
+		const onBeforeUnload = e => {
+			e.preventDefault();
+			// Standard way to trigger browser "Leave site?" dialog
+			e.returnValue = '';
+			return '';
+		};
+
+		window.addEventListener('beforeunload', onBeforeUnload);
+		return () => window.removeEventListener('beforeunload', onBeforeUnload);
+	}, [isStarted, autoSubmitting]);
 
 	// --- Cleanup on unmount: clear pending timers / saves ---
 	useEffect(() => {
 		return () => {
 			try {
 				if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-				// do not attempt network calls on unmount; just clear pending
 				pendingSave.current = null;
-			} catch {
-				/* noop */
-			}
+			} catch { /* noop */ }
 		};
 	}, []);
-
-	// --- Violation Handling (hardened) ---
-	const handleViolationHardened = useCallback(
-		type => {
-			// guard: no double-handling while autoSubmitting
-			if (autoSubmitting) return;
-			setViolations(prev => {
-				const newCount = (prev?.count || 0) + 1;
-				// show overlay immediately
-				setViolationOverlay(type);
-				// try to notify server but don't await; ignore network errors
-				if (submissionId) {
-					apiClient
-						.post(`/api/submissions/${submissionId}/violation`, { type })
-						.catch(() => {});
-				}
-				// trigger auto-submit only when exceeding threshold
-				if (newCount > MAX_VIOLATIONS) {
-					finalSubmit(true, `Exceeded warning limit (${MAX_VIOLATIONS} violations).`);
-				}
-				return { count: newCount, lastType: type };
-			});
-		},
-		[submissionId, autoSubmitting, finalSubmit],
-	);
 
 	// --- Save Logic ---
 	const handleQuickSave = useCallback(
@@ -347,7 +466,7 @@ export const useExamLogic = submissionId => {
 
 	// --- Actions ---
 	const handleStartExam = async () => {
-		// Try to enter fullscreen before marking started. If user denies, still allow start but notify.
+		// Try to enter fullscreen before marking started
 		try {
 			await document.documentElement.requestFullscreen?.();
 		} catch (err) {
