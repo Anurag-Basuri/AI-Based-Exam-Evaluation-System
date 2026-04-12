@@ -4,6 +4,7 @@ import { io } from 'socket.io-client';
 import { useAuth } from '../../hooks/useAuth.js';
 import { getTeacherDashboardStats } from '../../services/teacherServices.js';
 import { API_BASE_URL } from '../../services/api.js';
+import { ScoreHistogram, PerformanceLine } from '../../components/charts/AnalyticsCharts.jsx';
 
 // ── Defaults & Utils ──────────────────────────────────────────────
 const DEFAULT_DASH = {
@@ -691,6 +692,17 @@ const TeacherHome = () => {
 					</div>
 				</div>
 			</div>
+
+			{/* ─── Analytics Charts ─── */}
+			{!loading && (
+				<div
+					className="dash-enter dash-enter-5"
+					style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}
+				>
+					<ScoreHistogram data={data?.analytics?.scoreDistribution || []} />
+					<PerformanceLine data={data?.analytics?.examPerformance || []} />
+				</div>
+			)}
 		</div>
 	);
 };
