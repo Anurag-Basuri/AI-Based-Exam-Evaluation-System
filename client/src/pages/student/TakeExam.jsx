@@ -152,10 +152,12 @@ const TakeExam = () => {
 	}
 
 	return (
-		<ExamLayout>
+		<ExamLayout violationCount={violations.count}>
 			{violationOverlay && (
 				<ViolationOverlay
 					type={violationOverlay}
+					violationCount={violations.count}
+					maxViolations={5}
 					onAcknowledge={handleAcknowledgeViolation}
 				/>
 			)}
@@ -175,6 +177,7 @@ const TakeExam = () => {
 				title={submission.examTitle}
 				timer={timer}
 				onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+				violations={violations}
 			/>
 
 			<div className="exam-main">
