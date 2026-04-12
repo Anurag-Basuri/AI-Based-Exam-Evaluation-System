@@ -1,6 +1,11 @@
 import { Router } from 'express';
 import { body, param, query } from 'express-validator';
-import { checkAuth, verifyStudent, verifyTeacher, requireVerifiedEmail } from '../middlewares/auth.middleware.js';
+import {
+	checkAuth,
+	verifyStudent,
+	verifyTeacher,
+	requireVerifiedEmail,
+} from '../middlewares/auth.middleware.js';
 import {
 	startSubmission,
 	submitSubmission,
@@ -19,7 +24,9 @@ import {
 	publishAllExamResults,
 	getSubmissionForGrading,
 	getSubmissionForResults,
-	exportExamSubmissionsList
+	exportExamSubmissionsList,
+	getSubmissionStatus,
+	overrideEvaluation,
 } from '../controllers/submission.controller.js';
 
 const router = Router();
@@ -107,6 +114,7 @@ router.post(
 router.get('/exam/:id', checkAuth, verifyTeacher, getExamSubmissions);
 router.put('/:id/evaluate', checkAuth, verifyTeacher, updateEvaluation);
 router.post('/:id/evaluate-auto', checkAuth, verifyTeacher, evaluateSubmission);
+router.patch('/:id/override', checkAuth, verifyTeacher, overrideEvaluation);
 
 // --- Get a single submission for grading (Teacher Only) ---
 router.get('/teacher/:id', checkAuth, verifyTeacher, getSubmissionForGrading);
@@ -129,6 +137,14 @@ router.get(
 	query('examId').notEmpty().withMessage('Exam ID is required'),
 	query('studentId').notEmpty().withMessage('Student ID is required'),
 	getSubmission,
+);
+
+// Polling: get submission status (lightweight)
+router.get(
+	'/:id/status',
+	checkAuth,
+	param('id').notEmpty().withMessage('Submission ID is required'),
+	getSubmissionStatus,
 );
 
 // Order matters: specific routes BEFORE the catch-all '/:id'

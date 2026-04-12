@@ -111,18 +111,41 @@ function isExpired(submission, exam) {
 	return Date.now() >= deadline;
 }
 
+// Background evaluation: fires evaluation in a detached promise and updates the DB when done.
+function runBackgroundEvaluation(submissionId) {
+	(async () => {
+		try {
+			const submission = await Submission.findById(submissionId);
+			if (!submission || submission.status !== 'evaluating') return;
+
+			submission.evaluations = await evaluateSubmissionAnswers(submission);
+			submission.evaluatedAt = new Date();
+			submission.status = 'evaluated';
+			await submission.save();
+			console.log(`[BG_EVAL] Submission ${submissionId} evaluated successfully.`);
+		} catch (err) {
+			console.error(`[BG_EVAL] Failed for submission ${submissionId}:`, err.message);
+			// Mark as evaluated even on failure so it doesn't hang
+			try {
+				await Submission.findByIdAndUpdate(submissionId, {
+					status: 'evaluated',
+					evaluatedAt: new Date(),
+				});
+			} catch {}
+		}
+	})();
+}
+
 async function finalizeAsSubmitted(submission, exam) {
 	// Avoid double-finalization
 	if (submission.status !== 'in-progress') return submission;
-	submission.status = 'submitted';
+	submission.status = 'evaluating';
 	submission.submittedAt = new Date();
 	submission.submissionType = 'auto';
-
-	// Automated Evaluation -> evaluated
-	submission.evaluations = await evaluateSubmissionAnswers(submission);
-	submission.evaluatedAt = new Date();
-	submission.status = 'evaluated';
 	await submission.save();
+
+	// Fire evaluation in the background
+	runBackgroundEvaluation(submission._id);
 	return submission;
 }
 
@@ -296,21 +319,18 @@ const submitSubmission = asyncHandler(async (req, res) => {
 	if (!submission) throw ApiError.NotFound('Submission not found');
 	if (submission.status !== 'in-progress') throw ApiError.Forbidden('Already submitted');
 
-	submission.status = 'submitted';
+	submission.status = 'evaluating';
 	submission.submittedAt = new Date();
-	submission.submissionType = submissionType; // <-- Correctly assign type
-
-	// Automated Evaluation
-	console.log(
-		`[SUBMISSION_CTRL] Calling evaluateSubmissionAnswers for submission on exam ${examId}`,
-	);
-	submission.evaluations = await evaluateSubmissionAnswers(submission);
-	submission.evaluatedAt = new Date();
-	submission.status = 'evaluated';
+	submission.submissionType = submissionType;
 	await submission.save();
 
-	console.log(`[SUBMISSION_CTRL] Submission ${submission._id} successfully evaluated and saved.`);
-	return ApiResponse.success(res, submission, 'Submission submitted and evaluated');
+	// Fire evaluation in background
+	runBackgroundEvaluation(submission._id);
+
+	console.log(
+		`[SUBMISSION_CTRL] Submission ${submission._id} accepted for background evaluation.`,
+	);
+	return ApiResponse.success(res, submission, 'Submission accepted. Evaluation in progress.');
 });
 
 // Teacher can update evaluation and review for a submission answer
@@ -424,7 +444,7 @@ const getExamSubmissions = asyncHandler(async (req, res) => {
 		return {
 			...sub,
 			totalMarks, // Add totalMarks field
-			maxScore,   // Add maxScore field
+			maxScore, // Add maxScore field
 		};
 	});
 
@@ -642,15 +662,61 @@ const submitSubmissionById = asyncHandler(async (req, res) => {
 	const submission = await Submission.findOne({ _id: id, student: studentId });
 	if (!submission) throw ApiError.NotFound('Submission not found');
 	if (submission.status !== 'in-progress') throw ApiError.Forbidden('Already submitted');
-	submission.status = 'submitted';
+	submission.status = 'evaluating';
 	submission.submittedAt = new Date();
-	submission.submissionType = submissionType; // <-- Correctly assign type
-
-	submission.evaluations = await evaluateSubmissionAnswers(submission);
-	submission.evaluatedAt = new Date();
-	submission.status = 'evaluated';
+	submission.submissionType = submissionType;
 	await submission.save();
-	return ApiResponse.success(res, submission, 'Submission submitted and evaluated');
+
+	// Fire evaluation in background
+	runBackgroundEvaluation(submission._id);
+
+	return ApiResponse.success(res, submission, 'Submission accepted. Evaluation in progress.');
+});
+
+// ── Get Submission Status (polling endpoint) ─────────────────────
+const getSubmissionStatus = asyncHandler(async (req, res) => {
+	const submissionId = req.params.id;
+	const submission = await Submission.findById(submissionId)
+		.select('status evaluatedAt totalMarks')
+		.lean();
+	if (!submission) throw ApiError.NotFound('Submission not found');
+	return ApiResponse.success(res, submission, 'Submission status fetched');
+});
+
+// ── Teacher Override: patch marks/remarks for individual questions ─
+const overrideEvaluation = asyncHandler(async (req, res) => {
+	const submissionId = req.params.id;
+	const teacherId = req.teacher?._id || req.user?.id;
+	const { questionId, marks, remarks } = req.body;
+
+	if (!questionId || marks === undefined) {
+		throw ApiError.BadRequest('questionId and marks are required');
+	}
+
+	const submission = await Submission.findById(submissionId).populate('exam');
+	if (!submission) throw ApiError.NotFound('Submission not found');
+
+	// Security: Verify teacher owns the exam
+	if (String(submission.exam?.createdBy) !== String(teacherId)) {
+		throw ApiError.Forbidden('Not authorized to override this evaluation.');
+	}
+
+	// Find the evaluation for this question
+	const evalEntry = submission.evaluations.find(e => String(e.question) === String(questionId));
+	if (!evalEntry) {
+		throw ApiError.NotFound('No evaluation found for this question.');
+	}
+
+	evalEntry.evaluation = {
+		evaluator: 'teacher',
+		marks: Number(marks),
+		remarks: String(remarks || evalEntry.evaluation?.remarks || ''),
+		evaluatedAt: new Date(),
+		meta: { ...(evalEntry.evaluation?.meta || {}), path: 'teacher-override' },
+	};
+
+	await submission.save();
+	return ApiResponse.success(res, submission, 'Evaluation overridden successfully.');
 });
 
 // Log a student violation during an exam
@@ -774,14 +840,16 @@ const exportExamSubmissionsList = asyncHandler(async (req, res) => {
 		return {
 			'Student Name': student.fullname || student.username || 'Unknown',
 			'Student Email': student.email || 'N/A',
-			'Status': sub.status,
-			'Score': sub.totalMarks || 0,
+			Status: sub.status,
+			Score: sub.totalMarks || 0,
 			'Max Score': exam.max_marks || 0,
 			'Started At': sub.startedAt ? new Date(sub.startedAt).toLocaleString() : 'N/A',
 			'Submitted At': sub.submittedAt ? new Date(sub.submittedAt).toLocaleString() : 'N/A',
-			'Evaluated At': sub.evaluationDate ? new Date(sub.evaluationDate).toLocaleString() : 'N/A',
-			'Violations': sub.violations?.length || 0,
-			'Needs Review': sub.markedForReview?.length > 0 ? 'Yes' : 'No'
+			'Evaluated At': sub.evaluationDate
+				? new Date(sub.evaluationDate).toLocaleString()
+				: 'N/A',
+			Violations: sub.violations?.length || 0,
+			'Needs Review': sub.markedForReview?.length > 0 ? 'Yes' : 'No',
 		};
 	});
 
@@ -809,5 +877,7 @@ export {
 	publishAllExamResults,
 	getSubmissionForGrading,
 	getSubmissionForResults,
-	exportExamSubmissionsList
+	exportExamSubmissionsList,
+	getSubmissionStatus,
+	overrideEvaluation,
 };

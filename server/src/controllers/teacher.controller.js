@@ -351,6 +351,66 @@ const getDashboardStats = asyncHandler(async (req, res) => {
 	// Open issues count (simple, fast)
 	const openIssuesCount = await Issue.countDocuments({ teacher: TID, status: 'open' });
 
+	// ── Analytics: Score distribution for all teacher's exams ──
+	const scoreDistribution = await Submission.aggregate([
+		{
+			$lookup: {
+				from: 'exams',
+				localField: 'exam',
+				foreignField: '_id',
+				as: 'examDoc',
+			},
+		},
+		{ $unwind: '$examDoc' },
+		{ $match: { 'examDoc.createdBy': TID, status: { $in: ['evaluated', 'published'] } } },
+		{
+			$bucket: {
+				groupBy: '$totalMarks',
+				boundaries: [0, 20, 40, 60, 80, 101],
+				default: 'other',
+				output: { count: { $sum: 1 } },
+			},
+		},
+	]);
+
+	// Map buckets to labels
+	const bucketLabels = { 0: '0-19', 20: '20-39', 40: '40-59', 60: '60-79', 80: '80-100' };
+	const scoreDistChart = (scoreDistribution || [])
+		.filter(b => b._id !== 'other')
+		.map(b => ({ range: bucketLabels[b._id] || `${b._id}+`, count: b.count }));
+
+	// ── Analytics: Average score per exam (latest 10 exams) ──
+	const examPerformance = await Submission.aggregate([
+		{
+			$lookup: {
+				from: 'exams',
+				localField: 'exam',
+				foreignField: '_id',
+				as: 'examDoc',
+			},
+		},
+		{ $unwind: '$examDoc' },
+		{ $match: { 'examDoc.createdBy': TID, status: { $in: ['evaluated', 'published'] } } },
+		{
+			$group: {
+				_id: '$exam',
+				examTitle: { $first: '$examDoc.title' },
+				avgScore: { $avg: '$totalMarks' },
+				submissions: { $sum: 1 },
+				createdAt: { $first: '$examDoc.createdAt' },
+			},
+		},
+		{ $sort: { createdAt: -1 } },
+		{ $limit: 10 },
+		{
+			$project: {
+				examTitle: 1,
+				avgScore: { $round: ['$avgScore', 1] },
+				submissions: 1,
+			},
+		},
+	]);
+
 	// Build normalized response
 	const stats = {
 		exams: {
@@ -368,6 +428,10 @@ const getDashboardStats = asyncHandler(async (req, res) => {
 		},
 		examsToReview: Array.isArray(examsToReview) ? examsToReview : [],
 		recentSubmissions: Array.isArray(recentSubmissions) ? recentSubmissions : [],
+		analytics: {
+			scoreDistribution: scoreDistChart,
+			examPerformance: Array.isArray(examPerformance) ? examPerformance : [],
+		},
 	};
 
 	// teacher info
