@@ -33,13 +33,15 @@ const navigateSafe = (path, opts = { replace: false }) => {
  * After login, check if the current URL has ?redirect= param.
  * If so, go there instead of the default dashboard path.
  */
-const getRedirectPath = (defaultPath) => {
+const getRedirectPath = defaultPath => {
 	try {
 		const sp = new URLSearchParams(window.location.search);
 		const redirect = sp.get('redirect');
 		// Only allow internal redirects (starting with /)
 		if (redirect && redirect.startsWith('/')) return redirect;
-	} catch { /* fallback */ }
+	} catch {
+		/* fallback */
+	}
 	return defaultPath;
 };
 
@@ -84,6 +86,25 @@ export const AuthProvider = ({ children }) => {
 			setLoading(false);
 		}
 	}, []);
+
+	// ── Listen for 401 / token-expired events dispatched by the Axios interceptor ──
+	useEffect(() => {
+		const handleUnauthorized = () => {
+			// Only act if we currently consider ourselves authenticated
+			if (!isAuthenticated) return;
+			setUser(null);
+			setRole(null);
+			setIsEmailVerified(false);
+			setIsAuthenticated(false);
+			try {
+				removeToken();
+			} catch {}
+			navigateSafe('/auth?mode=login&session_expired=true', { replace: true });
+		};
+
+		window.addEventListener('api:unauthorized', handleUnauthorized);
+		return () => window.removeEventListener('api:unauthorized', handleUnauthorized);
+	}, [isAuthenticated]);
 
 	const normalizeError = err => {
 		const msg = err?.response?.data?.message || err?.message || 'Unexpected error occurred';

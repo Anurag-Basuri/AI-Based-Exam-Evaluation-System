@@ -16,7 +16,7 @@ const Register = ({ onRegister, onSwitchToLogin }) => {
 	const [confirm, setConfirm] = useState('');
 	const [showPassword, setShowPassword] = useState(false);
 	const [showConfirm, setShowConfirm] = useState(false);
-	
+
 	const [loading, setLoading] = useState(false);
 	const [fieldErrors, setFieldErrors] = useState({});
 	const [topError, setTopError] = useState('');
@@ -36,10 +36,13 @@ const Register = ({ onRegister, onSwitchToLogin }) => {
 	const validate = () => {
 		const errs = {};
 		if (!fullname.trim()) errs.fullname = 'Full name is required.';
-		else if (fullname.trim().length < 2) errs.fullname = 'Full name must be at least 2 characters.';
+		else if (fullname.trim().length < 2)
+			errs.fullname = 'Full name must be at least 2 characters.';
 		if (!username.trim()) errs.username = 'Username is required.';
-		else if (username.trim().length < 3) errs.username = 'Username must be at least 3 characters.';
-		else if (!/^[a-zA-Z0-9._-]+$/.test(username.trim())) errs.username = 'Use letters, numbers, dot, underscore, or hyphen.';
+		else if (username.trim().length < 3)
+			errs.username = 'Username must be at least 3 characters.';
+		else if (!/^[a-zA-Z0-9._-]+$/.test(username.trim()))
+			errs.username = 'Use letters, numbers, dot, underscore, or hyphen.';
 		if (!email.trim()) errs.email = 'Email is required.';
 		else if (!emailValid) errs.email = 'Enter a valid email address.';
 		if (!password) errs.password = 'Password is required.';
@@ -54,7 +57,9 @@ const Register = ({ onRegister, onSwitchToLogin }) => {
 		if (Array.isArray(data?.errors)) {
 			return data.errors.map(e => e?.msg || e?.message || String(e)).join(' ');
 		}
-		return data?.message || data?.error || err?.message || 'Registration failed. Please try again.';
+		return (
+			data?.message || data?.error || err?.message || 'Registration failed. Please try again.'
+		);
 	};
 
 	const handleSubmit = async e => {
@@ -72,11 +77,14 @@ const Register = ({ onRegister, onSwitchToLogin }) => {
 				email: email.trim(),
 				password: password.trim(),
 			};
-			const res = role === 'student' ? await registerStudent(payload) : await registerTeacher(payload);
+			const res =
+				role === 'student'
+					? await registerStudent(payload)
+					: await registerTeacher(payload);
 			try {
 				localStorage.setItem('preferredRole', role);
 			} catch {}
-			
+
 			const user = res?.data?.user || res?.user || null;
 			if (typeof onRegister === 'function') onRegister({ role, user });
 
@@ -91,8 +99,12 @@ const Register = ({ onRegister, onSwitchToLogin }) => {
 
 	return (
 		<form onSubmit={handleSubmit} aria-labelledby="register-title" noValidate>
-			<h2 id="register-title" className="auth-title">Create your account</h2>
-			<p className="auth-subtitle">Join us to {role === 'student' ? 'learn and excel' : 'create and manage exams'}.</p>
+			<h2 id="register-title" className="auth-title">
+				Create your account
+			</h2>
+			<p className="auth-subtitle">
+				Join us to {role === 'student' ? 'learn and excel' : 'create and manage exams'}.
+			</p>
 
 			{/* Role Switcher */}
 			<div className="role-pill-container" role="tablist" aria-label="Choose role">
@@ -125,7 +137,9 @@ const Register = ({ onRegister, onSwitchToLogin }) => {
 			)}
 
 			<div className={`input-group ${fieldErrors.fullname ? 'has-error' : ''}`}>
-				<label className="floating-label" htmlFor="fullname">Full Name</label>
+				<label className="floating-label" htmlFor="fullname">
+					Full Name
+				</label>
 				<input
 					id="fullname"
 					className="auth-input"
@@ -139,7 +153,9 @@ const Register = ({ onRegister, onSwitchToLogin }) => {
 			</div>
 
 			<div className={`input-group ${fieldErrors.username ? 'has-error' : ''}`}>
-				<label className="floating-label" htmlFor="username">Username</label>
+				<label className="floating-label" htmlFor="username">
+					Username
+				</label>
 				<input
 					id="username"
 					className="auth-input"
@@ -153,7 +169,9 @@ const Register = ({ onRegister, onSwitchToLogin }) => {
 			</div>
 
 			<div className={`input-group ${fieldErrors.email ? 'has-error' : ''}`}>
-				<label className="floating-label" htmlFor="email">Email</label>
+				<label className="floating-label" htmlFor="email">
+					Email
+				</label>
 				<input
 					id="email"
 					className="auth-input"
@@ -167,7 +185,9 @@ const Register = ({ onRegister, onSwitchToLogin }) => {
 			</div>
 
 			<div className={`input-group ${fieldErrors.password ? 'has-error' : ''}`}>
-				<label className="floating-label" htmlFor="password">Password</label>
+				<label className="floating-label" htmlFor="password">
+					Password
+				</label>
 				<div style={{ position: 'relative' }}>
 					<input
 						id="password"
@@ -192,8 +212,13 @@ const Register = ({ onRegister, onSwitchToLogin }) => {
 				{fieldErrors.password && <span className="error-text">{fieldErrors.password}</span>}
 			</div>
 
-			<div className={`input-group ${fieldErrors.confirm ? 'has-error' : ''}`} style={{ marginBottom: 28 }}>
-				<label className="floating-label" htmlFor="confirm">Confirm password</label>
+			<div
+				className={`input-group ${fieldErrors.confirm ? 'has-error' : ''}`}
+				style={{ marginBottom: 28 }}
+			>
+				<label className="floating-label" htmlFor="confirm">
+					Confirm password
+				</label>
 				<div style={{ position: 'relative' }}>
 					<input
 						id="confirm"
@@ -218,11 +243,7 @@ const Register = ({ onRegister, onSwitchToLogin }) => {
 				{fieldErrors.confirm && <span className="error-text">{fieldErrors.confirm}</span>}
 			</div>
 
-			<button
-				type="submit"
-				className={`auth-submit-btn ${role}`}
-				disabled={loading}
-			>
+			<button type="submit" className={`auth-submit-btn ${role}`} disabled={loading}>
 				{loading ? (
 					<>
 						<span className="auth-spinner" />
@@ -233,7 +254,14 @@ const Register = ({ onRegister, onSwitchToLogin }) => {
 				)}
 			</button>
 
-			<div style={{ textAlign: 'center', marginTop: '20px', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
+			<div
+				style={{
+					textAlign: 'center',
+					marginTop: '20px',
+					fontSize: '0.9rem',
+					color: 'var(--text-muted)',
+				}}
+			>
 				<span>Already have an account? </span>
 				<button type="button" className={`link-btn ${role}`} onClick={onSwitchToLogin}>
 					Sign in

@@ -41,7 +41,9 @@ const VerifyEmail = () => {
 				}, 3000);
 			} catch (err) {
 				setStatus('error');
-				setError(err?.message || 'Verification failed. The link may be invalid or expired.');
+				setError(
+					err?.message || 'Verification failed. The link may be invalid or expired.',
+				);
 			}
 		})();
 	}, [token, role, navigate, isAuthenticated]);
@@ -74,11 +76,24 @@ const VerifyEmail = () => {
 			<div className="auth-glass-card" style={{ textAlign: 'center' }}>
 				{status === 'verifying' && (
 					<>
-						<div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
-							<div className="auth-spinner" style={{ width: 48, height: 48, borderWidth: 4, borderTopColor: 'var(--primary)' }} />
+						<div
+							style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}
+						>
+							<div
+								className="auth-spinner"
+								style={{
+									width: 48,
+									height: 48,
+									borderWidth: 4,
+									borderTopColor: 'var(--primary)',
+								}}
+							/>
 						</div>
 						<h2 className="auth-title">Verifying Your Email...</h2>
-						<p className="auth-subtitle">Please wait while we establish a secure connection and verify your email address.</p>
+						<p className="auth-subtitle">
+							Please wait while we establish a secure connection and verify your email
+							address.
+						</p>
 					</>
 				)}
 
@@ -87,9 +102,12 @@ const VerifyEmail = () => {
 						<div style={{ marginBottom: 16 }}>
 							<span style={{ fontSize: 56 }}>🎉</span>
 						</div>
-						<h2 className="auth-title" style={{ color: '#16a34a' }}>Email Verified!</h2>
+						<h2 className="auth-title" style={{ color: '#16a34a' }}>
+							Email Verified!
+						</h2>
 						<p className="auth-subtitle">
-							Your email has been successfully verified. You now have full access to all features. Redirecting securely...
+							Your email has been successfully verified. You now have full access to
+							all features. Redirecting securely...
 						</p>
 						<button
 							type="button"
@@ -117,10 +135,19 @@ const VerifyEmail = () => {
 							<span style={{ fontSize: 56 }}>😕</span>
 						</div>
 						<h2 className="auth-title">Verification Failed</h2>
-						<p className="auth-subtitle" style={{ color: '#ef4444' }}>{error}</p>
+						<p className="auth-subtitle" style={{ color: '#ef4444' }}>
+							{error}
+						</p>
 
 						{resendSuccess ? (
-							<div className="top-error-banner" style={{ background: '#f0fdf4', color: '#166534', borderColor: '#bbf7d0' }}>
+							<div
+								className="top-error-banner"
+								style={{
+									background: '#f0fdf4',
+									color: '#166534',
+									borderColor: '#bbf7d0',
+								}}
+							>
 								✅ A new verification email has been dispatched.
 							</div>
 						) : (
@@ -153,11 +180,20 @@ const VerifyEmail = () => {
 						</div>
 						<h2 className="auth-title">Verify Your Email</h2>
 						<p className="auth-subtitle" style={{ marginBottom: 24 }}>
-							Please check your inbox for the verification email we securely sent when you registered. Click the link in the email to verify your account natively.
+							Please check your inbox for the verification email we securely sent when
+							you registered. Click the link in the email to verify your account
+							natively.
 						</p>
 
 						{resendSuccess ? (
-							<div className="top-error-banner" style={{ background: '#f0fdf4', color: '#166534', borderColor: '#bbf7d0' }}>
+							<div
+								className="top-error-banner"
+								style={{
+									background: '#f0fdf4',
+									color: '#166534',
+									borderColor: '#bbf7d0',
+								}}
+							>
 								✅ A new verification email has been dispatched.
 							</div>
 						) : (

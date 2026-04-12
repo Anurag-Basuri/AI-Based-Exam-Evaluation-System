@@ -11,7 +11,7 @@ const ForgotPassword = () => {
 	const [error, setError] = useState('');
 	const [sent, setSent] = useState(false);
 
-	const handleSubmit = async (e) => {
+	const handleSubmit = async e => {
 		e.preventDefault();
 		setError('');
 		if (!email.trim()) {
@@ -44,9 +44,16 @@ const ForgotPassword = () => {
 						<div style={{ textAlign: 'center', marginBottom: 12 }}>
 							<span style={{ fontSize: 48 }}>📧</span>
 						</div>
-						<h2 className="auth-title" style={{ textAlign: 'center' }}>Check Your Email</h2>
-						<p className="auth-subtitle" style={{ textAlign: 'center', marginBottom: 20 }}>
-							If an account with <strong>{email}</strong> exists, we've carefully sent a password reset link. It expires securely in <strong>10 minutes</strong>.
+						<h2 className="auth-title" style={{ textAlign: 'center' }}>
+							Check Your Email
+						</h2>
+						<p
+							className="auth-subtitle"
+							style={{ textAlign: 'center', marginBottom: 20 }}
+						>
+							If an account with <strong>{email}</strong> exists, we've carefully sent
+							a password reset link. It expires securely in{' '}
+							<strong>10 minutes</strong>.
 						</p>
 						<p className="auth-subtitle" style={{ fontSize: 13, textAlign: 'center' }}>
 							Didn't receive it? Check your spam folder or try again safely.
@@ -72,7 +79,8 @@ const ForgotPassword = () => {
 					<>
 						<h2 className="auth-title">Forgot Password?</h2>
 						<p className="auth-subtitle">
-							Enter the email address securely associated with your account state and we'll dispatch a link to reset your password.
+							Enter the email address securely associated with your account state and
+							we'll dispatch a link to reset your password.
 						</p>
 
 						{/* Standard Role Switcher */}
@@ -99,21 +107,27 @@ const ForgotPassword = () => {
 
 						<form onSubmit={handleSubmit} noValidate>
 							<div className="input-group">
-								<label className="floating-label" htmlFor="fp-email">Email Address</label>
+								<label className="floating-label" htmlFor="fp-email">
+									Email Address
+								</label>
 								<input
 									id="fp-email"
 									className="auth-input"
 									type="email"
 									placeholder="Enter your registered email"
 									value={email}
-									onChange={(e) => setEmail(e.target.value)}
+									onChange={e => setEmail(e.target.value)}
 									autoComplete="email"
 									autoFocus
 								/>
 							</div>
 
 							{error && (
-								<div className="top-error-banner" role="alert" aria-live="assertive">
+								<div
+									className="top-error-banner"
+									role="alert"
+									aria-live="assertive"
+								>
 									<span>⚠️</span>
 									<div>{error}</div>
 								</div>

@@ -4,27 +4,54 @@
 
 /* BACKGROUND ANIMATIONS */
 @keyframes blob-float {
-	0% { transform: translate(0px, 0px) scale(1); }
-	33% { transform: translate(30px, -50px) scale(1.1); }
-	66% { transform: translate(-20px, 20px) scale(0.9); }
-	100% { transform: translate(0px, 0px) scale(1); }
+	0% {
+		transform: translate(0px, 0px) scale(1);
+	}
+	33% {
+		transform: translate(30px, -50px) scale(1.1);
+	}
+	66% {
+		transform: translate(-20px, 20px) scale(0.9);
+	}
+	100% {
+		transform: translate(0px, 0px) scale(1);
+	}
 }
 
 @keyframes spin-slow {
-	0% { transform: rotate(0deg); }
-	100% { transform: rotate(360deg); }
+	0% {
+		transform: rotate(0deg);
+	}
+	100% {
+		transform: rotate(360deg);
+	}
 }
 
 @keyframes shake {
-	0%, 100% { transform: translateX(0); }
-	20%, 60% { transform: translateX(-4px); }
-	40%, 80% { transform: translateX(4px); }
+	0%,
+	100% {
+		transform: translateX(0);
+	}
+	20%,
+	60% {
+		transform: translateX(-4px);
+	}
+	40%,
+	80% {
+		transform: translateX(4px);
+	}
 }
 
 @keyframes pulse-ring {
-	0% { box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.4); }
-	70% { box-shadow: 0 0 0 8px rgba(79, 70, 229, 0); }
-	100% { box-shadow: 0 0 0 0 rgba(79, 70, 229, 0); }
+	0% {
+		box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.4);
+	}
+	70% {
+		box-shadow: 0 0 0 8px rgba(79, 70, 229, 0);
+	}
+	100% {
+		box-shadow: 0 0 0 0 rgba(79, 70, 229, 0);
+	}
 }
 
 @keyframes slideDownFader {
@@ -54,8 +81,9 @@
 	position: absolute;
 	inset: 0;
 	z-index: 0;
-	background: radial-gradient(circle at top right, rgba(99, 102, 241, 0.15), transparent 40%),
-				radial-gradient(circle at bottom left, rgba(249, 115, 22, 0.1), transparent 40%);
+	background:
+		radial-gradient(circle at top right, rgba(99, 102, 241, 0.15), transparent 40%),
+		radial-gradient(circle at bottom left, rgba(249, 115, 22, 0.1), transparent 40%);
 }
 
 .auth-blob {
@@ -68,15 +96,19 @@
 }
 
 .auth-blob-1 {
-	top: -10%; left: -10%;
-	width: 400px; height: 400px;
+	top: -10%;
+	left: -10%;
+	width: 400px;
+	height: 400px;
 	background: rgba(99, 102, 241, 0.6);
 	animation-delay: 0s;
 }
 
 .auth-blob-2 {
-	bottom: -10%; right: -10%;
-	width: 500px; height: 500px;
+	bottom: -10%;
+	right: -10%;
+	width: 500px;
+	height: 500px;
 	background: rgba(249, 115, 22, 0.4);
 	animation-delay: -2s;
 }
@@ -94,7 +126,7 @@
 	color: var(--text);
 	font-weight: 700;
 	cursor: pointer;
-	box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 	transition: all 0.2s ease;
 	display: flex;
 	align-items: center;
@@ -104,7 +136,7 @@
 }
 .auth-theme-toggle:hover {
 	transform: translateY(-2px);
-	box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
 }
 
 /* THE GLASS CARD */
@@ -118,13 +150,14 @@
 	background: var(--surface);
 	border: 1px solid rgba(255, 255, 255, 0.1);
 	border-radius: 24px;
-	box-shadow: 0 24px 60px rgba(0, 0, 0, 0.08), 
-	            inset 0 1px 0 rgba(255, 255, 255, 0.2);
+	box-shadow:
+		0 24px 60px rgba(0, 0, 0, 0.08),
+		inset 0 1px 0 rgba(255, 255, 255, 0.2);
 	backdrop-filter: blur(20px);
 	-webkit-backdrop-filter: blur(20px);
 }
 
-[data-theme="dark"] .auth-glass-card {
+[data-theme='dark'] .auth-glass-card {
 	background: rgba(15, 23, 42, 0.75);
 	border: 1px solid rgba(255, 255, 255, 0.05);
 	box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4);
@@ -218,8 +251,16 @@
 	box-shadow: 0 0 0 1px #f97316;
 }
 
-[data-theme="dark"] .role-pill.active.student { color: #818cf8; border-color: #818cf8; box-shadow: 0 0 0 1px #818cf8; }
-[data-theme="dark"] .role-pill.active.teacher { color: #fb923c; border-color: #fb923c; box-shadow: 0 0 0 1px #fb923c; }
+[data-theme='dark'] .role-pill.active.student {
+	color: #818cf8;
+	border-color: #818cf8;
+	box-shadow: 0 0 0 1px #818cf8;
+}
+[data-theme='dark'] .role-pill.active.teacher {
+	color: #fb923c;
+	border-color: #fb923c;
+	box-shadow: 0 0 0 1px #fb923c;
+}
 
 /* FORMS & INPUTS */
 .auth-title {
@@ -256,19 +297,23 @@
 	font-size: 1rem;
 	color: var(--text);
 	transition: all 0.2s ease;
-	box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+	box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02);
 }
 
 .auth-input:focus {
 	outline: none;
 	border-color: var(--primary);
-	box-shadow: inset 0 2px 4px rgba(0,0,0,0.02), 0 0 0 3px rgba(79, 70, 229, 0.15);
+	box-shadow:
+		inset 0 2px 4px rgba(0, 0, 0, 0.02),
+		0 0 0 3px rgba(79, 70, 229, 0.15);
 }
 
 /* ERROR STATE */
 .input-group.has-error .auth-input {
 	border-color: #ef4444;
-	box-shadow: inset 0 2px 4px rgba(0,0,0,0.02), 0 0 0 3px rgba(239, 68, 68, 0.1);
+	box-shadow:
+		inset 0 2px 4px rgba(0, 0, 0, 0.02),
+		0 0 0 3px rgba(239, 68, 68, 0.1);
 	animation: shake 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
 }
 
@@ -316,7 +361,9 @@
 	align-items: center;
 	justify-content: center;
 	border-radius: 50%;
-	transition: background 0.2s, color 0.2s;
+	transition:
+		background 0.2s,
+		color 0.2s;
 }
 .eye-btn:hover {
 	background: var(--bg-secondary);
@@ -405,11 +452,19 @@
 .link-btn:hover {
 	opacity: 0.8;
 }
-.link-btn.student { color: #4f46e5; }
-.link-btn.teacher { color: #f97316; }
+.link-btn.student {
+	color: #4f46e5;
+}
+.link-btn.teacher {
+	color: #f97316;
+}
 
-[data-theme="dark"] .link-btn.student { color: #818cf8; }
-[data-theme="dark"] .link-btn.teacher { color: #fb923c; }
+[data-theme='dark'] .link-btn.student {
+	color: #818cf8;
+}
+[data-theme='dark'] .link-btn.teacher {
+	color: #fb923c;
+}
 
 /* SPINNER */
 .auth-spinner {

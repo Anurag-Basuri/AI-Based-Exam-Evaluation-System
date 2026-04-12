@@ -27,7 +27,10 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
 
 	const idLabel = useMemo(() => 'Username or Email', []);
 	const idPlaceholder = useMemo(
-		() => role === 'student' ? 'e.g. alex.m or student@school.edu' : 'e.g. prof.smith or teacher@school.edu',
+		() =>
+			role === 'student'
+				? 'e.g. alex.m or student@school.edu'
+				: 'e.g. prof.smith or teacher@school.edu',
 		[role],
 	);
 
@@ -65,7 +68,8 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
 		setLoading(true);
 		try {
 			const payload = buildPayload();
-			const res = role === 'student' ? await loginStudent(payload) : await loginTeacher(payload);
+			const res =
+				role === 'student' ? await loginStudent(payload) : await loginTeacher(payload);
 			if (remember) {
 				try {
 					localStorage.setItem('preferredRole', role);
@@ -87,7 +91,9 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
 
 	return (
 		<form onSubmit={handleSubmit} aria-labelledby="login-title" noValidate>
-			<h2 id="login-title" className="auth-title">Welcome Back</h2>
+			<h2 id="login-title" className="auth-title">
+				Welcome Back
+			</h2>
 			<p className="auth-subtitle">Log in to continue to your dashboard.</p>
 
 			{/* Role Switcher */}
@@ -122,7 +128,9 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
 
 			{/* Identifier */}
 			<div className={`input-group ${fieldErrors.identifier ? 'has-error' : ''}`}>
-				<label className="floating-label" htmlFor="identifier">{idLabel}</label>
+				<label className="floating-label" htmlFor="identifier">
+					{idLabel}
+				</label>
 				<input
 					id="identifier"
 					className="auth-input"
@@ -133,12 +141,16 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
 					autoComplete="username"
 					inputMode="text"
 				/>
-				{fieldErrors.identifier && <span className="error-text">{fieldErrors.identifier}</span>}
+				{fieldErrors.identifier && (
+					<span className="error-text">{fieldErrors.identifier}</span>
+				)}
 			</div>
 
 			{/* Password */}
 			<div className={`input-group ${fieldErrors.password ? 'has-error' : ''}`}>
-				<label className="floating-label" htmlFor="password">Password</label>
+				<label className="floating-label" htmlFor="password">
+					Password
+				</label>
 				<div style={{ position: 'relative' }}>
 					<input
 						id="password"
@@ -165,7 +177,11 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
 
 			<div className="options-row">
 				<label className="check-label">
-					<input type="checkbox" checked={remember} onChange={() => setRemember(v => !v)} />
+					<input
+						type="checkbox"
+						checked={remember}
+						onChange={() => setRemember(v => !v)}
+					/>
 					Remember me
 				</label>
 				<button
@@ -177,11 +193,7 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
 				</button>
 			</div>
 
-			<button
-				type="submit"
-				className={`auth-submit-btn ${role}`}
-				disabled={loading}
-			>
+			<button type="submit" className={`auth-submit-btn ${role}`} disabled={loading}>
 				{loading ? (
 					<>
 						<span className="auth-spinner" />
@@ -192,7 +204,14 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
 				)}
 			</button>
 
-			<div style={{ textAlign: 'center', marginTop: '20px', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
+			<div
+				style={{
+					textAlign: 'center',
+					marginTop: '20px',
+					fontSize: '0.9rem',
+					color: 'var(--text-muted)',
+				}}
+			>
 				<span>New here? </span>
 				<button type="button" className={`link-btn ${role}`} onClick={onSwitchToRegister}>
 					Create account

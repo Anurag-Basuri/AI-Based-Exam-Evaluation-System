@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import Login from '../components/Login';
 import Register from '../components/Register';
 import { useTheme } from '../hooks/useTheme.js';
+import { pingBackendHealth } from '../services/api.js';
 import './Auth.css'; // New centralized CSS
 
 const AuthPage = () => {
@@ -16,13 +17,20 @@ const AuthPage = () => {
 		return raw === 'register' ? 'register' : 'login';
 	};
 
-	const [isRegister, setIsRegister] = useState(() => getModeFromSearch(location.search) === 'register');
+	const [isRegister, setIsRegister] = useState(
+		() => getModeFromSearch(location.search) === 'register',
+	);
 
 	useEffect(() => {
 		const mode = getModeFromSearch(location.search);
 		const shouldRegister = mode === 'register';
 		setIsRegister(prev => (prev !== shouldRegister ? shouldRegister : prev));
 	}, [location.search]);
+
+	// Wake up the Render backend when users land on the auth page
+	useEffect(() => {
+		pingBackendHealth();
+	}, []);
 
 	const setUrlMode = (mode, { replace = false } = {}) => {
 		const sp = new URLSearchParams(location.search);
@@ -64,7 +72,10 @@ const AuthPage = () => {
 						onClick={handleSwitchToLogin}
 						className={`auth-toggle-btn login ${!isRegister ? 'active' : ''}`}
 					>
-						<span aria-hidden style={{ marginRight: 6 }}>🔑</span> Login
+						<span aria-hidden style={{ marginRight: 6 }}>
+							🔑
+						</span>{' '}
+						Login
 					</button>
 					<button
 						type="button"
@@ -73,7 +84,10 @@ const AuthPage = () => {
 						onClick={handleSwitchToRegister}
 						className={`auth-toggle-btn register ${isRegister ? 'active' : ''}`}
 					>
-						<span aria-hidden style={{ marginRight: 6 }}>✨</span> Register
+						<span aria-hidden style={{ marginRight: 6 }}>
+							✨
+						</span>{' '}
+						Register
 					</button>
 				</div>
 
