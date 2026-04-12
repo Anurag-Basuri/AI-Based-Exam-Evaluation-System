@@ -1,37 +1,7 @@
-import { apiClient } from './api.js';
+import { apiClient, ApiError, parseAxiosError, safeApiCall } from './api.js';
 
-// ---------- Error normalization ----------
-export class ApiError extends Error {
-	constructor(message, status = 0, data = null) {
-		super(message || 'Request failed');
-		this.name = 'ApiError';
-		this.status = status;
-		this.data = data;
-	}
-}
-
-const parseAxiosError = err => {
-	if (!err) return new ApiError('Unknown error');
-	if (err?.name === 'CanceledError') return new ApiError('Request canceled', 499);
-	const status = err?.response?.status ?? 0;
-	const data = err?.response?.data;
-	const msg =
-		data?.message ||
-		data?.error ||
-		err?.message ||
-		(status ? `Request failed with status ${status}` : 'Network error');
-	return new ApiError(msg, status, data);
-};
-
-// Safe API call wrapper
-export const safeApiCall = async (fn, ...args) => {
-	try {
-		const res = await fn(...args);
-		return res?.data?.data ?? res?.data ?? res;
-	} catch (err) {
-		throw parseAxiosError(err);
-	}
-};
+// Re-export centralized utilities so existing consumers don't break
+export { ApiError, safeApiCall };
 
 // ---------- Helpers for endpoint fallbacks ----------
 const tryGet = async (urls, config) => {
@@ -129,8 +99,8 @@ const EP = {
 
 // ---------- Normalizers ----------
 const normalizeExam = e => {
-	const startMs = e.startTime ? new Date(e.startTime).getTime() : e.start_ms ?? null;
-	const endMs = e.endTime ? new Date(e.endTime).getTime() : e.end_ms ?? null;
+	const startMs = e.startTime ? new Date(e.startTime).getTime() : (e.start_ms ?? null);
+	const endMs = e.endTime ? new Date(e.endTime).getTime() : (e.end_ms ?? null);
 	const now = Date.now();
 	const isActive = String(e.status || '').toLowerCase() === 'active';
 	const inWindow =
@@ -144,11 +114,11 @@ const normalizeExam = e => {
 		description: e.description ?? '',
 		status: e.status ?? 'draft',
 		duration: e.duration ?? 0,
-		startAt: e.startTime ? new Date(e.startTime).toLocaleString() : e.startAt ?? '—',
-		endAt: e.endTime ? new Date(e.endTime).toLocaleString() : e.endAt ?? '—',
+		startAt: e.startTime ? new Date(e.startTime).toLocaleString() : (e.startAt ?? '—'),
+		endAt: e.endTime ? new Date(e.endTime).toLocaleString() : (e.endAt ?? '—'),
 		startMs: startMs ?? null,
 		endMs: endMs ?? null,
-		totalQuestions: Array.isArray(e.questions) ? e.questions.length : e.totalQuestions ?? 0,
+		totalQuestions: Array.isArray(e.questions) ? e.questions.length : (e.totalQuestions ?? 0),
 		maxScore:
 			e.maxScore ??
 			(Array.isArray(e.questions)
@@ -207,13 +177,13 @@ const normalizeSubmission = s => {
 		s.totalScore ??
 		(Array.isArray(s.evaluations)
 			? s.evaluations.reduce((acc, ev) => acc + (ev?.evaluation?.marks || 0), 0)
-			: s.score ?? null);
+			: (s.score ?? null));
 
 	const maxScore =
 		s.maxScore ??
 		(questions.length > 0
 			? questions.reduce((acc, q) => acc + (q.max_marks || 0), 0)
-			: s.totalMax ?? 0);
+			: (s.totalMax ?? 0));
 
 	const hasScore = typeof score === 'number' && Number.isFinite(score);
 	const percentage = hasScore && maxScore > 0 ? Math.round((score / maxScore) * 100) : null;
@@ -363,8 +333,8 @@ const normalizeIssue = i => {
 		description: i.description ?? '',
 		status: String(i.status || 'open').toLowerCase(),
 		reply: i.reply ?? '',
-		createdAt: i.createdAt ? new Date(i.createdAt).toLocaleString() : i.created_at ?? '',
-		resolvedAt: i.resolvedAt ? new Date(i.resolvedAt).toLocaleString() : i.resolved_at ?? '',
+		createdAt: i.createdAt ? new Date(i.createdAt).toLocaleString() : (i.created_at ?? ''),
+		resolvedAt: i.resolvedAt ? new Date(i.resolvedAt).toLocaleString() : (i.resolved_at ?? ''),
 	};
 };
 
@@ -424,14 +394,9 @@ export const changeStudentPassword = async payload => {
 };
 
 // ---------- Export ----------
-export const exportStudentProfileCsv = () => apiClient.get('/api/students/export/profile', { responseType: 'blob' });
-export const exportStudentSubmissionsCsv = () => apiClient.get('/api/students/export/submissions', { responseType: 'blob' });
+export const exportStudentProfileCsv = () =>
+	apiClient.get('/api/students/export/profile', { responseType: 'blob' });
+export const exportStudentSubmissionsCsv = () =>
+	apiClient.get('/api/students/export/submissions', { responseType: 'blob' });
 
-// Ensure cookies
-try {
-	if (apiClient?.defaults) {
-		apiClient.defaults.withCredentials = true;
-	}
-} catch {
-	// noop
-}
+// withCredentials is now set centrally in api.js

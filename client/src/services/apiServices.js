@@ -1,33 +1,9 @@
-import { apiClient, publicClient } from './api.js';
+import { apiClient, publicClient, parseAxiosError } from './api.js';
 import { setToken, removeToken } from '../utils/handleToken.js';
 
-// Error type to normalize thrown errors
-class ApiError extends Error {
-	constructor(message, meta = {}) {
-		super(message || 'Request failed');
-		this.name = 'ApiError';
-		this.status = meta.status ?? null;
-		this.code = meta.code ?? null; // Axios error code (e.g., ERR_NETWORK)
-		this.data = meta.data ?? null; // server-provided payload
-		this.url = meta.url ?? null;
-		this.method = meta.method ?? null;
-	}
-}
-
-const parseAxiosError = err => {
-	// Axios-like error shape
-	const resp = err?.response;
-	const req = err?.config;
-	const message = resp?.data?.message || resp?.data?.error || err?.message || 'Unknown error';
-
-	return new ApiError(message, {
-		status: resp?.status,
-		code: err?.code || resp?.data?.code || null,
-		data: resp?.data ?? null,
-		url: req?.url || req?.baseURL ? `${req?.baseURL || ''}${req?.url || ''}` : null,
-		method: req?.method || null,
-	});
-};
+// ═══════════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════════
 
 // Remove tokens on unauthorized/forbidden
 const maybeInvalidateToken = error => {
@@ -48,36 +24,15 @@ const applyTokensFromResponse = response => {
 	return false;
 };
 
-// Safe API call wrapper
-export const safeApiCall = async (fn, ...args) => {
-    try {
-        const res = await fn(...args);
-        // Support ApiResponse shape (data.data) or raw data.
-        // Handle paginated responses that have an `items` property.
-        const responseData = res?.data?.data ?? res?.data ?? res;
-        if (
-            responseData &&
-            typeof responseData === 'object' &&
-            Object.prototype.hasOwnProperty.call(responseData, 'items')
-        ) {
-            return responseData; // Return the whole object { items, page, ... }
-        }
-        return responseData;
-    } catch (e) {
-		const msg = e?.response?.data?.message || e?.message || 'Request failed';
-		const err = new Error(msg);
-		err.status = e?.response?.status;
-		err.data = e?.response?.data;
-		throw err;
-	}
-};
+// ═══════════════════════════════════════════════════════════════════
+// STUDENT AUTH
+// ═══════════════════════════════════════════════════════════════════
 
-// ------ Student AuthServices ------
 export const registerStudent = async studentData => {
 	try {
 		const response = await publicClient.post('/api/students/register', studentData);
 		const hasTokens = applyTokensFromResponse(response);
-		if (!hasTokens) removeToken(); // defensive: registration should return tokens
+		if (!hasTokens) removeToken();
 		return response.data;
 	} catch (err) {
 		const apiErr = parseAxiosError(err);
@@ -106,7 +61,6 @@ export const logoutStudent = async () => {
 		return response.data;
 	} catch (err) {
 		const apiErr = parseAxiosError(err);
-		// On any logout error, ensure tokens are cleared
 		removeToken();
 		throw apiErr;
 	}
@@ -116,8 +70,8 @@ export const changeStudentPassword = async pwData => {
 	try {
 		const response = await apiClient.put('/api/students/change-password', pwData);
 		return response.data;
-	} catch (error) {
-		const apiErr = parseAxiosError(error);
+	} catch (err) {
+		const apiErr = parseAxiosError(err);
 		maybeInvalidateToken(apiErr);
 		throw apiErr;
 	}
@@ -134,7 +88,10 @@ export const updateStudentProfile = async profileData => {
 	}
 };
 
-// ------ Teacher AuthServices ------
+// ═══════════════════════════════════════════════════════════════════
+// TEACHER AUTH
+// ═══════════════════════════════════════════════════════════════════
+
 export const registerTeacher = async teacherData => {
 	try {
 		const response = await publicClient.post('/api/teachers/register', teacherData);
@@ -177,8 +134,8 @@ export const changeTeacherPassword = async pwData => {
 	try {
 		const response = await apiClient.put('/api/teachers/change-password', pwData);
 		return response.data;
-	} catch (error) {
-		const apiErr = parseAxiosError(error);
+	} catch (err) {
+		const apiErr = parseAxiosError(err);
 		maybeInvalidateToken(apiErr);
 		throw apiErr;
 	}
@@ -188,18 +145,18 @@ export const updateTeacherProfile = async profileData => {
 	try {
 		const response = await apiClient.put('/api/teachers/update', profileData);
 		return response.data;
-	} catch (error) {
-		const apiErr = parseAxiosError(error);
+	} catch (err) {
+		const apiErr = parseAxiosError(err);
 		maybeInvalidateToken(apiErr);
 		throw apiErr;
 	}
 };
 
-// ══════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════
 // EMAIL VERIFICATION
-// ══════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════
 
-export const verifyStudentEmail = async (token) => {
+export const verifyStudentEmail = async token => {
 	try {
 		const response = await publicClient.post('/api/students/verify-email', { token });
 		return response.data;
@@ -208,7 +165,7 @@ export const verifyStudentEmail = async (token) => {
 	}
 };
 
-export const verifyTeacherEmail = async (token) => {
+export const verifyTeacherEmail = async token => {
 	try {
 		const response = await publicClient.post('/api/teachers/verify-email', { token });
 		return response.data;
@@ -239,11 +196,11 @@ export const resendTeacherVerification = async () => {
 	}
 };
 
-// ══════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════
 // PASSWORD RESET
-// ══════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════
 
-export const forgotStudentPassword = async (email) => {
+export const forgotStudentPassword = async email => {
 	try {
 		const response = await publicClient.post('/api/students/forgot-password', { email });
 		return response.data;
@@ -252,7 +209,7 @@ export const forgotStudentPassword = async (email) => {
 	}
 };
 
-export const forgotTeacherPassword = async (email) => {
+export const forgotTeacherPassword = async email => {
 	try {
 		const response = await publicClient.post('/api/teachers/forgot-password', { email });
 		return response.data;

@@ -1,22 +1,7 @@
-import { apiClient } from './api.js';
-import { ApiError, safeApiCall as studentSafe } from './studentServices.js';
+import { apiClient, ApiError, parseAxiosError, safeApiCall } from './api.js';
 
-// Re-export the student safeApiCall so UI can import uniformly
-export const safeApiCall = studentSafe;
-
-// ---------- Error normalization (aligned with studentServices) ----------
-const parseAxiosError = err => {
-	if (!err) return new ApiError('Unknown error');
-	if (err?.name === 'CanceledError') return new ApiError('Request canceled', 499);
-	const status = err?.response?.status ?? 0;
-	const data = err?.response?.data;
-	const msg =
-		data?.message ||
-		data?.error ||
-		err?.message ||
-		(status ? `Request failed with status ${status}` : 'Network error');
-	return new ApiError(msg, status, data);
-};
+// Re-export so UI components importing from teacherServices still work
+export { safeApiCall };
 
 // ---------- Safe raw helpers ----------
 const safe = async promise => {
@@ -157,8 +142,8 @@ const normalizeExam = e => {
 		(Array.isArray(e?.submissions) ? e.submissions.length : 0);
 
 	// Derive time and dynamic status (live/scheduled) for better UX
-	const startMs = e?.startTime ? new Date(e.startTime).getTime() : e?.startMs ?? null;
-	const endMs = e?.endTime ? new Date(e.endTime).getTime() : e?.endMs ?? null;
+	const startMs = e?.startTime ? new Date(e.startTime).getTime() : (e?.startMs ?? null);
+	const endMs = e?.endTime ? new Date(e.endTime).getTime() : (e?.endMs ?? null);
 	const rawStatus = String(e?.status ?? 'draft').toLowerCase();
 	let derivedStatus = rawStatus;
 	if (rawStatus === 'active' && startMs && endMs) {
@@ -206,7 +191,7 @@ const normalizeSubmission = s => {
 		s?.maxScore ??
 		(Array.isArray(s?.answers)
 			? s.answers.reduce((acc, ans) => acc + (ans?.question?.max_marks || 0), 0)
-			: s?.totalMax ?? 0);
+			: (s?.totalMax ?? 0));
 
 	return {
 		id: String(s?._id ?? s?.id ?? ''),
@@ -236,8 +221,8 @@ export const normalizeIssue = i => ({
 	studentName: i?.student?.fullname ?? i?.studentName ?? 'Student',
 	assignedToId: i?.assignedTo?._id ? String(i.assignedTo._id) : null,
 	assignedTo: i?.assignedTo?.fullname ?? null,
-	createdAt: i?.createdAt ? new Date(i.createdAt).toLocaleString() : i?.created_at ?? '',
-	resolvedAt: i?.resolvedAt ? new Date(i.resolvedAt).toLocaleString() : i?.resolved_at ?? '',
+	createdAt: i?.createdAt ? new Date(i.createdAt).toLocaleString() : (i?.created_at ?? ''),
+	resolvedAt: i?.resolvedAt ? new Date(i.resolvedAt).toLocaleString() : (i?.resolved_at ?? ''),
 	activityLog: Array.isArray(i.activityLog) ? i.activityLog : [],
 	internalNotes: Array.isArray(i.internalNotes) ? i.internalNotes : [],
 	submission: i.submission ? { id: String(i.submission?._id ?? i.submission) } : null,
@@ -280,7 +265,7 @@ const normalizeQuestion = q => ({
 				id: String(i),
 				text: o?.text ?? '',
 				isCorrect: !!o?.isCorrect,
-		  }))
+			}))
 		: [],
 	answer: q?.answer ?? null,
 	createdBy: String(q?.createdBy?._id ?? q?.createdBy ?? ''),
@@ -569,18 +554,14 @@ export const getTeacherDashboardStats = async () => {
 };
 
 // ---------- Export ----------
-export const exportTeacherProfileCsv = () => apiClient.get('/api/teachers/export/profile', { responseType: 'blob' });
-export const exportTeacherExamsCsv = () => apiClient.get('/api/teachers/export/exams', { responseType: 'blob' });
-export const exportExamSubmissionsCsv = examId => apiClient.get(`/api/submissions/exam/${examId}/export`, { responseType: 'blob' });
+export const exportTeacherProfileCsv = () =>
+	apiClient.get('/api/teachers/export/profile', { responseType: 'blob' });
+export const exportTeacherExamsCsv = () =>
+	apiClient.get('/api/teachers/export/exams', { responseType: 'blob' });
+export const exportExamSubmissionsCsv = examId =>
+	apiClient.get(`/api/submissions/exam/${examId}/export`, { responseType: 'blob' });
 
-// Ensure cookies if server uses cookie sessions
-try {
-	if (apiClient?.defaults) {
-		apiClient.defaults.withCredentials = true;
-	}
-} catch {
-	// noop
-}
+// withCredentials is now set centrally in api.js
 
 // Service function to get exam statistics
 export const getExamStats = async () => {
