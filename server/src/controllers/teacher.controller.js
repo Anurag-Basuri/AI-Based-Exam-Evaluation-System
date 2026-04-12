@@ -7,6 +7,7 @@ import Submission from '../models/submission.model.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
+import { verifyGoogleIdToken } from '../utils/googleAuth.js';
 import {
 	sendVerificationEmail,
 	sendPasswordResetEmail,
@@ -110,6 +111,49 @@ const loginTeacher = asyncHandler(async (req, res) => {
 	);
 });
 
+// ── Google Login ─────────────────────────────────────────────────
+const googleLoginTeacher = asyncHandler(async (req, res) => {
+	const { idToken } = req.body;
+	if (!idToken) throw ApiError.BadRequest('Google ID token is required');
+
+	const payload = await verifyGoogleIdToken(idToken);
+	const { email, name, picture, sub: googleId } = payload;
+
+	let teacher = await Teacher.findOne({ email });
+
+	if (teacher) {
+		// Existing user.
+		if (!teacher.googleId) {
+			teacher.googleId = googleId;
+			if (picture && !teacher.profilePicture) teacher.profilePicture = picture;
+			teacher.isEmailVerified = true;
+			await teacher.save();
+		}
+	} else {
+		// New user created via Google
+		teacher = await Teacher.create({
+			username: email.split('@')[0] + '_' + Math.floor(Math.random() * 10000),
+			fullname: name,
+			email,
+			googleId,
+			profilePicture: picture || '',
+			isEmailVerified: true,
+		});
+	}
+
+	const authToken = teacher.generateAuthToken();
+	const refreshToken = teacher.generateRefreshToken();
+
+	teacher.refreshToken = refreshToken;
+	await teacher.save();
+
+	return ApiResponse.success(
+		res,
+		{ teacher: sanitize(teacher), authToken, refreshToken },
+		'Logged in with Google successfully',
+	);
+});
+
 // Teacher logout
 const logoutTeacher = asyncHandler(async (req, res) => {
 	const teacherId = req.teacher?._id || req.user?.id;
@@ -122,22 +166,21 @@ const logoutTeacher = asyncHandler(async (req, res) => {
 // Update teacher details
 const updateTeacher = asyncHandler(async (req, res) => {
 	const teacherId = req.teacher?._id || req.user?.id;
-    
-    // Explicitly build update object to support partial updates
-    const updateData = {};
-    const allowedFields = ['username', 'fullname', 'email', 'phonenumber', 'gender', 'address'];
 
-    allowedFields.forEach(field => {
-        if (req.body[field] !== undefined) {
-            updateData[field] = req.body[field];
-        }
-    });
+	// Explicitly build update object to support partial updates
+	const updateData = {};
+	const allowedFields = ['username', 'fullname', 'email', 'phonenumber', 'gender', 'address'];
 
-	const updatedTeacher = await Teacher.findByIdAndUpdate(
-		teacherId,
-		updateData,
-		{ new: true, runValidators: true },
-	).select('-password -refreshToken -resetPasswordToken -resetPasswordExpires');
+	allowedFields.forEach(field => {
+		if (req.body[field] !== undefined) {
+			updateData[field] = req.body[field];
+		}
+	});
+
+	const updatedTeacher = await Teacher.findByIdAndUpdate(teacherId, updateData, {
+		new: true,
+		runValidators: true,
+	}).select('-password -refreshToken -resetPasswordToken -resetPasswordExpires');
 
 	if (!updatedTeacher) {
 		throw ApiError.NotFound('Teacher not found');
@@ -357,27 +400,29 @@ const getDashboardStats = asyncHandler(async (req, res) => {
 const exportTeacherProfile = asyncHandler(async (req, res) => {
 	const teacherId = req.teacher?._id || req.user?.id;
 	const teacher = await Teacher.findById(teacherId).lean();
-	
+
 	if (!teacher) {
 		throw ApiError.NotFound('Teacher not found');
 	}
 
-	const data = [{
-		'ID': teacher._id.toString(),
-		'Username': teacher.username,
-		'Full Name': teacher.fullname,
-		'Email': teacher.email,
-		'Phone Number': teacher.phonenumber || '',
-		'Department': teacher.department || '',
-		'Gender': teacher.gender || '',
-		'Street': teacher.address?.street || '',
-		'City': teacher.address?.city || '',
-		'State': teacher.address?.state || '',
-		'Postal Code': teacher.address?.postalCode || '',
-		'Country': teacher.address?.country || '',
-		'Verified Email': teacher.isEmailVerified ? 'Yes' : 'No',
-		'Registered On': new Date(teacher.createdAt).toLocaleString(),
-	}];
+	const data = [
+		{
+			ID: teacher._id.toString(),
+			Username: teacher.username,
+			'Full Name': teacher.fullname,
+			Email: teacher.email,
+			'Phone Number': teacher.phonenumber || '',
+			Department: teacher.department || '',
+			Gender: teacher.gender || '',
+			Street: teacher.address?.street || '',
+			City: teacher.address?.city || '',
+			State: teacher.address?.state || '',
+			'Postal Code': teacher.address?.postalCode || '',
+			Country: teacher.address?.country || '',
+			'Verified Email': teacher.isEmailVerified ? 'Yes' : 'No',
+			'Registered On': new Date(teacher.createdAt).toLocaleString(),
+		},
+	];
 
 	const csv = generateCSV(data);
 	return sendCSVDowload(res, `teacher_profile_${teacher.username}.csv`, csv);
@@ -385,17 +430,17 @@ const exportTeacherProfile = asyncHandler(async (req, res) => {
 
 const exportTeacherExams = asyncHandler(async (req, res) => {
 	const teacherId = req.teacher?._id || req.user?.id;
-	
+
 	const exams = await Exam.find({ createdBy: teacherId }).lean();
 
 	const data = exams.map(exam => ({
 		'Exam ID': exam._id.toString(),
 		'Search Code': exam.searchId,
-		'Title': exam.title,
-		'Description': exam.description,
+		Title: exam.title,
+		Description: exam.description,
 		'Duration (mins)': exam.duration,
 		'Max Marks': exam.max_marks || 0,
-		'Status': exam.status,
+		Status: exam.status,
 		'Created At': new Date(exam.createdAt).toLocaleString(),
 		'Start Time': exam.startTime ? new Date(exam.startTime).toLocaleString() : 'Not Set',
 		'End Time': exam.endTime ? new Date(exam.endTime).toLocaleString() : 'Not Set',
@@ -408,6 +453,7 @@ const exportTeacherExams = asyncHandler(async (req, res) => {
 export {
 	createTeacher,
 	loginTeacher,
+	googleLoginTeacher,
 	logoutTeacher,
 	updateTeacher,
 	changePassword,
@@ -417,7 +463,7 @@ export {
 	forgotTeacherPassword,
 	resetTeacherPassword,
 	exportTeacherProfile,
-	exportTeacherExams
+	exportTeacherExams,
 };
 
 // ══════════════════════════════════════════════════════════════════
@@ -436,7 +482,9 @@ const verifyTeacherEmail = asyncHandler(async (req, res) => {
 	}).select('+emailVerificationToken +emailVerificationExpires');
 
 	if (!teacher) {
-		throw ApiError.BadRequest('Invalid or expired verification link. Please request a new one.');
+		throw ApiError.BadRequest(
+			'Invalid or expired verification link. Please request a new one.',
+		);
 	}
 
 	teacher.isEmailVerified = true;
@@ -504,7 +552,9 @@ const forgotTeacherPassword = asyncHandler(async (req, res) => {
 		teacher.resetPasswordToken = undefined;
 		teacher.resetPasswordExpires = undefined;
 		await teacher.save({ validateBeforeSave: false });
-		throw ApiError.InternalServerError('There was an error sending the email. Please try again.');
+		throw ApiError.InternalServerError(
+			'There was an error sending the email. Please try again.',
+		);
 	}
 
 	return ApiResponse.success(res, null, genericMsg);

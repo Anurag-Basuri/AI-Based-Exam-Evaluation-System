@@ -2,9 +2,11 @@ import React, { createContext, useState, useEffect } from 'react';
 import {
 	registerStudent,
 	loginStudent,
+	googleLoginStudent,
 	logoutStudent,
 	registerTeacher,
 	loginTeacher,
+	googleLoginTeacher,
 	logoutTeacher,
 } from '../services/apiServices';
 import { getToken, removeToken, isTokenExpired, decodeToken } from '../utils/handleToken';
@@ -162,6 +164,31 @@ export const AuthProvider = ({ children }) => {
 		}
 	};
 
+	// Student Google login
+	const handleGoogleLoginStudent = async idToken => {
+		setLoading(true);
+		try {
+			const res = await googleLoginStudent(idToken);
+			if (res?.data?.authToken) {
+				const decoded = decodeToken(res.data.authToken);
+				setUser(decoded);
+				setRole(decoded?.role || 'student');
+				setIsEmailVerified(decoded?.isEmailVerified || false);
+				setIsAuthenticated(true);
+				navigateSafe(getRedirectPath('/student'), { replace: true });
+			}
+			return res;
+		} catch (err) {
+			setUser(null);
+			setRole(null);
+			setIsEmailVerified(false);
+			setIsAuthenticated(false);
+			throw normalizeError(err);
+		} finally {
+			setLoading(false);
+		}
+	};
+
 	// Student logout
 	const handleLogoutStudent = async () => {
 		setLoading(true);
@@ -231,6 +258,31 @@ export const AuthProvider = ({ children }) => {
 		}
 	};
 
+	// Teacher Google login
+	const handleGoogleLoginTeacher = async idToken => {
+		setLoading(true);
+		try {
+			const res = await googleLoginTeacher(idToken);
+			if (res?.data?.authToken) {
+				const decoded = decodeToken(res.data.authToken);
+				setUser(decoded);
+				setRole(decoded?.role || 'teacher');
+				setIsEmailVerified(decoded?.isEmailVerified || false);
+				setIsAuthenticated(true);
+				navigateSafe(getRedirectPath('/teacher'), { replace: true });
+			}
+			return res;
+		} catch (err) {
+			setUser(null);
+			setRole(null);
+			setIsEmailVerified(false);
+			setIsAuthenticated(false);
+			throw normalizeError(err);
+		} finally {
+			setLoading(false);
+		}
+	};
+
 	// Teacher logout
 	const handleLogoutTeacher = async () => {
 		setLoading(true);
@@ -269,9 +321,11 @@ export const AuthProvider = ({ children }) => {
 		loading,
 		registerStudent: handleRegisterStudent,
 		loginStudent: handleLoginStudent,
+		googleLoginStudent: handleGoogleLoginStudent,
 		logoutStudent: handleLogoutStudent,
 		registerTeacher: handleRegisterTeacher,
 		loginTeacher: handleLoginTeacher,
+		googleLoginTeacher: handleGoogleLoginTeacher,
 		logoutTeacher: handleLogoutTeacher,
 		// unified alias so UI can just call `logout()`
 		logout,
