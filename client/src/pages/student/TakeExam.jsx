@@ -50,7 +50,6 @@ const TakeExam = () => {
 	const currentAnswer = submission?.answers?.find(
 		a => String(a.question) === String(currentQuestion?.id),
 	);
-	// ensure id comparison uses strings
 	const isReviewing = currentQuestion && markedForReview.includes(String(currentQuestion.id));
 
 	const questionStats = useMemo(() => {
@@ -103,17 +102,24 @@ const TakeExam = () => {
 		}
 	};
 
-	// Keyboard shortcut: Ctrl/Cmd + Enter to open submit confirmation
+	// Keyboard shortcuts
 	useEffect(() => {
 		const onKey = e => {
 			const mod = e.ctrlKey || e.metaKey;
+
+			// Ctrl/Cmd + Enter → submit confirmation
 			if (mod && e.key === 'Enter') {
 				e.preventDefault();
 				if (!autoSubmitting) setShowSubmitConfirm(true);
 			}
-			// quick navigation support: Arrow keys
-			if (e.key === 'ArrowLeft') handlePrev();
-			if (e.key === 'ArrowRight') handleNext();
+
+			// Arrow key navigation — only when NOT typing in a textarea or input
+			const tag = e.target?.tagName;
+			const isTyping = tag === 'TEXTAREA' || tag === 'INPUT';
+			if (!isTyping) {
+				if (e.key === 'ArrowLeft') handlePrev();
+				if (e.key === 'ArrowRight') handleNext();
+			}
 		};
 		window.addEventListener('keydown', onKey);
 		return () => window.removeEventListener('keydown', onKey);
@@ -123,20 +129,21 @@ const TakeExam = () => {
 	if (loading) return <TakeExamSkeleton />;
 	if (error)
 		return (
-			<div
-				className="exam-container"
-				style={{ alignItems: 'center', justifyContent: 'center' }}
-			>
-				Error: {error}
+			<div className="exam-container" style={{ alignItems: 'center', justifyContent: 'center', display: 'flex', flexDirection: 'column', gap: 16 }}>
+				<div style={{ fontSize: 48 }}>⚠️</div>
+				<h2 style={{ margin: 0, fontWeight: 700 }}>Something went wrong</h2>
+				<p style={{ color: 'var(--text-muted)', maxWidth: 400, textAlign: 'center', lineHeight: 1.6 }}>{error}</p>
+				<button className="nav-btn primary" onClick={() => window.location.reload()}>
+					Try Again
+				</button>
 			</div>
 		);
 	if (!submission)
 		return (
-			<div
-				className="exam-container"
-				style={{ alignItems: 'center', justifyContent: 'center' }}
-			>
-				Submission not found.
+			<div className="exam-container" style={{ alignItems: 'center', justifyContent: 'center', display: 'flex', flexDirection: 'column', gap: 16 }}>
+				<div style={{ fontSize: 48 }}>📋</div>
+				<h2 style={{ margin: 0, fontWeight: 700 }}>Submission Not Found</h2>
+				<p style={{ color: 'var(--text-muted)' }}>This exam submission could not be loaded.</p>
 			</div>
 		);
 
@@ -178,6 +185,7 @@ const TakeExam = () => {
 				timer={timer}
 				onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
 				violations={violations}
+				questionStats={questionStats}
 			/>
 
 			<div className="exam-main">
@@ -189,6 +197,7 @@ const TakeExam = () => {
 							answer={currentAnswer}
 							onAnswerChange={handleAnswerChange}
 							disabled={autoSubmitting}
+							totalQuestions={submission.questions.length}
 						/>
 					)}
 				</div>
@@ -220,6 +229,7 @@ const TakeExam = () => {
 				disabled={autoSubmitting}
 				saving={saving}
 				autoSubmitting={autoSubmitting}
+				questionStats={questionStats}
 			/>
 		</ExamLayout>
 	);

@@ -326,6 +326,24 @@
     border-color: var(--warning-border);
 }
 
+.nav-btn.danger {
+    background: var(--error);
+    color: white;
+    border: none;
+    box-shadow: var(--shadow-sm);
+}
+
+.nav-btn.danger:hover:not(:disabled) {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
+
+.nav-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none;
+}
+
 /* --- Mobile Adaptations --- */
 .mobile-only { display: none; }
 

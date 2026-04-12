@@ -12,16 +12,8 @@ import { apiClient } from '../services/api.js';
 const MAX_VIOLATIONS = 5;
 const AUTO_SAVE_INTERVAL = 30000; // 30 seconds
 
-// ── Blocked keyboard shortcuts ────────────────────────────────────
-const BLOCKED_SHORTCUTS = new Set([
-	'c', 'v', 'x', 'a',    // copy, paste, cut, select-all
-	'p',                     // print
-	's',                     // save
-	'u',                     // view source
-]);
-const BLOCKED_KEYS = new Set([
-	'F12', 'PrintScreen',
-]);
+// ── Blocked keys ──────────────────────────────────────────────────
+const BLOCKED_KEYS = new Set(['F12', 'PrintScreen']);
 
 export const useExamLogic = submissionId => {
 	const navigate = useNavigate();
@@ -50,14 +42,18 @@ export const useExamLogic = submissionId => {
 	const saveTimeoutRef = useRef(null);
 	const submissionRef = useRef(submission);
 	const pendingSave = useRef(null);
-	const violationThrottleRef = useRef(0); // timestamp of last violation
+	const violationThrottleRef = useRef(0);
+	// Track the save generation: incremented every time the user edits an answer.
+	// When a save completes, we only overwrite submission state if no newer edits
+	// happened while the network call was in-flight. This prevents the "vanishing
+	// text" bug where a slow API response clobbers keystrokes typed during save.
+	const answerEditGenRef = useRef(0);
 
-	// Keep ref updated
+	// Keep ref in sync
 	useEffect(() => {
 		submissionRef.current = submission;
 	}, [submission]);
 
-	// helper: always keep submission state + ref in sync
 	const setSubmissionState = useCallback(newSubmission => {
 		setSubmission(newSubmission);
 		submissionRef.current = newSubmission;
@@ -80,7 +76,6 @@ export const useExamLogic = submissionId => {
 					return;
 				}
 
-				// Normalize answers (ensure strings for ids)
 				const normalized = {
 					...(subData || {}),
 					answers:
@@ -127,7 +122,6 @@ export const useExamLogic = submissionId => {
 			if (isAuto) info(reason, { duration: 5000 });
 
 			try {
-				// Final save
 				if (hasUnsavedChanges.current || pendingSave.current) {
 					const finalAnswers = pendingSave.current?.answers || submission.answers || [];
 					const finalReview = pendingSave.current?.reviewState || markedForReview;
@@ -171,25 +165,21 @@ export const useExamLogic = submissionId => {
 		type => {
 			if (autoSubmitting) return;
 
-			// Throttle: max 1 violation per 2 seconds to prevent spam
+			// Throttle: max 1 violation per 2 seconds
 			const now = Date.now();
 			if (now - violationThrottleRef.current < 2000) return;
 			violationThrottleRef.current = now;
 
 			setViolations(prev => {
 				const newCount = (prev?.count || 0) + 1;
-
-				// Show overlay immediately
 				setViolationOverlay(type);
 
-				// Notify server (fire-and-forget)
 				if (submissionId) {
 					apiClient
 						.post(`/api/submissions/${submissionId}/violation`, { type })
 						.catch(() => {});
 				}
 
-				// Auto-submit when exceeding threshold
 				if (newCount > MAX_VIOLATIONS) {
 					finalSubmit(true, `Exceeded warning limit (${MAX_VIOLATIONS} violations). Auto-submitting.`);
 				}
@@ -201,139 +191,68 @@ export const useExamLogic = submissionId => {
 	);
 
 	// ═══════════════════════════════════════════════════════════════
-	// ENVIRONMENT MONITORING — Full security suite
+	// ENVIRONMENT MONITORING
 	// ═══════════════════════════════════════════════════════════════
 	useEffect(() => {
 		if (!isStarted || autoSubmitting) return;
 
-		// 1. Fullscreen exit detection
 		const onFullscreenChange = () => {
-			try {
-				if (!document.fullscreenElement) handleViolation('fullscreen');
-			} catch { /* noop */ }
+			try { if (!document.fullscreenElement) handleViolation('fullscreen'); } catch { /* */ }
 		};
 
-		// 2. Tab visibility change detection
 		const onVisibilityChange = () => {
-			try {
-				if (document.hidden) handleViolation('tab-switch');
-			} catch { /* noop */ }
+			try { if (document.hidden) handleViolation('tab-switch'); } catch { /* */ }
 		};
 
-		// 3. Window blur detection (catches pop-over windows that visibilitychange misses)
 		const onWindowBlur = () => {
-			try {
-				// Only fire if document is NOT hidden (visibilitychange handles that case)
-				if (!document.hidden) handleViolation('window-blur');
-			} catch { /* noop */ }
+			try { if (!document.hidden) handleViolation('window-blur'); } catch { /* */ }
 		};
 
-		// 4. Right-click prevention
 		const onContextMenu = e => {
 			try {
 				const t = e.target;
-				// Allow right-click on inputs for accessibility
 				if (t && (['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName) || t.isContentEditable)) return;
 				e.preventDefault();
-			} catch { /* noop */ }
+			} catch { /* */ }
 		};
 
-		// 5. Copy / Cut / Paste event interception
-		const onCopyEvent = e => {
-			e.preventDefault();
-			handleViolation('copy-attempt');
-		};
-		const onCutEvent = e => {
-			e.preventDefault();
-			handleViolation('copy-attempt');
-		};
+		const onCopyEvent = e => { e.preventDefault(); handleViolation('copy-attempt'); };
+		const onCutEvent = e => { e.preventDefault(); handleViolation('copy-attempt'); };
 		const onPasteEvent = e => {
-			// Allow paste only inside textarea/input answer fields
 			const t = e.target;
-			if (t && (t.tagName === 'TEXTAREA' || t.tagName === 'INPUT') && t.classList.contains('subjective-input')) {
-				// Allow paste in answer boxes — it's the student's choice to type or paste their own draft
-				return;
-			}
+			if (t && (t.tagName === 'TEXTAREA' || t.tagName === 'INPUT') && t.classList.contains('subjective-input')) return;
 			e.preventDefault();
 			handleViolation('paste-attempt');
 		};
 
-		// 6. Keyboard shortcut blocking
 		const onKeyDown = e => {
 			const key = e.key;
 			const mod = e.ctrlKey || e.metaKey;
 			const shift = e.shiftKey;
 
-			// Block F12 and PrintScreen globally
-			if (BLOCKED_KEYS.has(key)) {
-				e.preventDefault();
-				e.stopPropagation();
-				if (key === 'F12') handleViolation('devtools-attempt');
-				if (key === 'PrintScreen') handleViolation('screenshot-attempt');
-				return;
-			}
-
-			// Block Ctrl/Cmd + Shift + I/J/C (DevTools)
-			if (mod && shift && ['I', 'i', 'J', 'j', 'C', 'c'].includes(key)) {
-				e.preventDefault();
-				e.stopPropagation();
-				handleViolation('devtools-attempt');
-				return;
-			}
-
-			// Block Ctrl/Cmd + U (view source)
-			if (mod && (key === 'u' || key === 'U')) {
-				e.preventDefault();
-				e.stopPropagation();
-				handleViolation('devtools-attempt');
-				return;
-			}
-
-			// Block Ctrl/Cmd + P (print)
-			if (mod && (key === 'p' || key === 'P')) {
-				e.preventDefault();
-				e.stopPropagation();
-				return; // just block, not a major violation
-			}
-
-			// Block Ctrl/Cmd + S (save page)
-			if (mod && (key === 's' || key === 'S')) {
-				e.preventDefault();
-				return;
-			}
-
-			// Block Ctrl+A (select all) outside of text inputs
+			if (BLOCKED_KEYS.has(key)) { e.preventDefault(); e.stopPropagation(); if (key === 'F12') handleViolation('devtools-attempt'); if (key === 'PrintScreen') handleViolation('screenshot-attempt'); return; }
+			if (mod && shift && ['I', 'i', 'J', 'j', 'C', 'c'].includes(key)) { e.preventDefault(); e.stopPropagation(); handleViolation('devtools-attempt'); return; }
+			if (mod && (key === 'u' || key === 'U')) { e.preventDefault(); e.stopPropagation(); handleViolation('devtools-attempt'); return; }
+			if (mod && (key === 'p' || key === 'P')) { e.preventDefault(); e.stopPropagation(); return; }
+			if (mod && (key === 's' || key === 'S')) { e.preventDefault(); return; }
 			if (mod && (key === 'a' || key === 'A')) {
 				const t = e.target;
-				if (t && (t.tagName === 'TEXTAREA' || t.tagName === 'INPUT')) return; // allow in answer fields
-				e.preventDefault();
-				return;
+				if (t && (t.tagName === 'TEXTAREA' || t.tagName === 'INPUT')) return;
+				e.preventDefault(); return;
 			}
-
-			// Block Ctrl+C/X outside of text inputs
 			if (mod && ['c', 'C', 'x', 'X'].includes(key)) {
 				const t = e.target;
-				if (t && (t.tagName === 'TEXTAREA' || t.tagName === 'INPUT')) {
-					// Even in inputs, log but don't block (they might be rearranging their own answer)
-					return;
-				}
-				e.preventDefault();
-				handleViolation('copy-attempt');
-				return;
+				if (t && (t.tagName === 'TEXTAREA' || t.tagName === 'INPUT')) return;
+				e.preventDefault(); handleViolation('copy-attempt'); return;
 			}
 		};
 
-		// 7. DevTools size heuristic (check periodically)
 		const devtoolsCheckId = setInterval(() => {
 			const widthDiff = window.outerWidth - window.innerWidth;
 			const heightDiff = window.outerHeight - window.innerHeight;
-			// Typical browser chrome is ~0-100px; DevTools adds 200+
-			if (widthDiff > 200 || heightDiff > 200) {
-				handleViolation('devtools-open');
-			}
+			if (widthDiff > 200 || heightDiff > 200) handleViolation('devtools-open');
 		}, 5000);
 
-		// --- Register all listeners ---
 		document.addEventListener('fullscreenchange', onFullscreenChange);
 		document.addEventListener('visibilitychange', onVisibilityChange);
 		window.addEventListener('blur', onWindowBlur);
@@ -341,7 +260,7 @@ export const useExamLogic = submissionId => {
 		document.addEventListener('copy', onCopyEvent);
 		document.addEventListener('cut', onCutEvent);
 		document.addEventListener('paste', onPasteEvent);
-		document.addEventListener('keydown', onKeyDown, true); // capture phase
+		document.addEventListener('keydown', onKeyDown, true);
 
 		return () => {
 			document.removeEventListener('fullscreenchange', onFullscreenChange);
@@ -356,69 +275,52 @@ export const useExamLogic = submissionId => {
 		};
 	}, [isStarted, autoSubmitting, handleViolation]);
 
-	// ═══════════════════════════════════════════════════════════════
-	// BEFOREUNLOAD GUARD — Prevent accidental refresh/close
-	// ═══════════════════════════════════════════════════════════════
+	// --- Beforeunload Guard ---
 	useEffect(() => {
 		if (!isStarted || autoSubmitting) return;
-
-		const onBeforeUnload = e => {
-			e.preventDefault();
-			// Standard way to trigger browser "Leave site?" dialog
-			e.returnValue = '';
-			return '';
-		};
-
+		const onBeforeUnload = e => { e.preventDefault(); e.returnValue = ''; return ''; };
 		window.addEventListener('beforeunload', onBeforeUnload);
 		return () => window.removeEventListener('beforeunload', onBeforeUnload);
 	}, [isStarted, autoSubmitting]);
 
-	// --- Cleanup on unmount: clear pending timers / saves ---
+	// --- Cleanup on unmount ---
 	useEffect(() => {
 		return () => {
 			try {
 				if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
 				pendingSave.current = null;
-			} catch { /* noop */ }
+			} catch { /* */ }
 		};
 	}, []);
 
-	// --- Save Logic ---
+	// ═══════════════════════════════════════════════════════════════
+	// SAVE LOGIC — Fixed: no longer overwrites live textarea content
+	// ═══════════════════════════════════════════════════════════════
 	const handleQuickSave = useCallback(
 		async (answersToSave, reviewState) => {
 			const currentSubmission = submissionRef.current;
 			if (!currentSubmission?.id || !isOnline) return;
 
-			// Don't mutate inputs later: take deep snapshot
-			const snapshotAnswers = answersToSave
-				? JSON.parse(JSON.stringify(answersToSave))
-				: null;
-			const snapshotReview = reviewState
-				? Array.isArray(reviewState)
-					? reviewState.map(String)
-					: []
-				: null;
+			const snapshotAnswers = answersToSave ? JSON.parse(JSON.stringify(answersToSave)) : null;
+			const snapshotReview = reviewState ? (Array.isArray(reviewState) ? reviewState.map(String) : []) : null;
 
 			if (saving) {
 				pendingSave.current = { answers: snapshotAnswers, reviewState: snapshotReview };
 				return;
 			}
 
-			if (
-				!snapshotAnswers &&
-				!snapshotReview &&
-				!hasUnsavedChanges.current &&
-				!pendingSave.current
-			)
-				return;
+			if (!snapshotAnswers && !snapshotReview && !hasUnsavedChanges.current && !pendingSave.current) return;
 
 			setSaving(true);
+
+			// Capture the edit generation BEFORE the network call. If the user types
+			// anything while the call is in flight, answerEditGenRef will be bumped
+			// by handleAnswerChange and genAtSave will be stale → we skip the state update.
+			const genAtSave = answerEditGenRef.current;
+
 			try {
-				const finalAnswers =
-					snapshotAnswers || pendingSave.current?.answers || currentSubmission.answers;
-				const finalReview =
-					snapshotReview || pendingSave.current?.reviewState || markedForReview;
-				// clear pending copy before network call to avoid infinite loop
+				const finalAnswers = snapshotAnswers || pendingSave.current?.answers || currentSubmission.answers;
+				const finalReview = snapshotReview || pendingSave.current?.reviewState || markedForReview;
 				pendingSave.current = null;
 
 				const updated = await safeApiCall(saveSubmissionAnswers, currentSubmission.id, {
@@ -427,15 +329,20 @@ export const useExamLogic = submissionId => {
 				});
 
 				if (updated?.id) {
-					// updated is normalized by service; ensure IDs are strings
-					updated.answers = Array.isArray(updated.answers)
-						? updated.answers.map(a => ({
-								...a,
-								question: String(a.question),
-								responseOption: a.responseOption ? String(a.responseOption) : null,
-						  }))
-						: updated.answers;
-					setSubmissionState({ ...currentSubmission, ...updated });
+					// ─── KEY FIX: Only update submission state if the user has NOT
+					// typed anything while the save was in-flight. If they have,
+					// their local state is newer than the server response. ───
+					if (answerEditGenRef.current === genAtSave) {
+						updated.answers = Array.isArray(updated.answers)
+							? updated.answers.map(a => ({
+									...a,
+									question: String(a.question),
+									responseOption: a.responseOption ? String(a.responseOption) : null,
+							  }))
+							: updated.answers;
+						setSubmissionState({ ...currentSubmission, ...updated });
+					}
+					// Either way, mark as saved
 					hasUnsavedChanges.current = false;
 					setLastSaved(new Date());
 				}
@@ -444,7 +351,6 @@ export const useExamLogic = submissionId => {
 				console.error('Auto-save failed', e);
 			} finally {
 				setSaving(false);
-				// If another pending save was queued while saving, flush it
 				if (pendingSave.current) {
 					handleQuickSave(pendingSave.current.answers, pendingSave.current.reviewState);
 				}
@@ -466,10 +372,9 @@ export const useExamLogic = submissionId => {
 
 	// --- Actions ---
 	const handleStartExam = async () => {
-		// Try to enter fullscreen before marking started
 		try {
 			await document.documentElement.requestFullscreen?.();
-		} catch (err) {
+		} catch {
 			toastError('Could not enter fullscreen. Please enable fullscreen for best experience.');
 		} finally {
 			setIsStarted(true);
@@ -478,6 +383,9 @@ export const useExamLogic = submissionId => {
 
 	const handleAnswerChange = (questionId, value, type) => {
 		hasUnsavedChanges.current = true;
+		// Bump the edit generation so in-flight saves know not to overwrite
+		answerEditGenRef.current += 1;
+
 		let newAnswersForSave;
 		setSubmissionState(prev => {
 			if (!prev) return prev;
@@ -486,12 +394,11 @@ export const useExamLogic = submissionId => {
 			const idx = newAnswers.findIndex(a => String(a.question) === qid);
 
 			if (idx === -1) {
-				const newAns = {
+				newAnswers.push({
 					question: qid,
 					responseText: type === 'multiple-choice' ? '' : String(value || ''),
 					responseOption: type === 'multiple-choice' ? String(value || null) : null,
-				};
-				newAnswers.push(newAns);
+				});
 			} else {
 				newAnswers[idx] = {
 					...newAnswers[idx],
@@ -512,7 +419,6 @@ export const useExamLogic = submissionId => {
 			? markedForReview.filter(id => id !== qId)
 			: [...markedForReview, qId];
 		setMarkedForReview(newReview);
-		// keep submission.markedForReview in sync so sidebar/readers see it
 		setSubmissionState(prev => (prev ? { ...prev, markedForReview: newReview } : prev));
 		debouncedSave(null, newReview);
 	};
@@ -542,34 +448,18 @@ export const useExamLogic = submissionId => {
 	}, []);
 
 	return {
-		submission,
-		loading,
-		error,
-		isStarted,
-		currentQuestionIndex,
-		setCurrentQuestionIndex,
-		markedForReview,
-		violations,
-		violationOverlay,
-		setViolationOverlay,
-		saving,
-		lastSaved,
-		isOnline,
-		showSubmitConfirm,
-		setShowSubmitConfirm,
-		showSmallScreenWarning,
-		setShowSmallScreenWarning,
-		timer,
-		handleStartExam,
-		handleAnswerChange,
-		toggleReview,
-		finalSubmit,
-		handleQuickSave,
-		autoSubmitting,
+		submission, loading, error, isStarted,
+		currentQuestionIndex, setCurrentQuestionIndex,
+		markedForReview, violations, violationOverlay, setViolationOverlay,
+		saving, lastSaved, isOnline,
+		showSubmitConfirm, setShowSubmitConfirm,
+		showSmallScreenWarning, setShowSmallScreenWarning,
+		timer, handleStartExam, handleAnswerChange,
+		toggleReview, finalSubmit, handleQuickSave, autoSubmitting,
 	};
 };
 
-// --- Timer Helper ---
+// --- Timer ---
 const useTimer = (startedAt, duration) => {
 	const [now, setNow] = useState(() => Date.now());
 	useEffect(() => {

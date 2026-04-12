@@ -11,9 +11,13 @@ const ExamFooter = ({
 	disabled,
 	saving,
 	autoSubmitting,
+	questionStats,
 }) => {
+	const stats = questionStats || {};
+
 	return (
 		<footer className="exam-footer" role="contentinfo" aria-label="Exam navigation">
+			{/* Left: Previous */}
 			<div className="nav-group">
 				<button
 					className="nav-btn"
@@ -26,7 +30,8 @@ const ExamFooter = ({
 				</button>
 			</div>
 
-			<div className="nav-group" style={{ alignItems: 'center', gap: 12 }}>
+			{/* Center: Review + Save & Next + Submit */}
+			<div className="nav-group" style={{ alignItems: 'center', gap: 10 }}>
 				<button
 					className={`nav-btn review ${isReviewing ? 'active' : ''}`}
 					onClick={onReview}
@@ -34,10 +39,9 @@ const ExamFooter = ({
 					aria-pressed={isReviewing}
 				>
 					<span className="icon">{isReviewing ? '★' : '☆'}</span>
-					<span>{isReviewing ? 'Marked' : 'Mark for Review'}</span>
+					<span>{isReviewing ? 'Marked' : 'Review'}</span>
 				</button>
 
-				{/* Save & Next */}
 				<button
 					className="nav-btn primary"
 					onClick={onNext}
@@ -48,7 +52,6 @@ const ExamFooter = ({
 					<span className="icon">→</span>
 				</button>
 
-				{/* Submit button (prominent) */}
 				<button
 					className="nav-btn danger"
 					onClick={onSubmit}
@@ -61,9 +64,22 @@ const ExamFooter = ({
 				</button>
 			</div>
 
-			<div className="nav-group" style={{ minWidth: 160, textAlign: 'right' }}>
-				<div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-					{saving ? 'Saving...' : autoSubmitting ? 'Submitting...' : ''}
+			{/* Right: Save status */}
+			<div className="nav-group" style={{ minWidth: 140, justifyContent: 'flex-end', textAlign: 'right' }}>
+				<div style={{ fontSize: 12, color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
+					{saving && (
+						<span style={{ color: 'var(--primary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+							<span className="save-dot" style={{
+								width: 6, height: 6, borderRadius: '50%', background: 'var(--primary)',
+								animation: 'pulse 1s infinite',
+							}} />
+							Saving...
+						</span>
+					)}
+					{autoSubmitting && <span style={{ color: 'var(--error)', fontWeight: 600 }}>Submitting...</span>}
+					{!saving && !autoSubmitting && stats.total > 0 && (
+						<span>{stats.answered}/{stats.total} answered</span>
+					)}
 				</div>
 			</div>
 		</footer>
