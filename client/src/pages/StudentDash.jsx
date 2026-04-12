@@ -164,12 +164,22 @@ const StudentDash = () => {
 						fontWeight: 800,
 						cursor: 'pointer',
 						transition: 'transform 0.15s ease, filter 0.15s ease',
-						opacity: loggingOutFooter ? 0.8 : 1,
+						opacity: loggingOutFooter ? 0.7 : 1,
+						pointerEvents: loggingOutFooter ? 'none' : 'auto',
 					}}
 					onMouseEnter={e => (e.currentTarget.style.transform = 'translateY(-1px)')}
 					onMouseLeave={e => (e.currentTarget.style.transform = 'translateY(0)')}
 				>
-					{loggingOutFooter ? 'Logging out…' : '🚪 Logout'}
+					<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+						{loggingOutFooter ? (
+							<>
+								<div style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+								<span>Logging out...</span>
+							</>
+						) : (
+							<span>🚪 Logout</span>
+						)}
+					</div>
 				</button>
 			</div>
 		),
