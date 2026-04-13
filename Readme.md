@@ -5,710 +5,250 @@
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green?logo=nodedotjs)](https://nodejs.org/)  
 [![Express.js](https://img.shields.io/badge/Express.js-5-lightgrey?logo=express)](https://expressjs.com/)  
 [![MongoDB](https://img.shields.io/badge/MongoDB-8-green?logo=mongodb)](https://www.mongodb.com/)
+[![HuggingFace](https://img.shields.io/badge/Hugging%20Face-Mistral_7B-yellow?logo=huggingface)](https://huggingface.co/)
 
-A modern, full-stack MERN (MongoDB, Express, React, Node.js) exam management system featuring AI-assisted grading, real-time collaboration, and a polished responsive UI with dark mode support.
-
----
-
-## ✨ Overview
-
-This system streamlines the entire exam lifecycle from creation to grading, providing teachers and students with a professional platform for conducting online assessments. Built with modern web technologies and best practices, it emphasizes **reliability** (autosave), **auditability** (comprehensive logging), and **extensibility** (AI evaluation pipeline).
-
-**Key Highlights:**
-- 🎨 Modern, responsive UI with dark/light mode
-- ⚡ Real-time updates via Socket.IO
-- 🤖 AI-assisted grading for subjective questions
-- 💾 Automatic answer saving (prevents data loss)
-- 🔐 Secure JWT authentication
-- 📊 Comprehensive analytics dashboards
-- 🎯 Multiple question types (MCQ, Subjective)
-- 🐛 Built-in issue reporting system
+A production-grade, full-stack MERN (MongoDB, Express, React, Node.js) exam management system engineered for educational institutions. The platform pairs real-time reactive interfaces with an automated, AI-driven assessment pipeline evaluating both objective (MCQ) and subjective responses using the **Hugging Face Mistral-7B Inference API**.
 
 ---
 
-## 🚀 Core Features
+## ✨ System Highlights
 
-### For Students
+This platform handles the entire assessment lifecycle—from exam drafting to AI-assisted grading and data analytics—while maintaining a resilient architecture that prevents data loss and secures student integrity.
 
-#### 📚 Exam Management
-- **Dashboard**: Professional home page with stats, recent activity, and profile card
-- **Exam Search**: Find exams using unique search codes
-- **Live Exam Interface**: 
-  - Clean, focused UI with question navigation
-  - Real-time autosave (every 30 seconds)
-  - Mark questions for review
-  - Timer with visual feedback
-  - Tab switch detection
-- **Results**: Detailed per-question feedback with scores and AI evaluations
-
-#### ⚙️ Profile & Settings
-- **Complete Profile Management**: Update name, email, phone, gender, and address
-- **Partial Updates**: Only modified fields are sent to server
-- **Password Management**: Secure password change functionality
-- **Responsive Design**: Works seamlessly on mobile, tablet, and desktop
-
-#### 🛠️ Issue Reporting
-- Create issues for exam problems or grading disputes
-- Track issue status in real-time
-- Receive notifications when issues are resolved
-- Attach exam submissions to issues
-
-### For Teachers
-
-#### 📝 Exam Creation & Management
-- **Rich Exam Creation**: 
-  - Multiple question types (MCQ with multiple correct answers, Subjective)
-  - Set duration, start/end times, and access policies
-  - Configure AI grading policies per question
-  - Generate unique search codes
-- **Exam Editing**: Update questions, settings, and policies
-- **Exam Management**: Publish, unpublish, filter, and search exams
-- **Real-time Monitoring**: Track student progress live
-
-#### 📊 Grading & Evaluation
-- **AI-Assisted Grading**: Automatic evaluation of subjective answers
-- **Manual Override**: Review and adjust AI-generated scores
-- **Batch Operations**: Grade multiple submissions efficiently
-- **Detailed Analytics**: Track performance metrics
-
-#### 👥 Student Management
-- View all submissions by exam or student
-- Monitor exam attempts in real-time
-- Track completion rates and scores
-- Issue management and resolution
-
-#### 🏠 Professional Dashboard
-- Comprehensive stats (total exams, live exams, pending reviews, open issues)
-- Recent submissions feed
-- Profile management with avatar
-- Quick access to all features
+**Core Technical Features:**
+- 🤖 **Automated Subjective Grading**: Direct integration with Hugging Face LLMs to evaluate long-form subjective text against teacher-defined rubrics.
+- ⚡ **Detached Asynchronous Pipeline**: Safely queues and processes heavy AI tasks without blocking client HTTPS connections.
+- 🎨 **Glassmorphic Responsive UI**: A premium, state-aware dashboard featuring dark/light modes and dynamic Recharts analytics.
+- 💾 **Resilient Autosaving**: WebSockets and debounced REST calls persist student progress every 30 seconds to survive network drops.
+- 🔐 **Hardened Security**: Complete JWT flow, Google OAuth bindings, BCrypt hashing, and Express Rate-Limiting.
 
 ---
 
-## 🎨 UI/UX Features
+## 🚀 How It Works (Architecture Deep Dive)
 
-### Modern Design System
-- **CSS Variables**: Consistent theming throughout the app
-- **Dark Mode**: Automatic dark/light mode switching
-- **Responsive Typography**: Fluid font sizes using CSS `clamp()`
-- **Consistent Components**: Reusable KPI cards, status badges, and alerts
-- **Smooth Animations**: Transitions, hover effects, and loading states
-- **Professional Color Palette**: Carefully chosen colors for different states
-
-### Responsive Layouts
-- **Two-Column Dashboards**: Profile sidebar + main content (desktop)
-- **Stacked Mobile**: Automatic single-column layout on mobile
-- **Breakpoint**: 880px for optimal tablet/desktop experience
-- **Touch-Friendly**: Minimum 44px touch targets
-
-### Loading States
-- **Skeleton Screens**: Professional placeholders during data fetch
-- **Pulse Animations**: Smooth loading indicators
-- **Inline Loading**: Context-aware loading states
-
----
-
-## 🏗️ Technology Stack
-
-### Frontend
-- **React 19**: Latest React with improved performance
-- **Vite 7**: Lightning-fast build tool and dev server
-- **React Router 7**: Client-side routing
-- **Socket.IO Client**: Real-time bi-directional communication
-- **Axios**: HTTP client for API requests
-- **Framer Motion**: Smooth animations
-- **Lucide React**: Modern icon library
-- **Recharts**: Data visualization
-
-### Backend
-- **Node.js 18+**: JavaScript runtime
-- **Express 5**: Web application framework
-- **MongoDB 8**: NoSQL database
-- **Mongoose**: ODM for MongoDB
-- **Socket.IO**: Real-time engine
-- **JWT**: Secure authentication
-- **Express Validator**: Input validation
-- **Bcrypt**: Password hashing
-- **Helmet**: Security headers
-- **Morgan**: HTTP request logger
-
-### Development Tools
-- **ESLint**: Code linting
-- **Nodemon**: Auto-restart during development
-- **Dotenv**: Environment variable management
-
----
-
-## 📐 Architecture
-
-### High-Level Flow
+Understanding the internal flow of the system is critical for developers and contributors looking to scale the platform.
 
 ```mermaid
 flowchart TD
-    A[Landing Page] --> B{Login / Register}
-    B --> C{Role?}
-    C -->|Student| S[Student Dashboard]
-    C -->|Teacher| T[Teacher Dashboard]
+    %% Core Authentication %%
+    Start[Landing Page] --> Auth{Auth Strategy}
+    Auth -->|Google OAuth| ValidTkn[Validate idToken]
+    Auth -->|Credentials| Bcrypt[Verify Password]
+    ValidTkn --> RoleCheck{User Role?}
+    Bcrypt --> RoleCheck
     
-    subgraph Student Flow
-        S --> S1[Find Exam by Code]
-        S1 --> S2[Start Exam]
-        S2 --> S3[Answer Questions]
-        S3 --> S4[Autosave Answers]
-        S3 --> S5[Submit Exam]
-        S5 --> S6[View Results]
-        S6 --> S7[Report Issue]
-        S --> S8[Manage Profile]
+    %% Setup Styles %%
+    classDef auth fill:#2a303c,stroke:#94a3b8,stroke-width:2px;
+    classDef teacher fill:#1e3a8a,stroke:#60a5fa,stroke-width:2px;
+    classDef student fill:#064e3b,stroke:#34d399,stroke-width:2px;
+    classDef ai fill:#5b21b6,stroke:#c084fc,stroke-width:2px;
+    classDef socket fill:#991b1b,stroke:#f87171,stroke-width:2px;
+
+    class Start,Auth,ValidTkn,Bcrypt,RoleCheck auth;
+
+    %% Branching %%
+    RoleCheck -->|Teacher| T[Teacher Dashboard]
+    RoleCheck -->|Student| S[Student Dashboard]
+
+    %% TEACHER FLOW 1: Creation %%
+    subgraph Teacher Creation
+        T --> T1[Create Exam <br><i>Draft Status</i>]
+        T1 --> T2[Build Questions <br><i>MCQ / Subjective</i>]
+        T2 --> T3[Configure AI Grading Policy <br><i>Strictness, Word Limits</i>]
+        T3 --> T4[Publish Exam <br><i>Generates Secret Search Code</i>]
     end
-    
-    subgraph Teacher Flow
-        T --> T1[Create/Edit Exams]
-        T1 --> T2[Publish Exam]
-        T2 --> T3[Monitor Submissions]
-        T3 --> T4[Grade with AI Assistance]
-        T4 --> T5[Publish Results]
-        T --> T6[Resolve Issues]
-        T --> T7[View Analytics]
+    class T1,T2,T3,T4 teacher;
+
+    %% STUDENT FLOW 1: Submitting %%
+    subgraph Student Examination
+        S --> S1[Input Search Code]
+        S1 --> S2[Validate Time Window]
+        S2 --> S3[Start Exam <br><i>Live Timer Active</i>]
+        S3 --> S4[Real-time Autosave <br><i>Debounced PATCH every 30s</i>]
+        S4 --> S5[Time Expires or Submit]
+        S5 -->|Payload: Texts & Options| EvalTrig((Trigger Processing))
     end
+    class S,S1,S2,S3,S4,S5 student;
+    T4 -.->|Secret Code Delivery| S1
+
+    %% ASYNC AI FLOW %%
+    subgraph AI Evaluation Pipeline
+        EvalTrig --> P1[Set Status: <i>Evaluating</i>]
+        P1 --> P2[Detached Background Job Queued]
+        P2 --> P3{Contains Subjective Answers?}
+        P3 -->|No| P4[Calculate Native MCQ Score]
+        P3 -->|Yes| P5[Generate Prompt + Teacher Policy]
+        P5 --> P6[Call Hugging Face 'Mistral-7B' API]
+        P6 --> P7{Valid JSON Response?}
+        P7 -->|Yes| P8[Extract 'score' & 'review']
+        P7 -->|No / Timeout| P9[Trigger Heuristic Fallback]
+        P8 --> P10[Aggregate Final Grade]
+        P9 --> P10
+        P4 --> P10
+        P10 --> P11[Save to Database <br> Status: <i>Evaluated</i>]
+    end
+    class P1,P2,P3,P4,P5,P6,P7,P8,P9,P10,P11,EvalTrig ai;
+
+    %% TEACHER FLOW 2: Analytics & Overrides %%
+    subgraph Teacher Analytics
+        P11 --> T5[Recharts Dashboard Updates]
+        T5 --> T6[Drilldown Student Responses]
+        T6 --> T7{Teacher Approves AI?}
+        T7 -->|Yes| T8[Results Finalized]
+        T7 -->|No| T9[Manual Grade Override <br><i>Replace AI Script</i>]
+        T9 --> T8
+    end
+    class T,T5,T6,T7,T8,T9 teacher;
+
+    %% WEBSOCKET EVENTS %%
+    subgraph Real-Time WebSockets
+        Socket[Socket.IO Event Bus]
+        T4 -.->|exam-published| Socket
+        P11 -.->|submission-updated| Socket
+        Socket -.->|UI Mutate| S
+        Socket -.->|UI Mutate| T
+    end
+    class Socket socket;
 ```
 
-### Data Models
+### 1. The Authentication Layer
+The system uses dual-layered authentication. Users can register natively (using BCrypt hashed passwords) or utilize **Google OAuth**. During an OAuth flow, the client intercepts a Google `idToken` and securely transmits it to the Node.js backend. The `google-auth-library` validates the token and maps the user's Google email to an internal Student/Teacher account, issuing secure JSON Web Tokens (JWTs) tracking session limits.
 
-#### Student Model
-- Authentication (username, email, password)
-- Profile (fullname, phone, gender)
-- Address (street, city, state, postalCode, country)
-- Timestamps
+### 2. The Exam Lifecycle
+Exams transition through several strict states controlled by the `ExamStatus.service`:
+- **Draft**: Teachers craft questions (MCQs, Subjective). Exam is completely hidden. (Delete allowed).
+- **Scheduled**: Exam is published but the `startTime` is in the future. Students see a countdown clock.
+- **Live**: Exam is active. Students can fetch questions and submit. Server rejects any submissions past `endTime`.
+- **Completed**: Exam timer expires. In-progress exams are force-submitted.
 
-#### Teacher Model
-- Authentication (username, email, password)
-- Profile (fullname, phone, department)
-- Address (street, city, state, postalCode, country)
-- Timestamps
+### 3. The AI Evaluation Pipeline (Detached IIFE)
+When a student finishes an exam containing subjective text, the server receives the `POST /submit` payload. 
+Instead of forcing the student's browser to wait for the LLM to read and grade every question, the server instantly replies `200 OK` and marks the exam as `evaluating`.
 
-#### Exam Model
-- Metadata (title, description, duration)
-- Questions (references to Question model)
-- Timing (startTime, endTime)
-- Access control (searchCode, status)
-- AI policy configuration
+Behind the scenes, a detached background process takes over:
+1. **Extraction**: It pulls the student's text, the question context, and the teacher's grading rubric (e.g. *Strictness: High, Expected Length: 50 words*).
+2. **Prompt Injection**: The data is formatted into an immutable system prompt.
+3. **Hugging Face Inference**: The Payload is thrown to the generic `HF_API_URL` (Mistral-7B). The model is strictly instructed to return raw JSON containing a `score` and `review`.
+4. **Resilience Parsing**: If the LLM returns broken JSON, the system dynamically attempts to repair it. If it fails entirely or the network drops, a **Heuristic Fallback** evaluates the sentence structure and tags the teacher for manual override.
+5. **Database Commit**: The MongoDB `Submission` state changes to `evaluated` and the teacher explores the visual analytics!
 
-#### Question Model
-- Type (MCQ, Subjective)
-- Content (text, options)
-- Grading (maxMarks, correctAnswers for MCQ)
-- AI policy (rubric, keywords)
-
-#### Submission Model
-- References (student, exam)
-- Answers array (question, responseText, responseOption)
-- Metadata (status, startedAt, submittedAt)
-- Evaluation results
-- Marked for review
-
-#### Issue Model
-- References (student, submission, exam)
-- Content (issueType, description)
-- Status tracking (open, resolved)
-- Reply system
-- Timestamps
+### 4. Real-Time WebSockets
+`Socket.IO` is responsible for live state monitoring. When an exam goes from *Scheduled* to *Live*, or when a student completes an evaluation, the backend immediately emits `exam-updated` or `submission-updated` payloads. The frontend React contexts dynamically reload data without manual refreshing.
 
 ---
 
-## 🔌 API Endpoints
+## 🛠️ Setting Up Local Development
 
-### Authentication
-
-#### Student Authentication
-```
-POST   /api/students/register          - Register new student
-POST   /api/students/login              - Student login
-POST   /api/students/logout             - Student logout
-GET    /api/students/profile            - Get profile
-PUT    /api/students/update             - Update profile (partial)
-PUT    /api/students/change-password   - Change password
-```
-
-#### Teacher Authentication
-```
-POST   /api/teachers/register          - Register new teacher
-POST   /api/teachers/login              - Teacher login
-POST   /api/teachers/logout             - Teacher logout
-GET    /api/teachers/profile            - Get profile
-PUT    /api/teachers/update             - Update profile (partial)
-PUT    /api/teachers/change-password   - Change password
-```
-
-### Exams
-```
-POST   /api/exams                       - Create exam (Teacher)
-GET    /api/exams                       - List exams (Teacher)
-GET    /api/exams/:id                   - Get exam details
-PUT    /api/exams/:id                   - Update exam (Teacher)
-DELETE /api/exams/:id                   - Delete exam (Teacher)
-GET    /api/exams/search/:code          - Find exam by search code (Student)
-POST   /api/exams/:id/publish           - Publish exam (Teacher)
-```
-
-### Questions
-```
-POST   /api/questions                   - Create question (Teacher)
-PUT    /api/questions/:id               - Update question (Teacher)
-DELETE /api/questions/:id               - Delete question (Teacher)
-```
-
-### Submissions
-```
-POST   /api/submissions/start/:examId   - Start exam (Student)
-GET    /api/submissions/my-submissions  - Get student submissions
-GET    /api/submissions/:id             - Get submission details
-PATCH  /api/submissions/:id/answers     - Autosave answers (Student)
-POST   /api/submissions/:id/submit      - Submit exam (Student)
-GET    /api/submissions/results/:id     - Get results (Student)
-POST   /api/submissions/:id/violation   - Report violation (Student)
-```
-
-### Grading
-```
-GET    /api/teacher/submissions         - List all submissions (Teacher)
-GET    /api/teacher/submissions/:id     - Get submission for grading
-POST   /api/teacher/submissions/:id/grade - Grade submission (Teacher)
-POST   /api/submissions/test-evaluation - Test AI evaluation
-```
-
-### Issues
-```
-POST   /api/issues/create               - Create issue (Student)
-GET    /api/issues/student              - Get student issues
-GET    /api/issues/me                   - Alternative endpoint
-GET    /api/issues/:id                  - Get issue details
-POST   /api/issues/:id/reply            - Reply to issue
-DELETE /api/issues/:id                  - Delete issue (Student)
-```
-
----
-
-## 📁 Project Structure
-
-```
-AI-Based-Exam-Evaluation-System/
-├── client/                          # Frontend React application
-│   ├── public/                     # Static assets
-│   ├── src/
-│   │   ├── main.jsx               # Application entry point
-│   │   ├── App.jsx                # Root component
-│   │   ├── index.css              # Global styles with CSS variables
-│   │   ├── components/            # Reusable components
-│   │   │   ├── ErrorBoundary.jsx
-│   │   │   ├── Header.jsx
-│   │   │   ├── Login.jsx
-│   │   │   ├── Register.jsx
-│   │   │   ├── Sidebar.jsx
-│   │   │   └── ...
-│   │   ├── context/               # React contexts
-│   │   │   ├── AuthContext.jsx
-│   │   │   └── ThemeContext.jsx
-│   │   ├── hooks/                 # Custom React hooks
-│   │   │   ├── useAuth.js
-│   │   │   └── useTheme.js
-│   │   ├── pages/                 # Page components
-│   │   │   ├── student/
-│   │   │   │   ├── Home.jsx           # Dashboard with stats
-│   │   │   │   ├── Exams.jsx          # Exam search
-│   │   │   │   ├── TakeExam.jsx       # Exam interface
-│   │   │   │   ├── result.jsx         # Results page
-│   │   │   │   ├── issue.jsx          # Issue reporting
-│   │   │   │   ├── Settings.jsx       # Profile management
-│   │   │   │   └── Settings.css
-│   │   │   └── teacher/
-│   │   │       ├── Home.jsx           # Teacher dashboard
-│   │   │       ├── Exams.jsx          # Exam management
-│   │   │       ├── ExamCreate.jsx     # Create exams
-│   │   │       ├── ExamEdit.jsx       # Edit exams
-│   │   │       ├── SubmissionGrade.jsx # Grading interface
-│   │   │       ├── result.jsx         # Results management
-│   │   │       ├── issue.jsx          # Issue management
-│   │   │       ├── Settings.jsx       # Profile management
-│   │   │       └── Settings.css
-│   │   ├── routes/                # Route configuration
-│   │   ├── services/              # API services
-│   │   │   ├── api.js
-│   │   │   ├── studentServices.js
-│   │   │   └── teacherServices.js
-│   │   └── utils/                 # Utility functions
-│   ├── package.json
-│   └── vite.config.js
-│
-└── server/                          # Backend Node.js application
-    ├── src/
-    │   ├── server.js               # Server entry point
-    │   ├── app.js                  # Express app configuration
-    │   ├── db.js                   # Database connection
-    │   ├── controllers/            # Route controllers
-    │   │   ├── student.controller.js
-    │   │   ├── teacher.controller.js
-    │   │   ├── exam.controller.js
-    │   │   ├── question.controller.js
-    │   │   ├── submission.controller.js
-    │   │   └── issue.controller.js
-    │   ├── models/                 # Mongoose models
-    │   │   ├── student.model.js
-    │   │   ├── teacher.model.js
-    │   │   ├── exam.model.js
-    │   │   ├── question.model.js
-    │   │   ├── submission.model.js
-    │   │   └── issue.model.js
-    │   ├── routes/                 # API routes
-    │   │   ├── student.routes.js
-    │   │   ├── teacher.routes.js
-    │   │   ├── exam.routes.js
-    │   │   ├── question.routes.js
-    │   │   ├── submission.routes.js
-    │   │   └── issue.routes.js
-    │   ├── middlewares/            # Express middlewares
-    │   │   ├── auth.middleware.js
-    │   │   └── cors.middleware.js
-    │   ├── services/               # Business logic
-    │   │   ├── evaluation.service.js
-    │   │   └── examStatus.service.js
-    │   ├── socket/                 # Socket.IO configuration
-    │   │   └── initSocket.js
-    │   └── utils/                  # Utility functions
-    │       ├── ApiError.js
-    │       ├── ApiResponse.js
-    │       └── asyncHandler.js
-    └── package.json
-```
-
----
-
-## 🚀 Getting Started
+If you wish to run this server locally, contribute to the code, or explore the features, follow these deep-dive steps.
 
 ### Prerequisites
+- **Node.js**: v18.0.0 or higher
+- **MongoDB**: A local instance (`mongodb://localhost:27017`) or an Atlas cloud cluster.
+- **Hugging Face API Token**: Required to unlock subjective AI evaluations.
+- **Google Cloud Console**: An active Client ID to test the external OAuth flows.
 
-- **Node.js** 18 or higher
-- **MongoDB** 4.4 or higher (local or MongoDB Atlas)
-- **npm** or **yarn**
-- **Git**
+### 1. Repository Setup
 
-### Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/yourusername/AI-Based-Exam-Evaluation-System.git
-   cd AI-Based-Exam-Evaluation-System
-   ```
-
-2. **Setup Backend**
-   ```bash
-   cd server
-   npm install
-   ```
-
-   Create `server/.env`:
-   ```env
-   # Database
-   MONGODB_URI=mongodb://localhost:27017/exam-evaluation
-   
-   # JWT
-   ACCESS_TOKEN_SECRET=your-super-secret-access-token-key-change-this
-   REFRESH_TOKEN_SECRET=your-super-secret-refresh-token-key-change-this
-   ACCESS_TOKEN_EXPIRY=24h
-   REFRESH_TOKEN_EXPIRY=7d
-   
-   # Server
-   PORT=3003
-   NODE_ENV=development
-   
-   # CORS
-   CORS_ORIGIN=http://localhost:5173
-   
-   # AI Evaluation Service (optional)
-   AI_SERVICE_URL=http://localhost:5000
-   ```
-
-   Start the server:
-   ```bash
-   npm run dev
-   ```
-
-3. **Setup Frontend**
-   ```bash
-   cd ../client
-   npm install
-   ```
-
-   Create `client/.env` (optional):
-   ```env
-   VITE_API_BASE_URL=http://localhost:3003
-   ```
-
-   Start the development server:
-   ```bash
-   npm run dev
-   ```
-
-4. **Access the Application**
-   - Frontend: http://localhost:5173
-   - Backend API: http://localhost:3003
-
-### First-Time Setup
-
-1. Register a teacher account
-2. Register a student account
-3. As teacher: Create an exam with questions
-4. As teacher: Publish the exam and note the search code
-5. As student: Use the search code to find and start the exam
-
----
-
-## 🔒 Environment Variables
-
-### Server (.env)
-
-| Variable | Description | Required | Default |
-|----------|-------------|----------|---------|
-| `MONGODB_URI` | MongoDB connection string | ✅ | - |
-| `ACCESS_TOKEN_SECRET` | JWT access token secret | ✅ | - |
-| `REFRESH_TOKEN_SECRET` | JWT refresh token secret | ✅ | - |
-| `ACCESS_TOKEN_EXPIRY` | Access token expiration | ❌ | 24h |
-| `REFRESH_TOKEN_EXPIRY` | Refresh token expiration | ❌ | 7d |
-| `PORT` | Server port | ❌ | 3003 |
-| `NODE_ENV` | Environment | ❌ | development |
-| `CORS_ORIGIN` | Allowed frontend origin | ✅ | - |
-| `AI_SERVICE_URL` | AI evaluation service URL | ❌ | - |
-
-### Client (.env)
-
-| Variable | Description | Required | Default |
-|----------|-------------|----------|---------|
-| `VITE_API_BASE_URL` | Backend API base URL | ❌ | http://localhost:3003 |
-
----
-
-## 🎯 Key Features Implementation
-
-### Partial Update Logic
-
-Both student and teacher settings pages implement efficient partial updates:
-
-```javascript
-// Only send changed fields
-const payload = {};
-if (username !== originalProfile.username) {
-    payload.username = username.trim();
-}
-// ... only modified fields added to payload
-
-await updateProfile(payload);
+```bash
+git clone https://github.com/yourusername/AI-Based-Exam-Evaluation-System.git
+cd AI-Based-Exam-Evaluation-System
 ```
 
-**Benefits:**
-- Reduced network traffic
-- Prevents unnecessary database writes
-- Handles optional fields correctly (sends `null` for empty values)
+### 2. Backend Environment Initialization
+Navigate to the `server` directory and install the heavy backend dependencies (Express 5, Mongoose, Socket.IO, Google Auth).
 
-### Autosave System
-
-The exam interface automatically saves progress every 30 seconds:
-
-```javascript
-// Debounced autosave
-const saveAnswers = useCallback(debounce(async (answers) => {
-    await saveSubmissionAnswers(submissionId, { answers });
-}, 30000), [submissionId]);
+```bash
+cd server
+npm install
 ```
 
-**Features:**
-- Prevents data loss
-- Works with unstable connections
-- Visual feedback during save
-- Manual save option available
+Create a root `server/.env` file with the exact structure below:
 
-### Real-Time Updates
+```env
+# Database & Core Security
+MONGODB_URI=mongodb://localhost:27017/exam-evaluation
+PORT=3003
+NODE_ENV=development
+CORS_ORIGIN=http://localhost:5173
 
-Socket.IO powers real-time features:
+# JWT Configuration
+ACCESS_TOKEN_SECRET=your-secure-access-token-key
+REFRESH_TOKEN_SECRET=your-secure-refresh-token-key
 
-```javascript
-// Server emits events
-socket.emit('new-submission', submissionData);
-socket.emit('submission-updated', { submissionId, status });
-socket.emit('issue-status-changed', issueData);
+# Google OAuth Server Secret
+GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
 
-// Client listens for updates
-socket.on('new-submission', (data) => {
-    updateDashboard(data);
-});
+# Hugging Face AI Pipeline Configuration
+# Using Mistral 7B for rapid JSON returns
+HF_API_URL=https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2
+HF_API_KEY=hf_your_hugging_face_secret_token
+EVAL_MAX_RETRIES=1
+EVAL_TIMEOUT_MS=15000
+```
+Start up the server using Nodemon:
+```bash
+npm run dev
 ```
 
-**Use Cases:**
-- Live submission monitoring
-- Issue status updates
-- Real-time grading feedback
+### 3. Frontend Environment Initialization
+In a new terminal window, initialize the Vite 7 client application.
 
-### Theme System
-
-Comprehensive dark/light mode using CSS variables:
-
-```css
-:root {
-    --bg: #ffffff;
-    --surface: #ffffff;
-    --text: #0f172a;
-    --border: #e5e7eb;
-}
-
-[data-theme="dark"] {
-    --bg: #0f172a;
-    --surface: #1e293b;
-    --text: #e2e8f0;
-    --border: #334155;
-}
+```bash
+cd client
+npm install
 ```
 
-Toggle theme programmatically or via system preference.
-
----
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-#### Cannot Connect to Database
-```
-Error: connect ECONNREFUSED 127.0.0.1:27017
-```
-**Solution**: Ensure MongoDB is running locally or check your `MONGODB_URI` connection string.
-
-#### CORS Errors
-```
-Access to XMLHttpRequest has been blocked by CORS policy
-```
-**Solution**: Verify `CORS_ORIGIN` in server `.env` matches your frontend URL (e.g., `http://localhost:5173`).
-
-#### Autosave Not Working
-**Symptoms**: Answers don't persist after refresh
-
-**Solutions**:
-1. Check browser console for network errors
-2. Verify JWT token is valid
-3. Ensure `submission.id` exists before autosave
-4. Check server logs for PATCH `/api/submissions/:id/answers` errors
-
-#### Profile Data Not Showing
-**Symptoms**: Dashboard shows placeholder data
-
-**Solutions**:
-1. Verify `getStudentProfile()` or `getTeacherProfile()` is called on mount
-2. Check network tab for 401 errors (auth issue)
-3. Ensure backend returns complete profile data
-
-#### Dark Mode Not Working
-**Solution**: Check if `data-theme="dark"` attribute is set on `<html>` or root element.
-
----
-
-## 📊 API Response Formats
-
-### Success Response
-```json
-{
-    "success": true,
-    "data": { ... },
-    "message": "Operation successful"
-}
+Create a root `client/.env` file mapping identical variables for the browser:
+```env
+VITE_API_BASE_URL=http://localhost:3003
+VITE_GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
 ```
 
-### Error Response
-```json
-{
-    "success": false,
-    "message": "Error description",
-    "errors": [ ... ]  // Optional validation errors
-}
+Boot the frontend Vite server:
+```bash
+npm run dev
 ```
+Navigate to `http://localhost:5173`. 
 
 ---
 
-## 🔐 Security Features
+## 🧪 Testing the API
 
--  **JWT Authentication**: Secure token-based auth
-- ✅ **Password Hashing**: Bcrypt with salt rounds
-- ✅ **CORS Protection**: Configurable origins
-- ✅ **Input Validation**: Express-validator
-- ✅ **Security Headers**: Helmet middleware
-- ✅ **Rate Limiting**: Prevents abuse
-- ✅ **SQL Injection Prevention**: Mongoose ODM
-- ✅ **XSS Protection**: Content sanitization
+The backend comes pre-packaged with a robust CLI API testing suite. It simulates auth boundaries, malformed requests, evaluation queue checks, and database cleanup. 
 
----
-
-## 🚧 Roadmap
-
-### Near-term
-- [ ] Email verification for registration
-- [ ] Password reset via email
-- [ ] File upload for questions/answers
-- [ ] Export results to PDF/CSV
-- [ ] Advanced analytics for teachers
-
-### Long-term
-- [ ] Code editor questions (for programming exams)
-- [ ] Improved AI rubrics and multi-pass grading
-- [ ] Proctoring features (webcam, screen recording)
-- [ ] Mobile apps (React Native)
-- [ ] LMS integration (Canvas, Moodle)
-- [ ] Accessibility improvements (WCAG 2.1 AA)
+To run the comprehensive test script against your running local server:
+```bash
+cd server
+node test_api.mjs
+```
+*Note: Make sure your `server/src/server.js` is running on PORT 3003 (or PORT 8000 depending on the `test_api.mjs` config) before firing the test suite.*
 
 ---
 
-## 🤝 Contributing
+## 🤝 Contributing Guidelines
 
-We welcome contributions! Please follow these steps:
+We actively welcome Pull Requests to enhance the assessment engine or stabilize front-end flows.
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-### Development Guidelines
-
-- Follow existing code style
-- Write meaningful commit messages
-- Add comments for complex logic
-- Test your changes thoroughly
-- Update documentation as needed
+**Feature Branch Workflow:**
+1. Fork the repo and jump to a fresh branch: `git checkout -b feature/issue-tracking-upgrade`.
+2. Please align any new React components to the existing CSS variable architecture inside `client/src/index.css` (e.g., `var(--surface)`, `var(--text)`).
+3. If adjusting AI logic, ensure the Detached Evaluation process inside `server/src/services/evaluation.service.js` doesn't block the `asyncHandler`.
+4. Push your branch: `git push origin feature/issue-tracking-upgrade` and open a PR!
 
 ---
 
-## 📝 License
+## 🛣️ Long-Term Roadmap
 
-This project is licensed under the ISC License - see the [LICENSE](./LICENSE) file for details.
-
----
-
-## 👥 Authors
-
-- **Anurag Basuri** - *Initial work*
+- **Drag-And-Drop Exam Builders**: We have injected `@hello-pangea/dnd` into the `package.json`. Next step is a Notion-style block editor for teachers drafting massive exams.
+- **Scale Evaluation Infrastructure**: Shifting the IIFE memory loop toward a formal Redis / BullMQ caching architecture for 10k+ concurrent student evaluations.
+- **WebRTC Monitoring**: Secure camera tracking toggles for heavily proctored test configurations.
+- **Results Export**: `json2csv` CSV dumps and PDF generations for school archives.
 
 ---
 
-## 🙏 Acknowledgments
+## 📝 License & Authors
 
-- React team for the amazing framework
-- MongoDB for the flexible database
-- Socket.IO for real-time capabilities
-- All contributors and users
+- **Anurag Basuri** - Initial Platform Architect
+- Licensed comprehensively under the **ISC License**.
 
----
-
-## 📞 Support
-
-For issues, questions, or suggestions:
-- Open an issue on GitHub
-- Contact: anuragbasuri@gmail.com
-
----
-
-**Made with ❤️ using the MERN stack**
+*Powered by the MERN Ecosystem and Hugging Face Transformative LLMs.*
