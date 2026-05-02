@@ -1,5 +1,7 @@
 import crypto from 'crypto';
+import jwt from 'jsonwebtoken';
 import Student from '../models/student.model.js';
+import Teacher from '../models/teacher.model.js';
 import Submission from '../models/submission.model.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { generateCSV, sendCSVDowload } from '../services/export.service.js';
@@ -82,12 +84,19 @@ const loginStudent = asyncHandler(async (req, res) => {
 
 	const student = await Student.findOne(query).select('+password');
 	if (!student) {
-		throw ApiError.NotFound('Student not found');
+		throw ApiError.Unauthorized('Invalid credentials');
+	}
+
+	// Google-only accounts have no password set
+	if (!student.password) {
+		throw ApiError.Unauthorized(
+			'This account uses Google Sign-In. Please use the Google button to log in.',
+		);
 	}
 
 	const isMatch = await student.comparePassword(password);
 	if (!isMatch) {
-		throw ApiError.Unauthorized('Invalid password');
+		throw ApiError.Unauthorized('Invalid credentials');
 	}
 
 	const authToken = student.generateAuthToken();
@@ -118,7 +127,7 @@ const googleLoginStudent = asyncHandler(async (req, res) => {
 	let student = await Student.findOne({ email });
 
 	if (student) {
-		// Existing user.
+		// Existing user — link Google account if not already linked
 		if (!student.googleId) {
 			student.googleId = googleId;
 			if (picture && !student.profilePicture) student.profilePicture = picture;
@@ -126,6 +135,14 @@ const googleLoginStudent = asyncHandler(async (req, res) => {
 			await student.save();
 		}
 	} else {
+		// Prevent cross-role duplicate: check if email already exists as a Teacher
+		const existingTeacher = await Teacher.findOne({ email });
+		if (existingTeacher) {
+			throw ApiError.Conflict(
+				'This email is already registered as a Teacher account. Please log in as a Teacher instead.',
+			);
+		}
+
 		// New user created via Google
 		student = await Student.create({
 			username: email.split('@')[0] + '_' + Math.floor(Math.random() * 10000),
@@ -248,9 +265,12 @@ const verifyStudentEmail = asyncHandler(async (req, res) => {
 	student.emailVerificationExpires = undefined;
 	await student.save({ validateBeforeSave: false });
 
+	// Issue a fresh token with updated isEmailVerified claim
+	const authToken = student.generateAuthToken();
+
 	return ApiResponse.success(
 		res,
-		{ isEmailVerified: true },
+		{ isEmailVerified: true, authToken },
 		'Email verified successfully! You now have full access.',
 	);
 });
@@ -420,6 +440,38 @@ const exportStudentSubmissions = asyncHandler(async (req, res) => {
 	return sendCSVDowload(res, `student_submissions_${studentId}.csv`, csv);
 });
 
+// ══════════════════════════════════════════════════════════════════
+// TOKEN REFRESH
+// ══════════════════════════════════════════════════════════════════
+
+const refreshStudentToken = asyncHandler(async (req, res) => {
+	const { refreshToken } = req.body;
+	if (!refreshToken) throw ApiError.BadRequest('Refresh token is required');
+
+	let decoded;
+	try {
+		decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+	} catch {
+		throw ApiError.Unauthorized('Invalid or expired refresh token');
+	}
+
+	const student = await Student.findById(decoded.id).select('+refreshToken');
+	if (!student || student.refreshToken !== refreshToken) {
+		throw ApiError.Unauthorized('Refresh token has been revoked');
+	}
+
+	// Rotate: issue new token pair
+	const newAuthToken = student.generateAuthToken();
+	const newRefreshToken = student.generateRefreshToken();
+	await student.save({ validateBeforeSave: false });
+
+	return ApiResponse.success(
+		res,
+		{ authToken: newAuthToken, refreshToken: newRefreshToken },
+		'Token refreshed successfully',
+	);
+});
+
 export {
 	createStudent,
 	loginStudent,
@@ -434,4 +486,5 @@ export {
 	resetStudentPassword,
 	exportStudentProfile,
 	exportStudentSubmissions,
+	refreshStudentToken,
 };

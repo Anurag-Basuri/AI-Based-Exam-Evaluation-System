@@ -13,9 +13,11 @@ import {
 	resetStudentPassword,
 	exportStudentProfile,
 	exportStudentSubmissions,
+	refreshStudentToken,
 } from '../controllers/student.controller.js';
 import { checkAuth, verifyStudent } from '../middlewares/auth.middleware.js';
 import { authLimiter, emailLimiter, verifyLimiter } from '../middlewares/rateLimit.middleware.js';
+import { validate } from '../middlewares/validate.middleware.js';
 import { body } from 'express-validator';
 
 const router = Router();
@@ -29,7 +31,8 @@ router.post(
 	body('username').notEmpty().withMessage('Username is required'),
 	body('fullname').notEmpty().withMessage('Full name is required'),
 	body('email').isEmail().withMessage('Valid email is required'),
-	body('password').notEmpty().withMessage('Password is required'),
+	body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
+	validate,
 	createStudent,
 );
 
@@ -40,6 +43,7 @@ router.post(
 	body('username').optional(),
 	body('email').optional().isEmail(),
 	body('password').notEmpty().withMessage('Password is required'),
+	validate,
 	loginStudent,
 );
 
@@ -48,6 +52,7 @@ router.post(
 	'/google-login',
 	authLimiter,
 	body('idToken').notEmpty().withMessage('Google ID token is required'),
+	validate,
 	googleLoginStudent,
 );
 
@@ -58,6 +63,7 @@ router.post(
 	'/verify-email',
 	verifyLimiter,
 	body('token').notEmpty().withMessage('Verification token is required'),
+	validate,
 	verifyStudentEmail,
 );
 
@@ -66,6 +72,7 @@ router.post(
 	'/forgot-password',
 	emailLimiter,
 	body('email').isEmail().withMessage('Valid email is required'),
+	validate,
 	forgotStudentPassword,
 );
 
@@ -75,6 +82,7 @@ router.post(
 	verifyLimiter,
 	body('token').notEmpty().withMessage('Reset token is required'),
 	body('newPassword').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
+	validate,
 	resetStudentPassword,
 );
 
@@ -106,8 +114,18 @@ router.put(
 	checkAuth,
 	verifyStudent,
 	body('currentPassword').notEmpty().withMessage('Current password is required'),
-	body('newPassword').notEmpty().withMessage('New password is required'),
+	body('newPassword').isLength({ min: 8 }).withMessage('New password must be at least 8 characters'),
+	validate,
 	changePassword,
+);
+
+// Refresh auth token using refresh token
+router.post(
+	'/refresh-token',
+	authLimiter,
+	body('refreshToken').notEmpty().withMessage('Refresh token is required'),
+	validate,
+	refreshStudentToken,
 );
 
 // Resend verification email
