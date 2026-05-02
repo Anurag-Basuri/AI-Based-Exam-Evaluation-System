@@ -475,3 +475,270 @@
 	border-top-color: #fff;
 	animation: spin-slow 0.8s linear infinite;
 }
+
+/* =========================================
+   UI REDESIGN ADDITIONS
+   ========================================= */
+
+/* Form Transitions */
+.auth-form-wrapper {
+    animation: fadeSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes fadeSlideUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fieldReveal {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.input-group {
+    animation: fieldReveal 0.4s ease both;
+}
+.input-group:nth-child(1) { animation-delay: 0.05s; }
+.input-group:nth-child(2) { animation-delay: 0.10s; }
+.input-group:nth-child(3) { animation-delay: 0.15s; }
+.input-group:nth-child(4) { animation-delay: 0.20s; }
+.input-group:nth-child(5) { animation-delay: 0.25s; }
+
+/* Input Focus Glow & Scale */
+.auth-input:focus {
+    transform: scale(1.005);
+}
+
+/* AuthAlert Component */
+.auth-alert {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    margin-bottom: 24px;
+    animation: slideDownFader 0.3s ease;
+    position: relative;
+    text-align: left;
+}
+
+.auth-alert--error {
+    border-left: 4px solid #ef4444;
+    background: rgba(239, 68, 68, 0.08);
+}
+
+.auth-alert--warning {
+    border-left: 4px solid #f59e0b;
+    background: rgba(245, 158, 11, 0.08);
+}
+
+.auth-alert--info {
+    border-left: 4px solid #3b82f6;
+    background: rgba(59, 130, 246, 0.08);
+}
+
+.auth-alert--success {
+    border-left: 4px solid #10b981;
+    background: rgba(16, 185, 129, 0.08);
+}
+
+.auth-alert-icon {
+    font-size: 1.25rem;
+    line-height: 1;
+    margin-top: 2px;
+}
+
+.auth-alert-content {
+    flex: 1;
+}
+
+.auth-alert-title {
+    font-weight: 700;
+    font-size: 0.95rem;
+    margin-bottom: 4px;
+    color: var(--text);
+}
+
+.auth-alert-message {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.auth-alert-hint {
+    display: block;
+    margin-top: 6px;
+    font-weight: 500;
+    font-size: 0.8rem;
+    opacity: 0.9;
+}
+
+.auth-alert-close {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+    margin: -4px 0 0 0;
+}
+.auth-alert-close:hover {
+    color: var(--text);
+}
+
+/* Password Strength */
+.password-strength {
+    margin-top: 8px;
+    animation: slideDownFader 0.3s ease;
+}
+
+.password-strength-bar-bg {
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 4px;
+}
+
+.password-strength-bar {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.3s ease, background-color 0.3s ease;
+}
+
+.password-strength-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+/* Eye button positioning fix */
+.password-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.password-input-wrapper .auth-input {
+    padding-right: 48px;
+}
+
+.password-input-wrapper .eye-btn {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+/* Loading button */
+.auth-submit-btn.loading {
+    animation: pulse-ring 1.5s infinite;
+    pointer-events: none;
+    opacity: 0.9;
+}
+
+/* OR Divider */
+.auth-divider {
+    display: flex;
+    align-items: center;
+    margin: 24px 0;
+    gap: 12px;
+}
+
+.auth-divider-line {
+    flex: 1;
+    height: 1px;
+    background-color: var(--border);
+}
+
+.auth-divider-text {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+/* Google Loading Overlay */
+.auth-google-loading {
+    position: absolute;
+    inset: 0;
+    background: rgba(255, 255, 255, 0.8);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 20;
+    border-radius: 24px;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+[data-theme='dark'] .auth-google-loading {
+    background: rgba(15, 23, 42, 0.8);
+}
+
+/* Redesigned role pill with sliding background */
+.role-pill-container {
+    position: relative;
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+    background: var(--bg-secondary);
+    padding: 6px;
+    border-radius: 16px;
+    border: 1px solid var(--border);
+}
+
+.role-pill {
+    flex: 1;
+    position: relative;
+    z-index: 2;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    color: var(--text-muted) !important;
+}
+
+.role-pill.active {
+    color: var(--text) !important;
+}
+
+.role-pill.active.student {
+    color: #4f46e5 !important;
+}
+
+.role-pill.active.teacher {
+    color: #f97316 !important;
+}
+
+[data-theme='dark'] .role-pill.active.student {
+    color: #818cf8 !important;
+}
+
+[data-theme='dark'] .role-pill.active.teacher {
+    color: #fb923c !important;
+}
+
+.role-pill-bg {
+    position: absolute;
+    top: 6px;
+    bottom: 6px;
+    width: calc(50% - 10px);
+    background: var(--surface);
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    z-index: 1;
+}
+
+.role-pill-bg.student-active {
+    transform: translateX(0);
+}
+
+.role-pill-bg.teacher-active {
+    transform: translateX(calc(100% + 8px));
+}
+
+[data-theme='dark'] .role-pill-bg {
+    background: rgba(255,255,255,0.05);
+    box-shadow: inset 0 1px 1px rgba(255,255,255,0.1);
+}
