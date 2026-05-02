@@ -54,7 +54,13 @@ const Register = ({ onRegister, onSwitchToLogin }) => {
 	};
 
 	const extractServerError = err => {
-		const data = err?.response?.data;
+		const status = err?.response?.status || err?.status;
+		const data = err?.response?.data || err?.data;
+
+		// Cross-role conflict from server (409)
+		if (status === 409 && (data?.message || err?.message)) {
+			return data?.message || err.message;
+		}
 		if (Array.isArray(data?.errors)) {
 			return data.errors.map(e => e?.msg || e?.message || String(e)).join(' ');
 		}
@@ -72,19 +78,21 @@ const Register = ({ onRegister, onSwitchToLogin }) => {
 
 		setLoading(true);
 		try {
+			// New users always get persistent storage
+			localStorage.setItem('rememberMe', 'true');
+
 			const payload = {
 				username: username.trim(),
 				fullname: fullname.trim(),
 				email: email.trim(),
-				password: password.trim(),
+				password, // Never trim passwords — spaces may be intentional
 			};
 			const res =
 				role === 'student'
 					? await registerStudent(payload)
 					: await registerTeacher(payload);
-			try {
-				localStorage.setItem('preferredRole', role);
-			} catch {}
+
+			try { localStorage.setItem('preferredRole', role); } catch {}
 
 			const user = res?.data?.user || res?.user || null;
 			if (typeof onRegister === 'function') onRegister({ role, user });
@@ -102,6 +110,8 @@ const Register = ({ onRegister, onSwitchToLogin }) => {
 		setTopError('');
 		setLoading(true);
 		try {
+			localStorage.setItem('rememberMe', 'true');
+
 			const { credential } = credentialResponse;
 			if (role === 'student') await googleLoginStudent(credential);
 			else await googleLoginTeacher(credential);

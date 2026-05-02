@@ -43,7 +43,13 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
 	};
 
 	const extractError = err => {
-		const data = err?.response?.data;
+		const status = err?.response?.status || err?.status;
+		const data = err?.response?.data || err?.data;
+
+		// Cross-role conflict from server (409)
+		if (status === 409 && (data?.message || err?.message)) {
+			return data?.message || err.message;
+		}
 		if (Array.isArray(data?.errors)) {
 			return data.errors.map(e => e?.msg || e?.message || String(e)).join(' ');
 		}
@@ -68,14 +74,14 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
 
 		setLoading(true);
 		try {
+			// Set persistence preference before the auth call stores tokens
+			localStorage.setItem('rememberMe', remember ? 'true' : 'false');
+
 			const payload = buildPayload();
 			const res =
 				role === 'student' ? await loginStudent(payload) : await loginTeacher(payload);
-			if (remember) {
-				try {
-					localStorage.setItem('preferredRole', role);
-				} catch {}
-			}
+
+			try { localStorage.setItem('preferredRole', role); } catch {}
 
 			if (typeof onLogin === 'function') {
 				onLogin({ role, user: res?.data?.user || null });
@@ -94,13 +100,13 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
 		setTopError('');
 		setLoading(true);
 		try {
+			localStorage.setItem('rememberMe', remember ? 'true' : 'false');
+
 			const { credential } = credentialResponse;
 			if (role === 'student') await googleLoginStudent(credential);
 			else await googleLoginTeacher(credential);
 
-			if (remember) {
-				try { localStorage.setItem('preferredRole', role); } catch {}
-			}
+			try { localStorage.setItem('preferredRole', role); } catch {}
 			
 			if (typeof onLogin === 'function') {
 				onLogin({ role, user: null });

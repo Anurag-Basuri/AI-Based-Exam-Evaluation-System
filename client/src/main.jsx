@@ -14,11 +14,11 @@ createRoot(document.getElementById('root')).render(
 			clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || 'PENDING_CLIENT_ID'}
 		>
 			<ThemeProvider>
-				<AuthProvider>
-					<BrowserRouter>
+				<BrowserRouter>
+					<AuthProvider>
 						<App />
-					</BrowserRouter>
-				</AuthProvider>
+					</AuthProvider>
+				</BrowserRouter>
 			</ThemeProvider>
 		</GoogleOAuthProvider>
 	</React.StrictMode>,

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { isTokenExpired, getToken, removeToken } from '../utils/handleToken.js';
+import { isTokenExpired, getToken, removeToken, setToken, decodeToken } from '../utils/handleToken.js';
 
 // ═══════════════════════════════════════════════════════════════════
 // BASE CONFIG
@@ -7,7 +7,7 @@ import { isTokenExpired, getToken, removeToken } from '../utils/handleToken.js';
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
-// Axios instance for authenticated requests
+/** Axios instance for authenticated requests. */
 const apiClient = axios.create({
 	baseURL: API_BASE_URL,
 	timeout: 15000,
@@ -18,7 +18,7 @@ const apiClient = axios.create({
 	},
 });
 
-// Axios instance for public (unauthenticated) requests
+/** Axios instance for public (unauthenticated) requests. */
 const publicClient = axios.create({
 	baseURL: API_BASE_URL,
 	timeout: 15000,
@@ -87,7 +87,7 @@ export const safeApiCall = async (fn, ...args) => {
 };
 
 // ═══════════════════════════════════════════════════════════════════
-// INTERCEPTORS
+// REQUEST INTERCEPTOR
 // ═══════════════════════════════════════════════════════════════════
 
 // Attach token to authenticated requests
@@ -95,33 +95,125 @@ apiClient.interceptors.request.use(config => {
 	const { accessToken } = getToken();
 	if (accessToken) {
 		if (isTokenExpired(accessToken)) {
-			removeToken();
-			// Dispatch a custom event so AuthContext can handle graceful logout
-			window.dispatchEvent(
-				new CustomEvent('api:unauthorized', {
-					detail: { reason: 'token_expired' },
-				}),
-			);
-			throw new axios.Cancel('Access token expired');
+			// Don't immediately invalidate — let the response interceptor
+			// try a refresh first. Just skip attaching the expired token.
+			// The request will likely 401, triggering the refresh flow below.
 		}
 		config.headers['Authorization'] = `Bearer ${accessToken}`;
 	}
 	return config;
 });
 
-// Handle 401 errors globally via custom event (no hard reloads)
+// ═══════════════════════════════════════════════════════════════════
+// RESPONSE INTERCEPTOR — AUTOMATIC TOKEN REFRESH
+// ═══════════════════════════════════════════════════════════════════
+
+/** Mutex to prevent multiple simultaneous refresh attempts. */
+let isRefreshing = false;
+
+/** Queue of requests waiting for a token refresh to complete. */
+let failedQueue = [];
+
+/**
+ * Resolve or reject all queued requests once the refresh completes.
+ */
+const processQueue = (error, token = null) => {
+	failedQueue.forEach(({ resolve, reject }) => {
+		if (error) reject(error);
+		else resolve(token);
+	});
+	failedQueue = [];
+};
+
+/**
+ * Determine the correct refresh endpoint based on the user's stored role.
+ * Falls back to decoding the expired access token for its role claim.
+ */
+const getRefreshEndpoint = () => {
+	try {
+		const stored = localStorage.getItem('preferredRole');
+		if (stored === 'teacher') return '/api/teachers/refresh-token';
+		if (stored === 'student') return '/api/students/refresh-token';
+
+		// Fallback: decode the (possibly expired) access token
+		const { accessToken } = getToken();
+		if (accessToken) {
+			const decoded = decodeToken(accessToken);
+			if (decoded?.role === 'teacher') return '/api/teachers/refresh-token';
+		}
+	} catch {}
+	return '/api/students/refresh-token';
+};
+
 apiClient.interceptors.response.use(
 	response => response,
-	error => {
-		if (error.response && error.response.status === 401) {
+	async error => {
+		const originalRequest = error.config;
+
+		// Only attempt refresh on 401 errors, and only once per request
+		if (error.response?.status !== 401 || originalRequest._retry) {
+			return Promise.reject(error);
+		}
+
+		// Never try to refresh a refresh-token request (avoids infinite loop)
+		if (originalRequest.url?.includes('/refresh-token')) {
 			removeToken();
 			window.dispatchEvent(
 				new CustomEvent('api:unauthorized', {
-					detail: { reason: 'server_rejected', url: error.config?.url },
+					detail: { reason: 'refresh_failed', url: originalRequest.url },
 				}),
 			);
+			return Promise.reject(error);
 		}
-		return Promise.reject(error);
+
+		// If a refresh is already in progress, queue this request
+		if (isRefreshing) {
+			return new Promise((resolve, reject) => {
+				failedQueue.push({ resolve, reject });
+			}).then(newToken => {
+				originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
+				return apiClient(originalRequest);
+			});
+		}
+
+		// Mark as retrying and start the refresh
+		originalRequest._retry = true;
+		isRefreshing = true;
+
+		try {
+			const { refreshToken } = getToken();
+			if (!refreshToken) throw new Error('No refresh token available');
+
+			const endpoint = getRefreshEndpoint();
+			const res = await publicClient.post(endpoint, { refreshToken });
+
+			const newAuthToken = res.data?.data?.authToken;
+			const newRefreshToken = res.data?.data?.refreshToken;
+
+			if (!newAuthToken) throw new Error('No auth token in refresh response');
+
+			// Persist the new tokens
+			setToken({ accessToken: newAuthToken, refreshToken: newRefreshToken });
+
+			// Unblock all queued requests with the new token
+			processQueue(null, newAuthToken);
+
+			// Retry the original request with the new token
+			originalRequest.headers['Authorization'] = `Bearer ${newAuthToken}`;
+			return apiClient(originalRequest);
+		} catch (refreshError) {
+			// Refresh failed — clear everything and force re-login
+			processQueue(refreshError, null);
+			removeToken();
+			window.dispatchEvent(
+				new CustomEvent('api:unauthorized', {
+					detail: { reason: 'refresh_failed' },
+				}),
+			);
+			return Promise.reject(refreshError);
+		} finally {
+			isRefreshing = false;
+		}
 	},
 );
 
