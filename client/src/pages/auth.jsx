@@ -92,11 +92,13 @@ const AuthPage = () => {
 				</div>
 
 				{/* Form Component */}
-				{!isRegister ? (
-					<Login onSwitchToRegister={handleSwitchToRegister} />
-				) : (
-					<Register onSwitchToLogin={handleSwitchToLogin} />
-				)}
+				<div className="auth-form-wrapper" key={isRegister ? 'register' : 'login'}>
+					{!isRegister ? (
+						<Login onSwitchToRegister={handleSwitchToRegister} />
+					) : (
+						<Register onSwitchToLogin={handleSwitchToLogin} />
+					)}
+				</div>
 			</div>
 		</div>
 	);

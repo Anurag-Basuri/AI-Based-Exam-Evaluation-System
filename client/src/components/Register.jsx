@@ -2,12 +2,31 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../hooks/useAuth.js';
+import AuthAlert, { classifyError } from './AuthAlert.jsx';
+
+// Password Strength Calculator
+const calculateStrength = (pwd) => {
+	let score = 0;
+	if (pwd.length >= 8) score += 1;
+	if (/[A-Z]/.test(pwd) && /[a-z]/.test(pwd)) score += 1;
+	if (/\d/.test(pwd)) score += 1;
+	if (/[^A-Za-z0-9]/.test(pwd)) score += 1;
+	if (pwd.length >= 12) score += 1;
+	return score;
+};
+
+const getStrengthDetails = (score) => {
+	if (score <= 1) return { label: 'Weak', color: '#ef4444', width: '25%' };
+	if (score <= 3) return { label: 'Medium', color: '#f59e0b', width: '50%' };
+	if (score <= 4) return { label: 'Good', color: '#84cc16', width: '75%' };
+	return { label: 'Strong', color: '#10b981', width: '100%' };
+};
 
 const Register = ({ onRegister, onSwitchToLogin }) => {
 	const navigate = useNavigate();
 	const location = useLocation();
 	const returnTo = location?.state?.from || null;
-	const { registerStudent, registerTeacher, googleLoginStudent, googleLoginTeacher } = useAuth(); // removed loading from hook since we use local state
+	const { registerStudent, registerTeacher, googleLoginStudent, googleLoginTeacher } = useAuth();
 
 	const [role, setRole] = useState('student'); // "student" | "teacher"
 	const [username, setUsername] = useState('');
@@ -19,8 +38,14 @@ const Register = ({ onRegister, onSwitchToLogin }) => {
 	const [showConfirm, setShowConfirm] = useState(false);
 
 	const [loading, setLoading] = useState(false);
+	const [googleLoading, setGoogleLoading] = useState(false);
+	const [successRedirecting, setSuccessRedirecting] = useState(false);
+
 	const [fieldErrors, setFieldErrors] = useState({});
-	const [topError, setTopError] = useState('');
+	const [alertObj, setAlertObj] = useState(null);
+
+	const pwdStrengthScore = useMemo(() => calculateStrength(password), [password]);
+	const pwdStrength = getStrengthDetails(pwdStrengthScore);
 
 	useEffect(() => {
 		try {
@@ -33,6 +58,14 @@ const Register = ({ onRegister, onSwitchToLogin }) => {
 		if (!email) return true;
 		return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 	}, [email]);
+
+	const handleInputChange = (field, value, setter) => {
+		setter(value);
+		if (fieldErrors[field]) {
+			setFieldErrors(prev => ({ ...prev, [field]: null }));
+		}
+		if (alertObj) setAlertObj(null);
+	};
 
 	const validate = () => {
 		const errs = {};
@@ -53,25 +86,9 @@ const Register = ({ onRegister, onSwitchToLogin }) => {
 		return errs;
 	};
 
-	const extractServerError = err => {
-		const status = err?.response?.status || err?.status;
-		const data = err?.response?.data || err?.data;
-
-		// Cross-role conflict from server (409)
-		if (status === 409 && (data?.message || err?.message)) {
-			return data?.message || err.message;
-		}
-		if (Array.isArray(data?.errors)) {
-			return data.errors.map(e => e?.msg || e?.message || String(e)).join(' ');
-		}
-		return (
-			data?.message || data?.error || err?.message || 'Registration failed. Please try again.'
-		);
-	};
-
 	const handleSubmit = async e => {
 		e.preventDefault();
-		setTopError('');
+		setAlertObj(null);
 		const errs = validate();
 		setFieldErrors(errs);
 		if (Object.keys(errs).length) return;
@@ -97,18 +114,28 @@ const Register = ({ onRegister, onSwitchToLogin }) => {
 			const user = res?.data?.user || res?.user || null;
 			if (typeof onRegister === 'function') onRegister({ role, user });
 
-			const dashboard = role === 'teacher' ? '/teacher' : '/student';
-			navigate(returnTo || dashboard, { replace: true });
+			// Show success flash
+			setSuccessRedirecting(true);
+			setAlertObj({
+				type: 'success',
+				icon: '🎉',
+				title: 'Account Created!',
+				message: 'Redirecting to your dashboard...'
+			});
+
+			setTimeout(() => {
+				const dashboard = role === 'teacher' ? '/teacher' : '/student';
+				navigate(returnTo || dashboard, { replace: true });
+			}, 1500);
 		} catch (err) {
-			setTopError(extractServerError(err));
-		} finally {
+			setAlertObj(classifyError(err));
 			setLoading(false);
 		}
 	};
 
 	const handleGoogleSuccess = async credentialResponse => {
-		setTopError('');
-		setLoading(true);
+		setAlertObj(null);
+		setGoogleLoading(true);
 		try {
 			localStorage.setItem('rememberMe', 'true');
 
@@ -125,14 +152,20 @@ const Register = ({ onRegister, onSwitchToLogin }) => {
 			const dashboard = role === 'teacher' ? '/teacher' : '/student';
 			navigate(returnTo || dashboard, { replace: true });
 		} catch (err) {
-			setTopError(extractServerError(err));
-		} finally {
-			setLoading(false);
+			setAlertObj(classifyError(err));
+			setGoogleLoading(false);
 		}
 	};
 
 	return (
 		<form onSubmit={handleSubmit} aria-labelledby="register-title" noValidate>
+			{googleLoading && (
+				<div className="auth-google-loading">
+					<div className="auth-spinner" style={{ borderTopColor: 'var(--primary)', marginBottom: 12 }}></div>
+					<div style={{ fontWeight: 600 }}>Connecting to Google...</div>
+				</div>
+			)}
+
 			<h2 id="register-title" className="auth-title">
 				Create your account
 			</h2>
@@ -142,11 +175,12 @@ const Register = ({ onRegister, onSwitchToLogin }) => {
 
 			{/* Role Switcher */}
 			<div className="role-pill-container" role="tablist" aria-label="Choose role">
+				<div className={`role-pill-bg ${role}-active`}></div>
 				<button
 					type="button"
 					role="tab"
 					aria-selected={role === 'student'}
-					onClick={() => setRole('student')}
+					onClick={() => { setRole('student'); setAlertObj(null); }}
 					className={`role-pill ${role === 'student' ? 'active student' : ''}`}
 				>
 					🎓 Student
@@ -155,19 +189,24 @@ const Register = ({ onRegister, onSwitchToLogin }) => {
 					type="button"
 					role="tab"
 					aria-selected={role === 'teacher'}
-					onClick={() => setRole('teacher')}
+					onClick={() => { setRole('teacher'); setAlertObj(null); }}
 					className={`role-pill ${role === 'teacher' ? 'active teacher' : ''}`}
 				>
 					👨‍🏫 Teacher
 				</button>
 			</div>
 
-			{/* Top Error */}
-			{topError && (
-				<div className="top-error-banner" role="alert" aria-live="assertive">
-					<span>⚠️</span>
-					<div>{topError}</div>
-				</div>
+			{/* Top Alert */}
+			{alertObj && (
+				<AuthAlert 
+					type={alertObj.type} 
+					icon={alertObj.icon} 
+					title={alertObj.title}
+					onDismiss={!successRedirecting ? () => setAlertObj(null) : undefined}
+				>
+					{alertObj.message}
+					{alertObj.hint && !successRedirecting && <span className="auth-alert-hint">{alertObj.hint}</span>}
+				</AuthAlert>
 			)}
 
 			<div className={`input-group ${fieldErrors.fullname ? 'has-error' : ''}`}>
@@ -180,10 +219,10 @@ const Register = ({ onRegister, onSwitchToLogin }) => {
 					type="text"
 					placeholder="e.g. Alex Morgan"
 					value={fullname}
-					onChange={e => setFullName(e.target.value)}
+					onChange={e => handleInputChange('fullname', e.target.value, setFullName)}
 					autoComplete="name"
 				/>
-				{fieldErrors.fullname && <span className="error-text">{fieldErrors.fullname}</span>}
+				{fieldErrors.fullname && <span className="error-text">❌ {fieldErrors.fullname}</span>}
 			</div>
 
 			<div className={`input-group ${fieldErrors.username ? 'has-error' : ''}`}>
@@ -196,10 +235,10 @@ const Register = ({ onRegister, onSwitchToLogin }) => {
 					type="text"
 					placeholder="e.g. alex.morgan"
 					value={username}
-					onChange={e => setUsername(e.target.value)}
+					onChange={e => handleInputChange('username', e.target.value, setUsername)}
 					autoComplete="username"
 				/>
-				{fieldErrors.username && <span className="error-text">{fieldErrors.username}</span>}
+				{fieldErrors.username && <span className="error-text">❌ {fieldErrors.username}</span>}
 			</div>
 
 			<div className={`input-group ${fieldErrors.email ? 'has-error' : ''}`}>
@@ -212,25 +251,24 @@ const Register = ({ onRegister, onSwitchToLogin }) => {
 					type="email"
 					placeholder={role === 'teacher' ? 'teacher@school.edu' : 'student@school.edu'}
 					value={email}
-					onChange={e => setEmail(e.target.value)}
+					onChange={e => handleInputChange('email', e.target.value, setEmail)}
 					autoComplete="email"
 				/>
-				{fieldErrors.email && <span className="error-text">{fieldErrors.email}</span>}
+				{fieldErrors.email && <span className="error-text">❌ {fieldErrors.email}</span>}
 			</div>
 
 			<div className={`input-group ${fieldErrors.password ? 'has-error' : ''}`}>
 				<label className="floating-label" htmlFor="password">
 					Password
 				</label>
-				<div style={{ position: 'relative' }}>
+				<div className="password-input-wrapper">
 					<input
 						id="password"
 						className="auth-input"
-						style={{ paddingRight: 48 }}
 						type={showPassword ? 'text' : 'password'}
 						placeholder="Minimum 8 characters"
 						value={password}
-						onChange={e => setPassword(e.target.value)}
+						onChange={e => handleInputChange('password', e.target.value, setPassword)}
 						autoComplete="new-password"
 					/>
 					<button
@@ -243,7 +281,20 @@ const Register = ({ onRegister, onSwitchToLogin }) => {
 						{showPassword ? '🙈' : '👁️'}
 					</button>
 				</div>
-				{fieldErrors.password && <span className="error-text">{fieldErrors.password}</span>}
+				{password.length > 0 && (
+					<div className="password-strength">
+						<div className="password-strength-bar-bg">
+							<div 
+								className="password-strength-bar" 
+								style={{ width: pwdStrength.width, backgroundColor: pwdStrength.color }}
+							/>
+						</div>
+						<div className="password-strength-label" style={{ color: pwdStrength.color }}>
+							{pwdStrength.label}
+						</div>
+					</div>
+				)}
+				{fieldErrors.password && <span className="error-text">❌ {fieldErrors.password}</span>}
 			</div>
 
 			<div
@@ -253,15 +304,14 @@ const Register = ({ onRegister, onSwitchToLogin }) => {
 				<label className="floating-label" htmlFor="confirm">
 					Confirm password
 				</label>
-				<div style={{ position: 'relative' }}>
+				<div className="password-input-wrapper">
 					<input
 						id="confirm"
 						className="auth-input"
-						style={{ paddingRight: 48 }}
 						type={showConfirm ? 'text' : 'password'}
 						placeholder="Re-enter your password"
 						value={confirm}
-						onChange={e => setConfirm(e.target.value)}
+						onChange={e => handleInputChange('confirm', e.target.value, setConfirm)}
 						autoComplete="new-password"
 					/>
 					<button
@@ -274,30 +324,32 @@ const Register = ({ onRegister, onSwitchToLogin }) => {
 						{showConfirm ? '🙈' : '👁️'}
 					</button>
 				</div>
-				{fieldErrors.confirm && <span className="error-text">{fieldErrors.confirm}</span>}
+				{fieldErrors.confirm && <span className="error-text">❌ {fieldErrors.confirm}</span>}
 			</div>
 
-			<button type="submit" className={`auth-submit-btn ${role}`} disabled={loading}>
-				{loading ? (
+			<button type="submit" className={`auth-submit-btn ${role} ${loading ? 'loading' : ''}`} disabled={loading || googleLoading || successRedirecting}>
+				{loading || successRedirecting ? (
 					<>
 						<span className="auth-spinner" />
-						Creating account...
+						{successRedirecting ? 'Redirecting...' : 'Creating account...'}
 					</>
 				) : (
 					`Create ${role} account`
 				)}
 			</button>
 
-			<div style={{ display: 'flex', alignItems: 'center', margin: '20px 0', gap: '10px' }}>
-				<div style={{ flex: 1, height: '1px', backgroundColor: 'var(--border)' }} />
-				<span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>OR</span>
-				<div style={{ flex: 1, height: '1px', backgroundColor: 'var(--border)' }} />
+			<div className="auth-divider">
+				<div className="auth-divider-line" />
+				<span className="auth-divider-text">OR</span>
+				<div className="auth-divider-line" />
 			</div>
 
 			<div style={{ display: 'flex', justifyContent: 'center' }}>
 				<GoogleLogin
 					onSuccess={handleGoogleSuccess}
-					onError={() => setTopError('Google Sign-In failed.')}
+					onError={() => setAlertObj({
+						type: 'error', icon: '❌', title: 'Google Sign-In failed', message: 'Could not connect to Google.'
+					})}
 					text="signup_with"
 					shape="rectangular"
 					size="large"
@@ -314,7 +366,7 @@ const Register = ({ onRegister, onSwitchToLogin }) => {
 				}}
 			>
 				<span>Already have an account? </span>
-				<button type="button" className={`link-btn ${role}`} onClick={onSwitchToLogin}>
+				<button type="button" className={`link-btn ${role}`} onClick={onSwitchToLogin} disabled={loading || successRedirecting || googleLoading}>
 					Sign in
 				</button>
 			</div>
