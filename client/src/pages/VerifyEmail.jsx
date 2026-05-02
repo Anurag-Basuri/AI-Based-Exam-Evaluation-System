@@ -7,12 +7,13 @@ import {
 	resendTeacherVerification,
 } from '../services/apiServices';
 import { useAuth } from '../hooks/useAuth.js';
+import { setToken } from '../utils/handleToken.js';
 import './Auth.css';
 
 const VerifyEmail = () => {
 	const navigate = useNavigate();
 	const [searchParams] = useSearchParams();
-	const { isAuthenticated, role: authRole } = useAuth();
+	const { isAuthenticated, role: authRole, setIsEmailVerified } = useAuth();
 
 	const token = searchParams.get('token') || '';
 	const role = searchParams.get('role') || authRole || 'student';
@@ -30,7 +31,14 @@ const VerifyEmail = () => {
 		(async () => {
 			try {
 				const fn = role === 'teacher' ? verifyTeacherEmail : verifyStudentEmail;
-				await fn(token);
+				const result = await fn(token);
+
+				// Store the fresh token with updated isEmailVerified claim
+				if (result?.data?.authToken) {
+					setToken({ accessToken: result.data.authToken });
+					setIsEmailVerified(true);
+				}
+
 				setStatus('success');
 				setTimeout(() => {
 					if (isAuthenticated) {
@@ -46,7 +54,7 @@ const VerifyEmail = () => {
 				);
 			}
 		})();
-	}, [token, role, navigate, isAuthenticated]);
+	}, [token, role, navigate, isAuthenticated, setIsEmailVerified]);
 
 	const handleResend = async () => {
 		if (!isAuthenticated) {

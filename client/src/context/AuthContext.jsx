@@ -1,4 +1,5 @@
-import React, { createContext, useState, useEffect } from 'react';
+import React, { createContext, useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
 	registerStudent,
 	loginStudent,
@@ -11,52 +12,18 @@ import {
 } from '../services/apiServices';
 import { getToken, removeToken, isTokenExpired, decodeToken } from '../utils/handleToken';
 
-// NOTE: do NOT use useNavigate here (provider may be above <Router>)
-const navigateSafe = (path, opts = { replace: false }) => {
-	try {
-		if (typeof window === 'undefined') return;
-		if (opts.replace) {
-			window.history.replaceState({}, '', path);
-		} else {
-			window.history.pushState({}, '', path);
-		}
-		// Let any Router (if mounted) react to the new location
-		window.dispatchEvent(new PopStateEvent('popstate'));
-	} catch {
-		try {
-			window.location.assign(path);
-		} catch (err) {
-			console.error('Navigation error:', err);
-		}
-	}
-};
-
-/**
- * After login, check if the current URL has ?redirect= param.
- * If so, go there instead of the default dashboard path.
- */
-const getRedirectPath = defaultPath => {
-	try {
-		const sp = new URLSearchParams(window.location.search);
-		const redirect = sp.get('redirect');
-		// Only allow internal redirects (starting with /)
-		if (redirect && redirect.startsWith('/')) return redirect;
-	} catch {
-		/* fallback */
-	}
-	return defaultPath;
-};
-
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
+	const navigate = useNavigate();
+
 	const [user, setUser] = useState(null);
 	const [isAuthenticated, setIsAuthenticated] = useState(false);
 	const [role, setRole] = useState(null);
 	const [isEmailVerified, setIsEmailVerified] = useState(false);
 	const [loading, setLoading] = useState(true);
 
-	// Check token and user info on mount
+	// ── Hydrate auth state from stored token on mount ──────────────
 	useEffect(() => {
 		try {
 			const { accessToken } = getToken() || {};
@@ -67,251 +34,202 @@ export const AuthProvider = ({ children }) => {
 				setIsEmailVerified(decoded?.isEmailVerified || false);
 				setIsAuthenticated(true);
 			} else {
-				setUser(null);
-				setRole(null);
-				setIsEmailVerified(false);
-				setIsAuthenticated(false);
+				clearAuthState();
 				removeToken();
 			}
 		} catch (err) {
-			// Fallback to a clean state
-			setUser(null);
-			setRole(null);
-			setIsEmailVerified(false);
-			setIsAuthenticated(false);
-			try {
-				removeToken();
-			} catch {}
-			// Optional: log for diagnostics
+			clearAuthState();
+			try { removeToken(); } catch {}
 			console.error('Auth init failed:', err);
 		} finally {
 			setLoading(false);
 		}
 	}, []);
 
-	// ── Listen for 401 / token-expired events dispatched by the Axios interceptor ──
+	// ── Listen for 401 / token-expired events from the Axios interceptor ──
 	useEffect(() => {
 		const handleUnauthorized = () => {
-			// Only act if we currently consider ourselves authenticated
 			if (!isAuthenticated) return;
-			setUser(null);
-			setRole(null);
-			setIsEmailVerified(false);
-			setIsAuthenticated(false);
-			try {
-				removeToken();
-			} catch {}
-			navigateSafe('/auth?mode=login&session_expired=true', { replace: true });
+			clearAuthState();
+			try { removeToken(); } catch {}
+			navigate('/auth?mode=login&session_expired=true', { replace: true });
 		};
 
 		window.addEventListener('api:unauthorized', handleUnauthorized);
 		return () => window.removeEventListener('api:unauthorized', handleUnauthorized);
-	}, [isAuthenticated]);
+	}, [isAuthenticated, navigate]);
 
+	// ── Helpers ──────────────────────────────────────────────────────
+
+	/** Reset all auth state to logged-out defaults. */
+	const clearAuthState = () => {
+		setUser(null);
+		setRole(null);
+		setIsEmailVerified(false);
+		setIsAuthenticated(false);
+	};
+
+	/**
+	 * Apply decoded JWT claims to context state.
+	 * Called after any successful login / register / Google auth.
+	 */
+	const applyAuthFromToken = (decoded, fallbackRole) => {
+		setUser(decoded);
+		setRole(decoded?.role || fallbackRole);
+		setIsEmailVerified(decoded?.isEmailVerified || false);
+		setIsAuthenticated(true);
+	};
+
+	/** Normalize API/Axios errors into a simple Error with a readable message. */
 	const normalizeError = err => {
 		const msg = err?.response?.data?.message || err?.message || 'Unexpected error occurred';
 		const e = new Error(msg);
+		e.status = err?.response?.status || err?.status;
 		e.cause = err;
 		return e;
 	};
 
-	// Student registration
+	// ── Student auth handlers ───────────────────────────────────────
+	// NOTE: These handlers update context state only.
+	// Navigation is the caller's responsibility (Login.jsx, Register.jsx, etc.)
+
 	const handleRegisterStudent = async studentData => {
 		setLoading(true);
 		try {
 			const res = await registerStudent(studentData);
 			if (res?.data?.authToken) {
-				const decoded = decodeToken(res.data.authToken);
-				setUser(decoded);
-				setRole(decoded?.role || 'student');
-				setIsEmailVerified(decoded?.isEmailVerified || false);
-				setIsAuthenticated(true);
-				navigateSafe(getRedirectPath('/student'), { replace: true });
+				applyAuthFromToken(decodeToken(res.data.authToken), 'student');
 			}
 			return res;
 		} catch (err) {
-			setUser(null);
-			setRole(null);
-			setIsAuthenticated(false);
+			clearAuthState();
 			throw normalizeError(err);
 		} finally {
 			setLoading(false);
 		}
 	};
 
-	// Student login
 	const handleLoginStudent = async credentials => {
 		setLoading(true);
 		try {
 			const res = await loginStudent(credentials);
 			if (res?.data?.authToken) {
-				const decoded = decodeToken(res.data.authToken);
-				setUser(decoded);
-				setRole(decoded?.role || 'student');
-				setIsEmailVerified(decoded?.isEmailVerified || false);
-				setIsAuthenticated(true);
-				navigateSafe(getRedirectPath('/student'), { replace: true });
+				applyAuthFromToken(decodeToken(res.data.authToken), 'student');
 			}
 			return res;
 		} catch (err) {
-			setUser(null);
-			setRole(null);
-			setIsEmailVerified(false);
-			setIsAuthenticated(false);
+			clearAuthState();
 			throw normalizeError(err);
 		} finally {
 			setLoading(false);
 		}
 	};
 
-	// Student Google login
 	const handleGoogleLoginStudent = async idToken => {
 		setLoading(true);
 		try {
 			const res = await googleLoginStudent(idToken);
 			if (res?.data?.authToken) {
-				const decoded = decodeToken(res.data.authToken);
-				setUser(decoded);
-				setRole(decoded?.role || 'student');
-				setIsEmailVerified(decoded?.isEmailVerified || false);
-				setIsAuthenticated(true);
-				navigateSafe(getRedirectPath('/student'), { replace: true });
+				applyAuthFromToken(decodeToken(res.data.authToken), 'student');
 			}
 			return res;
 		} catch (err) {
-			setUser(null);
-			setRole(null);
-			setIsEmailVerified(false);
-			setIsAuthenticated(false);
+			clearAuthState();
 			throw normalizeError(err);
 		} finally {
 			setLoading(false);
 		}
 	};
 
-	// Student logout
 	const handleLogoutStudent = async () => {
 		setLoading(true);
 		try {
 			await logoutStudent();
 		} catch {
-			// Ignore error on logout
+			// Best-effort: server logout may fail, but we still clear locally
 		} finally {
-			setUser(null);
-			setRole(null);
-			setIsAuthenticated(false);
-			try {
-				removeToken();
-			} catch (err) {
-				console.error('Error removing token:', err);
-			}
+			clearAuthState();
+			try { removeToken(); } catch {}
 			setLoading(false);
-			navigateSafe('/auth?mode=login', { replace: true });
+			navigate('/auth?mode=login', { replace: true });
 		}
 	};
 
-	// Teacher registration
+	// ── Teacher auth handlers ───────────────────────────────────────
+
 	const handleRegisterTeacher = async teacherData => {
 		setLoading(true);
 		try {
 			const res = await registerTeacher(teacherData);
 			if (res?.data?.authToken) {
-				const decoded = decodeToken(res.data.authToken);
-				setUser(decoded);
-				setRole(decoded?.role || 'teacher');
-				setIsEmailVerified(decoded?.isEmailVerified || false);
-				setIsAuthenticated(true);
-				navigateSafe(getRedirectPath('/teacher'), { replace: true });
+				applyAuthFromToken(decodeToken(res.data.authToken), 'teacher');
 			}
 			return res;
 		} catch (err) {
-			setUser(null);
-			setRole(null);
-			setIsAuthenticated(false);
+			clearAuthState();
 			throw normalizeError(err);
 		} finally {
 			setLoading(false);
 		}
 	};
 
-	// Teacher login
 	const handleLoginTeacher = async credentials => {
 		setLoading(true);
 		try {
 			const res = await loginTeacher(credentials);
 			if (res?.data?.authToken) {
-				const decoded = decodeToken(res.data.authToken);
-				setUser(decoded);
-				setRole(decoded?.role || 'teacher');
-				setIsEmailVerified(decoded?.isEmailVerified || false);
-				setIsAuthenticated(true);
-				navigateSafe(getRedirectPath('/teacher'), { replace: true });
+				applyAuthFromToken(decodeToken(res.data.authToken), 'teacher');
 			}
 			return res;
 		} catch (err) {
-			setUser(null);
-			setRole(null);
-			setIsAuthenticated(false);
+			clearAuthState();
 			throw normalizeError(err);
 		} finally {
 			setLoading(false);
 		}
 	};
 
-	// Teacher Google login
 	const handleGoogleLoginTeacher = async idToken => {
 		setLoading(true);
 		try {
 			const res = await googleLoginTeacher(idToken);
 			if (res?.data?.authToken) {
-				const decoded = decodeToken(res.data.authToken);
-				setUser(decoded);
-				setRole(decoded?.role || 'teacher');
-				setIsEmailVerified(decoded?.isEmailVerified || false);
-				setIsAuthenticated(true);
-				navigateSafe(getRedirectPath('/teacher'), { replace: true });
+				applyAuthFromToken(decodeToken(res.data.authToken), 'teacher');
 			}
 			return res;
 		} catch (err) {
-			setUser(null);
-			setRole(null);
-			setIsEmailVerified(false);
-			setIsAuthenticated(false);
+			clearAuthState();
 			throw normalizeError(err);
 		} finally {
 			setLoading(false);
 		}
 	};
 
-	// Teacher logout
 	const handleLogoutTeacher = async () => {
 		setLoading(true);
 		try {
 			await logoutTeacher();
 		} catch {
-			// Ignore error on logout
+			// Best-effort: server logout may fail, but we still clear locally
 		} finally {
-			setUser(null);
-			setRole(null);
-			setIsAuthenticated(false);
-			try {
-				removeToken();
-			} catch (err) {
-				console.error('Error removing token:', err);
-			}
+			clearAuthState();
+			try { removeToken(); } catch {}
 			setLoading(false);
-			navigateSafe('/auth?mode=login', { replace: true });
+			navigate('/auth?mode=login', { replace: true });
 		}
 	};
 
-	// Unified logout for consumers
-	const logout = React.useCallback(async () => {
+	// ── Unified logout ──────────────────────────────────────────────
+
+	const logout = useCallback(async () => {
 		if (role === 'teacher') {
 			await handleLogoutTeacher();
 		} else {
 			await handleLogoutStudent();
 		}
 	}, [role]);
+
+	// ── Context value ───────────────────────────────────────────────
 
 	const value = {
 		user,
@@ -327,7 +245,7 @@ export const AuthProvider = ({ children }) => {
 		loginTeacher: handleLoginTeacher,
 		googleLoginTeacher: handleGoogleLoginTeacher,
 		logoutTeacher: handleLogoutTeacher,
-		// unified alias so UI can just call `logout()`
+		// Unified alias so UI can just call `logout()`
 		logout,
 		setUser,
 		setRole,
