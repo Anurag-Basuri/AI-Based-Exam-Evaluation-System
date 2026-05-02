@@ -1,6 +1,8 @@
 import crypto from 'crypto';
+import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
 import Teacher from '../models/teacher.model.js';
+import Student from '../models/student.model.js';
 import Exam from '../models/exam.model.js';
 import Issue from '../models/issue.model.js';
 import Submission from '../models/submission.model.js';
@@ -86,12 +88,19 @@ const loginTeacher = asyncHandler(async (req, res) => {
 	// select password explicitly
 	const teacher = await Teacher.findOne(query).select('+password');
 	if (!teacher) {
-		throw ApiError.NotFound('Teacher not found');
+		throw ApiError.Unauthorized('Invalid credentials');
+	}
+
+	// Google-only accounts have no password set
+	if (!teacher.password) {
+		throw ApiError.Unauthorized(
+			'This account uses Google Sign-In. Please use the Google button to log in.',
+		);
 	}
 
 	const isMatch = await teacher.comparePassword(password);
 	if (!isMatch) {
-		throw ApiError.Unauthorized('Invalid password');
+		throw ApiError.Unauthorized('Invalid credentials');
 	}
 
 	const authToken = teacher.generateAuthToken();
@@ -122,7 +131,7 @@ const googleLoginTeacher = asyncHandler(async (req, res) => {
 	let teacher = await Teacher.findOne({ email });
 
 	if (teacher) {
-		// Existing user.
+		// Existing user — link Google account if not already linked
 		if (!teacher.googleId) {
 			teacher.googleId = googleId;
 			if (picture && !teacher.profilePicture) teacher.profilePicture = picture;
@@ -130,6 +139,14 @@ const googleLoginTeacher = asyncHandler(async (req, res) => {
 			await teacher.save();
 		}
 	} else {
+		// Prevent cross-role duplicate: check if email already exists as a Student
+		const existingStudent = await Student.findOne({ email });
+		if (existingStudent) {
+			throw ApiError.Conflict(
+				'This email is already registered as a Student account. Please log in as a Student instead.',
+			);
+		}
+
 		// New user created via Google
 		teacher = await Teacher.create({
 			username: email.split('@')[0] + '_' + Math.floor(Math.random() * 10000),
@@ -235,7 +252,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
 
 	// Aggregate exam-level summary and pending calculations server-side to avoid loading all docs
 	const summaryAgg = await Exam.aggregate([
-		{ $match: { teacher: TID } },
+		{ $match: { createdBy: TID } },
 		{
 			$project: {
 				title: 1,
@@ -289,7 +306,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
 
 	// Top exams that need review (pending > 0)
 	const examsToReview = await Exam.aggregate([
-		{ $match: { teacher: TID } },
+		{ $match: { createdBy: TID } },
 		{
 			$project: {
 				title: 1,
@@ -322,7 +339,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
 			},
 		},
 		{ $unwind: '$exam' },
-		{ $match: { 'exam.teacher': TID } },
+		{ $match: { 'exam.createdBy': TID } },
 		{
 			$lookup: {
 				from: 'students',
@@ -514,21 +531,7 @@ const exportTeacherExams = asyncHandler(async (req, res) => {
 	return sendCSVDowload(res, `teacher_exams_${teacherId}.csv`, csv);
 });
 
-export {
-	createTeacher,
-	loginTeacher,
-	googleLoginTeacher,
-	logoutTeacher,
-	updateTeacher,
-	changePassword,
-	getDashboardStats,
-	verifyTeacherEmail,
-	resendTeacherVerification,
-	forgotTeacherPassword,
-	resetTeacherPassword,
-	exportTeacherProfile,
-	exportTeacherExams,
-};
+// (export block moved to end of file to avoid const hoisting issues)
 
 // ══════════════════════════════════════════════════════════════════
 // EMAIL VERIFICATION
@@ -556,9 +559,12 @@ const verifyTeacherEmail = asyncHandler(async (req, res) => {
 	teacher.emailVerificationExpires = undefined;
 	await teacher.save({ validateBeforeSave: false });
 
+	// Issue a fresh token with updated isEmailVerified claim
+	const authToken = teacher.generateAuthToken();
+
 	return ApiResponse.success(
 		res,
-		{ isEmailVerified: true },
+		{ isEmailVerified: true, authToken },
 		'Email verified successfully! You now have full access.',
 	);
 });
@@ -660,3 +666,56 @@ const resetTeacherPassword = asyncHandler(async (req, res) => {
 		'Password reset successfully. You can now log in with your new password.',
 	);
 });
+
+// ══════════════════════════════════════════════════════════════════
+// TOKEN REFRESH
+// ══════════════════════════════════════════════════════════════════
+
+const refreshTeacherToken = asyncHandler(async (req, res) => {
+	const { refreshToken } = req.body;
+	if (!refreshToken) throw ApiError.BadRequest('Refresh token is required');
+
+	let decoded;
+	try {
+		decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+	} catch {
+		throw ApiError.Unauthorized('Invalid or expired refresh token');
+	}
+
+	const teacher = await Teacher.findById(decoded.id).select('+refreshToken');
+	if (!teacher || teacher.refreshToken !== refreshToken) {
+		throw ApiError.Unauthorized('Refresh token has been revoked');
+	}
+
+	// Rotate: issue new token pair
+	const newAuthToken = teacher.generateAuthToken();
+	const newRefreshToken = teacher.generateRefreshToken();
+	await teacher.save({ validateBeforeSave: false });
+
+	return ApiResponse.success(
+		res,
+		{ authToken: newAuthToken, refreshToken: newRefreshToken },
+		'Token refreshed successfully',
+	);
+});
+
+// ══════════════════════════════════════════════════════════════════
+// EXPORTS (must be at the end to avoid const hoisting issues)
+// ══════════════════════════════════════════════════════════════════
+
+export {
+	createTeacher,
+	loginTeacher,
+	googleLoginTeacher,
+	logoutTeacher,
+	updateTeacher,
+	changePassword,
+	getDashboardStats,
+	verifyTeacherEmail,
+	resendTeacherVerification,
+	forgotTeacherPassword,
+	resetTeacherPassword,
+	exportTeacherProfile,
+	exportTeacherExams,
+	refreshTeacherToken,
+};

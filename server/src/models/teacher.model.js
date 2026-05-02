@@ -14,8 +14,8 @@ const teacherSchema = new mongoose.Schema(
 			minlength: [3, 'Username must be at least 3 characters'],
 			maxlength: [30, 'Username cannot exceed 30 characters'],
 			match: [
-				/^[a-zA-Z0-9_.]+$/,
-				'Username can only contain letters, numbers, underscores, and dots',
+				/^[a-zA-Z0-9_.\-]+$/,
+				'Username can only contain letters, numbers, underscores, dots, and hyphens',
 			],
 		},
 		fullname: {
@@ -104,8 +104,8 @@ const teacherSchema = new mongoose.Schema(
 			type: String,
 			select: false,
 		},
-		resetPasswordToken: String,
-		resetPasswordExpires: Date,
+		resetPasswordToken: { type: String, select: false },
+		resetPasswordExpires: { type: Date, select: false },
 	},
 	{
 		timestamps: true,
