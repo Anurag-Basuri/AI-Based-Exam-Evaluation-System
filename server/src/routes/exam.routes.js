@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { body } from 'express-validator';
+import { validate } from '../middlewares/validate.middleware.js';
 import { checkAuth, verifyStudent, verifyTeacher, requireVerifiedEmail } from '../middlewares/auth.middleware.js';
 import {
 	createExam,
@@ -34,6 +35,7 @@ router.post(
 	requireVerifiedEmail,
 	body('title').notEmpty().withMessage('Title is required'),
 	body('description').notEmpty().withMessage('Description is required'),
+	validate,
 	createExam,
 );
 
@@ -43,6 +45,7 @@ router.patch(
 	checkAuth,
 	verifyTeacher,
 	body('questionIds').isArray().withMessage('questionIds must be an array'),
+	validate,
 	addQuestionsToExam,
 );
 
@@ -52,6 +55,7 @@ router.patch(
 	checkAuth,
 	verifyTeacher,
 	body('questionIds').isArray().withMessage('questionIds must be an array'),
+	validate,
 	removeQuestionsFromExam,
 );
 
@@ -101,6 +105,7 @@ router.patch(
 	checkAuth,
 	verifyTeacher,
 	body('order').isArray({ min: 1 }).withMessage('order array required'),
+	validate,
 	reorderExamQuestions,
 );
 
@@ -110,6 +115,7 @@ router.patch(
 	checkAuth,
 	verifyTeacher,
 	body('questionIds').isArray().withMessage('questionIds array required'),
+	validate,
 	setExamQuestions,
 );
 
@@ -121,6 +127,7 @@ router.post(
 	body('type').notEmpty().withMessage('Type is required'),
 	body('text').notEmpty().withMessage('Text is required'),
 	body('max_marks').notEmpty().withMessage('Max marks is required'),
+	validate,
 	createAndAttachQuestion,
 );
 
