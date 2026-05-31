@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { body, param, query } from 'express-validator';
+import { validate } from '../middlewares/validate.middleware.js';
 import {
 	checkAuth,
 	verifyStudent,
@@ -35,12 +36,13 @@ const router = Router();
 router.post('/test-evaluation', testEvaluationService);
 router.get('/my-submissions', checkAuth, verifyStudent, getMySubmissions);
 
-// --- NEW: Student gets their own submission details for the results page ---
+// --- Student gets their own submission details for the results page ---
 router.get(
 	'/results/:id',
 	checkAuth,
 	verifyStudent,
 	param('id').notEmpty().withMessage('Submission ID is required'),
+	validate,
 	getSubmissionForResults,
 );
 
@@ -50,6 +52,7 @@ router.get(
 	checkAuth,
 	verifyStudent,
 	param('id').notEmpty().withMessage('Submission ID is required'),
+	validate,
 	getSubmissionByIdParam,
 );
 
@@ -60,6 +63,7 @@ router.post(
 	verifyStudent,
 	requireVerifiedEmail,
 	body('examId').notEmpty().withMessage('Exam ID is required'),
+	validate,
 	startSubmission,
 );
 
@@ -70,6 +74,7 @@ router.post(
 	verifyStudent,
 	requireVerifiedEmail,
 	param('id').notEmpty().withMessage('Exam ID is required'),
+	validate,
 	startSubmissionByParam,
 );
 
@@ -79,6 +84,7 @@ router.patch(
 	checkAuth,
 	verifyStudent,
 	param('id').notEmpty().withMessage('Submission ID is required'),
+	validate,
 	syncAnswersBySubmissionId,
 );
 
@@ -89,6 +95,7 @@ router.post(
 	verifyStudent,
 	param('id').notEmpty().withMessage('Submission ID is required'),
 	body('type').notEmpty().withMessage('Violation type is required'),
+	validate,
 	logViolation,
 );
 
@@ -98,6 +105,7 @@ router.post(
 	checkAuth,
 	verifyStudent,
 	body('examId').notEmpty().withMessage('Exam ID is required'),
+	validate,
 	submitSubmission,
 );
 
@@ -107,6 +115,7 @@ router.post(
 	checkAuth,
 	verifyStudent,
 	param('id').notEmpty().withMessage('Submission ID is required'),
+	validate,
 	submitSubmissionById,
 );
 
@@ -136,6 +145,7 @@ router.get(
 	verifyStudent,
 	query('examId').notEmpty().withMessage('Exam ID is required'),
 	query('studentId').notEmpty().withMessage('Student ID is required'),
+	validate,
 	getSubmission,
 );
 
@@ -144,18 +154,8 @@ router.get(
 	'/:id/status',
 	checkAuth,
 	param('id').notEmpty().withMessage('Submission ID is required'),
+	validate,
 	getSubmissionStatus,
-);
-
-// Order matters: specific routes BEFORE the catch-all '/:id'
-
-// Get submission by ID (for resume) — keep this last
-router.get(
-	'/:id',
-	checkAuth,
-	verifyStudent,
-	param('id').notEmpty().withMessage('Submission ID is required'),
-	getSubmissionByIdParam,
 );
 
 export default router;
