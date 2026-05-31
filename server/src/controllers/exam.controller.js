@@ -1,72 +1,16 @@
+import mongoose from 'mongoose';
 import Exam from '../models/exam.model.js';
 import Question from '../models/question.model.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import { syncExamStatuses } from '../services/examStatus.service.js';
-import mongoose from 'mongoose';
+import * as ExamService from '../services/exam.service.js';
 
 // Create an exam (can be created with zero questions, status is 'draft')
 const createExam = asyncHandler(async (req, res) => {
-	const {
-		title,
-		description,
-		duration,
-		questionIds, // This was missing from the destructuring
-		startTime,
-		endTime,
-		aiPolicy,
-		instructions,
-		autoPublishResults,
-	} = req.body;
 	const teacherId = req.teacher?._id || req.user?.id;
-
-	if (!title || !duration || !startTime || !endTime) {
-		throw ApiError.BadRequest('Title, duration, startTime, and endTime are required');
-	}
-
-	// Validate start and end time
-	if (new Date(startTime) <= new Date()) {
-		throw ApiError.BadRequest('Start time must be in the future');
-	}
-	if (new Date(endTime) <= new Date(startTime)) {
-		throw ApiError.BadRequest('End time must be after start time');
-	}
-
-	// If questions are provided, check ownership, else allow empty
-	let questions = [];
-	if (Array.isArray(questionIds) && questionIds.length > 0) {
-		questions = await Question.find({ _id: { $in: questionIds }, createdBy: teacherId });
-		if (questions.length !== questionIds.length) {
-			throw ApiError.BadRequest('Some questions do not belong to you or do not exist');
-		}
-	}
-
-	const exam = new Exam({
-		title,
-		description,
-		duration,
-		questions: questions.map(q => q._id),
-		startTime,
-		endTime,
-		createdBy: teacherId,
-		status: 'draft',
-		aiPolicy,
-		instructions,
-		autoPublishResults,
-		totalMarks: questions.reduce((sum, q) => sum + (q.max_marks || 0), 0),
-	});
-
-	await exam.save();
-
-	// Update questions with sourceExam reference if any
-	if (questions.length > 0) {
-		await Question.updateMany(
-			{ _id: { $in: questionIds } },
-			{ $set: { sourceExam: exam._id } },
-		);
-	}
-
+	const exam = await ExamService.create(req.body, teacherId);
 	return ApiResponse.success(res, exam, 'Exam created successfully', 201);
 });
 
@@ -85,7 +29,7 @@ const addQuestionsToExam = asyncHandler(async (req, res) => {
 
 	const exam = await Exam.findById(examId);
 	if (!exam) throw ApiError.NotFound('Exam not found');
-	if (exam.status !== 'draft' && !isScheduled(exam)) {
+	if (exam.status !== 'draft' && !ExamService.isScheduled(exam)) {
 		throw ApiError.Forbidden(
 			'Can only add questions to a draft or scheduled exam (not started).',
 		);
@@ -122,7 +66,7 @@ const removeQuestionsFromExam = asyncHandler(async (req, res) => {
 
 	const exam = await Exam.findById(examId);
 	if (!exam) throw ApiError.NotFound('Exam not found');
-	if (exam.status !== 'draft' && !isScheduled(exam)) {
+	if (exam.status !== 'draft' && !ExamService.isScheduled(exam)) {
 		throw ApiError.Forbidden(
 			'Can only remove questions from a draft or scheduled exam (not started).',
 		);
@@ -293,12 +237,7 @@ const getExamById = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, exam, 'Exam details fetched');
 });
 
-// Helper: ensure ownership
-const assertOwner = (doc, teacherId) => {
-	if (!doc?.createdBy || String(doc.createdBy) !== String(teacherId)) {
-		throw ApiError.Forbidden('Not authorized for this exam');
-	}
-};
+
 
 // Update an exam (safe status transitions)
 const updateExam = asyncHandler(async (req, res) => {
@@ -321,7 +260,7 @@ const updateExam = asyncHandler(async (req, res) => {
 
 	const exam = await Exam.findById(id);
 	if (!exam) throw ApiError.NotFound('Exam not found');
-	assertOwner(exam, teacherId);
+	ExamService.assertOwner(exam, teacherId);
 
 	// Prevent edits on exams that are not in draft state.
 	if (exam.status !== 'draft') {
@@ -364,8 +303,8 @@ const deleteExam = asyncHandler(async (req, res) => {
 	const now = new Date();
 
 	// Use helpers that rely on timestamps rather than fragile status string
-	const scheduledFlag = isScheduled(exam);
-	const liveFlag = isLive(exam);
+	const scheduledFlag = ExamService.isScheduled(exam);
+	const liveFlag = ExamService.isLive(exam);
 
 	if (scheduledFlag || liveFlag) {
 		throw ApiError.Forbidden('Cannot delete a live or scheduled exam. End/cancel it first.');
@@ -407,33 +346,8 @@ const searchExamByCode = asyncHandler(async (req, res) => {
 
 // Publish exam (draft -> active)
 const publishExam = asyncHandler(async (req, res) => {
-	const examId = req.params.id;
 	const teacherId = req.teacher?._id || req.user?.id;
-
-	if (!examId || !examId.match(/^[a-f\d]{24}$/i)) {
-		throw ApiError.BadRequest('Invalid exam ID');
-	}
-	const exam = await Exam.findById(examId);
-	if (!exam) throw ApiError.NotFound('Exam not found');
-
-	assertOwner(exam, teacherId);
-
-	if (exam.status !== 'draft') {
-		throw ApiError.BadRequest('Only draft exams can be published');
-	}
-	if (!Array.isArray(exam.questions) || exam.questions.length === 0) {
-		throw ApiError.BadRequest('Add at least one question before publishing');
-	}
-	if (exam.startTime && new Date(exam.startTime) <= new Date()) {
-		throw ApiError.BadRequest('Start time must be in the future');
-	}
-	if (exam.endTime && exam.startTime && new Date(exam.endTime) <= new Date(exam.startTime)) {
-		throw ApiError.BadRequest('End time must be after start time');
-	}
-
-	exam.status = 'active';
-	await exam.save();
-
+	const exam = await ExamService.publish(req.params.id, teacherId);
 	return ApiResponse.success(res, exam, 'Exam published');
 });
 
@@ -451,7 +365,7 @@ const reorderExamQuestions = asyncHandler(async (req, res) => {
 	const exam = await Exam.findById(examId);
 	if (!exam) throw ApiError.NotFound('Exam not found');
 	assertOwner(exam, teacherId);
-	if (exam.status !== 'draft' && !isScheduled(exam)) {
+	if (exam.status !== 'draft' && !ExamService.isScheduled(exam)) {
 		throw ApiError.Forbidden(
 			'Can only reorder questions on a draft or scheduled exam (not started)',
 		);
@@ -486,7 +400,7 @@ const setExamQuestions = asyncHandler(async (req, res) => {
 	const exam = await Exam.findById(examId);
 	if (!exam) throw ApiError.NotFound('Exam not found');
 	assertOwner(exam, teacherId);
-	if (exam.status !== 'draft' && !isScheduled(exam)) {
+	if (exam.status !== 'draft' && !ExamService.isScheduled(exam)) {
 		throw ApiError.Forbidden(
 			'Can only change questions on a draft or scheduled exam (not started)',
 		);
@@ -612,31 +526,7 @@ const syncStatusesNow = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, result, 'Exam statuses synchronized');
 });
 
-// Helpers to determine if an exam is scheduled or live based on timestamps
-const isScheduled = exam => {
-	if (!exam || !exam.startTime) return false;
-	const now = new Date();
-	const start = new Date(exam.startTime);
-	// scheduled = start in future and not already completed/cancelled
-	const s =
-		now < start &&
-		String(exam.status).toLowerCase() !== 'completed' &&
-		String(exam.status).toLowerCase() !== 'cancelled';
-	return s;
-};
-const isLive = exam => {
-	if (!exam || !exam.startTime || !exam.endTime) return false;
-	const now = new Date();
-	const start = new Date(exam.startTime);
-	const end = new Date(exam.endTime);
-	// live if now within window and not completed/cancelled
-	return (
-		now >= start &&
-		now <= end &&
-		String(exam.status).toLowerCase() !== 'completed' &&
-		String(exam.status).toLowerCase() !== 'cancelled'
-	);
-};
+
 
 // End exam now (only if live or scheduled) — keep logging and use helpers
 const endExamNow = asyncHandler(async (req, res) => {
@@ -649,8 +539,8 @@ const endExamNow = asyncHandler(async (req, res) => {
 	assertOwner(exam, teacherId);
 
 	// compute flags
-	const scheduledFlag = isScheduled(exam);
-	const liveFlag = isLive(exam);
+	const scheduledFlag = ExamService.isScheduled(exam);
+	const liveFlag = ExamService.isLive(exam);
 
 	// log for debugging
 	console.log(
@@ -692,7 +582,7 @@ const cancelExam = asyncHandler(async (req, res) => {
 	assertOwner(exam, teacherId);
 
 	// Use the improved helper which relies on timestamps
-	if (!isScheduled(exam)) {
+	if (!ExamService.isScheduled(exam)) {
 		throw ApiError.Forbidden('Only scheduled (not started) exams can be cancelled');
 	}
 
@@ -713,7 +603,7 @@ const extendExam = asyncHandler(async (req, res) => {
 	if (!exam) throw ApiError.NotFound('Exam not found');
 	assertOwner(exam, teacherId);
 
-	if (!(isScheduled(exam) || isLive(exam))) {
+	if (!(ExamService.isScheduled(exam) || ExamService.isLive(exam))) {
 		throw ApiError.Forbidden('Only scheduled or live exams can be extended');
 	}
 
@@ -750,7 +640,7 @@ const regenerateExamCode = asyncHandler(async (req, res) => {
 	if (!exam) throw ApiError.NotFound('Exam not found');
 	assertOwner(exam, teacherId);
 
-	if (!isScheduled(exam) && exam.status !== 'draft') {
+	if (!ExamService.isScheduled(exam) && exam.status !== 'draft') {
 		throw ApiError.Forbidden('Can only regenerate code for draft or scheduled exams');
 	}
 
@@ -781,70 +671,7 @@ const regenerateExamCode = asyncHandler(async (req, res) => {
 // Get exam statistics for dashboard
 const getExamStats = asyncHandler(async (req, res) => {
 	const teacherId = req.teacher?._id || req.user?.id;
-	const now = new Date();
-
-	const stats = await Exam.aggregate([
-		{ $match: { createdBy: new mongoose.Types.ObjectId(teacherId) } },
-		{
-			$group: {
-				_id: null,
-				total: { $sum: 1 },
-				draft: { $sum: { $cond: [{ $eq: ['$status', 'draft'] }, 1, 0] } },
-				active: {
-					$sum: {
-						$cond: [
-							{
-								$and: [
-									{ $eq: ['$status', 'active'] },
-									{ $lte: ['$startTime', now] },
-									{ $gte: ['$endTime', now] },
-								],
-							},
-							1,
-							0,
-						],
-					},
-				},
-				scheduled: {
-					$sum: {
-						$cond: [
-							{
-								$and: [
-									{ $eq: ['$status', 'active'] },
-									{ $gt: ['$startTime', now] },
-								],
-							},
-							1,
-							0,
-						],
-					},
-				},
-				completed: {
-					$sum: {
-						$cond: [
-							{
-								$or: [
-									{ $eq: ['$status', 'completed'] },
-									{
-										$and: [
-											{ $eq: ['$status', 'active'] },
-											{ $lt: ['$endTime', now] },
-										],
-									},
-								],
-							},
-							1,
-							0,
-						],
-					},
-				},
-			},
-		},
-	]);
-
-	const result = stats[0] || { total: 0, draft: 0, active: 0, scheduled: 0, completed: 0 };
-	delete result._id;
-
+	const result = await ExamService.getStats(teacherId);
 	return ApiResponse.success(res, result, 'Exam stats fetched');
 });
 

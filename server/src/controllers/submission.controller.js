@@ -1,335 +1,28 @@
 import Submission from '../models/submission.model.js';
 import Exam from '../models/exam.model.js';
 import Question from '../models/question.model.js';
-import { evaluateAnswer } from '../services/evaluation.service.js';
+import { enqueueEvaluation, evaluateSubmissionAnswers } from '../services/jobQueue.service.js';
+import * as SubmissionService from '../services/submission.service.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import { generateCSV, sendCSVDowload } from '../services/export.service.js';
 
-// Helper: Evaluate all answers in a submission
-async function evaluateSubmissionAnswers(submission) {
-	console.log(`[SUBMISSION_CTRL] Starting evaluation for submission ID: ${submission._id}`);
-	const examDoc = await Exam.findById(submission.exam).select('title aiPolicy');
-	if (examDoc?.aiPolicy) {
-		console.log('[SUBMISSION_CTRL] Exam AI policy detected.');
-	}
-
-	const evaluations = await Promise.all(
-		submission.answers.map(async ans => {
-			const questionDoc = await Question.findById(ans.question).lean();
-			if (!questionDoc) {
-				console.warn(`[SUBMISSION_CTRL] Question ${ans.question} not found. Skipping.`);
-				return null;
-			}
-
-			let marks = 0;
-			let remarks = 'Answer not provided.';
-			let meta = undefined;
-			let evaluator = 'ai';
-
-			if (questionDoc.type === 'multiple-choice') {
-				if (ans.responseOption && questionDoc.options) {
-					const isCorrect = (questionDoc.options || []).some(
-						opt => opt.isCorrect && String(opt?._id) === String(ans.responseOption),
-					);
-					marks = isCorrect ? questionDoc.max_marks : 0;
-					remarks = isCorrect ? 'Correct answer.' : 'Incorrect answer.';
-					meta = { type: 'mcq-auto' };
-				} else {
-					remarks = 'No option selected.';
-					meta = { type: 'mcq-unanswered' };
-				}
-			} else if (ans.responseText && String(ans.responseText).trim()) {
-				const refAnswer = questionDoc.answer || null;
-				const weight = (questionDoc.max_marks || 0) / 100;
-				// FIX: Use the exam's AI policy directly. There is no per-question AI policy.
-				const policy = examDoc?.aiPolicy || {};
-
-				if (Object.keys(policy).length) {
-					console.log(
-						'[SUBMISSION_CTRL] Using exam AI policy for question:',
-						questionDoc._id,
-					);
-				}
-
-				try {
-					const evalResult = await evaluateAnswer(
-						questionDoc, // Pass the full question object
-						ans.responseText,
-						refAnswer,
-						weight,
-						policy, // Pass the corrected policy
-					);
-					marks = evalResult.score;
-					remarks = evalResult.review;
-					meta = evalResult.meta;
-					console.log(
-						`[SUBMISSION_CTRL] Evaluation OK for question ${questionDoc._id}. Marks: ${marks}`,
-					);
-				} catch (e) {
-					console.error(
-						`[SUBMISSION_CTRL] Evaluation error for question ${questionDoc._id}.`,
-						e.message,
-					);
-					marks = 0;
-					remarks =
-						'Evaluation failed due to a system error. A teacher will review this answer.';
-					meta = { fallback: true, type: 'controller-error', message: e.message };
-					evaluator = 'system';
-				}
-			} else {
-				meta = { fallback: true, type: 'empty-answer' };
-			}
-
-			return {
-				question: questionDoc._id,
-				evaluation: {
-					evaluator,
-					marks,
-					remarks,
-					evaluatedAt: new Date(),
-					meta,
-				},
-			};
-		}),
-	);
-
-	const filtered = evaluations.filter(Boolean);
-	console.log(
-		`[SUBMISSION_CTRL] Finished evaluation for submission ${submission._id}. Count: ${filtered.length}`,
-	);
-	return filtered;
-}
-
-function isExpired(submission, exam) {
-	if (!submission?.startedAt || !submission?.duration) return false;
-	const started = new Date(submission.startedAt).getTime();
-	const byDuration = started + Number(submission.duration) * 60 * 1000;
-	const examEnd = exam?.endTime ? new Date(exam.endTime).getTime() : Number.POSITIVE_INFINITY;
-	const deadline = Math.min(byDuration, examEnd);
-	return Date.now() >= deadline;
-}
-
-// Background evaluation: fires evaluation in a detached promise and updates the DB when done.
-function runBackgroundEvaluation(submissionId) {
-	(async () => {
-		try {
-			const submission = await Submission.findById(submissionId);
-			if (!submission || submission.status !== 'evaluating') return;
-
-			submission.evaluations = await evaluateSubmissionAnswers(submission);
-			submission.evaluatedAt = new Date();
-			submission.status = 'evaluated';
-			await submission.save();
-			console.log(`[BG_EVAL] Submission ${submissionId} evaluated successfully.`);
-		} catch (err) {
-			console.error(`[BG_EVAL] Failed for submission ${submissionId}:`, err.message);
-			// Mark as evaluated even on failure so it doesn't hang
-			try {
-				await Submission.findByIdAndUpdate(submissionId, {
-					status: 'evaluated',
-					evaluatedAt: new Date(),
-				});
-			} catch {}
-		}
-	})();
-}
-
-async function finalizeAsSubmitted(submission, exam) {
-	// Avoid double-finalization
-	if (submission.status !== 'in-progress') return submission;
-	submission.status = 'evaluating';
-	submission.submittedAt = new Date();
-	submission.submissionType = 'auto';
-	await submission.save();
-
-	// Fire evaluation in the background
-	runBackgroundEvaluation(submission._id);
-	return submission;
-}
-
 // Start a new submission for an exam
 const startSubmission = asyncHandler(async (req, res) => {
 	const studentId = req.student?._id || req.user?.id;
 	const { examId } = req.body;
-
-	console.log(
-		'[submission.controller.js] startSubmission: Received request for examId:',
-		examId,
-		'by studentId:',
-		studentId,
-	);
-
-	if (!examId) throw ApiError.BadRequest('Exam ID is required');
-
-	const exam = await Exam.findById(examId).select('status startTime endTime duration questions');
-	if (!exam) {
-		console.error('[submission.controller.js] startSubmission: ERROR - Exam not found.');
-		throw ApiError.NotFound('Exam not found');
-	}
-	if (exam.status !== 'active') {
-		console.error(
-			`[submission.controller.js] startSubmission: ERROR - Exam status is '${exam.status}', not 'active'.`,
-		);
-		throw ApiError.Forbidden('Exam is not active');
-	}
-
-	const now = new Date();
-	if (exam.startTime && now < new Date(exam.startTime))
-		throw ApiError.Forbidden('Exam has not started yet');
-	if (exam.endTime && now > new Date(exam.endTime)) throw ApiError.Forbidden('Exam has ended');
-
-	const existing = await Submission.findOne({ exam: examId, student: studentId });
-
-	if (existing) {
-		console.log(
-			'[submission.controller.js] startSubmission: Found existing submission:',
-			existing._id,
-			'with status:',
-			existing.status,
-		);
-		// If expired while away, auto-submit and return final
-		if (isExpired(existing, exam) && existing.status === 'in-progress') {
-			console.log(
-				'[submission.controller.js] startSubmission: Existing submission is expired. Finalizing...',
-			);
-			const finalized = await finalizeAsSubmitted(existing, exam);
-			return ApiResponse.success(res, finalized, 'Time over. Submission finalized');
-		}
-		// --- FIX: If resuming, re-populate the submission to ensure frontend gets all data ---
-		const populatedExisting = await Submission.findById(existing._id)
-			.populate({
-				path: 'exam',
-				select: 'title duration instructions aiPolicy',
-			})
-			.populate({
-				path: 'questions',
-				select: 'text type options max_marks',
-			})
-			.lean();
-
-		const normalizedExisting = {
-			_id: populatedExisting._id,
-			status: populatedExisting.status,
-			startedAt: populatedExisting.startedAt,
-			submittedAt: populatedExisting.submittedAt,
-			duration: populatedExisting.exam?.duration,
-			examTitle: populatedExisting.exam?.title,
-			examPolicy: populatedExisting.exam?.aiPolicy,
-			instructions: populatedExisting.exam?.instructions,
-			questions: (populatedExisting.questions || []).map(q => ({
-				...q,
-				options: (q.options || []).map(opt => ({ ...opt })),
-			})),
-			answers: populatedExisting.answers || [],
-			markedForReview: populatedExisting.markedForReview || [],
-		};
-
-		console.log('[submission.controller.js] startSubmission: Resuming existing submission.');
-		return ApiResponse.success(res, normalizedExisting, 'Submission already started');
-	}
-
-	// --- Pre-populate answer slots ---
-	const initialAnswers = (exam.questions || []).map(questionId => ({
-		question: questionId,
-		responseText: '',
-		responseOption: null,
-	}));
-
-	const submission = new Submission({
-		exam: examId,
-		student: studentId,
-		startedAt: new Date(),
-		duration: exam.duration,
-		status: 'in-progress',
-		answers: initialAnswers,
-		questions: exam.questions, // Also store the question list on the submission
-	});
-
-	await submission.save();
-
-	console.log(
-		'[submission.controller.js] startSubmission: CREATED new submission with id:',
-		submission._id,
-		'and status:',
-		submission.status,
-	);
-
-	// --- FIX: Populate the submission before sending it back ---
-	// The TakeExam page needs the full details immediately.
-	const populatedSubmission = await Submission.findById(submission._id)
-		.populate({
-			path: 'exam',
-			select: 'title duration instructions aiPolicy',
-		})
-		.populate({
-			path: 'questions',
-			select: 'text type options max_marks', // Ensure all necessary fields are selected
-		})
-		.lean();
-
-	// --- FIX: Return a consistent data structure with _id ---
-	const normalized = {
-		_id: populatedSubmission._id, // Use _id
-		status: populatedSubmission.status,
-		startedAt: populatedSubmission.startedAt,
-		submittedAt: populatedSubmission.submittedAt,
-		duration: populatedSubmission.exam?.duration,
-		examTitle: populatedSubmission.exam?.title,
-		examPolicy: populatedSubmission.exam?.aiPolicy,
-		instructions: populatedSubmission.exam?.instructions,
-		questions: (populatedSubmission.questions || []).map(q => ({
-			...q,
-			options: (q.options || []).map(opt => ({ ...opt })), // Ensure options have _id
-		})),
-		answers: populatedSubmission.answers || [],
-		markedForReview: populatedSubmission.markedForReview || [],
-	};
-
-	// Return the newly created and populated submission.
-	return ApiResponse.success(res, normalized, 'Submission started', 201);
+	
+	const result = await SubmissionService.start(examId, studentId);
+	return ApiResponse.success(res, result.submission, result.statusMessage, result.isNew ? 201 : 200);
 });
-
-// Helper to safely merge incoming answers into existing slots
-function mergeAnswers(existingAnswers, incomingAnswers) {
-	const incomingMap = new Map(incomingAnswers.map(a => [String(a.question), a]));
-
-	existingAnswers.forEach(existingAns => {
-		const qid = String(existingAns.question);
-		if (incomingMap.has(qid)) {
-			const incoming = incomingMap.get(qid);
-			// Update properties on the existing Mongoose sub-document
-			existingAns.responseText = incoming.responseText ?? existingAns.responseText;
-			existingAns.responseOption = incoming.responseOption ?? existingAns.responseOption;
-		}
-	});
-
-	// Return the mutated array. Mongoose will detect the changes.
-	return existingAnswers;
-}
 
 // Submit a submission (mark as submitted and evaluate)
 const submitSubmission = asyncHandler(async (req, res) => {
-	console.log('[SUBMISSION_CTRL] Received request to submit and evaluate submission.');
 	const studentId = req.student?._id || req.user?.id;
 	const { examId, submissionType = 'manual' } = req.body;
 
-	const submission = await Submission.findOne({ exam: examId, student: studentId });
-	if (!submission) throw ApiError.NotFound('Submission not found');
-	if (submission.status !== 'in-progress') throw ApiError.Forbidden('Already submitted');
-
-	submission.status = 'evaluating';
-	submission.submittedAt = new Date();
-	submission.submissionType = submissionType;
-	await submission.save();
-
-	// Fire evaluation in background
-	runBackgroundEvaluation(submission._id);
-
-	console.log(
-		`[SUBMISSION_CTRL] Submission ${submission._id} accepted for background evaluation.`,
-	);
+	const submission = await SubmissionService.submit(examId, studentId, submissionType);
 	return ApiResponse.success(res, submission, 'Submission accepted. Evaluation in progress.');
 });
 
@@ -616,8 +309,8 @@ const syncAnswersBySubmissionId = asyncHandler(async (req, res) => {
 
 	const exam = await Exam.findById(submission.exam);
 	if (!exam) throw ApiError.NotFound('Exam not found');
-	if (isExpired(submission, exam) && submission.status === 'in-progress') {
-		const finalized = await finalizeAsSubmitted(submission, exam);
+	if (SubmissionService.isExpired(submission, exam) && submission.status === 'in-progress') {
+		const finalized = await SubmissionService.finalize(submission, exam);
 		return ApiResponse.success(res, finalized, 'Time over. Auto-submitted');
 	}
 	if (submission.status !== 'in-progress') {
@@ -625,7 +318,7 @@ const syncAnswersBySubmissionId = asyncHandler(async (req, res) => {
 	}
 
 	if (Array.isArray(answers)) {
-		submission.answers = mergeAnswers(submission.answers, answers);
+		submission.answers = SubmissionService.mergeAnswers(submission.answers, answers);
 	}
 	if (Array.isArray(markedForReview)) {
 		const allowed = new Set(submission.answers.map(a => String(a.question)));
@@ -659,17 +352,10 @@ const submitSubmissionById = asyncHandler(async (req, res) => {
 	const { submissionType = 'manual' } = req.body;
 
 	if (!id) throw ApiError.BadRequest('Submission ID is required');
-	const submission = await Submission.findOne({ _id: id, student: studentId });
-	if (!submission) throw ApiError.NotFound('Submission not found');
-	if (submission.status !== 'in-progress') throw ApiError.Forbidden('Already submitted');
-	submission.status = 'evaluating';
-	submission.submittedAt = new Date();
-	submission.submissionType = submissionType;
-	await submission.save();
-
-	// Fire evaluation in background
-	runBackgroundEvaluation(submission._id);
-
+	const submissionDb = await Submission.findOne({ _id: id, student: studentId });
+	if (!submissionDb) throw ApiError.NotFound('Submission not found');
+	
+	const submission = await SubmissionService.submit(submissionDb.exam, studentId, submissionType);
 	return ApiResponse.success(res, submission, 'Submission accepted. Evaluation in progress.');
 });
 
