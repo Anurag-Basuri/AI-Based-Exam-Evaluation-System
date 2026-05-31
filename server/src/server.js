@@ -5,6 +5,7 @@ import app from './app.js';
 import connectDB from './db.js';
 import { initSocket } from './socket/initSocket.js';
 import { startExamStatusScheduler } from './services/examStatus.service.js';
+import { recoverStuckEvaluations, setSocketRef } from './services/jobQueue.service.js';
 
 dotenv.config();
 
@@ -40,6 +41,7 @@ process.on('unhandledRejection', err => handleFatalError(err, 'Unhandled Rejecti
 		// 2) Create HTTP server and initialize Socket.IO exactly once
 		const httpServer = http.createServer(app);
 		const io = initSocket(httpServer, app);
+		setSocketRef(io);
 
 		// 3) Start listening
 		httpServer.listen(PORT, () => {
@@ -52,6 +54,7 @@ process.on('unhandledRejection', err => handleFatalError(err, 'Unhandled Rejecti
 
 		// 4) Start background jobs
 		startExamStatusScheduler();
+		recoverStuckEvaluations();
 
 		// 5) Graceful shutdown
 		const shutdown = signal => {

@@ -10,12 +10,7 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-import studentRouter from './routes/student.routes.js';
-import teacherRouter from './routes/teacher.routes.js';
-import examRouter from './routes/exam.routes.js';
-import questionRouter from './routes/question.routes.js';
-import submissionRouter from './routes/submission.routes.js';
-import issueRouter from './routes/issue.routes.js';
+import v1Router from './routes/v1/index.js';
 
 const app = express();
 
@@ -48,6 +43,9 @@ app.use(cookieParser());
 app.get('/api/health', (req, res) => {
 	res.status(200).json({ status: 'ok', message: 'API is running' });
 });
+app.get('/api/v1/health', (req, res) => {
+	res.status(200).json({ status: 'ok', message: 'API is running', version: 'v1' });
+});
 
 // Root Route
 app.get('/', (req, res) => {
@@ -58,24 +56,93 @@ app.get('/', (req, res) => {
 	});
 });
 
-// API Routes
-app.use('/api/students', studentRouter);
-app.use('/api/teachers', teacherRouter);
-app.use('/api/exams', examRouter);
-app.use('/api/questions', questionRouter);
-app.use('/api/submissions', submissionRouter);
-app.use('/api/issues', issueRouter);
+// ── API Routes (versioned) ──────────────────────────────────────
+app.use('/api/v1', v1Router);
+
+// Legacy compatibility: /api/* still works (same router)
+// This can be removed once frontend is migrated to /api/v1
+app.use('/api', v1Router);
 
 // 404 handler
 app.use((req, res, next) => {
 	next(new ApiError(404, `Route ${req.originalUrl} not found`));
 });
 
-// Global error handler
+// ── Global Error Handler ────────────────────────────────────────
+// Normalizes ALL error types into a consistent JSON shape:
+//   { status, statusCode, message, details? }
 app.use((err, req, res, next) => {
+	// ── Already an ApiError? Use it directly.
+	if (err instanceof ApiError || (err.statusCode && err.name === 'ApiError')) {
+		const statusCode = err.statusCode;
+
+		if (process.env.NODE_ENV !== 'production') {
+			console.error(colors.red(`[ERROR] ${statusCode} ${err.message}`));
+			if (err.stack) console.error(colors.gray(err.stack));
+		}
+
+		return res.status(statusCode).json({
+			status: 'error',
+			statusCode,
+			message: err.message,
+			...(err.details && { details: err.details }),
+			...(process.env.NODE_ENV !== 'production' && { stack: err.stack }),
+		});
+	}
+
+	// ── Mongoose ValidationError ────────────────────────────────
+	if (err.name === 'ValidationError' && err.errors) {
+		const details = Object.values(err.errors).map(e => ({
+			field: e.path,
+			message: e.message,
+			value: e.value,
+		}));
+		return res.status(400).json({
+			status: 'error',
+			statusCode: 400,
+			message: 'Validation failed',
+			details,
+		});
+	}
+
+	// ── Mongoose CastError (invalid ObjectId, etc.) ─────────────
+	if (err.name === 'CastError') {
+		return res.status(400).json({
+			status: 'error',
+			statusCode: 400,
+			message: `Invalid ${err.path}: ${err.value}`,
+		});
+	}
+
+	// ── MongoDB Duplicate Key (code 11000) ──────────────────────
+	if (err.code === 11000) {
+		const field = Object.keys(err.keyValue || {})[0] || 'field';
+		return res.status(409).json({
+			status: 'error',
+			statusCode: 409,
+			message: `Duplicate value for '${field}'. This ${field} already exists.`,
+		});
+	}
+
+	// ── JWT Errors ──────────────────────────────────────────────
+	if (err.name === 'JsonWebTokenError') {
+		return res.status(401).json({
+			status: 'error',
+			statusCode: 401,
+			message: 'Invalid token',
+		});
+	}
+	if (err.name === 'TokenExpiredError') {
+		return res.status(401).json({
+			status: 'error',
+			statusCode: 401,
+			message: 'Token expired',
+		});
+	}
+
+	// ── Fallback: Unknown error ─────────────────────────────────
 	const statusCode = err.statusCode || 500;
 
-	// Log errors in development
 	if (process.env.NODE_ENV !== 'production') {
 		console.error(colors.red(`[ERROR] ${err.message}`));
 		if (err.stack) console.error(colors.gray(err.stack));
@@ -84,7 +151,9 @@ app.use((err, req, res, next) => {
 	res.status(statusCode).json({
 		status: 'error',
 		statusCode,
-		message: err.message || 'Internal Server Error',
+		message: process.env.NODE_ENV === 'production'
+			? 'Internal Server Error'
+			: err.message || 'Internal Server Error',
 		...(process.env.NODE_ENV !== 'production' && { stack: err.stack }),
 	});
 });
