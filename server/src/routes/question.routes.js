@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { body, param } from 'express-validator';
+import { validate } from '../middlewares/validate.middleware.js';
 import { checkAuth, verifyTeacher } from '../middlewares/auth.middleware.js';
 import {
 	createQuestion,
@@ -20,6 +21,7 @@ router.post(
 	body('type').notEmpty().withMessage('Type is required'),
 	body('text').notEmpty().withMessage('Text is required'),
 	body('max_marks').notEmpty().withMessage('Max marks is required'),
+	validate,
 	createQuestion,
 );
 
@@ -32,6 +34,7 @@ router.post(
 	checkAuth,
 	verifyTeacher,
 	body('items').isArray({ min: 1 }).withMessage('items must be an array'),
+	validate,
 	createQuestionsBulk,
 );
 
@@ -41,6 +44,7 @@ router.get(
 	checkAuth,
 	verifyTeacher,
 	param('id').notEmpty().withMessage('Question ID is required'),
+	validate,
 	getQuestionById,
 );
 
@@ -50,6 +54,7 @@ router.put(
 	checkAuth,
 	verifyTeacher,
 	param('id').notEmpty().withMessage('Question ID is required'),
+	validate,
 	updateQuestion,
 );
 
@@ -59,7 +64,9 @@ router.delete(
 	checkAuth,
 	verifyTeacher,
 	param('id').notEmpty().withMessage('Question ID is required'),
+	validate,
 	deleteQuestion,
 );
 
 export default router;
+

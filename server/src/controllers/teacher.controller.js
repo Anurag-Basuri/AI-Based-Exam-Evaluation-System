@@ -1,5 +1,3 @@
-import crypto from 'crypto';
-import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
 import Teacher from '../models/teacher.model.js';
 import Student from '../models/student.model.js';
@@ -9,178 +7,48 @@ import Submission from '../models/submission.model.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
-import { verifyGoogleIdToken } from '../utils/googleAuth.js';
-import {
-	sendVerificationEmail,
-	sendPasswordResetEmail,
-	sendPasswordChangedEmail,
-} from '../services/email.service.js';
 import { generateCSV, sendCSVDowload } from '../services/export.service.js';
+import * as AuthService from '../services/auth.service.js';
 
-// ── Helper: strip sensitive fields ────────────────────────────────
-function sanitize(doc) {
-	const obj = doc.toObject ? doc.toObject() : { ...doc };
-	delete obj.password;
-	delete obj.refreshToken;
-	delete obj.resetPasswordToken;
-	delete obj.resetPasswordExpires;
-	delete obj.emailVerificationToken;
-	delete obj.emailVerificationExpires;
-	return obj;
-}
-
-// Create a new teacher
+// ── Register ─────────────────────────────────────────────────────
 const createTeacher = asyncHandler(async (req, res) => {
-	const { username, fullname, email, password } = req.body;
-
-	if (!username || !fullname || !email || !password) {
-		throw ApiError.BadRequest('All fields are required');
-	}
-
-	const existingTeacher = await Teacher.findOne({ $or: [{ username }, { email }] });
-	if (existingTeacher) {
-		throw ApiError.Conflict('Username or email already exists');
-	}
-
-	const newTeacher = new Teacher({ username, fullname, email, password });
-
-	// Generate email verification token
-	const verifyToken = newTeacher.createEmailVerificationToken();
-
-	const authToken = newTeacher.generateAuthToken();
-	const refreshToken = newTeacher.generateRefreshToken();
-	await newTeacher.save();
-
-	// Send verification email (fire & forget)
-	sendVerificationEmail(email, fullname, verifyToken, 'teacher').catch(err =>
-		console.error('[REGISTER] Failed to send verification email:', err.message),
-	);
-
+	const result = await AuthService.registerUser(Teacher, req.body, 'teacher');
 	return ApiResponse.success(
 		res,
-		{
-			teacher: sanitize(newTeacher),
-			authToken,
-			refreshToken,
-			emailVerificationSent: true,
-		},
+		{ teacher: result.user, authToken: result.authToken, refreshToken: result.refreshToken, emailVerificationSent: result.emailVerificationSent },
 		'Teacher registered successfully. Please check your email to verify your account.',
 		201,
 	);
 });
 
-// Teacher login
+// ── Login ────────────────────────────────────────────────────────
 const loginTeacher = asyncHandler(async (req, res) => {
-	const { username, email, password } = req.body;
-	if ((!username && !email) || !password) {
-		throw ApiError.BadRequest('Username or email and password are required');
-	}
-
-	let query = {};
-	if (username && username.trim() !== '') {
-		query.username = username;
-	} else if (email && email.trim() !== '') {
-		query.email = email;
-	} else {
-		throw ApiError.BadRequest('Provide a valid username or email');
-	}
-
-	// select password explicitly
-	const teacher = await Teacher.findOne(query).select('+password');
-	if (!teacher) {
-		throw ApiError.Unauthorized('Invalid credentials');
-	}
-
-	// Google-only accounts have no password set
-	if (!teacher.password) {
-		throw ApiError.Unauthorized(
-			'This account uses Google Sign-In. Please use the Google button to log in.',
-		);
-	}
-
-	const isMatch = await teacher.comparePassword(password);
-	if (!isMatch) {
-		throw ApiError.Unauthorized('Invalid credentials');
-	}
-
-	const authToken = teacher.generateAuthToken();
-	const refreshToken = teacher.generateRefreshToken();
-
-	teacher.refreshToken = refreshToken;
-	await teacher.save();
-
+	const result = await AuthService.loginWithCredentials(Teacher, req.body);
 	return ApiResponse.success(
 		res,
-		{
-			teacher: sanitize(teacher),
-			authToken,
-			refreshToken,
-		},
+		{ teacher: result.user, authToken: result.authToken, refreshToken: result.refreshToken },
 		'Login successful',
 	);
 });
 
 // ── Google Login ─────────────────────────────────────────────────
 const googleLoginTeacher = asyncHandler(async (req, res) => {
-	const { idToken } = req.body;
-	if (!idToken) throw ApiError.BadRequest('Google ID token is required');
-
-	const payload = await verifyGoogleIdToken(idToken);
-	const { email, name, picture, sub: googleId } = payload;
-
-	let teacher = await Teacher.findOne({ email });
-
-	if (teacher) {
-		// Existing user — link Google account if not already linked
-		if (!teacher.googleId) {
-			teacher.googleId = googleId;
-			if (picture && !teacher.profilePicture) teacher.profilePicture = picture;
-			teacher.isEmailVerified = true;
-			await teacher.save();
-		}
-	} else {
-		// Prevent cross-role duplicate: check if email already exists as a Student
-		const existingStudent = await Student.findOne({ email });
-		if (existingStudent) {
-			throw ApiError.Conflict(
-				'This email is already registered as a Student account. Please log in as a Student instead.',
-			);
-		}
-
-		// New user created via Google
-		teacher = await Teacher.create({
-			username: email.split('@')[0] + '_' + Math.floor(Math.random() * 10000),
-			fullname: name,
-			email,
-			googleId,
-			profilePicture: picture || '',
-			isEmailVerified: true,
-		});
-	}
-
-	const authToken = teacher.generateAuthToken();
-	const refreshToken = teacher.generateRefreshToken();
-
-	teacher.refreshToken = refreshToken;
-	await teacher.save();
-
+	const result = await AuthService.loginWithGoogle(Teacher, Student, req.body.idToken, 'teacher');
 	return ApiResponse.success(
 		res,
-		{ teacher: sanitize(teacher), authToken, refreshToken },
+		{ teacher: result.user, authToken: result.authToken, refreshToken: result.refreshToken },
 		'Logged in with Google successfully',
 	);
 });
 
-// Teacher logout
+// ── Logout ───────────────────────────────────────────────────────
 const logoutTeacher = asyncHandler(async (req, res) => {
 	const teacherId = req.teacher?._id || req.user?.id;
-
-	await Teacher.findByIdAndUpdate(teacherId, { refreshToken: null });
-
-	return ApiResponse.success(res, { message: 'Logged out successfully' });
+	const result = await AuthService.logoutUser(Teacher, teacherId);
+	return ApiResponse.success(res, result);
 });
 
-// Update teacher details
+// ── Update Profile ───────────────────────────────────────────────
 const updateTeacher = asyncHandler(async (req, res) => {
 	const teacherId = req.teacher?._id || req.user?.id;
 
@@ -206,14 +74,10 @@ const updateTeacher = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, updatedTeacher, 'Profile updated successfully');
 });
 
-// Change password
+// ── Change Password ──────────────────────────────────────────────
 const changePassword = asyncHandler(async (req, res) => {
 	const teacherId = req.teacher?._id || req.user?.id;
 	const { currentPassword, newPassword, confirmNewPassword } = req.body;
-
-	if (!currentPassword || !newPassword) {
-		throw ApiError.BadRequest('Current password and new password are required');
-	}
 
 	if (confirmNewPassword !== undefined && newPassword !== confirmNewPassword) {
 		throw ApiError.BadRequest('New password and confirmation do not match');
@@ -223,25 +87,19 @@ const changePassword = asyncHandler(async (req, res) => {
 		throw ApiError.BadRequest('New password must be different from current password');
 	}
 
-	const teacher = await Teacher.findById(teacherId).select('+password');
-	if (!teacher) {
-		throw ApiError.NotFound('Teacher not found');
-	}
+	const result = await AuthService.changePassword(Teacher, teacherId, currentPassword, newPassword);
 
-	const isMatch = await teacher.comparePassword(currentPassword);
-	if (!isMatch) {
-		throw ApiError.Unauthorized('Current password is incorrect');
-	}
-
-	teacher.password = newPassword;
 	// Invalidate refresh token(s) to force re-login
-	teacher.refreshToken = null;
-	await teacher.save();
+	await Teacher.findByIdAndUpdate(teacherId, { refreshToken: null });
 
 	return ApiResponse.success(res, {
 		message: 'Password changed successfully. Please log in again.',
 	});
 });
+
+// ══════════════════════════════════════════════════════════════════
+// DASHBOARD STATS (Teacher-specific — stays in controller)
+// ══════════════════════════════════════════════════════════════════
 
 // Get dashboard statistics for teacher (refactored, efficient, defensive)
 const getDashboardStats = asyncHandler(async (req, res) => {
@@ -531,66 +389,22 @@ const exportTeacherExams = asyncHandler(async (req, res) => {
 	return sendCSVDowload(res, `teacher_exams_${teacherId}.csv`, csv);
 });
 
-// (export block moved to end of file to avoid const hoisting issues)
-
 // ══════════════════════════════════════════════════════════════════
 // EMAIL VERIFICATION
 // ══════════════════════════════════════════════════════════════════
 
 const verifyTeacherEmail = asyncHandler(async (req, res) => {
-	const { token } = req.body;
-	if (!token) throw ApiError.BadRequest('Verification token is required');
-
-	const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
-
-	const teacher = await Teacher.findOne({
-		emailVerificationToken: hashedToken,
-		emailVerificationExpires: { $gt: Date.now() },
-	}).select('+emailVerificationToken +emailVerificationExpires');
-
-	if (!teacher) {
-		throw ApiError.BadRequest(
-			'Invalid or expired verification link. Please request a new one.',
-		);
-	}
-
-	teacher.isEmailVerified = true;
-	teacher.emailVerificationToken = undefined;
-	teacher.emailVerificationExpires = undefined;
-	await teacher.save({ validateBeforeSave: false });
-
-	// Issue a fresh token with updated isEmailVerified claim
-	const authToken = teacher.generateAuthToken();
-
-	return ApiResponse.success(
-		res,
-		{ isEmailVerified: true, authToken },
-		'Email verified successfully! You now have full access.',
-	);
+	const result = await AuthService.verifyEmail(Teacher, req.body.token);
+	return ApiResponse.success(res, result, 'Email verified successfully! You now have full access.');
 });
 
 const resendTeacherVerification = asyncHandler(async (req, res) => {
 	const teacherId = req.teacher?._id || req.user?.id;
-
-	const teacher = await Teacher.findById(teacherId).select(
-		'+emailVerificationToken +emailVerificationExpires',
-	);
-	if (!teacher) throw ApiError.NotFound('Teacher not found');
-
-	if (teacher.isEmailVerified) {
+	const result = await AuthService.resendVerification(Teacher, teacherId, 'teacher');
+	if (result.alreadyVerified) {
 		return ApiResponse.success(res, { isEmailVerified: true }, 'Email is already verified');
 	}
-
-	const verifyToken = teacher.createEmailVerificationToken();
-	await teacher.save({ validateBeforeSave: false });
-
-	await sendVerificationEmail(teacher.email, teacher.fullname, verifyToken, 'teacher');
-
-	return ApiResponse.success(
-		res,
-		{ emailVerificationSent: true },
-		'Verification email sent. Please check your inbox.',
-	);
+	return ApiResponse.success(res, { emailVerificationSent: true }, 'Verification email sent. Please check your inbox.');
 });
 
 // ══════════════════════════════════════════════════════════════════
@@ -598,73 +412,13 @@ const resendTeacherVerification = asyncHandler(async (req, res) => {
 // ══════════════════════════════════════════════════════════════════
 
 const forgotTeacherPassword = asyncHandler(async (req, res) => {
-	const { email } = req.body;
-	if (!email) throw ApiError.BadRequest('Email address is required');
-
-	const genericMsg = 'If an account with that email exists, a password reset link has been sent.';
-
-	const teacher = await Teacher.findOne({ email: email.toLowerCase().trim() });
-	if (!teacher) {
-		return ApiResponse.success(res, null, genericMsg);
-	}
-
-	const resetToken = teacher.createPasswordResetToken();
-	await teacher.save({ validateBeforeSave: false });
-
-	const result = await sendPasswordResetEmail(
-		teacher.email,
-		teacher.fullname,
-		resetToken,
-		'teacher',
-	);
-
-	if (!result.success) {
-		teacher.resetPasswordToken = undefined;
-		teacher.resetPasswordExpires = undefined;
-		await teacher.save({ validateBeforeSave: false });
-		throw ApiError.InternalServerError(
-			'There was an error sending the email. Please try again.',
-		);
-	}
-
-	return ApiResponse.success(res, null, genericMsg);
+	const result = await AuthService.forgotPassword(Teacher, req.body.email, 'teacher');
+	return ApiResponse.success(res, null, result.message);
 });
 
 const resetTeacherPassword = asyncHandler(async (req, res) => {
-	const { token, newPassword } = req.body;
-	if (!token || !newPassword) {
-		throw ApiError.BadRequest('Token and new password are required');
-	}
-	if (newPassword.length < 8) {
-		throw ApiError.BadRequest('Password must be at least 8 characters');
-	}
-
-	const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
-
-	const teacher = await Teacher.findOne({
-		resetPasswordToken: hashedToken,
-		resetPasswordExpires: { $gt: Date.now() },
-	}).select('+password');
-
-	if (!teacher) {
-		throw ApiError.BadRequest(
-			'Invalid or expired reset link. Please request a new password reset.',
-		);
-	}
-
-	teacher.password = newPassword;
-	teacher.resetPasswordToken = undefined;
-	teacher.resetPasswordExpires = undefined;
-	teacher.refreshToken = undefined;
-	await teacher.save();
-
-	sendPasswordChangedEmail(teacher.email, teacher.fullname).catch(() => {});
-
-	return ApiResponse.success(
-		res,
-		null,
-		'Password reset successfully. You can now log in with your new password.',
-	);
+	const result = await AuthService.resetPassword(Teacher, req.body.token, req.body.newPassword);
+	return ApiResponse.success(res, null, result.message);
 });
 
 // ══════════════════════════════════════════════════════════════════
@@ -672,31 +426,8 @@ const resetTeacherPassword = asyncHandler(async (req, res) => {
 // ══════════════════════════════════════════════════════════════════
 
 const refreshTeacherToken = asyncHandler(async (req, res) => {
-	const { refreshToken } = req.body;
-	if (!refreshToken) throw ApiError.BadRequest('Refresh token is required');
-
-	let decoded;
-	try {
-		decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
-	} catch {
-		throw ApiError.Unauthorized('Invalid or expired refresh token');
-	}
-
-	const teacher = await Teacher.findById(decoded.id).select('+refreshToken');
-	if (!teacher || teacher.refreshToken !== refreshToken) {
-		throw ApiError.Unauthorized('Refresh token has been revoked');
-	}
-
-	// Rotate: issue new token pair
-	const newAuthToken = teacher.generateAuthToken();
-	const newRefreshToken = teacher.generateRefreshToken();
-	await teacher.save({ validateBeforeSave: false });
-
-	return ApiResponse.success(
-		res,
-		{ authToken: newAuthToken, refreshToken: newRefreshToken },
-		'Token refreshed successfully',
-	);
+	const result = await AuthService.refreshTokens(Teacher, req.body.refreshToken);
+	return ApiResponse.success(res, result, 'Token refreshed successfully');
 });
 
 // ══════════════════════════════════════════════════════════════════
