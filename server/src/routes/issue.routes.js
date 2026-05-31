@@ -11,6 +11,7 @@ import {
 	bulkResolveIssues,
 } from '../controllers/issue.controller.js';
 import { checkAuth, verifyStudent, verifyTeacher } from '../middlewares/auth.middleware.js';
+import { validate } from '../middlewares/validate.middleware.js';
 import { body, param, query } from 'express-validator';
 
 const router = Router();
@@ -25,6 +26,7 @@ router.post(
 		.isIn(['evaluation', 'technical', 'question', 'other'])
 		.withMessage('Invalid issue type'),
 	body('description').isString().isLength({ min: 5 }).withMessage('Description is required'),
+	validate,
 	createIssue,
 );
 
@@ -39,6 +41,7 @@ router.get(
 	verifyTeacher,
 	query('status').optional().isString(),
 	query('exam').optional().isMongoId(),
+	validate,
 	getAllIssues,
 );
 
@@ -49,6 +52,7 @@ router.patch(
 	verifyTeacher,
 	param('id').isMongoId().withMessage('Issue ID is required'),
 	body('status').isIn(['open', 'in-progress']).withMessage('Only open or in-progress allowed'),
+	validate,
 	updateIssueStatus,
 );
 
@@ -59,6 +63,7 @@ router.post(
 	verifyTeacher,
 	param('id').isMongoId(),
 	body('note').isString().notEmpty(),
+	validate,
 	addInternalNote,
 );
 
@@ -71,6 +76,7 @@ router.post(
 		.isArray({ min: 1 })
 		.withMessage('Issue IDs must be a non-empty array of MongoIDs'),
 	body('reply').isString().isLength({ min: 2 }).withMessage('Reply is required'),
+	validate,
 	bulkResolveIssues,
 );
 
@@ -81,6 +87,7 @@ router.patch(
 	verifyTeacher,
 	param('id').isMongoId().withMessage('Issue ID is required'),
 	body('reply').isString().isLength({ min: 2 }).withMessage('Reply is required'),
+	validate,
 	resolveIssue,
 );
 
@@ -89,6 +96,7 @@ router.get(
 	'/:id',
 	checkAuth,
 	param('id').isMongoId().withMessage('Issue ID is required'),
+	validate,
 	getIssueById,
 );
 
@@ -98,7 +106,9 @@ router.delete(
 	checkAuth,
 	verifyStudent,
 	param('id').isMongoId().withMessage('A valid Issue ID is required'),
+	validate,
 	deleteIssue,
 );
 
 export default router;
+
