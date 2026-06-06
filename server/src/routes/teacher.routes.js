@@ -102,6 +102,7 @@ router.put(
 	body('phonenumber').optional(),
 	body('gender').optional(),
 	body('address').optional(),
+	validate,
 	updateTeacher,
 );
 

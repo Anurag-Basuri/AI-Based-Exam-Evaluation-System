@@ -2,6 +2,13 @@ import mongoose from 'mongoose';
 import Exam from '../models/exam.model.js';
 import Question from '../models/question.model.js';
 import { ApiError } from '../utils/ApiError.js';
+import { getCachedOrFetch, invalidate, invalidateByPrefix } from './cache.service.js';
+
+// ── Cache key builders ──────────────────────────────────────────
+const KEYS = {
+	examById: (id) => `exam:${id}`,
+	examStats: (teacherId) => `exam-stats:${teacherId}`,
+};
 
 // ── Helpers ──────────────────────────────────────────────────────
 
@@ -93,6 +100,9 @@ export const create = async (data, teacherId) => {
 		);
 	}
 
+	// Invalidate teacher's stats cache after creating an exam
+	invalidate(KEYS.examStats(teacherId));
+
 	return exam;
 };
 
@@ -122,10 +132,15 @@ export const publish = async (examId, teacherId) => {
 	exam.status = 'active';
 	await exam.save();
 
+	// Invalidate caches: the exam detail and teacher's aggregate stats
+	invalidate(KEYS.examById(examId));
+	invalidate(KEYS.examStats(teacherId));
+
 	return exam;
 };
 
 export const getStats = async teacherId => {
+	return getCachedOrFetch(KEYS.examStats(teacherId), 120, async () => {
 	const now = new Date();
 
 	const stats = await Exam.aggregate([
@@ -190,4 +205,5 @@ export const getStats = async teacherId => {
 	const result = stats[0] || { total: 0, draft: 0, active: 0, scheduled: 0, completed: 0 };
 	delete result._id;
 	return result;
+	}); // end getCachedOrFetch
 };
