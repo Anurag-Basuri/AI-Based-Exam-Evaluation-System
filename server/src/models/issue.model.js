@@ -29,7 +29,7 @@ const internalNoteSchema = new mongoose.Schema(
 	{
 		user: {
 			type: mongoose.Schema.Types.ObjectId,
-			ref: 'Teacher',
+			ref: 'User',
 			required: true
 		},
 		note: {
@@ -45,7 +45,7 @@ const issueSchema = new mongoose.Schema(
 	{
 		student: {
 			type: mongoose.Schema.Types.ObjectId,
-			ref: 'Student',
+			ref: 'User',
 			required: [true, 'Student reference is required'],
 		},
 		exam: {
@@ -79,7 +79,7 @@ const issueSchema = new mongoose.Schema(
 		// Track which teacher is actively working on the issue
 		assignedTo: {
 			type: mongoose.Schema.Types.ObjectId,
-			ref: 'Teacher',
+			ref: 'User',
 			required: [true, 'Teacher reference is required'],
 		},
 		reply: {
@@ -90,7 +90,7 @@ const issueSchema = new mongoose.Schema(
 		},
 		resolvedBy: {
 			type: mongoose.Schema.Types.ObjectId,
-			ref: 'Teacher',
+			ref: 'User',
 		},
 		resolvedAt: {
 			type: Date,

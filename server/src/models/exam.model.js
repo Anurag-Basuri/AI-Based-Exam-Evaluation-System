@@ -79,7 +79,7 @@ const examSchema = new mongoose.Schema(
 		},
 		createdBy: {
 			type: mongoose.Schema.Types.ObjectId,
-			ref: 'Teacher',
+			ref: 'User',
 			required: [true, 'Creator is required'],
 		},
 		duration: {
