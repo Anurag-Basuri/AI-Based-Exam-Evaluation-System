@@ -72,6 +72,26 @@
     --info-border: #93c5fd;
 
     --primary-light-bg: #eff6ff;
+
+    /* ── Mobile Design Tokens ────────────────────────────────── */
+    /* Breakpoints (for reference in media queries) */
+    --bp-mobile: 480px;
+    --bp-tablet: 768px;
+    --bp-desktop: 1024px;
+    --bp-wide: 1280px;
+
+    /* Touch-friendly sizing */
+    --tap-target: 44px;       /* Minimum touch target per WCAG 2.5.8 */
+    --input-h-mobile: 48px;
+    --input-h-desktop: 40px;
+
+    /* Responsive spacing scale */
+    --space-xs: 4px;
+    --space-sm: 8px;
+    --space-md: 16px;
+    --space-lg: 24px;
+    --space-xl: 32px;
+    --space-2xl: 48px;
 }
 
 [data-theme="dark"] {
