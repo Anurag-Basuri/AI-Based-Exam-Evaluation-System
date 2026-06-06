@@ -111,7 +111,7 @@ const submissionSchema = new mongoose.Schema(
 		},
 		student: {
 			type: mongoose.Schema.Types.ObjectId,
-			ref: 'Student',
+			ref: 'User',
 			required: true,
 		},
 
@@ -144,7 +144,7 @@ const submissionSchema = new mongoose.Schema(
 		},
 		evaluatedBy: {
 			type: mongoose.Schema.Types.ObjectId,
-			ref: 'Teacher',
+			ref: 'User',
 		},
 		submissionType: {
 			type: String,
