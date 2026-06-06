@@ -14,10 +14,6 @@ export const authLimiter = rateLimit({
 		statusCode: 429,
 		message: 'Too many attempts. Please try again after 15 minutes.',
 	},
-	keyGenerator: (req) => {
-		// Use X-Forwarded-For behind proxies, fallback to socket IP
-		return req.ip || req.connection?.remoteAddress || 'unknown';
-	},
 });
 
 /**
@@ -34,9 +30,6 @@ export const emailLimiter = rateLimit({
 		statusCode: 429,
 		message: 'Too many email requests. Please try again after 15 minutes.',
 	},
-	keyGenerator: (req) => {
-		return req.ip || req.connection?.remoteAddress || 'unknown';
-	},
 });
 
 /**
@@ -52,8 +45,5 @@ export const verifyLimiter = rateLimit({
 		status: 'error',
 		statusCode: 429,
 		message: 'Too many verification attempts. Please try again after 15 minutes.',
-	},
-	keyGenerator: (req) => {
-		return req.ip || req.connection?.remoteAddress || 'unknown';
 	},
 });

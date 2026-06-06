@@ -1,5 +1,4 @@
-import Student from '../models/student.model.js';
-import Teacher from '../models/teacher.model.js';
+import User from '../models/user.model.js';
 import Submission from '../models/submission.model.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
@@ -9,7 +8,7 @@ import * as AuthService from '../services/auth.service.js';
 
 // ── Register ─────────────────────────────────────────────────────
 const createStudent = asyncHandler(async (req, res) => {
-	const result = await AuthService.registerUser(Student, req.body, 'student');
+	const result = await AuthService.registerUser(User, req.body, 'student');
 	return ApiResponse.success(
 		res,
 		{ student: result.user, authToken: result.authToken, refreshToken: result.refreshToken, emailVerificationSent: result.emailVerificationSent },
@@ -20,7 +19,7 @@ const createStudent = asyncHandler(async (req, res) => {
 
 // ── Login ────────────────────────────────────────────────────────
 const loginStudent = asyncHandler(async (req, res) => {
-	const result = await AuthService.loginWithCredentials(Student, req.body);
+	const result = await AuthService.loginWithCredentials(User, req.body);
 	return ApiResponse.success(
 		res,
 		{ student: result.user, authToken: result.authToken, refreshToken: result.refreshToken },
@@ -30,7 +29,7 @@ const loginStudent = asyncHandler(async (req, res) => {
 
 // ── Google Login ─────────────────────────────────────────────────
 const googleLoginStudent = asyncHandler(async (req, res) => {
-	const result = await AuthService.loginWithGoogle(Student, Teacher, req.body.idToken, 'student');
+	const result = await AuthService.loginWithGoogle(User, User, req.body.idToken, 'student');
 	return ApiResponse.success(
 		res,
 		{ student: result.user, authToken: result.authToken, refreshToken: result.refreshToken },
@@ -40,15 +39,15 @@ const googleLoginStudent = asyncHandler(async (req, res) => {
 
 // ── Logout ───────────────────────────────────────────────────────
 const logoutStudent = asyncHandler(async (req, res) => {
-	const studentId = req.student?._id || req.user?.id;
-	const result = await AuthService.logoutUser(Student, studentId);
+	const studentId = req.userDoc?._id || req.user?.id;
+	const result = await AuthService.logoutUser(User, studentId);
 	return ApiResponse.success(res, result);
 });
 
 // ── Profile ──────────────────────────────────────────────────────
 const getStudentProfile = asyncHandler(async (req, res) => {
-	const studentId = req.student?._id || req.user?.id;
-	const student = await Student.findById(studentId).select(
+	const studentId = req.userDoc?._id || req.user?.id;
+	const student = await User.findById(studentId).select(
 		'-password -refreshToken -resetPasswordToken -resetPasswordExpires -emailVerificationToken -emailVerificationExpires',
 	);
 	if (!student) {
@@ -59,7 +58,7 @@ const getStudentProfile = asyncHandler(async (req, res) => {
 
 // ── Update Profile ───────────────────────────────────────────────
 const updateStudent = asyncHandler(async (req, res) => {
-	const studentId = req.student?._id || req.user?.id;
+	const studentId = req.userDoc?._id || req.user?.id;
 	const { username, fullname, email, phonenumber, gender, address } = req.body;
 
 	const updateData = {};
@@ -70,7 +69,7 @@ const updateStudent = asyncHandler(async (req, res) => {
 	if (gender !== undefined) updateData.gender = gender;
 	if (address !== undefined) updateData.address = address;
 
-	const updatedStudent = await Student.findByIdAndUpdate(studentId, updateData, {
+	const updatedStudent = await User.findByIdAndUpdate(studentId, updateData, {
 		new: true,
 		runValidators: true,
 	}).select(
@@ -86,8 +85,8 @@ const updateStudent = asyncHandler(async (req, res) => {
 
 // ── Change Password ──────────────────────────────────────────────
 const changePassword = asyncHandler(async (req, res) => {
-	const studentId = req.student?._id || req.user?.id;
-	const result = await AuthService.changePassword(Student, studentId, req.body.currentPassword, req.body.newPassword);
+	const studentId = req.userDoc?._id || req.user?.id;
+	const result = await AuthService.changePassword(User, studentId, req.body.currentPassword, req.body.newPassword);
 	return ApiResponse.success(res, result);
 });
 
@@ -96,13 +95,13 @@ const changePassword = asyncHandler(async (req, res) => {
 // ══════════════════════════════════════════════════════════════════
 
 const verifyStudentEmail = asyncHandler(async (req, res) => {
-	const result = await AuthService.verifyEmail(Student, req.body.token);
+	const result = await AuthService.verifyEmail(User, req.body.token);
 	return ApiResponse.success(res, result, 'Email verified successfully! You now have full access.');
 });
 
 const resendStudentVerification = asyncHandler(async (req, res) => {
-	const studentId = req.student?._id || req.user?.id;
-	const result = await AuthService.resendVerification(Student, studentId, 'student');
+	const studentId = req.userDoc?._id || req.user?.id;
+	const result = await AuthService.resendVerification(User, studentId, 'student');
 	if (result.alreadyVerified) {
 		return ApiResponse.success(res, { isEmailVerified: true }, 'Email is already verified');
 	}
@@ -114,12 +113,12 @@ const resendStudentVerification = asyncHandler(async (req, res) => {
 // ══════════════════════════════════════════════════════════════════
 
 const forgotStudentPassword = asyncHandler(async (req, res) => {
-	const result = await AuthService.forgotPassword(Student, req.body.email, 'student');
+	const result = await AuthService.forgotPassword(User, req.body.email, 'student');
 	return ApiResponse.success(res, null, result.message);
 });
 
 const resetStudentPassword = asyncHandler(async (req, res) => {
-	const result = await AuthService.resetPassword(Student, req.body.token, req.body.newPassword);
+	const result = await AuthService.resetPassword(User, req.body.token, req.body.newPassword);
 	return ApiResponse.success(res, null, result.message);
 });
 
@@ -128,8 +127,8 @@ const resetStudentPassword = asyncHandler(async (req, res) => {
 // ══════════════════════════════════════════════════════════════════
 
 const exportStudentProfile = asyncHandler(async (req, res) => {
-	const studentId = req.student?._id || req.user?.id;
-	const student = await Student.findById(studentId).lean();
+	const studentId = req.userDoc?._id || req.user?.id;
+	const student = await User.findById(studentId).lean();
 
 	if (!student) {
 		throw ApiError.NotFound('Student not found');
@@ -158,7 +157,7 @@ const exportStudentProfile = asyncHandler(async (req, res) => {
 });
 
 const exportStudentSubmissions = asyncHandler(async (req, res) => {
-	const studentId = req.student?._id || req.user?.id;
+	const studentId = req.userDoc?._id || req.user?.id;
 
 	const submissions = await Submission.find({ student: studentId })
 		.populate('exam', 'title searchId max_marks')
@@ -187,7 +186,7 @@ const exportStudentSubmissions = asyncHandler(async (req, res) => {
 // ══════════════════════════════════════════════════════════════════
 
 const refreshStudentToken = asyncHandler(async (req, res) => {
-	const result = await AuthService.refreshTokens(Student, req.body.refreshToken);
+	const result = await AuthService.refreshTokens(User, req.body.refreshToken);
 	return ApiResponse.success(res, result, 'Token refreshed successfully');
 });
 

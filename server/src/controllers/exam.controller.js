@@ -6,10 +6,11 @@ import { ApiError } from '../utils/ApiError.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import { syncExamStatuses } from '../services/examStatus.service.js';
 import * as ExamService from '../services/exam.service.js';
+import { getCachedOrFetch, invalidate } from '../services/cache.service.js';
 
 // Create an exam (can be created with zero questions, status is 'draft')
 const createExam = asyncHandler(async (req, res) => {
-	const teacherId = req.teacher?._id || req.user?.id;
+	const teacherId = req.userDoc?._id || req.user?.id;
 	const exam = await ExamService.create(req.body, teacherId);
 	return ApiResponse.success(res, exam, 'Exam created successfully', 201);
 });
@@ -18,7 +19,7 @@ const createExam = asyncHandler(async (req, res) => {
 const addQuestionsToExam = asyncHandler(async (req, res) => {
 	const examId = req.params.id;
 	const { questionIds } = req.body;
-	const teacherId = req.teacher?._id || req.user?.id;
+	const teacherId = req.userDoc?._id || req.user?.id;
 
 	if (!examId || !examId.match(/^[a-f\d]{24}$/i)) {
 		throw ApiError.BadRequest('Invalid exam ID');
@@ -55,7 +56,7 @@ const addQuestionsToExam = asyncHandler(async (req, res) => {
 const removeQuestionsFromExam = asyncHandler(async (req, res) => {
 	const examId = req.params.id;
 	const { questionIds } = req.body;
-	const teacherId = req.teacher?._id || req.user?.id;
+	const teacherId = req.userDoc?._id || req.user?.id;
 
 	if (!examId || !examId.match(/^[a-f\d]{24}$/i)) {
 		throw ApiError.BadRequest('Invalid exam ID');
@@ -102,7 +103,7 @@ const getAllExams = asyncHandler(async (req, res) => {
 
 // Get teacher's own exams (fast list)
 const getMyExams = asyncHandler(async (req, res) => {
-	const teacherId = req.teacher?._id || req.user?.id;
+	const teacherId = req.userDoc?._id || req.user?.id;
 	const { status, q, sortBy = 'updatedAt', limit = 20, page = 1, hasSubmissions } = req.query;
 
 	const lim = Math.max(1, Math.min(100, Number(limit)));
@@ -222,14 +223,17 @@ const getExamById = asyncHandler(async (req, res) => {
 	if (!examId || !examId.match(/^[a-f\d]{24}$/i)) {
 		throw ApiError.BadRequest('Invalid exam ID');
 	}
-	const exam = await Exam.findById(examId)
-		.populate('createdBy', 'fullname email')
-		.populate({
-			path: 'questions',
-			select: '-__v', // Exclude version key from populated questions
-			populate: { path: 'createdBy', select: 'fullname email' },
-		})
-		.lean(); // Use .lean() for a plain object
+
+	const exam = await getCachedOrFetch(`exam:${examId}`, 300, async () => {
+		return Exam.findById(examId)
+			.populate('createdBy', 'fullname email')
+			.populate({
+				path: 'questions',
+				select: '-__v',
+				populate: { path: 'createdBy', select: 'fullname email' },
+			})
+			.lean();
+	});
 
 	if (!exam) {
 		throw ApiError.NotFound('Exam not found');
@@ -252,7 +256,7 @@ const updateExam = asyncHandler(async (req, res) => {
 		instructions,
 		autoPublishResults,
 	} = req.body;
-	const teacherId = req.teacher?._id || req.user?.id;
+	const teacherId = req.userDoc?._id || req.user?.id;
 
 	if (!id.match(/^[a-f\d]{24}$/i)) {
 		throw ApiError.BadRequest('Invalid exam ID');
@@ -281,13 +285,16 @@ const updateExam = asyncHandler(async (req, res) => {
 
 	await exam.save({ validateBeforeSave: true });
 
+	// Invalidate cached exam detail
+	invalidate(`exam:${id}`);
+
 	return ApiResponse.success(res, exam, 'Exam updated successfully');
 });
 
 // Delete an exam (owner-only, not when live or scheduled)
 const deleteExam = asyncHandler(async (req, res) => {
 	const examId = req.params.id;
-	const teacherId = req.teacher?._id || req.user?.id;
+	const teacherId = req.userDoc?._id || req.user?.id;
 
 	if (!examId || !examId.match(/^[a-f\d]{24}$/i)) {
 		throw ApiError.BadRequest('Invalid exam ID');
@@ -297,7 +304,7 @@ const deleteExam = asyncHandler(async (req, res) => {
 	if (!exam) throw ApiError.NotFound('Exam not found');
 
 	// Ownership
-	assertOwner(exam, teacherId);
+	ExamService.assertOwner(exam, teacherId);
 
 	// Disallow deletion for live or scheduled exams
 	const now = new Date();
@@ -313,6 +320,10 @@ const deleteExam = asyncHandler(async (req, res) => {
 	// Safe to delete (draft, completed, or cancelled)
 	await Exam.findByIdAndDelete(examId);
 	await Question.updateMany({ sourceExam: examId }, { $unset: { sourceExam: '' } });
+
+	// Invalidate cached exam detail and teacher's stats
+	invalidate(`exam:${examId}`);
+	invalidate(`exam-stats:${teacherId}`);
 
 	return ApiResponse.success(res, { success: true }, 'Exam deleted successfully');
 });
@@ -346,7 +357,7 @@ const searchExamByCode = asyncHandler(async (req, res) => {
 
 // Publish exam (draft -> active)
 const publishExam = asyncHandler(async (req, res) => {
-	const teacherId = req.teacher?._id || req.user?.id;
+	const teacherId = req.userDoc?._id || req.user?.id;
 	const exam = await ExamService.publish(req.params.id, teacherId);
 	return ApiResponse.success(res, exam, 'Exam published');
 });
@@ -355,7 +366,7 @@ const publishExam = asyncHandler(async (req, res) => {
 const reorderExamQuestions = asyncHandler(async (req, res) => {
 	const examId = req.params.id;
 	const { order } = req.body;
-	const teacherId = req.teacher?._id || req.user?.id;
+	const teacherId = req.userDoc?._id || req.user?.id;
 
 	if (!examId || !examId.match(/^[a-f\d]{24}$/i)) throw ApiError.BadRequest('Invalid exam ID');
 	if (!Array.isArray(order) || order.length === 0) {
@@ -364,7 +375,7 @@ const reorderExamQuestions = asyncHandler(async (req, res) => {
 
 	const exam = await Exam.findById(examId);
 	if (!exam) throw ApiError.NotFound('Exam not found');
-	assertOwner(exam, teacherId);
+	ExamService.assertOwner(exam, teacherId);
 	if (exam.status !== 'draft' && !ExamService.isScheduled(exam)) {
 		throw ApiError.Forbidden(
 			'Can only reorder questions on a draft or scheduled exam (not started)',
@@ -392,14 +403,14 @@ const reorderExamQuestions = asyncHandler(async (req, res) => {
 const setExamQuestions = asyncHandler(async (req, res) => {
 	const examId = req.params.id;
 	const { questionIds } = req.body;
-	const teacherId = req.teacher?._id || req.user?.id;
+	const teacherId = req.userDoc?._id || req.user?.id;
 
 	if (!examId || !examId.match(/^[a-f\d]{24}$/i)) throw ApiError.BadRequest('Invalid exam ID');
 	if (!Array.isArray(questionIds)) throw ApiError.BadRequest('questionIds must be an array');
 
 	const exam = await Exam.findById(examId);
 	if (!exam) throw ApiError.NotFound('Exam not found');
-	assertOwner(exam, teacherId);
+	ExamService.assertOwner(exam, teacherId);
 	if (exam.status !== 'draft' && !ExamService.isScheduled(exam)) {
 		throw ApiError.Forbidden(
 			'Can only change questions on a draft or scheduled exam (not started)',
@@ -437,14 +448,14 @@ const setExamQuestions = asyncHandler(async (req, res) => {
 // Quick create a question and attach to exam
 const createAndAttachQuestion = asyncHandler(async (req, res) => {
 	const examId = req.params.id;
-	const teacherId = req.teacher?._id || req.user?.id;
+	const teacherId = req.userDoc?._id || req.user?.id;
 	const { type, text, remarks, max_marks, options, answer } = req.body;
 
 	if (!examId || !examId.match(/^[a-f\d]{24}$/i)) throw ApiError.BadRequest('Invalid exam ID');
 
 	const exam = await Exam.findById(examId);
 	if (!exam) throw ApiError.NotFound('Exam not found');
-	assertOwner(exam, teacherId);
+	ExamService.assertOwner(exam, teacherId);
 	if (exam.status !== 'draft') {
 		throw ApiError.Forbidden('Can only add questions to a draft exam');
 	}
@@ -482,13 +493,13 @@ const createAndAttachQuestion = asyncHandler(async (req, res) => {
 // Duplicate an exam for reuse
 const duplicateExam = asyncHandler(async (req, res) => {
 	const examId = req.params.id;
-	const teacherId = req.teacher?._id || req.user?.id;
+	const teacherId = req.userDoc?._id || req.user?.id;
 
 	if (!examId || !examId.match(/^[a-f\d]{24}$/i)) throw ApiError.BadRequest('Invalid exam ID');
 
 	const src = await Exam.findById(examId);
 	if (!src) throw ApiError.NotFound('Exam not found');
-	assertOwner(src, teacherId);
+	ExamService.assertOwner(src, teacherId);
 
 	// Shift time window by +7 days, fallback if invalid
 	const now = new Date();
@@ -531,12 +542,12 @@ const syncStatusesNow = asyncHandler(async (req, res) => {
 // End exam now (only if live or scheduled) — keep logging and use helpers
 const endExamNow = asyncHandler(async (req, res) => {
 	const examId = req.params.id;
-	const teacherId = req.teacher?._id || req.user?.id;
+	const teacherId = req.userDoc?._id || req.user?.id;
 
 	if (!examId || !examId.match(/^[a-f\d]{24}$/i)) throw ApiError.BadRequest('Invalid exam ID');
 	const exam = await Exam.findById(examId);
 	if (!exam) throw ApiError.NotFound('Exam not found');
-	assertOwner(exam, teacherId);
+	ExamService.assertOwner(exam, teacherId);
 
 	// compute flags
 	const scheduledFlag = ExamService.isScheduled(exam);
@@ -574,12 +585,12 @@ const endExamNow = asyncHandler(async (req, res) => {
 // Cancel exam (only if scheduled; keeps as record but unusable)
 const cancelExam = asyncHandler(async (req, res) => {
 	const examId = req.params.id;
-	const teacherId = req.teacher?._id || req.user?.id;
+	const teacherId = req.userDoc?._id || req.user?.id;
 
 	if (!examId || !examId.match(/^[a-f\d]{24}$/i)) throw ApiError.BadRequest('Invalid exam ID');
 	const exam = await Exam.findById(examId);
 	if (!exam) throw ApiError.NotFound('Exam not found');
-	assertOwner(exam, teacherId);
+	ExamService.assertOwner(exam, teacherId);
 
 	// Use the improved helper which relies on timestamps
 	if (!ExamService.isScheduled(exam)) {
@@ -596,12 +607,12 @@ const cancelExam = asyncHandler(async (req, res) => {
 const extendExam = asyncHandler(async (req, res) => {
 	const examId = req.params.id;
 	const { minutes, endTime } = req.body;
-	const teacherId = req.teacher?._id || req.user?.id;
+	const teacherId = req.userDoc?._id || req.user?.id;
 
 	if (!examId || !examId.match(/^[a-f\d]{24}$/i)) throw ApiError.BadRequest('Invalid exam ID');
 	const exam = await Exam.findById(examId);
 	if (!exam) throw ApiError.NotFound('Exam not found');
-	assertOwner(exam, teacherId);
+	ExamService.assertOwner(exam, teacherId);
 
 	if (!(ExamService.isScheduled(exam) || ExamService.isLive(exam))) {
 		throw ApiError.Forbidden('Only scheduled or live exams can be extended');
@@ -633,12 +644,12 @@ const extendExam = asyncHandler(async (req, res) => {
 // Regenerate share/search code (pre-start only)
 const regenerateExamCode = asyncHandler(async (req, res) => {
 	const examId = req.params.id;
-	const teacherId = req.teacher?._id || req.user?.id;
+	const teacherId = req.userDoc?._id || req.user?.id;
 
 	if (!examId || !examId.match(/^[a-f\d]{24}$/i)) throw ApiError.BadRequest('Invalid exam ID');
 	const exam = await Exam.findById(examId);
 	if (!exam) throw ApiError.NotFound('Exam not found');
-	assertOwner(exam, teacherId);
+	ExamService.assertOwner(exam, teacherId);
 
 	if (!ExamService.isScheduled(exam) && exam.status !== 'draft') {
 		throw ApiError.Forbidden('Can only regenerate code for draft or scheduled exams');
@@ -670,7 +681,7 @@ const regenerateExamCode = asyncHandler(async (req, res) => {
 
 // Get exam statistics for dashboard
 const getExamStats = asyncHandler(async (req, res) => {
-	const teacherId = req.teacher?._id || req.user?.id;
+	const teacherId = req.userDoc?._id || req.user?.id;
 	const result = await ExamService.getStats(teacherId);
 	return ApiResponse.success(res, result, 'Exam stats fetched');
 });
