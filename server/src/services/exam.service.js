@@ -207,3 +207,302 @@ export const getStats = async teacherId => {
 	return result;
 	}); // end getCachedOrFetch
 };
+
+export const addQuestions = async (examId, teacherId, questionIds) => {
+	if (!examId || !examId.match(/^[a-f\d]{24}$/i)) throw ApiError.BadRequest('Invalid exam ID');
+	if (!Array.isArray(questionIds) || questionIds.length === 0) throw ApiError.BadRequest('At least one question ID is required');
+
+	const exam = await Exam.findById(examId);
+	if (!exam) throw ApiError.NotFound('Exam not found');
+	if (exam.status !== 'draft' && !isScheduled(exam)) {
+		throw ApiError.Forbidden('Can only add questions to a draft or scheduled exam (not started).');
+	}
+
+	const questions = await Question.find({ _id: { $in: questionIds }, createdBy: teacherId });
+	if (questions.length !== questionIds.length) {
+		throw ApiError.BadRequest('Some questions do not belong to you or do not exist');
+	}
+
+	exam.questions = Array.from(new Set([...exam.questions, ...questionIds]));
+	const fullQuestions = await Question.find({ _id: { $in: exam.questions } }).select('max_marks');
+	exam.totalMarks = fullQuestions.reduce((sum, q) => sum + (q.max_marks || 0), 0);
+	await exam.save();
+	await Question.updateMany({ _id: { $in: questionIds } }, { $set: { sourceExam: exam._id } });
+
+	invalidate(KEYS.examById(examId));
+	return exam;
+};
+
+export const removeQuestions = async (examId, teacherId, questionIds) => {
+	if (!examId || !examId.match(/^[a-f\d]{24}$/i)) throw ApiError.BadRequest('Invalid exam ID');
+	if (!Array.isArray(questionIds) || questionIds.length === 0) throw ApiError.BadRequest('At least one question ID is required');
+
+	const exam = await Exam.findById(examId);
+	if (!exam) throw ApiError.NotFound('Exam not found');
+	if (exam.status !== 'draft' && !isScheduled(exam)) {
+		throw ApiError.Forbidden('Can only remove questions from a draft or scheduled exam (not started).');
+	}
+
+	exam.questions = exam.questions.filter(qId => !questionIds.includes(qId.toString()));
+	const fullQuestions = await Question.find({ _id: { $in: exam.questions } }).select('max_marks');
+	exam.totalMarks = fullQuestions.reduce((sum, q) => sum + (q.max_marks || 0), 0);
+	await exam.save();
+	await Question.updateMany({ _id: { $in: questionIds } }, { $unset: { sourceExam: '' } });
+
+	invalidate(KEYS.examById(examId));
+	return exam;
+};
+
+export const update = async (examId, teacherId, updates) => {
+	if (!examId || !examId.match(/^[a-f\d]{24}$/i)) throw ApiError.BadRequest('Invalid exam ID');
+
+	const exam = await Exam.findById(examId);
+	if (!exam) throw ApiError.NotFound('Exam not found');
+	assertOwner(exam, teacherId);
+
+	if (exam.status !== 'draft') {
+		throw ApiError.Forbidden('Only draft exams can be fully edited. For scheduled exams, you can only reschedule.');
+	}
+
+	const { title, description, duration, startTime, endTime, aiPolicy, instructions, autoPublishResults } = updates;
+	if (title !== undefined) exam.title = title;
+	if (description !== undefined) exam.description = description;
+	if (duration !== undefined) exam.duration = duration;
+	if (startTime !== undefined) exam.startTime = startTime;
+	if (endTime !== undefined) exam.endTime = endTime;
+	if (aiPolicy !== undefined) exam.aiPolicy = aiPolicy;
+	if (instructions !== undefined) exam.instructions = instructions;
+	if (autoPublishResults !== undefined) exam.autoPublishResults = autoPublishResults;
+
+	await exam.save({ validateBeforeSave: true });
+	invalidate(KEYS.examById(examId));
+	return exam;
+};
+
+export const remove = async (examId, teacherId) => {
+	if (!examId || !examId.match(/^[a-f\d]{24}$/i)) throw ApiError.BadRequest('Invalid exam ID');
+
+	const exam = await Exam.findById(examId);
+	if (!exam) throw ApiError.NotFound('Exam not found');
+	assertOwner(exam, teacherId);
+
+	if (isScheduled(exam) || isLive(exam)) {
+		throw ApiError.Forbidden('Cannot delete a live or scheduled exam. End/cancel it first.');
+	}
+
+	await Exam.findByIdAndDelete(examId);
+	await Question.updateMany({ sourceExam: examId }, { $unset: { sourceExam: '' } });
+
+	invalidate(KEYS.examById(examId));
+	invalidate(KEYS.examStats(teacherId));
+};
+
+export const reorderQuestions = async (examId, teacherId, order) => {
+	if (!examId || !examId.match(/^[a-f\d]{24}$/i)) throw ApiError.BadRequest('Invalid exam ID');
+	if (!Array.isArray(order) || order.length === 0) throw ApiError.BadRequest('Order must be a non-empty array of question IDs');
+
+	const exam = await Exam.findById(examId);
+	if (!exam) throw ApiError.NotFound('Exam not found');
+	assertOwner(exam, teacherId);
+	if (exam.status !== 'draft' && !isScheduled(exam)) {
+		throw ApiError.Forbidden('Can only reorder questions on a draft or scheduled exam (not started)');
+	}
+
+	const current = exam.questions.map(id => String(id));
+	const next = order.map(String);
+
+	if (current.length !== next.length) throw ApiError.BadRequest('Order must include exactly the existing questions');
+	const sameSet = current.every(id => next.includes(id)) && next.every(id => current.includes(id));
+	if (!sameSet) throw ApiError.BadRequest('Order must match existing question set');
+
+	exam.questions = next;
+	await exam.save();
+	invalidate(KEYS.examById(examId));
+	return exam;
+};
+
+export const setQuestions = async (examId, teacherId, questionIds) => {
+	if (!examId || !examId.match(/^[a-f\d]{24}$/i)) throw ApiError.BadRequest('Invalid exam ID');
+	if (!Array.isArray(questionIds)) throw ApiError.BadRequest('questionIds must be an array');
+
+	const exam = await Exam.findById(examId);
+	if (!exam) throw ApiError.NotFound('Exam not found');
+	assertOwner(exam, teacherId);
+	if (exam.status !== 'draft' && !isScheduled(exam)) {
+		throw ApiError.Forbidden('Can only change questions on a draft or scheduled exam (not started)');
+	}
+
+	const owned = await Question.find({ _id: { $in: questionIds }, createdBy: teacherId }).select('_id max_marks');
+	if (owned.length !== questionIds.length) {
+		throw ApiError.BadRequest('Some questions do not belong to you or do not exist');
+	}
+
+	const prev = new Set(exam.questions.map(id => String(id)));
+	const next = new Set(questionIds.map(String));
+	const added = [...next].filter(id => !prev.has(id));
+	const removed = [...prev].filter(id => !next.has(id));
+
+	exam.questions = questionIds;
+	exam.totalMarks = owned.reduce((sum, q) => sum + (q.max_marks || 0), 0);
+	await exam.save();
+
+	if (added.length) await Question.updateMany({ _id: { $in: added } }, { $set: { sourceExam: exam._id } });
+	if (removed.length) await Question.updateMany({ _id: { $in: removed } }, { $unset: { sourceExam: '' } });
+
+	invalidate(KEYS.examById(examId));
+	return exam;
+};
+
+export const createAndAttachQuestion = async (examId, teacherId, qData) => {
+	const { type, text, remarks, max_marks, options, answer } = qData;
+	if (!examId || !examId.match(/^[a-f\d]{24}$/i)) throw ApiError.BadRequest('Invalid exam ID');
+
+	const exam = await Exam.findById(examId);
+	if (!exam) throw ApiError.NotFound('Exam not found');
+	assertOwner(exam, teacherId);
+	if (exam.status !== 'draft') throw ApiError.Forbidden('Can only add questions to a draft exam');
+
+	if (!type || !text || !max_marks) throw ApiError.BadRequest('Type, text, and max_marks are required');
+	if (type === 'multiple-choice') {
+		if (!Array.isArray(options) || options.length < 2) throw ApiError.BadRequest('MCQ must have at least 2 options');
+		if (!options.some(o => o.isCorrect)) throw ApiError.BadRequest('Mark at least one option as correct');
+	}
+
+	const q = new Question({
+		type, text, remarks, max_marks, options,
+		answer: type === 'subjective' ? answer || null : undefined,
+		createdBy: teacherId, sourceExam: exam._id,
+	});
+	await q.save();
+
+	exam.questions.push(q._id);
+	await exam.save();
+	invalidate(KEYS.examById(examId));
+	return q;
+};
+
+export const duplicate = async (examId, teacherId) => {
+	if (!examId || !examId.match(/^[a-f\d]{24}$/i)) throw ApiError.BadRequest('Invalid exam ID');
+
+	const src = await Exam.findById(examId);
+	if (!src) throw ApiError.NotFound('Exam not found');
+	assertOwner(src, teacherId);
+
+	const now = new Date();
+	const shiftDays = 7;
+	const shift = ms => new Date(ms + shiftDays * 24 * 60 * 60 * 1000);
+	const start = src.startTime ? shift(new Date(src.startTime).getTime()) : new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+	const end = src.endTime && src.startTime ? shift(new Date(src.endTime).getTime()) : new Date(start.getTime() + 2 * 60 * 60 * 1000);
+
+	const copy = new Exam({
+		title: `${src.title} (Copy)`,
+		description: src.description,
+		instructions: src.instructions,
+		duration: src.duration,
+		questions: src.questions,
+		startTime: start,
+		endTime: end,
+		createdBy: teacherId,
+		status: 'draft',
+		aiPolicy: src.aiPolicy,
+		autoPublishResults: src.autoPublishResults,
+	});
+	await copy.save();
+	invalidate(KEYS.examStats(teacherId));
+	return copy;
+};
+
+export const endNow = async (examId, teacherId, io) => {
+	if (!examId || !examId.match(/^[a-f\d]{24}$/i)) throw ApiError.BadRequest('Invalid exam ID');
+	const exam = await Exam.findById(examId);
+	if (!exam) throw ApiError.NotFound('Exam not found');
+	assertOwner(exam, teacherId);
+
+	const scheduledFlag = isScheduled(exam);
+	const liveFlag = isLive(exam);
+
+	if (!liveFlag && !scheduledFlag) throw ApiError.Forbidden('Only live or scheduled exams can be ended/cancelled now');
+
+	if (liveFlag) {
+		exam.status = 'completed';
+		exam.endTime = new Date();
+		await exam.save();
+		if (io) io.emit('exam-updated', { examId });
+		invalidate(KEYS.examById(examId));
+		invalidate(KEYS.examStats(teacherId));
+		return exam;
+	}
+
+	exam.status = 'cancelled';
+	await exam.save();
+	if (io) io.emit('exam-updated', { examId });
+	invalidate(KEYS.examById(examId));
+	invalidate(KEYS.examStats(teacherId));
+	return exam;
+};
+
+export const cancel = async (examId, teacherId) => {
+	if (!examId || !examId.match(/^[a-f\d]{24}$/i)) throw ApiError.BadRequest('Invalid exam ID');
+	const exam = await Exam.findById(examId);
+	if (!exam) throw ApiError.NotFound('Exam not found');
+	assertOwner(exam, teacherId);
+
+	if (!isScheduled(exam)) throw ApiError.Forbidden('Only scheduled (not started) exams can be cancelled');
+
+	exam.status = 'cancelled';
+	await exam.save();
+	invalidate(KEYS.examById(examId));
+	invalidate(KEYS.examStats(teacherId));
+	return exam;
+};
+
+export const extend = async (examId, teacherId, minutes, endTime) => {
+	if (!examId || !examId.match(/^[a-f\d]{24}$/i)) throw ApiError.BadRequest('Invalid exam ID');
+	const exam = await Exam.findById(examId);
+	if (!exam) throw ApiError.NotFound('Exam not found');
+	assertOwner(exam, teacherId);
+
+	if (!(isScheduled(exam) || isLive(exam))) throw ApiError.Forbidden('Only scheduled or live exams can be extended');
+
+	let newEnd;
+	if (typeof minutes === 'number' && minutes > 0) {
+		const base = exam.endTime ? new Date(exam.endTime).getTime() : Date.now();
+		newEnd = new Date(base + minutes * 60 * 1000);
+	} else if (endTime) {
+		newEnd = new Date(endTime);
+	} else {
+		throw ApiError.BadRequest('Provide minutes or endTime');
+	}
+
+	if (!exam.startTime || newEnd <= new Date(exam.startTime)) throw ApiError.BadRequest('New end time must be after start time');
+	if (newEnd <= new Date()) throw ApiError.BadRequest('New end time must be in the future');
+
+	exam.endTime = newEnd;
+	await exam.save();
+	invalidate(KEYS.examById(examId));
+	return exam;
+};
+
+export const regenerateCode = async (examId, teacherId) => {
+	if (!examId || !examId.match(/^[a-f\d]{24}$/i)) throw ApiError.BadRequest('Invalid exam ID');
+	const exam = await Exam.findById(examId);
+	if (!exam) throw ApiError.NotFound('Exam not found');
+	assertOwner(exam, teacherId);
+
+	if (!isScheduled(exam) && exam.status !== 'draft') throw ApiError.Forbidden('Can only regenerate code for draft or scheduled exams');
+
+	const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz23456789';
+	const genCode = (len = 8) => Array.from({ length: len }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join('');
+
+	let newCode = genCode();
+	let attempts = 0;
+	while (await Exam.findOne({ searchId: newCode }).select('_id').lean()) {
+		if (attempts++ > 10) throw new ApiError(500, 'Failed to generate a unique share code. Please try again.');
+		newCode = genCode();
+	}
+
+	exam.searchId = newCode;
+	await exam.save();
+	invalidate(KEYS.examById(examId));
+	return newCode;
+};
