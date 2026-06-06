@@ -17,6 +17,8 @@ import './TakeExam.css';
 const TakeExam = () => {
 	const { id } = useParams();
 	const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+	const [touchStart, setTouchStart] = useState(null);
+	const [touchEnd, setTouchEnd] = useState(null);
 
 	const {
 		submission,
@@ -93,6 +95,31 @@ const TakeExam = () => {
 	const handleNavigate = async index => {
 		await handleQuickSave();
 		setCurrentQuestionIndex(index);
+	};
+
+	// --- Touch Swipe Handlers ---
+	const minSwipeDistance = 50;
+
+	const onTouchStart = (e) => {
+		setTouchEnd(null);
+		setTouchStart(e.targetTouches[0].clientX);
+	};
+
+	const onTouchMove = (e) => {
+		setTouchEnd(e.targetTouches[0].clientX);
+	};
+
+	const onTouchEndHandler = () => {
+		if (!touchStart || !touchEnd) return;
+		const distance = touchStart - touchEnd;
+		const isLeftSwipe = distance > minSwipeDistance;
+		const isRightSwipe = distance < -minSwipeDistance;
+		if (isLeftSwipe) {
+			handleNext();
+		}
+		if (isRightSwipe) {
+			handlePrev();
+		}
 	};
 
 	const handleAcknowledgeViolation = () => {
@@ -189,7 +216,12 @@ const TakeExam = () => {
 			/>
 
 			<div className="exam-main">
-				<div className="exam-content">
+				<div 
+					className="exam-content"
+					onTouchStart={onTouchStart}
+					onTouchMove={onTouchMove}
+					onTouchEnd={onTouchEndHandler}
+				>
 					{currentQuestion && (
 						<QuestionArea
 							question={currentQuestion}
