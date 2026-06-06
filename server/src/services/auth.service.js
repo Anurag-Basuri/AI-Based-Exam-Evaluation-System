@@ -31,7 +31,7 @@ export async function registerUser(Model, { username, fullname, email, password 
 		throw ApiError.Conflict('Username or email already exists');
 	}
 
-	const newUser = new Model({ username, fullname, email, password });
+	const newUser = new Model({ username, fullname, email, password, role: roleName });
 
 	// Generate email verification token
 	const verifyToken = newUser.createEmailVerificationToken();
@@ -129,6 +129,7 @@ export async function loginWithGoogle(Model, OtherModel, idToken, roleName) {
 			googleId,
 			profilePicture: picture || '',
 			isEmailVerified: true,
+			role: roleName,
 		});
 	}
 
