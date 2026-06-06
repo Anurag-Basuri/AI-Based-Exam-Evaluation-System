@@ -10,7 +10,7 @@ import { generateCSV, sendCSVDowload } from '../services/export.service.js';
 
 // Start a new submission for an exam
 const startSubmission = asyncHandler(async (req, res) => {
-	const studentId = req.student?._id || req.user?.id;
+	const studentId = req.userDoc?._id || req.user?.id;
 	const { examId } = req.body;
 	
 	const result = await SubmissionService.start(examId, studentId);
@@ -19,7 +19,7 @@ const startSubmission = asyncHandler(async (req, res) => {
 
 // Submit a submission (mark as submitted and evaluate)
 const submitSubmission = asyncHandler(async (req, res) => {
-	const studentId = req.student?._id || req.user?.id;
+	const studentId = req.userDoc?._id || req.user?.id;
 	const { examId, submissionType = 'manual' } = req.body;
 
 	const submission = await SubmissionService.submit(examId, studentId, submissionType);
@@ -29,7 +29,7 @@ const submitSubmission = asyncHandler(async (req, res) => {
 // Teacher can update evaluation and review for a submission answer
 const updateEvaluation = asyncHandler(async (req, res) => {
 	const submissionId = req.params.id;
-	const teacherId = req.teacher?._id || req.user?.id;
+	const teacherId = req.userDoc?._id || req.user?.id;
 	const { evaluations } = req.body; // This is an array of updates
 
 	if (!Array.isArray(evaluations) || evaluations.length === 0) {
@@ -147,7 +147,7 @@ const getExamSubmissions = asyncHandler(async (req, res) => {
 // --- NEW: Get a single submission with full details for a student to view results ---
 const getSubmissionForResults = asyncHandler(async (req, res) => {
 	const submissionId = req.params.id;
-	const studentId = req.student?._id || req.user?.id;
+	const studentId = req.userDoc?._id || req.user?.id;
 
 	const submission = await Submission.findById(submissionId)
 		.populate({
@@ -177,7 +177,7 @@ const getSubmissionForResults = asyncHandler(async (req, res) => {
 // --- Get a single submission with full details for a teacher to grade ---
 const getSubmissionForGrading = asyncHandler(async (req, res) => {
 	const submissionId = req.params.id;
-	const teacherId = req.teacher?._id || req.user?.id;
+	const teacherId = req.userDoc?._id || req.user?.id;
 
 	const submission = await Submission.findById(submissionId)
 		.populate({
@@ -206,7 +206,7 @@ const getSubmissionForGrading = asyncHandler(async (req, res) => {
 
 // Get all submissions for the logged-in student (normalized for UI)
 const getMySubmissions = asyncHandler(async (req, res) => {
-	const studentId = req.student?._id || req.user?.id;
+	const studentId = req.userDoc?._id || req.user?.id;
 
 	const submissions = await Submission.find({ student: studentId })
 		.populate('exam', 'title')
@@ -240,7 +240,7 @@ const getMySubmissions = asyncHandler(async (req, res) => {
 // Get a student's own submission by ID (for taking an exam)
 const getSubmissionByIdParam = asyncHandler(async (req, res) => {
 	const submissionId = req.params.id;
-	const studentId = req.student?._id || req.user?.id;
+	const studentId = req.userDoc?._id || req.user?.id;
 
 	if (!submissionId.match(/^[a-f\d]{24}$/i)) {
 		throw ApiError.BadRequest('Invalid submission ID');
@@ -295,7 +295,7 @@ const startSubmissionByParam = asyncHandler(async (req, res) => {
 
 // Sync answers by submission ID
 const syncAnswersBySubmissionId = asyncHandler(async (req, res) => {
-	const studentId = req.student?._id || req.user?.id;
+	const studentId = req.userDoc?._id || req.user?.id;
 	const id = req.params.id;
 	const { answers, markedForReview } = req.body; // <-- Get markedForReview from body
 
@@ -347,7 +347,7 @@ const syncAnswersBySubmissionId = asyncHandler(async (req, res) => {
 
 // Submit by submission ID
 const submitSubmissionById = asyncHandler(async (req, res) => {
-	const studentId = req.student?._id || req.user?.id;
+	const studentId = req.userDoc?._id || req.user?.id;
 	const id = req.params.id;
 	const { submissionType = 'manual' } = req.body;
 
@@ -372,7 +372,7 @@ const getSubmissionStatus = asyncHandler(async (req, res) => {
 // ── Teacher Override: patch marks/remarks for individual questions ─
 const overrideEvaluation = asyncHandler(async (req, res) => {
 	const submissionId = req.params.id;
-	const teacherId = req.teacher?._id || req.user?.id;
+	const teacherId = req.userDoc?._id || req.user?.id;
 	const { questionId, marks, remarks } = req.body;
 
 	if (!questionId || marks === undefined) {
@@ -407,7 +407,7 @@ const overrideEvaluation = asyncHandler(async (req, res) => {
 
 // Log a student violation during an exam
 const logViolation = asyncHandler(async (req, res) => {
-	const studentId = req.student?._id || req.user?.id;
+	const studentId = req.userDoc?._id || req.user?.id;
 	const submissionId = req.params.id;
 	const { type } = req.body;
 
@@ -444,7 +444,7 @@ const testEvaluationService = asyncHandler(async (req, res) => {
 // Publish results for a single submission
 const publishSingleSubmissionResult = asyncHandler(async (req, res) => {
 	const submissionId = req.params.id;
-	const teacherId = req.teacher?._id || req.user?.id;
+	const teacherId = req.userDoc?._id || req.user?.id;
 
 	const submission = await Submission.findById(submissionId).populate('exam');
 	if (!submission) throw ApiError.NotFound('Submission not found');
@@ -471,7 +471,7 @@ const publishSingleSubmissionResult = asyncHandler(async (req, res) => {
 // Publish results for all evaluated submissions of an exam
 const publishAllExamResults = asyncHandler(async (req, res) => {
 	const examId = req.params.examId;
-	const teacherId = req.teacher?._id || req.user?.id;
+	const teacherId = req.userDoc?._id || req.user?.id;
 
 	const exam = await Exam.findById(examId);
 	if (!exam) throw ApiError.NotFound('Exam not found');
@@ -506,7 +506,7 @@ const publishAllExamResults = asyncHandler(async (req, res) => {
 // ══════════════════════════════════════════════════════════════════
 
 const exportExamSubmissionsList = asyncHandler(async (req, res) => {
-	const teacherId = req.teacher?._id || req.user?.id;
+	const teacherId = req.userDoc?._id || req.user?.id;
 	const { id: examId } = req.params;
 
 	if (!examId) throw ApiError.BadRequest('Exam ID is required');

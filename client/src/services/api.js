@@ -54,14 +54,16 @@ export const parseAxiosError = err => {
 
 	const status = err?.response?.status ?? 0;
 	const data = err?.response?.data;
+
+	// The backend always returns: { status: 'error', statusCode, message, details? }
+	// Prioritize this shape, then fall back gracefully.
 	const message =
 		data?.message ||
-		data?.error ||
 		err?.message ||
 		(status
 			? `Request failed with status ${status}`
 			: 'Network error — check your connection.');
-	return new ApiError(message, status, data);
+	return new ApiError(message, status, data?.details ?? data);
 };
 
 /**
