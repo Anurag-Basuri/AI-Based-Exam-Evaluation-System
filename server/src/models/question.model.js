@@ -72,7 +72,7 @@ const questionSchema = new mongoose.Schema(
 		},
 		createdBy: {
 			type: mongoose.Schema.Types.ObjectId,
-			ref: 'Teacher',
+			ref: 'User',
 			required: [true, 'Creator is required'],
 		},
 		sourceExam: {

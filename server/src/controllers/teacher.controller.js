@@ -1,6 +1,4 @@
-import mongoose from 'mongoose';
-import Teacher from '../models/teacher.model.js';
-import Student from '../models/student.model.js';
+import User from '../models/user.model.js';
 import Exam from '../models/exam.model.js';
 import Issue from '../models/issue.model.js';
 import Submission from '../models/submission.model.js';
@@ -12,7 +10,7 @@ import * as AuthService from '../services/auth.service.js';
 
 // ── Register ─────────────────────────────────────────────────────
 const createTeacher = asyncHandler(async (req, res) => {
-	const result = await AuthService.registerUser(Teacher, req.body, 'teacher');
+	const result = await AuthService.registerUser(User, req.body, 'teacher');
 	return ApiResponse.success(
 		res,
 		{ teacher: result.user, authToken: result.authToken, refreshToken: result.refreshToken, emailVerificationSent: result.emailVerificationSent },
@@ -23,7 +21,7 @@ const createTeacher = asyncHandler(async (req, res) => {
 
 // ── Login ────────────────────────────────────────────────────────
 const loginTeacher = asyncHandler(async (req, res) => {
-	const result = await AuthService.loginWithCredentials(Teacher, req.body);
+	const result = await AuthService.loginWithCredentials(User, req.body);
 	return ApiResponse.success(
 		res,
 		{ teacher: result.user, authToken: result.authToken, refreshToken: result.refreshToken },
@@ -33,7 +31,7 @@ const loginTeacher = asyncHandler(async (req, res) => {
 
 // ── Google Login ─────────────────────────────────────────────────
 const googleLoginTeacher = asyncHandler(async (req, res) => {
-	const result = await AuthService.loginWithGoogle(Teacher, Student, req.body.idToken, 'teacher');
+	const result = await AuthService.loginWithGoogle(User, User, req.body.idToken, 'teacher');
 	return ApiResponse.success(
 		res,
 		{ teacher: result.user, authToken: result.authToken, refreshToken: result.refreshToken },
@@ -43,14 +41,14 @@ const googleLoginTeacher = asyncHandler(async (req, res) => {
 
 // ── Logout ───────────────────────────────────────────────────────
 const logoutTeacher = asyncHandler(async (req, res) => {
-	const teacherId = req.teacher?._id || req.user?.id;
-	const result = await AuthService.logoutUser(Teacher, teacherId);
+	const teacherId = req.userDoc?._id || req.user?.id;
+	const result = await AuthService.logoutUser(User, teacherId);
 	return ApiResponse.success(res, result);
 });
 
 // ── Update Profile ───────────────────────────────────────────────
 const updateTeacher = asyncHandler(async (req, res) => {
-	const teacherId = req.teacher?._id || req.user?.id;
+	const teacherId = req.userDoc?._id || req.user?.id;
 
 	// Explicitly build update object to support partial updates
 	const updateData = {};
@@ -62,7 +60,7 @@ const updateTeacher = asyncHandler(async (req, res) => {
 		}
 	});
 
-	const updatedTeacher = await Teacher.findByIdAndUpdate(teacherId, updateData, {
+	const updatedTeacher = await User.findByIdAndUpdate(teacherId, updateData, {
 		new: true,
 		runValidators: true,
 	}).select('-password -refreshToken -resetPasswordToken -resetPasswordExpires');
@@ -76,7 +74,7 @@ const updateTeacher = asyncHandler(async (req, res) => {
 
 // ── Change Password ──────────────────────────────────────────────
 const changePassword = asyncHandler(async (req, res) => {
-	const teacherId = req.teacher?._id || req.user?.id;
+	const teacherId = req.userDoc?._id || req.user?.id;
 	const { currentPassword, newPassword, confirmNewPassword } = req.body;
 
 	if (confirmNewPassword !== undefined && newPassword !== confirmNewPassword) {
@@ -87,10 +85,10 @@ const changePassword = asyncHandler(async (req, res) => {
 		throw ApiError.BadRequest('New password must be different from current password');
 	}
 
-	const result = await AuthService.changePassword(Teacher, teacherId, currentPassword, newPassword);
+	const result = await AuthService.changePassword(User, teacherId, currentPassword, newPassword);
 
 	// Invalidate refresh token(s) to force re-login
-	await Teacher.findByIdAndUpdate(teacherId, { refreshToken: null });
+	await User.findByIdAndUpdate(teacherId, { refreshToken: null });
 
 	return ApiResponse.success(res, {
 		message: 'Password changed successfully. Please log in again.',
@@ -103,7 +101,7 @@ const changePassword = asyncHandler(async (req, res) => {
 
 // Get dashboard statistics for teacher (refactored, efficient, defensive)
 const getDashboardStats = asyncHandler(async (req, res) => {
-	const teacherId = req.teacher?._id || req.user?.id;
+	const teacherId = req.userDoc?._id || req.user?.id;
 	if (!teacherId) throw ApiError.Unauthorized('Teacher identification missing');
 
 	const TID = new mongoose.Types.ObjectId(teacherId);
@@ -310,7 +308,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
 	};
 
 	// teacher info
-	const details = await Teacher.findById(teacherId)
+	const details = await User.findById(teacherId)
 		.select('username fullname email phonenumber gender address createdAt')
 		.lean();
 	// ensure plain object and strip anything unexpected (defensive)
@@ -337,8 +335,8 @@ const getDashboardStats = asyncHandler(async (req, res) => {
 // ══════════════════════════════════════════════════════════════════
 
 const exportTeacherProfile = asyncHandler(async (req, res) => {
-	const teacherId = req.teacher?._id || req.user?.id;
-	const teacher = await Teacher.findById(teacherId).lean();
+	const teacherId = req.userDoc?._id || req.user?.id;
+	const teacher = await User.findById(teacherId).lean();
 
 	if (!teacher) {
 		throw ApiError.NotFound('Teacher not found');
@@ -368,7 +366,7 @@ const exportTeacherProfile = asyncHandler(async (req, res) => {
 });
 
 const exportTeacherExams = asyncHandler(async (req, res) => {
-	const teacherId = req.teacher?._id || req.user?.id;
+	const teacherId = req.userDoc?._id || req.user?.id;
 
 	const exams = await Exam.find({ createdBy: teacherId }).lean();
 
@@ -394,13 +392,13 @@ const exportTeacherExams = asyncHandler(async (req, res) => {
 // ══════════════════════════════════════════════════════════════════
 
 const verifyTeacherEmail = asyncHandler(async (req, res) => {
-	const result = await AuthService.verifyEmail(Teacher, req.body.token);
+	const result = await AuthService.verifyEmail(User, req.body.token);
 	return ApiResponse.success(res, result, 'Email verified successfully! You now have full access.');
 });
 
 const resendTeacherVerification = asyncHandler(async (req, res) => {
-	const teacherId = req.teacher?._id || req.user?.id;
-	const result = await AuthService.resendVerification(Teacher, teacherId, 'teacher');
+	const teacherId = req.userDoc?._id || req.user?.id;
+	const result = await AuthService.resendVerification(User, teacherId, 'teacher');
 	if (result.alreadyVerified) {
 		return ApiResponse.success(res, { isEmailVerified: true }, 'Email is already verified');
 	}
@@ -412,12 +410,12 @@ const resendTeacherVerification = asyncHandler(async (req, res) => {
 // ══════════════════════════════════════════════════════════════════
 
 const forgotTeacherPassword = asyncHandler(async (req, res) => {
-	const result = await AuthService.forgotPassword(Teacher, req.body.email, 'teacher');
+	const result = await AuthService.forgotPassword(User, req.body.email, 'teacher');
 	return ApiResponse.success(res, null, result.message);
 });
 
 const resetTeacherPassword = asyncHandler(async (req, res) => {
-	const result = await AuthService.resetPassword(Teacher, req.body.token, req.body.newPassword);
+	const result = await AuthService.resetPassword(User, req.body.token, req.body.newPassword);
 	return ApiResponse.success(res, null, result.message);
 });
 
@@ -426,7 +424,7 @@ const resetTeacherPassword = asyncHandler(async (req, res) => {
 // ══════════════════════════════════════════════════════════════════
 
 const refreshTeacherToken = asyncHandler(async (req, res) => {
-	const result = await AuthService.refreshTokens(Teacher, req.body.refreshToken);
+	const result = await AuthService.refreshTokens(User, req.body.refreshToken);
 	return ApiResponse.success(res, result, 'Token refreshed successfully');
 });
 
