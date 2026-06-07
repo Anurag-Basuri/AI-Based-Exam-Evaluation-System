@@ -1,3 +1,5 @@
+import { Queue, Worker } from 'bullmq';
+import IORedis from 'ioredis';
 import Submission from '../models/submission.model.js';
 import Exam from '../models/exam.model.js';
 import Question from '../models/question.model.js';
@@ -5,9 +7,35 @@ import { evaluateAnswer } from './evaluation.service.js';
 
 // ── Configuration ───────────────────────────────────────────────
 const MAX_CONCURRENT = Number(process.env.EVAL_MAX_CONCURRENT || 3);
-const queue = []; // Pending job IDs
-let activeCount = 0; // Currently running evaluations
-let ioRef = null; // Socket.IO reference
+let ioRef = null;
+
+// ── Redis Connection (for BullMQ) ───────────────────────────────
+let connection = null;
+let evalQueue = null;
+let worker = null;
+let useBullMQ = false;
+
+// Fallback: in-memory queue (identical to the original implementation)
+const memQueue = [];
+let activeCount = 0;
+
+if (process.env.UPSTASH_REDIS_URL) {
+	try {
+		connection = new IORedis(process.env.UPSTASH_REDIS_URL, {
+			maxRetriesPerRequest: null, // Required by BullMQ
+			tls: {},                    // Upstash requires TLS
+		});
+
+		evalQueue = new Queue('exam-evaluation', { connection });
+		useBullMQ = true;
+		console.log('[JOB_QUEUE] ✅ BullMQ connected to Upstash Redis');
+	} catch (err) {
+		console.warn('[JOB_QUEUE] ⚠️ BullMQ init failed, falling back to in-memory queue:', err.message);
+		useBullMQ = false;
+	}
+} else {
+	console.log('[JOB_QUEUE] 📦 Using in-memory queue (no UPSTASH_REDIS_URL)');
+}
 
 // ── Set Socket.IO instance (called once from server.js) ─────────
 export function setSocketRef(io) {
@@ -15,7 +43,8 @@ export function setSocketRef(io) {
 }
 
 // ── Core evaluation logic ───────────────────────────────────────
-// Extracted from submission.controller.js for reuse and testability
+// Extracted from submission.controller.js for reuse and testability.
+// This function is UNCHANGED — it is the pure business logic.
 export async function evaluateSubmissionAnswers(submission) {
 	console.log(`[JOB_QUEUE] Starting answer evaluation for submission ID: ${submission._id}`);
 	const examDoc = await Exam.findById(submission.exam).select('title aiPolicy');
@@ -99,7 +128,7 @@ export async function evaluateSubmissionAnswers(submission) {
 // ── Process a single evaluation job ─────────────────────────────
 async function processJob(submissionId) {
 	const startTime = Date.now();
-	console.log(`[JOB_QUEUE] Processing submission ${submissionId} (active: ${activeCount}, queued: ${queue.length})`);
+	console.log(`[JOB_QUEUE] Processing submission ${submissionId}`);
 
 	try {
 		const submission = await Submission.findById(submissionId);
@@ -135,28 +164,73 @@ async function processJob(submissionId) {
 	}
 }
 
-// ── Drain the queue ─────────────────────────────────────────────
-// Runs jobs up to MAX_CONCURRENT limit
+// ── BullMQ Worker (initialized only when Redis is available) ────
+if (useBullMQ && connection) {
+	worker = new Worker(
+		'exam-evaluation',
+		async (job) => {
+			await processJob(job.data.submissionId);
+		},
+		{
+			connection: new IORedis(process.env.UPSTASH_REDIS_URL, {
+				maxRetriesPerRequest: null,
+				tls: {},
+			}),
+			concurrency: MAX_CONCURRENT,
+		},
+	);
+
+	worker.on('completed', (job) => {
+		console.log(`[JOB_QUEUE] BullMQ job ${job.id} completed`);
+	});
+
+	worker.on('failed', (job, err) => {
+		console.error(`[JOB_QUEUE] BullMQ job ${job?.id} failed:`, err.message);
+	});
+
+	worker.on('error', (err) => {
+		console.error('[JOB_QUEUE] BullMQ worker error:', err.message);
+	});
+}
+
+// ── In-Memory Fallback: Drain Loop ──────────────────────────────
 function drain() {
-	while (activeCount < MAX_CONCURRENT && queue.length > 0) {
-		const submissionId = queue.shift();
+	while (activeCount < MAX_CONCURRENT && memQueue.length > 0) {
+		const submissionId = memQueue.shift();
 		activeCount++;
 		processJob(submissionId).finally(() => {
 			activeCount--;
-			drain(); // Process next in line
+			drain();
 		});
 	}
 }
 
 // ── Public API: Enqueue a submission for background evaluation ──
 export function enqueueEvaluation(submissionId) {
-	console.log(`[JOB_QUEUE] Enqueued submission ${submissionId} (queue: ${queue.length}, active: ${activeCount}/${MAX_CONCURRENT})`);
-	queue.push(submissionId);
-	drain();
+	if (useBullMQ && evalQueue) {
+		evalQueue.add(
+			'evaluate',
+			{ submissionId: String(submissionId) },
+			{
+				attempts: 3,
+				backoff: { type: 'exponential', delay: 2000 },
+				removeOnComplete: 100,
+				removeOnFail: 200,
+			},
+		);
+		console.log(`[JOB_QUEUE] Enqueued via BullMQ: ${submissionId}`);
+	} else {
+		// Fallback: in-memory queue
+		console.log(`[JOB_QUEUE] Enqueued in-memory: ${submissionId} (queue: ${memQueue.length}, active: ${activeCount}/${MAX_CONCURRENT})`);
+		memQueue.push(submissionId);
+		drain();
+	}
 }
 
 // ── Startup recovery ────────────────────────────────────────────
-// Re-queue submissions stuck in 'evaluating' state (e.g., after server crash)
+// Re-queue submissions stuck in 'evaluating' state (e.g., after server crash).
+// BullMQ handles stalled jobs automatically, but we still scan MongoDB
+// for submissions that got stuck before BullMQ was introduced.
 export async function recoverStuckEvaluations() {
 	try {
 		const stuck = await Submission.find({ status: 'evaluating' }).select('_id').lean();
@@ -170,5 +244,26 @@ export async function recoverStuckEvaluations() {
 		}
 	} catch (err) {
 		console.error('[JOB_QUEUE] Recovery scan failed:', err.message);
+	}
+}
+
+// ── Graceful Shutdown ───────────────────────────────────────────
+export async function gracefulShutdown() {
+	console.log('[JOB_QUEUE] Shutting down...');
+	try {
+		if (worker) {
+			await worker.close();
+			console.log('[JOB_QUEUE] BullMQ worker closed');
+		}
+		if (evalQueue) {
+			await evalQueue.close();
+			console.log('[JOB_QUEUE] BullMQ queue closed');
+		}
+		if (connection) {
+			connection.disconnect();
+			console.log('[JOB_QUEUE] Redis connection closed');
+		}
+	} catch (err) {
+		console.error('[JOB_QUEUE] Shutdown error:', err.message);
 	}
 }

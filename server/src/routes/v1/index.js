@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
+import { getRedisStore } from '../../middlewares/rateLimit.middleware.js';
 
 import studentRouter from '../student.routes.js';
 import teacherRouter from '../teacher.routes.js';
@@ -16,6 +17,7 @@ const globalLimiter = rateLimit({
 	max: 500,
 	standardHeaders: true,
 	legacyHeaders: false,
+	...getRedisStore('global'),
 	message: {
 		status: 'error',
 		statusCode: 429,
