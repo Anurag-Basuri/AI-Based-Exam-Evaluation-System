@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import { corsOptions } from './middlewares/cors.middleware.js';
@@ -6,9 +7,7 @@ import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { ApiError } from './utils/ApiError.js';
 import colors from 'colors';
-import dotenv from 'dotenv';
 
-dotenv.config();
 
 import v1Router from './routes/v1/index.js';
 

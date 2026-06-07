@@ -16,8 +16,10 @@
 	"license": "ISC",
 	"description": "",
 	"dependencies": {
+		"@upstash/redis": "^1.38.0",
 		"axios": "^1.12.2",
 		"bcryptjs": "^3.0.2",
+		"bullmq": "^5.78.0",
 		"colors": "^1.4.0",
 		"cookie-parser": "^1.4.7",
 		"cors": "^2.8.5",
@@ -27,6 +29,7 @@
 		"express-validator": "^7.2.1",
 		"google-auth-library": "^10.6.2",
 		"helmet": "^8.1.0",
+		"ioredis": "^5.11.1",
 		"json2csv": "^6.0.0-alpha.2",
 		"jsonwebtoken": "^9.0.2",
 		"mongoose": "^8.16.2",
@@ -36,6 +39,7 @@
 		"node-fetch": "^3.3.2",
 		"nodemailer": "^8.0.5",
 		"nodemon": "^3.1.10",
+		"rate-limit-redis": "^5.0.0",
 		"slugify": "^1.6.6",
 		"socket.io": "^4.8.1",
 		"validator": "^13.15.15"

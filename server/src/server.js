@@ -1,13 +1,12 @@
+import 'dotenv/config';
 import http from 'http';
-import dotenv from 'dotenv';
 import colors from 'colors';
 import app from './app.js';
 import connectDB from './db.js';
 import { initSocket } from './socket/initSocket.js';
 import { startExamStatusScheduler } from './services/examStatus.service.js';
-import { recoverStuckEvaluations, setSocketRef } from './services/jobQueue.service.js';
+import { recoverStuckEvaluations, setSocketRef, gracefulShutdown as shutdownJobQueue } from './services/jobQueue.service.js';
 
-dotenv.config();
 
 const PORT = process.env.PORT || 8000;
 
@@ -60,8 +59,10 @@ process.on('unhandledRejection', err => handleFatalError(err, 'Unhandled Rejecti
 		const shutdown = signal => {
 			console.log(colors.yellow(`\n🛑 Received ${signal}. Shutting down gracefully...`));
 			// Stop accepting new connections
-			httpServer.close(() => {
+			httpServer.close(async () => {
 				console.log(colors.magenta('🔒 HTTP server closed.'));
+				// Close BullMQ worker and queue
+				await shutdownJobQueue();
 				// Close Socket.IO
 				try {
 					io?.close(() => console.log(colors.magenta('📡 Socket.IO server closed.')));
