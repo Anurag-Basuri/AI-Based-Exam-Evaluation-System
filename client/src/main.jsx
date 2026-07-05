@@ -5,6 +5,7 @@ import App from './App.jsx';
 import './index.css';
 import { ThemeProvider } from './context/ThemeContext.jsx';
 import { AuthProvider } from './context/AuthContext.jsx';
+import { SocketProvider } from './context/SocketContext.jsx';
 
 import { GoogleOAuthProvider } from '@react-oauth/google';
 
@@ -16,10 +17,13 @@ createRoot(document.getElementById('root')).render(
 			<ThemeProvider>
 				<BrowserRouter>
 					<AuthProvider>
-						<App />
+						<SocketProvider>
+							<App />
+						</SocketProvider>
 					</AuthProvider>
 				</BrowserRouter>
 			</ThemeProvider>
 		</GoogleOAuthProvider>
 	</React.StrictMode>,
 );
+
