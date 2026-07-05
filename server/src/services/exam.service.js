@@ -4,14 +4,15 @@ import Question from '../models/question.model.js';
 import { ApiError } from '../utils/ApiError.js';
 import { getCachedOrFetch, invalidate, invalidateByPrefix } from './cache.service.js';
 
-// ── Cache key builders ──────────────────────────────────────────
+// Cache key builders
 const KEYS = {
 	examById: (id) => `exam:${id}`,
 	examStats: (teacherId) => `exam-stats:${teacherId}`,
 };
 
-// ── Helpers ──────────────────────────────────────────────────────
+// Helpers
 
+// Checks if an exam is scheduled (start time is in the future and status is not completed/cancelled).
 export const isScheduled = exam => {
 	if (!exam || !exam.startTime) return false;
 	const now = new Date();
@@ -23,6 +24,7 @@ export const isScheduled = exam => {
 	);
 };
 
+// Checks if an exam is currently live (current time is between start and end times, and status is not completed/cancelled).
 export const isLive = exam => {
 	if (!exam || !exam.startTime || !exam.endTime) return false;
 	const now = new Date();
@@ -36,14 +38,16 @@ export const isLive = exam => {
 	);
 };
 
+// Asserts that the requested teacher is the creator/owner of the exam.
 export const assertOwner = (doc, teacherId) => {
 	if (!doc?.createdBy || String(doc.createdBy) !== String(teacherId)) {
 		throw ApiError.Forbidden('Not authorized for this exam');
 	}
 };
 
-// ── Operations ───────────────────────────────────────────────────
+// Operations
 
+// Creates a new exam in 'draft' status. Validates start/end times and verifies question ownership.
 export const create = async (data, teacherId) => {
 	const {
 		title,
@@ -106,6 +110,7 @@ export const create = async (data, teacherId) => {
 	return exam;
 };
 
+// Publishes a draft exam to 'active' status. Validates questions and times.
 export const publish = async (examId, teacherId) => {
 	if (!examId || !examId.match(/^[a-f\d]{24}$/i)) {
 		throw ApiError.BadRequest('Invalid exam ID');
@@ -139,6 +144,7 @@ export const publish = async (examId, teacherId) => {
 	return exam;
 };
 
+// Retrieves aggregate statistics for all exams created by a specific teacher (utilizes caching).
 export const getStats = async teacherId => {
 	return getCachedOrFetch(KEYS.examStats(teacherId), 120, async () => {
 	const now = new Date();
@@ -208,6 +214,7 @@ export const getStats = async teacherId => {
 	}); // end getCachedOrFetch
 };
 
+// Appends question IDs to an existing draft/scheduled exam, updating total marks and sourceExam fields.
 export const addQuestions = async (examId, teacherId, questionIds) => {
 	if (!examId || !examId.match(/^[a-f\d]{24}$/i)) throw ApiError.BadRequest('Invalid exam ID');
 	if (!Array.isArray(questionIds) || questionIds.length === 0) throw ApiError.BadRequest('At least one question ID is required');
@@ -233,6 +240,7 @@ export const addQuestions = async (examId, teacherId, questionIds) => {
 	return exam;
 };
 
+// Removes question IDs from a draft/scheduled exam, recalculating total marks and unlinking questions.
 export const removeQuestions = async (examId, teacherId, questionIds) => {
 	if (!examId || !examId.match(/^[a-f\d]{24}$/i)) throw ApiError.BadRequest('Invalid exam ID');
 	if (!Array.isArray(questionIds) || questionIds.length === 0) throw ApiError.BadRequest('At least one question ID is required');
@@ -253,6 +261,7 @@ export const removeQuestions = async (examId, teacherId, questionIds) => {
 	return exam;
 };
 
+// Updates primary details of a draft exam.
 export const update = async (examId, teacherId, updates) => {
 	if (!examId || !examId.match(/^[a-f\d]{24}$/i)) throw ApiError.BadRequest('Invalid exam ID');
 
@@ -279,6 +288,7 @@ export const update = async (examId, teacherId, updates) => {
 	return exam;
 };
 
+// Deletes an exam and unlinks all questions associated with it.
 export const remove = async (examId, teacherId) => {
 	if (!examId || !examId.match(/^[a-f\d]{24}$/i)) throw ApiError.BadRequest('Invalid exam ID');
 
@@ -297,6 +307,7 @@ export const remove = async (examId, teacherId) => {
 	invalidate(KEYS.examStats(teacherId));
 };
 
+// Reorders questions inside a draft or scheduled exam.
 export const reorderQuestions = async (examId, teacherId, order) => {
 	if (!examId || !examId.match(/^[a-f\d]{24}$/i)) throw ApiError.BadRequest('Invalid exam ID');
 	if (!Array.isArray(order) || order.length === 0) throw ApiError.BadRequest('Order must be a non-empty array of question IDs');
@@ -321,6 +332,7 @@ export const reorderQuestions = async (examId, teacherId, order) => {
 	return exam;
 };
 
+// Replaces the entire set of questions on a draft/scheduled exam with a new set.
 export const setQuestions = async (examId, teacherId, questionIds) => {
 	if (!examId || !examId.match(/^[a-f\d]{24}$/i)) throw ApiError.BadRequest('Invalid exam ID');
 	if (!Array.isArray(questionIds)) throw ApiError.BadRequest('questionIds must be an array');
@@ -353,6 +365,7 @@ export const setQuestions = async (examId, teacherId, questionIds) => {
 	return exam;
 };
 
+// Creates a new question and automatically attaches it to a draft exam.
 export const createAndAttachQuestion = async (examId, teacherId, qData) => {
 	const { type, text, remarks, max_marks, options, answer } = qData;
 	if (!examId || !examId.match(/^[a-f\d]{24}$/i)) throw ApiError.BadRequest('Invalid exam ID');
@@ -381,6 +394,7 @@ export const createAndAttachQuestion = async (examId, teacherId, qData) => {
 	return q;
 };
 
+// Duplicates an existing exam into a new draft copy, shifting start/end times by 7 days.
 export const duplicate = async (examId, teacherId) => {
 	if (!examId || !examId.match(/^[a-f\d]{24}$/i)) throw ApiError.BadRequest('Invalid exam ID');
 
@@ -412,6 +426,7 @@ export const duplicate = async (examId, teacherId) => {
 	return copy;
 };
 
+// Force-ends a live exam (set status to 'completed') or cancels a scheduled exam.
 export const endNow = async (examId, teacherId, io) => {
 	if (!examId || !examId.match(/^[a-f\d]{24}$/i)) throw ApiError.BadRequest('Invalid exam ID');
 	const exam = await Exam.findById(examId);
@@ -427,7 +442,7 @@ export const endNow = async (examId, teacherId, io) => {
 		exam.status = 'completed';
 		exam.endTime = new Date();
 		await exam.save();
-		if (io) io.emit('exam-updated', { examId });
+		if (io) io.to(String(teacherId)).emit('exam-updated', { examId });
 		invalidate(KEYS.examById(examId));
 		invalidate(KEYS.examStats(teacherId));
 		return exam;
@@ -435,12 +450,13 @@ export const endNow = async (examId, teacherId, io) => {
 
 	exam.status = 'cancelled';
 	await exam.save();
-	if (io) io.emit('exam-updated', { examId });
+	if (io) io.to(String(teacherId)).emit('exam-updated', { examId });
 	invalidate(KEYS.examById(examId));
 	invalidate(KEYS.examStats(teacherId));
 	return exam;
 };
 
+// Cancels a scheduled exam (not yet started) by changing its status to 'cancelled'.
 export const cancel = async (examId, teacherId) => {
 	if (!examId || !examId.match(/^[a-f\d]{24}$/i)) throw ApiError.BadRequest('Invalid exam ID');
 	const exam = await Exam.findById(examId);
@@ -456,6 +472,7 @@ export const cancel = async (examId, teacherId) => {
 	return exam;
 };
 
+// Extends the end time of a scheduled or live exam by a set number of minutes or to an explicit new time.
 export const extend = async (examId, teacherId, minutes, endTime) => {
 	if (!examId || !examId.match(/^[a-f\d]{24}$/i)) throw ApiError.BadRequest('Invalid exam ID');
 	const exam = await Exam.findById(examId);
@@ -483,6 +500,7 @@ export const extend = async (examId, teacherId, minutes, endTime) => {
 	return exam;
 };
 
+// Regenerates a unique searchId/join code for a draft or scheduled exam.
 export const regenerateCode = async (examId, teacherId) => {
 	if (!examId || !examId.match(/^[a-f\d]{24}$/i)) throw ApiError.BadRequest('Invalid exam ID');
 	const exam = await Exam.findById(examId);

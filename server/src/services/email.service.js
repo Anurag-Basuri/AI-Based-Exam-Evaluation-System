@@ -6,29 +6,35 @@ dotenv.config();
 let _transporter = null;
 let _etherealAccount = null;
 
-/**
- * Creates (or reuses) a Nodemailer transporter.
- * • Production: uses SMTP vars from .env (Resend, SendGrid, etc.)
- * • Development: auto-creates an Ethereal test account so you can
- *   preview every email in the browser without sending real mail.
- */
+// Creates (or reuses) a Nodemailer transporter.
+// Production: uses SMTP vars from .env (Resend, SendGrid, etc.)
+// Development: auto-creates an Ethereal test account so you can
+// preview every email in the browser without sending real mail.
+
 async function getTransporter() {
 	if (_transporter) return _transporter;
 
-	// ── Production / configured SMTP ──────────────────────────────
-	if (process.env.SMTP_HOST) {
-		_transporter = nodemailer.createTransport({
-			host: process.env.SMTP_HOST,
-			port: Number(process.env.SMTP_PORT || 465),
-			secure: process.env.SMTP_SECURE !== 'false', // true for 465
+	// Production / configured SMTP
+	if (process.env.SMTP_HOST || process.env.SMTP_SERVICE) {
+		const transportConfig = {
 			auth: {
 				user: process.env.SMTP_USER,
 				pass: process.env.SMTP_PASS,
 			},
-			pool: true, // reuse connections
-			maxConnections: 5,
-			maxMessages: 100,
-		});
+		};
+
+		if (process.env.SMTP_SERVICE) {
+			transportConfig.service = process.env.SMTP_SERVICE;
+		} else {
+			transportConfig.host = process.env.SMTP_HOST;
+			transportConfig.port = Number(process.env.SMTP_PORT || 465);
+			transportConfig.secure = process.env.SMTP_SECURE !== 'false'; // true for 465
+			transportConfig.pool = true; // reuse connections
+			transportConfig.maxConnections = 5;
+			transportConfig.maxMessages = 100;
+		}
+
+		_transporter = nodemailer.createTransport(transportConfig);
 
 		try {
 			await _transporter.verify();
@@ -41,7 +47,7 @@ async function getTransporter() {
 		return _transporter;
 	}
 
-	// ── Development fallback: Ethereal ───────────────────────────
+	// Development fallback: Ethereal
 	if (!_etherealAccount) {
 		_etherealAccount = await nodemailer.createTestAccount();
 		console.log('[EMAIL] 🧪 Ethereal test account created');
@@ -62,8 +68,7 @@ async function getTransporter() {
 	return _transporter;
 }
 
-// ── Helpers ──────────────────────────────────────────────────────
-
+// Helpers
 const FROM = () => process.env.EMAIL_FROM || '"Exam System" <noreply@exam-system.local>';
 const FRONTEND = () => process.env.FRONTEND_URL || 'http://localhost:5173';
 
@@ -74,8 +79,7 @@ function logPreviewUrl(info) {
 	}
 }
 
-// ── Base HTML wrapper ────────────────────────────────────────────
-
+// Base HTML wrapper
 function wrapHtml(body) {
 	return `<!DOCTYPE html>
 <html lang="en">
@@ -107,8 +111,7 @@ function wrapHtml(body) {
 </html>`;
 }
 
-// ── Email Verification ───────────────────────────────────────────
-
+// Email Verification
 export async function sendVerificationEmail(to, name, token, role) {
 	const link = `${FRONTEND()}/auth/verify-email?token=${encodeURIComponent(token)}&role=${role}`;
 
@@ -145,8 +148,7 @@ export async function sendVerificationEmail(to, name, token, role) {
 	}
 }
 
-// ── Password Reset ───────────────────────────────────────────────
-
+// Password Reset
 export async function sendPasswordResetEmail(to, name, token, role) {
 	const link = `${FRONTEND()}/auth/reset-password?token=${encodeURIComponent(token)}&role=${role}`;
 
@@ -183,8 +185,7 @@ export async function sendPasswordResetEmail(to, name, token, role) {
 	}
 }
 
-// ── Password Changed Confirmation ────────────────────────────────
-
+// Password Changed Confirmation
 export async function sendPasswordChangedEmail(to, name) {
 	const html = wrapHtml(`
     <p>Hi <strong>${name}</strong>,</p>

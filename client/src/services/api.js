@@ -1,13 +1,10 @@
 import axios from 'axios';
 import { isTokenExpired, getToken, removeToken, setToken, decodeToken } from '../utils/handleToken.js';
 
-// ═══════════════════════════════════════════════════════════════════
 // BASE CONFIG
-// ═══════════════════════════════════════════════════════════════════
-
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
-/** Axios instance for authenticated requests. */
+// Axios instance for authenticated requests
 const apiClient = axios.create({
 	baseURL: API_BASE_URL,
 	timeout: 15000,
@@ -18,7 +15,7 @@ const apiClient = axios.create({
 	},
 });
 
-/** Axios instance for public (unauthenticated) requests. */
+// Axios instance for public (unauthenticated) requests
 const publicClient = axios.create({
 	baseURL: API_BASE_URL,
 	timeout: 15000,
@@ -29,13 +26,10 @@ const publicClient = axios.create({
 	},
 });
 
-// ═══════════════════════════════════════════════════════════════════
 // CENTRALIZED ERROR HANDLING
-// ═══════════════════════════════════════════════════════════════════
 
-/**
- * Unified API error class used across all service files.
- */
+
+// Unified API error class used across all service files.
 export class ApiError extends Error {
 	constructor(message, status = 0, data = null) {
 		super(message || 'Request failed');
@@ -45,9 +39,7 @@ export class ApiError extends Error {
 	}
 }
 
-/**
- * Normalize any Axios error into a clean ApiError.
- */
+// Normalize any Axios error into a clean ApiError.
 export const parseAxiosError = err => {
 	if (!err) return new ApiError('Unknown error');
 	if (err?.name === 'CanceledError') return new ApiError('Request canceled', 499);
@@ -66,10 +58,8 @@ export const parseAxiosError = err => {
 	return new ApiError(message, status, data?.details ?? data);
 };
 
-/**
- * Generic wrapper for any async service function.
- * Unwraps ApiResponse shapes (data.data) and handles pagination objects.
- */
+// Generic wrapper for any async service function.
+// Unwraps ApiResponse shapes (data.data) and handles pagination objects.
 export const safeApiCall = async (fn, ...args) => {
 	try {
 		const res = await fn(...args);
@@ -88,9 +78,7 @@ export const safeApiCall = async (fn, ...args) => {
 	}
 };
 
-// ═══════════════════════════════════════════════════════════════════
 // REQUEST INTERCEPTOR
-// ═══════════════════════════════════════════════════════════════════
 
 // Attach token to authenticated requests
 apiClient.interceptors.request.use(config => {
@@ -106,19 +94,15 @@ apiClient.interceptors.request.use(config => {
 	return config;
 });
 
-// ═══════════════════════════════════════════════════════════════════
 // RESPONSE INTERCEPTOR — AUTOMATIC TOKEN REFRESH
-// ═══════════════════════════════════════════════════════════════════
 
-/** Mutex to prevent multiple simultaneous refresh attempts. */
+// Mutex to prevent multiple simultaneous refresh attempts.
 let isRefreshing = false;
 
-/** Queue of requests waiting for a token refresh to complete. */
+// Queue of requests waiting for a token refresh to complete.
 let failedQueue = [];
 
-/**
- * Resolve or reject all queued requests once the refresh completes.
- */
+// Resolve or reject all queued requests once the refresh completes.
 const processQueue = (error, token = null) => {
 	failedQueue.forEach(({ resolve, reject }) => {
 		if (error) reject(error);
@@ -127,10 +111,8 @@ const processQueue = (error, token = null) => {
 	failedQueue = [];
 };
 
-/**
- * Determine the correct refresh endpoint based on the user's stored role.
- * Falls back to decoding the expired access token for its role claim.
- */
+// Determine the correct refresh endpoint based on the user's stored role.
+// Falls back to decoding the expired access token for its role claim.
 const getRefreshEndpoint = () => {
 	try {
 		const stored = localStorage.getItem('preferredRole');
@@ -219,14 +201,10 @@ apiClient.interceptors.response.use(
 	},
 );
 
-// ═══════════════════════════════════════════════════════════════════
 // RENDER WAKE-UP (Health Check)
-// ═══════════════════════════════════════════════════════════════════
 
-/**
- * Ping the backend health endpoint to wake up the Render server.
- * Call this on landing/auth page mounts. Failures are silently ignored.
- */
+// Ping the backend health endpoint to wake up the Render server.
+// Call this on landing/auth page mounts. Failures are silently ignored.
 export const pingBackendHealth = async () => {
 	try {
 		await publicClient.get('/api/health', { timeout: 30000 });
@@ -236,10 +214,7 @@ export const pingBackendHealth = async () => {
 	}
 };
 
-// ═══════════════════════════════════════════════════════════════════
 // AUTH TOKEN HELPER
-// ═══════════════════════════════════════════════════════════════════
-
 export const setAuthToken = token => {
 	if (!apiClient?.defaults) return;
 	if (token) apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
