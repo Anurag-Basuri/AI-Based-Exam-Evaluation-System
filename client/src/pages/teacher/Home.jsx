@@ -1,12 +1,11 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { io } from 'socket.io-client';
 import { useAuth } from '../../hooks/useAuth.js';
+import { useSocket } from '../../hooks/useSocket.js';
 import { getTeacherDashboardStats } from '../../services/teacherServices.js';
-import { API_BASE_URL } from '../../services/api.js';
 import { ScoreHistogram, PerformanceLine } from '../../components/charts/AnalyticsCharts.jsx';
 
-// ── Defaults & Utils ──────────────────────────────────────────────
+// Defaults & Utils
 const DEFAULT_DASH = {
 	exams: { total: 0, live: 0, scheduled: 0, draft: 0, totalEnrolled: 0 },
 	issues: { open: 0 },
@@ -62,7 +61,7 @@ const getGreeting = () => {
 	return 'Good evening';
 };
 
-// ── Skeleton loader ───────────────────────────────────────────────
+// Skeleton loader
 const Skeleton = ({ h = 14, w = '100%', r = 8 }) => (
 	<div
 		style={{
@@ -77,7 +76,7 @@ const Skeleton = ({ h = 14, w = '100%', r = 8 }) => (
 	/>
 );
 
-// ── Status badge ──────────────────────────────────────────────────
+// Status badge
 const STATUS_MAP = {
 	pending: { label: 'Pending', icon: '⏳', color: '#f59e0b', bg: '#fef3c7' },
 	submitted: { label: 'Submitted', icon: '📥', color: '#3b82f6', bg: '#dbeafe' },
@@ -111,9 +110,8 @@ const StatusBadge = ({ status }) => {
 	);
 };
 
-// ═══════════════════════════════════════════════════════════════════
-// MAIN COMPONENT
-// ═══════════════════════════════════════════════════════════════════
+
+// Main Component
 const TeacherHome = () => {
 	const navigate = useNavigate();
 	const { user } = useAuth();
@@ -141,13 +139,11 @@ const TeacherHome = () => {
 		loadData();
 	}, [loadData]);
 
+	const { socket } = useSocket();
+
 	// Real-time socket updates
 	React.useEffect(() => {
-		if (!user?.id) return undefined;
-		const socket = io(API_BASE_URL, {
-			withCredentials: true,
-			query: { role: 'teacher', userId: user.id },
-		});
+		if (!socket) return;
 		const onNewSubmission = s =>
 			setData(curr => ({
 				...curr,
@@ -157,13 +153,15 @@ const TeacherHome = () => {
 					pending: (curr.submissions?.pending || 0) + 1,
 				},
 			}));
+		const onSubmissionUpdated = () => loadData();
+
 		socket.on('new-submission', onNewSubmission);
-		socket.on('submission-updated', () => loadData());
+		socket.on('submission-updated', onSubmissionUpdated);
 		return () => {
 			socket.off('new-submission', onNewSubmission);
-			socket.disconnect();
+			socket.off('submission-updated', onSubmissionUpdated);
 		};
-	}, [user, loadData]);
+	}, [socket, loadData]);
 
 	const teacher =
 		(data.teacher && Object.keys(data.teacher).length ? data.teacher : null) ||
@@ -179,7 +177,7 @@ const TeacherHome = () => {
 				}
 			: null);
 
-	// ── Render ─────────────────────────────────────────────────────
+	// Render
 	return (
 		<div
 			style={{
@@ -318,7 +316,7 @@ const TeacherHome = () => {
 				)}
 			</div>
 
-			{/* ─── Error ─── */}
+			{/* Error */}
 			{error && (
 				<div
 					className="dash-enter"
@@ -350,7 +348,7 @@ const TeacherHome = () => {
 				</div>
 			)}
 
-			{/* ─── KPI Grid ─── */}
+			{/* KPI Grid */}
 			<div className="dash-kpi-grid dash-enter dash-enter-2">
 				<div className="dash-kpi" style={{ '--kpi-accent': '#6366f1' }}>
 					<div
@@ -416,7 +414,7 @@ const TeacherHome = () => {
 				</div>
 			</div>
 
-			{/* ─── Quick Actions ─── */}
+			{/* Quick Actions */}
 			<div
 				className="dash-enter dash-enter-3"
 				style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}
@@ -441,7 +439,7 @@ const TeacherHome = () => {
 				</button>
 			</div>
 
-			{/* ─── Content Panels ─── */}
+			{/* Content Panels */}
 			<div className="dash-panels dash-enter dash-enter-4">
 				{/* Recent Submissions */}
 				<div className="dash-card">
@@ -693,7 +691,7 @@ const TeacherHome = () => {
 				</div>
 			</div>
 
-			{/* ─── Analytics Charts ─── */}
+			{/* Analytics Charts */}
 			{!loading && (
 				<div
 					className="dash-enter dash-enter-5"

@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { io } from 'socket.io-client';
 import { useToast } from '../../components/ui/Toaster.jsx';
 import {
 	safeApiCall,
@@ -12,12 +11,12 @@ import {
 	addInternalNote,
 	bulkResolveIssues,
 } from '../../services/teacherServices.js';
-import { API_BASE_URL } from '../../services/api.js';
 import { useAuth } from '../../hooks/useAuth.js';
+import { useSocket } from '../../hooks/useSocket.js';
 
 const MOBILE_BREAKPOINT = 1024;
 
-// --- UI Constants ---
+// UI Constants
 const statusStyles = {
 	open: {
 		label: 'Open',
@@ -42,7 +41,7 @@ const activityIcons = {
 	'status-changed': '🔄',
 };
 
-// --- Components ---
+// Components
 
 const StatusDropdown = ({ currentStatus, issueId, onUpdate, disabled }) => {
 	const [isOpen, setIsOpen] = useState(false);
@@ -148,6 +147,7 @@ const StatusDropdown = ({ currentStatus, issueId, onUpdate, disabled }) => {
 	);
 };
 
+// Bulk Action Toolbar
 const BulkActionToolbar = ({ selectedIds, onBulkResolve, onClear }) => {
 	if (selectedIds.length === 0) return null;
 
@@ -178,6 +178,7 @@ const BulkActionToolbar = ({ selectedIds, onBulkResolve, onClear }) => {
 	);
 };
 
+// Issue Detail Panel
 const IssueDetailPanel = ({ issueId, onClose, onUpdate, isMobile }) => {
 	const [issue, setIssue] = useState(null);
 	const [loading, setLoading] = useState(true);
@@ -485,6 +486,7 @@ const IssueCard = ({ issue, onSelect, onToggleSelect, isChecked, isSelected, onU
 	);
 };
 
+// Teacher Issues
 const TeacherIssues = () => {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState('');
@@ -514,51 +516,57 @@ const TeacherIssues = () => {
 		}
 	}, []);
 
+	const { socket } = useSocket();
+
 	useEffect(() => {
 		loadIssues();
-		if (!user?.id) return;
+	}, [loadIssues]);
 
-		const socket = io(API_BASE_URL, {
-			withCredentials: true,
-			query: { role: 'teacher', userId: user.id },
-		});
+	useEffect(() => {
+		if (!socket) return;
 
-		socket.on('connect_error', err =>
-			toast.error('Real-time updates unavailable', { description: err?.message || '' }),
-		);
+		const onConnectError = err =>
+			toast.error('Real-time updates unavailable', { description: err?.message || '' });
 
-		socket.on('new-issue', newIssueData => {
+		const onNewIssue = newIssueData => {
 			const normalized = normalizeIssue(newIssueData);
 			setIssues(prev =>
 				prev.some(i => i.id === normalized.id) ? prev : [normalized, ...prev],
 			);
 			toast.info('New Issue Submitted!', { description: `From ${normalized.studentName}` });
-		});
+		};
 
-		socket.on('issue-update', updatedIssueData => {
+		const onIssueUpdate = updatedIssueData => {
 			const normalized = normalizeIssue(updatedIssueData.issue || updatedIssueData);
 			setIssues(prev => prev.map(i => (i.id === normalized.id ? normalized : i)));
-			// Also update selected issue if it matches
-			if (selectedIssueId === normalized.id) {
-				// We don't need to do anything here as the detail panel fetches its own data,
-				// but if we passed data down, we would update it.
-			}
-		});
+		};
 
-		socket.on('issues-updated', updatedIssues => {
+		const onIssuesUpdated = updatedIssues => {
 			const updatedMap = new Map(
 				updatedIssues.map(i => [normalizeIssue(i).id, normalizeIssue(i)]),
 			);
 			setIssues(prev => prev.map(i => updatedMap.get(i.id) || i));
-		});
+		};
 
-		socket.on('issue-deleted', ({ id }) => {
+		const onIssueDeleted = ({ id }) => {
 			setIssues(prev => prev.filter(i => i.id !== id));
 			if (selectedIssueId === id) setSelectedIssueId(null);
-		});
+		};
 
-		return () => socket.disconnect();
-	}, [loadIssues, toast, user, selectedIssueId]);
+		socket.on('connect_error', onConnectError);
+		socket.on('new-issue', onNewIssue);
+		socket.on('issue-update', onIssueUpdate);
+		socket.on('issues-updated', onIssuesUpdated);
+		socket.on('issue-deleted', onIssueDeleted);
+
+		return () => {
+			socket.off('connect_error', onConnectError);
+			socket.off('new-issue', onNewIssue);
+			socket.off('issue-update', onIssueUpdate);
+			socket.off('issues-updated', onIssuesUpdated);
+			socket.off('issue-deleted', onIssueDeleted);
+		};
+	}, [socket, toast, selectedIssueId]);
 
 	const handleUpdate = updatedIssue => {
 		setIssues(prev => prev.map(i => (i.id === updatedIssue.id ? updatedIssue : i)));

@@ -1,13 +1,12 @@
 import React, { Suspense, useState, useEffect, useMemo, useCallback } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
-import { io } from 'socket.io-client';
 import Sidebar from '../components/Sidebar.jsx';
 import ErrorBoundary from '../components/ErrorBoundary.jsx';
 import RouteFallback from '../components/RouteFallback.jsx';
 import { useTheme } from '../hooks/useTheme.js';
 import { useAuth } from '../hooks/useAuth.js';
+import { useSocket } from '../hooks/useSocket.js';
 import { safeApiCall, getTeacherIssues } from '../services/teacherServices.js';
-import { API_BASE_URL } from '../services/api.js';
 import VerificationBanner from '../components/ui/VerificationBanner.jsx';
 import './Dashboard.css';
 
@@ -51,6 +50,8 @@ const TeacherDash = () => {
 		if (isMobile) setSidebarOpen(false);
 	}, [location.pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
+	const { socket } = useSocket();
+
 	// Fetch open issues + real-time socket updates
 	useEffect(() => {
 		let mounted = true;
@@ -65,28 +66,29 @@ const TeacherDash = () => {
 		};
 		fetchOpenIssues();
 
-		if (!user?.id) return () => (mounted = false);
+		if (!socket) return () => (mounted = false);
 
-		const socket = io(API_BASE_URL, {
-			withCredentials: true,
-			query: { role: 'teacher', userId: user.id },
-		});
-
-		socket.on('new-issue', i => {
+		const onNewIssue = i => {
 			if (i?.status === 'open') setOpenIssuesCount(c => c + 1);
-		});
-		socket.on('issue-update', ({ issue, oldStatus }) => {
+		};
+		const onIssueUpdate = ({ issue, oldStatus }) => {
 			if (!issue) return;
 			if (issue.status === 'open' && oldStatus !== 'open') setOpenIssuesCount(c => c + 1);
 			if (issue.status !== 'open' && oldStatus === 'open') setOpenIssuesCount(c => Math.max(0, c - 1));
-		});
-		socket.on('issue-deleted', () => fetchOpenIssues());
+		};
+		const onIssueDeleted = () => fetchOpenIssues();
+
+		socket.on('new-issue', onNewIssue);
+		socket.on('issue-update', onIssueUpdate);
+		socket.on('issue-deleted', onIssueDeleted);
 
 		return () => {
 			mounted = false;
-			socket.disconnect();
+			socket.off('new-issue', onNewIssue);
+			socket.off('issue-update', onIssueUpdate);
+			socket.off('issue-deleted', onIssueDeleted);
 		};
-	}, [user]);
+	}, [socket]);
 
 	const handleLogout = useCallback(async () => {
 		if (loggingOut) return;

@@ -2,8 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useToast } from '../../components/ui/Toaster.jsx';
 import { useTheme } from '../../hooks/useTheme.js';
-import { io } from 'socket.io-client';
-import { API_BASE_URL } from '../../services/api.js';
+import { useSocket } from '../../hooks/useSocket.js';
 import * as TeacherSvc from '../../services/teacherServices.js';
 import {
 	Eye,
@@ -22,7 +21,7 @@ import {
 	FileText,
 } from 'lucide-react';
 
-/* ─── Utils & Constants ────────────────────────────────────── */
+// Constants
 const STATUS_LABELS = {
 	active: 'Active',
 	live: 'Live',
@@ -54,8 +53,7 @@ const formatDate = dateVal => {
 	});
 };
 
-/* ─── UI Components ─────────────────────────────────────────── */
-
+// Spinner component
 function Spinner({ size = 16, color = 'currentColor' }) {
 	return (
 		<span
@@ -72,7 +70,7 @@ function Spinner({ size = 16, color = 'currentColor' }) {
 	);
 }
 
-/* ─── Confirm Modal ─────────────────────────────────────────── */
+// Confirm Modal
 function ConfirmModal({ isOpen, onClose, onConfirm, config, loading, isDark }) {
 	if (!isOpen) return null;
 	const { title, message, actionLabel, actionColor = '#ef4444', isInput = false } = config;
@@ -192,7 +190,7 @@ function ConfirmModal({ isOpen, onClose, onConfirm, config, loading, isDark }) {
 	);
 }
 
-/* ─── Exam Card ─────────────────────────────────────────────── */
+// Exam Card
 function ExamCard({ exam, onAction, openModal, isDark }) {
 	const navigate = useNavigate();
 	const [menuOpen, setMenuOpen] = useState(false);
@@ -596,7 +594,7 @@ function Activity({ size }) {
 	);
 }
 
-/* ─── Stats Card ────────────────────────────────────────────── */
+// Stats Card
 function StatsCard({ stats, loading, isDark }) {
 	const items = [
 		{ label: 'Total', value: stats?.total ?? 0, color: '#6366f1', icon: <CheckCircle2 /> },
@@ -657,7 +655,7 @@ function StatsCard({ stats, loading, isDark }) {
 	);
 }
 
-/* ─── Main Page ─────────────────────────────────────────────── */
+// Main Page
 export default function TeacherExams() {
 	const [exams, setExams] = useState([]);
 	const [loading, setLoading] = useState(true);
@@ -700,24 +698,28 @@ export default function TeacherExams() {
 		}
 	}, [search, toast]);
 
+	const { socket } = useSocket();
+
 	useEffect(() => {
 		loadData();
 		loadStats();
-		const socket = io(API_BASE_URL, { withCredentials: true, transports: ['websocket'] });
-		socket.on('exam-updated', () => {
-			loadData();
-			loadStats();
-		});
-		socket.on('exam-created', () => {
-			loadData();
-			loadStats();
-		});
-		socket.on('exam-deleted', () => {
-			loadData();
-			loadStats();
-		});
-		return () => socket.disconnect();
 	}, [loadData, loadStats]);
+
+	useEffect(() => {
+		if (!socket) return;
+		const onExamEvent = () => {
+			loadData();
+			loadStats();
+		};
+		socket.on('exam-updated', onExamEvent);
+		socket.on('exam-created', onExamEvent);
+		socket.on('exam-deleted', onExamEvent);
+		return () => {
+			socket.off('exam-updated', onExamEvent);
+			socket.off('exam-created', onExamEvent);
+			socket.off('exam-deleted', onExamEvent);
+		};
+	}, [socket, loadData, loadStats]);
 
 	const handleActionConfirm = async inputValue => {
 		const { action, exam } = modalConfig;

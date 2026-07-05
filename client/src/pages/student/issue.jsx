@@ -1,9 +1,7 @@
 import React from 'react';
-import { CSSTransition } from 'react-transition-group';
-import { io } from 'socket.io-client';
 import { useToast } from '../../components/ui/Toaster.jsx';
 import { useAuth } from '../../hooks/useAuth.js';
-import { API_BASE_URL } from '../../services/api.js';
+import { useSocket } from '../../hooks/useSocket.js';
 import {
 	safeApiCall,
 	getMyIssues,
@@ -287,26 +285,23 @@ const StudentIssues = () => {
 		loadData();
 	}, [loadData]);
 
+	const { socket } = useSocket();
+
 	React.useEffect(() => {
-		if (!user?.id) return;
+		if (!socket) return;
 
-		const socket = io(API_BASE_URL, {
-			query: { userId: user.id, role: 'student' },
-			withCredentials: true,
-		});
-
-		socket.on('connect_error', err => {
+		const onConnectError = err => {
 			toast.error('Live updates unavailable', { description: err?.message || '' });
-		});
+		};
 
-		socket.on('issue-update', updatedIssue => {
+		const onIssueUpdate = updatedIssue => {
 			setIssues(prev =>
 				prev.map(issue => (issue.id === updatedIssue.id ? updatedIssue : issue)),
 			);
 			toast.info(`Status for "${updatedIssue.examTitle}" is now ${updatedIssue.status}.`);
-		});
+		};
 
-		socket.on('new-issue', newIssue => {
+		const onNewIssue = newIssue => {
 			if (newIssue.student?._id === user.id) {
 				setIssues(prev => {
 					if (prev.some(issue => issue.id === newIssue.id)) {
@@ -315,10 +310,18 @@ const StudentIssues = () => {
 					return [newIssue, ...prev];
 				});
 			}
-		});
+		};
 
-		return () => socket.disconnect();
-	}, [user, toast]);
+		socket.on('connect_error', onConnectError);
+		socket.on('issue-update', onIssueUpdate);
+		socket.on('new-issue', onNewIssue);
+
+		return () => {
+			socket.off('connect_error', onConnectError);
+			socket.off('issue-update', onIssueUpdate);
+			socket.off('new-issue', onNewIssue);
+		};
+	}, [socket, user, toast]);
 
 	const handleDelete = async issueId => {
 		// Safety check: Confirm with the user before this destructive action
