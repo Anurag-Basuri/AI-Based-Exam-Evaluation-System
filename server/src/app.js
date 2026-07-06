@@ -55,7 +55,7 @@ app.get('/', (req, res) => {
 	});
 });
 
-// ── API Routes (versioned) ──────────────────────────────────────
+// API Routes (versioned)
 app.use('/api/v1', v1Router);
 
 // Legacy compatibility: /api/* still works (same router)
@@ -67,11 +67,11 @@ app.use((req, res, next) => {
 	next(new ApiError(404, `Route ${req.originalUrl} not found`));
 });
 
-// ── Global Error Handler ────────────────────────────────────────
+// Global Error Handler
 // Normalizes ALL error types into a consistent JSON shape:
 //   { status, statusCode, message, details? }
 app.use((err, req, res, next) => {
-	// ── Already an ApiError? Use it directly.
+	// Already an ApiError? Use it directly.
 	if (err instanceof ApiError || (err.statusCode && err.name === 'ApiError')) {
 		const statusCode = err.statusCode;
 
@@ -89,7 +89,7 @@ app.use((err, req, res, next) => {
 		});
 	}
 
-	// ── Mongoose ValidationError ────────────────────────────────
+	// Mongoose ValidationError
 	if (err.name === 'ValidationError' && err.errors) {
 		const details = Object.values(err.errors).map(e => ({
 			field: e.path,
@@ -104,7 +104,7 @@ app.use((err, req, res, next) => {
 		});
 	}
 
-	// ── Mongoose CastError (invalid ObjectId, etc.) ─────────────
+	// Mongoose CastError (invalid ObjectId, etc.)
 	if (err.name === 'CastError') {
 		return res.status(400).json({
 			status: 'error',
@@ -113,7 +113,7 @@ app.use((err, req, res, next) => {
 		});
 	}
 
-	// ── MongoDB Duplicate Key (code 11000) ──────────────────────
+	// MongoDB Duplicate Key (code 11000)
 	if (err.code === 11000) {
 		const field = Object.keys(err.keyValue || {})[0] || 'field';
 		return res.status(409).json({
@@ -123,7 +123,7 @@ app.use((err, req, res, next) => {
 		});
 	}
 
-	// ── JWT Errors ──────────────────────────────────────────────
+	// JWT Errors
 	if (err.name === 'JsonWebTokenError') {
 		return res.status(401).json({
 			status: 'error',
@@ -139,7 +139,7 @@ app.use((err, req, res, next) => {
 		});
 	}
 
-	// ── Fallback: Unknown error ─────────────────────────────────
+	// Fallback: Unknown error
 	const statusCode = err.statusCode || 500;
 
 	if (process.env.NODE_ENV !== 'production') {
