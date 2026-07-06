@@ -1,20 +1,26 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { forgotPassword } from '../services/apiServices';
+import AuthAlert, { classifyError } from '../components/AuthAlert.jsx';
 import './Auth.css'; // Utilizing standard auth UI architecture
 
 const ForgotPassword = () => {
 	const navigate = useNavigate();
 	const [email, setEmail] = useState('');
 	const [loading, setLoading] = useState(false);
-	const [error, setError] = useState('');
+	const [alertObj, setAlertObj] = useState(null);
 	const [sent, setSent] = useState(false);
 
 	const handleSubmit = async e => {
 		e.preventDefault();
-		setError('');
+		setAlertObj(null);
 		if (!email.trim()) {
-			setError('Please enter your email address.');
+			setAlertObj({
+				type: 'error',
+				icon: '⚠️',
+				title: 'Invalid Email',
+				message: 'Please enter your email address.',
+			});
 			return;
 		}
 
@@ -23,7 +29,7 @@ const ForgotPassword = () => {
 			await forgotPassword(email.trim().toLowerCase());
 			setSent(true);
 		} catch (err) {
-			setError(err?.message || 'Something went wrong. Please try again.');
+			setAlertObj(classifyError(err));
 		} finally {
 			setLoading(false);
 		}
@@ -91,21 +97,25 @@ const ForgotPassword = () => {
 									type="email"
 									placeholder="Enter your registered email"
 									value={email}
-									onChange={e => setEmail(e.target.value)}
+									onChange={e => {
+										setEmail(e.target.value);
+										if (alertObj) setAlertObj(null);
+									}}
 									autoComplete="email"
 									autoFocus
 								/>
 							</div>
 
-							{error && (
-								<div
-									className="top-error-banner"
-									role="alert"
-									aria-live="assertive"
+							{alertObj && (
+								<AuthAlert 
+									type={alertObj.type} 
+									icon={alertObj.icon} 
+									title={alertObj.title}
+									onDismiss={() => setAlertObj(null)}
 								>
-									<span>⚠️</span>
-									<div>{error}</div>
-								</div>
+									{alertObj.message}
+									{alertObj.hint && <span className="auth-alert-hint">{alertObj.hint}</span>}
+								</AuthAlert>
 							)}
 
 							<button

@@ -217,9 +217,15 @@ export async function resendVerification(Model, userId, roleName) {
 export async function forgotPassword(Model, email) {
 	if (!email) throw ApiError.BadRequest('Email address is required');
 
-	const user = await Model.findOne({ email: email.toLowerCase().trim() });
+	const user = await Model.findOne({ email: email.toLowerCase().trim() }).select('+password +googleId');
 	if (!user) {
 		throw ApiError.NotFound('No account found with this email address.');
+	}
+
+	if (user.googleId && !user.password) {
+		throw ApiError.Conflict(
+			'This account is linked to Google. Please log in with Google instead of resetting your password.'
+		);
 	}
 
 	const resetToken = user.createPasswordResetToken();
