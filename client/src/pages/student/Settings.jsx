@@ -8,7 +8,7 @@ import {
 	exportStudentProfileCsv,
 	exportStudentSubmissionsCsv
 } from '../../services/studentServices.js';
-import { resendStudentVerification } from '../../services/apiServices.js';
+import { resendVerification } from '../../services/apiServices.js';
 import { downloadFile } from '../../utils/exportUtils.js';
 import './Settings.css';
 
@@ -101,7 +101,7 @@ const StudentSettings = () => {
 		setResending(true);
 		setMessage({ type: '', text: '' });
 		try {
-			await resendStudentVerification();
+			await resendVerification();
 			setMessage({ type: 'success', text: 'Verification email sent. Please check your inbox.' });
 		} catch (err) {
 			setMessage({ type: 'error', text: err?.message || 'Failed to send verification email.' });

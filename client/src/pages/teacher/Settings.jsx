@@ -7,7 +7,7 @@ import {
 	exportTeacherProfileCsv,
 	exportTeacherExamsCsv
 } from '../../services/teacherServices.js';
-import { resendTeacherVerification } from '../../services/apiServices.js';
+import { resendVerification } from '../../services/apiServices.js';
 import { downloadFile } from '../../utils/exportUtils.js';
 import './Settings.css';
 
@@ -88,7 +88,7 @@ const TeacherSettings = () => {
 		setResending(true);
 		setMessage({ type: '', text: '' });
 		try {
-			await resendTeacherVerification();
+			await resendVerification();
 			setMessage({ type: 'success', text: 'Verification email sent. Please check your inbox.' });
 		} catch (err) {
 			setMessage({ type: 'error', text: err?.message || 'Failed to send verification email.' });

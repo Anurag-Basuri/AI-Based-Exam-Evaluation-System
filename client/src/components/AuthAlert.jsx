@@ -58,6 +58,28 @@ export const classifyError = (err) => {
         };
     }
 
+    // Rate limited (429)
+    if (status === 429) {
+        return {
+            type: 'warning',
+            icon: '⏳',
+            title: 'Too Many Attempts',
+            message: message || 'You have been rate limited.',
+            hint: 'Please wait a minute before trying again.'
+        };
+    }
+
+    // Not found (404) — e.g. user not found
+    if (status === 404) {
+        return {
+            type: 'error',
+            icon: '🔍',
+            title: 'Not Found',
+            message: message || 'The requested resource was not found.',
+            hint: 'Check your details and try again.'
+        };
+    }
+
     // Generic fallback
     return {
         type: 'error',

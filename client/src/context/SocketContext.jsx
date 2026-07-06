@@ -5,7 +5,7 @@ import { getToken } from '../utils/handleToken.js';
 import { useAuth } from '../hooks/useAuth.js';
 
 // SOCKET CONTEXT — Singleton authenticated Socket.IO connection
-const SocketContext = createContext(null);
+export const SocketContext = createContext(null);
 
 
 // Provides a single, authenticated Socket.IO connection to the entire component tree. The socket:

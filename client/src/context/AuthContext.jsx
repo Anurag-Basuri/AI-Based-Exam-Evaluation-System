@@ -76,11 +76,19 @@ export const AuthProvider = ({ children }) => {
 		setIsAuthenticated(true);
 	};
 
-	/** Normalize API/Axios errors into a simple Error with a readable message. */
+	/** Normalize API/Axios errors, preserving structure for classifyError. */
 	const normalizeError = err => {
-		const msg = err?.response?.data?.message || err?.message || 'Unexpected error occurred';
+		const response = err?.response;
+		const data = response?.data || err?.data;
+		const status = response?.status || err?.status;
+		const msg = data?.message || err?.message || 'Unexpected error occurred';
+
 		const e = new Error(msg);
-		e.status = err?.response?.status || err?.status;
+		e.status = status;
+		e.data = data;
+		// Preserve the response object so classifyError can access response.status / response.data
+		e.response = response || (status ? { status, data } : undefined);
+		e.code = err?.code;
 		e.cause = err;
 		return e;
 	};
