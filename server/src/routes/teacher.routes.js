@@ -1,86 +1,18 @@
 import { Router } from 'express';
 import {
-	createTeacher,
-	loginTeacher,
-	googleLoginTeacher,
-	logoutTeacher,
 	updateTeacher,
 	changePassword,
 	getDashboardStats,
-	verifyTeacherEmail,
-	resendTeacherVerification,
-	resetTeacherPassword,
 	exportTeacherProfile,
 	exportTeacherExams,
-	refreshTeacherToken,
 } from '../controllers/teacher.controller.js';
 import { checkAuth, verifyTeacher } from '../middlewares/auth.middleware.js';
-import { authLimiter, emailLimiter, verifyLimiter } from '../middlewares/rateLimit.middleware.js';
 import { validate } from '../middlewares/validate.middleware.js';
 import { body } from 'express-validator';
 
 const router = Router();
 
-// Public: Auth
-
-// Register a new teacher
-router.post(
-	'/register',
-	authLimiter,
-	body('username').notEmpty().withMessage('Username is required'),
-	body('fullname').notEmpty().withMessage('Full name is required'),
-	body('email').isEmail().withMessage('Valid email is required'),
-	body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
-	validate,
-	createTeacher,
-);
-
-// Teacher login
-router.post(
-	'/login',
-	authLimiter,
-	body('username').optional(),
-	body('email').optional().isEmail(),
-	body('password').notEmpty().withMessage('Password is required'),
-	validate,
-	loginTeacher,
-);
-
-// Teacher Google login
-router.post(
-	'/google-login',
-	authLimiter,
-	body('idToken').notEmpty().withMessage('Google ID token is required'),
-	validate,
-	googleLoginTeacher,
-);
-
-// Public: Email verification & Password reset
-
-// Verify email with token (from email link)
-router.post(
-	'/verify-email',
-	verifyLimiter,
-	body('token').notEmpty().withMessage('Verification token is required'),
-	validate,
-	verifyTeacherEmail,
-);
-
-
-// Reset password with token
-router.post(
-	'/reset-password',
-	verifyLimiter,
-	body('token').notEmpty().withMessage('Reset token is required'),
-	body('newPassword').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
-	validate,
-	resetTeacherPassword,
-);
-
-// Authenticated routes
-
-// Teacher logout
-router.post('/logout', checkAuth, verifyTeacher, logoutTeacher);
+// All teacher routes are authenticated + role-verified
 
 // Update teacher profile
 router.put(
@@ -103,33 +35,15 @@ router.put(
 	checkAuth,
 	verifyTeacher,
 	body('currentPassword').notEmpty().withMessage('Current password is required'),
-	body('newPassword').isLength({ min: 8 }).withMessage('New password must be at least 8 characters'),
+	body('newPassword')
+		.isLength({ min: 8 })
+		.withMessage('New password must be at least 8 characters'),
 	validate,
 	changePassword,
 );
 
-// Refresh auth token using refresh token
-router.post(
-	'/refresh-token',
-	authLimiter,
-	body('refreshToken').notEmpty().withMessage('Refresh token is required'),
-	validate,
-	refreshTeacherToken,
-);
-
 // Get dashboard statistics for teacher
 router.get('/dashboard-stats', checkAuth, verifyTeacher, getDashboardStats);
-
-// Resend verification email
-router.post(
-	'/resend-verification',
-	emailLimiter,
-	checkAuth,
-	verifyTeacher,
-	resendTeacherVerification,
-);
-
-// Export Routes
 
 // Export profile to CSV
 router.get('/export/profile', checkAuth, verifyTeacher, exportTeacherProfile);

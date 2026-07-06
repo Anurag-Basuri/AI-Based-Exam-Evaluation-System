@@ -6,45 +6,7 @@ import { ApiResponse } from '../utils/ApiResponse.js';
 import { generateCSV, sendCSVDowload } from '../services/export.service.js';
 import * as AuthService from '../services/auth.service.js';
 
-// ── Register ─────────────────────────────────────────────────────
-const createStudent = asyncHandler(async (req, res) => {
-	const result = await AuthService.registerUser(User, req.body, 'student');
-	return ApiResponse.success(
-		res,
-		{ student: result.user, authToken: result.authToken, refreshToken: result.refreshToken, emailVerificationSent: result.emailVerificationSent },
-		'Student registered successfully. Please check your email to verify your account.',
-		201,
-	);
-});
-
-// ── Login ────────────────────────────────────────────────────────
-const loginStudent = asyncHandler(async (req, res) => {
-	const result = await AuthService.loginWithCredentials(User, req.body);
-	return ApiResponse.success(
-		res,
-		{ student: result.user, authToken: result.authToken, refreshToken: result.refreshToken },
-		'Login successful',
-	);
-});
-
-// ── Google Login ─────────────────────────────────────────────────
-const googleLoginStudent = asyncHandler(async (req, res) => {
-	const result = await AuthService.loginWithGoogle(User, User, req.body.idToken, 'student');
-	return ApiResponse.success(
-		res,
-		{ student: result.user, authToken: result.authToken, refreshToken: result.refreshToken },
-		'Logged in with Google successfully',
-	);
-});
-
-// ── Logout ───────────────────────────────────────────────────────
-const logoutStudent = asyncHandler(async (req, res) => {
-	const studentId = req.userDoc?._id || req.user?.id;
-	const result = await AuthService.logoutUser(User, studentId);
-	return ApiResponse.success(res, result);
-});
-
-// ── Profile ──────────────────────────────────────────────────────
+// Profile
 const getStudentProfile = asyncHandler(async (req, res) => {
 	const studentId = req.userDoc?._id || req.user?.id;
 	const student = await User.findById(studentId).select(
@@ -56,7 +18,7 @@ const getStudentProfile = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, student, 'Student profile fetched successfully');
 });
 
-// ── Update Profile ───────────────────────────────────────────────
+// Update Profile
 const updateStudent = asyncHandler(async (req, res) => {
 	const studentId = req.userDoc?._id || req.user?.id;
 	const { username, fullname, email, phonenumber, gender, address } = req.body;
@@ -83,45 +45,19 @@ const updateStudent = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, updatedStudent, 'Student updated successfully');
 });
 
-// ── Change Password ──────────────────────────────────────────────
+// Change Password
 const changePassword = asyncHandler(async (req, res) => {
 	const studentId = req.userDoc?._id || req.user?.id;
-	const result = await AuthService.changePassword(User, studentId, req.body.currentPassword, req.body.newPassword);
+	const result = await AuthService.changePassword(
+		User,
+		studentId,
+		req.body.currentPassword,
+		req.body.newPassword,
+	);
 	return ApiResponse.success(res, result);
 });
 
-// ══════════════════════════════════════════════════════════════════
-// EMAIL VERIFICATION
-// ══════════════════════════════════════════════════════════════════
-
-const verifyStudentEmail = asyncHandler(async (req, res) => {
-	const result = await AuthService.verifyEmail(User, req.body.token);
-	return ApiResponse.success(res, result, 'Email verified successfully! You now have full access.');
-});
-
-const resendStudentVerification = asyncHandler(async (req, res) => {
-	const studentId = req.userDoc?._id || req.user?.id;
-	const result = await AuthService.resendVerification(User, studentId, 'student');
-	if (result.alreadyVerified) {
-		return ApiResponse.success(res, { isEmailVerified: true }, 'Email is already verified');
-	}
-	return ApiResponse.success(res, { emailVerificationSent: true }, 'Verification email sent. Please check your inbox.');
-});
-
-// ══════════════════════════════════════════════════════════════════
-// PASSWORD RESET
-// ══════════════════════════════════════════════════════════════════
-
-
-const resetStudentPassword = asyncHandler(async (req, res) => {
-	const result = await AuthService.resetPassword(User, req.body.token, req.body.newPassword);
-	return ApiResponse.success(res, null, result.message);
-});
-
-// ══════════════════════════════════════════════════════════════════
-// DATA EXPORT
-// ══════════════════════════════════════════════════════════════════
-
+// Data Export
 const exportStudentProfile = asyncHandler(async (req, res) => {
 	const studentId = req.userDoc?._id || req.user?.id;
 	const student = await User.findById(studentId).lean();
@@ -177,27 +113,10 @@ const exportStudentSubmissions = asyncHandler(async (req, res) => {
 	return sendCSVDowload(res, `student_submissions_${studentId}.csv`, csv);
 });
 
-// ══════════════════════════════════════════════════════════════════
-// TOKEN REFRESH
-// ══════════════════════════════════════════════════════════════════
-
-const refreshStudentToken = asyncHandler(async (req, res) => {
-	const result = await AuthService.refreshTokens(User, req.body.refreshToken);
-	return ApiResponse.success(res, result, 'Token refreshed successfully');
-});
-
 export {
-	createStudent,
-	loginStudent,
-	googleLoginStudent,
-	logoutStudent,
 	getStudentProfile,
 	updateStudent,
 	changePassword,
-	verifyStudentEmail,
-	resendStudentVerification,
-	resetStudentPassword,
 	exportStudentProfile,
 	exportStudentSubmissions,
-	refreshStudentToken,
 };

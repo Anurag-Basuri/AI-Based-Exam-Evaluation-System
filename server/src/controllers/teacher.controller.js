@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import User from '../models/user.model.js';
 import Exam from '../models/exam.model.js';
 import Issue from '../models/issue.model.js';
@@ -8,45 +9,7 @@ import { ApiResponse } from '../utils/ApiResponse.js';
 import { generateCSV, sendCSVDowload } from '../services/export.service.js';
 import * as AuthService from '../services/auth.service.js';
 
-// ── Register ─────────────────────────────────────────────────────
-const createTeacher = asyncHandler(async (req, res) => {
-	const result = await AuthService.registerUser(User, req.body, 'teacher');
-	return ApiResponse.success(
-		res,
-		{ teacher: result.user, authToken: result.authToken, refreshToken: result.refreshToken, emailVerificationSent: result.emailVerificationSent },
-		'Teacher registered successfully. Please check your email to verify your account.',
-		201,
-	);
-});
-
-// ── Login ────────────────────────────────────────────────────────
-const loginTeacher = asyncHandler(async (req, res) => {
-	const result = await AuthService.loginWithCredentials(User, req.body);
-	return ApiResponse.success(
-		res,
-		{ teacher: result.user, authToken: result.authToken, refreshToken: result.refreshToken },
-		'Login successful',
-	);
-});
-
-// ── Google Login ─────────────────────────────────────────────────
-const googleLoginTeacher = asyncHandler(async (req, res) => {
-	const result = await AuthService.loginWithGoogle(User, User, req.body.idToken, 'teacher');
-	return ApiResponse.success(
-		res,
-		{ teacher: result.user, authToken: result.authToken, refreshToken: result.refreshToken },
-		'Logged in with Google successfully',
-	);
-});
-
-// ── Logout ───────────────────────────────────────────────────────
-const logoutTeacher = asyncHandler(async (req, res) => {
-	const teacherId = req.userDoc?._id || req.user?.id;
-	const result = await AuthService.logoutUser(User, teacherId);
-	return ApiResponse.success(res, result);
-});
-
-// ── Update Profile ───────────────────────────────────────────────
+// Update Profile
 const updateTeacher = asyncHandler(async (req, res) => {
 	const teacherId = req.userDoc?._id || req.user?.id;
 
@@ -72,7 +35,7 @@ const updateTeacher = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, updatedTeacher, 'Profile updated successfully');
 });
 
-// ── Change Password ──────────────────────────────────────────────
+// Change Password
 const changePassword = asyncHandler(async (req, res) => {
 	const teacherId = req.userDoc?._id || req.user?.id;
 	const { currentPassword, newPassword, confirmNewPassword } = req.body;
@@ -95,11 +58,7 @@ const changePassword = asyncHandler(async (req, res) => {
 	});
 });
 
-// ══════════════════════════════════════════════════════════════════
-// DASHBOARD STATS (Teacher-specific — stays in controller)
-// ══════════════════════════════════════════════════════════════════
-
-// Get dashboard statistics for teacher (refactored, efficient, defensive)
+// Dashboard Stats (Teacher-specific)
 const getDashboardStats = asyncHandler(async (req, res) => {
 	const teacherId = req.userDoc?._id || req.user?.id;
 	if (!teacherId) throw ApiError.Unauthorized('Teacher identification missing');
@@ -198,7 +157,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
 		{ $match: { 'exam.createdBy': TID } },
 		{
 			$lookup: {
-				from: 'students',
+				from: 'users',
 				localField: 'student',
 				foreignField: '_id',
 				as: 'student',
@@ -224,7 +183,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
 	// Open issues count (simple, fast)
 	const openIssuesCount = await Issue.countDocuments({ teacher: TID, status: 'open' });
 
-	// ── Analytics: Score distribution for all teacher's exams ──
+	// Analytics: Score distribution for all teacher's exams
 	const scoreDistribution = await Submission.aggregate([
 		{
 			$lookup: {
@@ -252,7 +211,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
 		.filter(b => b._id !== 'other')
 		.map(b => ({ range: bucketLabels[b._id] || `${b._id}+`, count: b.count }));
 
-	// ── Analytics: Average score per exam (latest 10 exams) ──
+	// Analytics: Average score per exam (latest 10 exams)
 	const examPerformance = await Submission.aggregate([
 		{
 			$lookup: {
@@ -330,10 +289,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, stats, 'Dashboard stats fetched successfully');
 });
 
-// ══════════════════════════════════════════════════════════════════
-// DATA EXPORT
-// ══════════════════════════════════════════════════════════════════
-
+// Data Export
 const exportTeacherProfile = asyncHandler(async (req, res) => {
 	const teacherId = req.userDoc?._id || req.user?.id;
 	const teacher = await User.findById(teacherId).lean();
@@ -387,59 +343,10 @@ const exportTeacherExams = asyncHandler(async (req, res) => {
 	return sendCSVDowload(res, `teacher_exams_${teacherId}.csv`, csv);
 });
 
-// ══════════════════════════════════════════════════════════════════
-// EMAIL VERIFICATION
-// ══════════════════════════════════════════════════════════════════
-
-const verifyTeacherEmail = asyncHandler(async (req, res) => {
-	const result = await AuthService.verifyEmail(User, req.body.token);
-	return ApiResponse.success(res, result, 'Email verified successfully! You now have full access.');
-});
-
-const resendTeacherVerification = asyncHandler(async (req, res) => {
-	const teacherId = req.userDoc?._id || req.user?.id;
-	const result = await AuthService.resendVerification(User, teacherId, 'teacher');
-	if (result.alreadyVerified) {
-		return ApiResponse.success(res, { isEmailVerified: true }, 'Email is already verified');
-	}
-	return ApiResponse.success(res, { emailVerificationSent: true }, 'Verification email sent. Please check your inbox.');
-});
-
-// ══════════════════════════════════════════════════════════════════
-// PASSWORD RESET
-// ══════════════════════════════════════════════════════════════════
-
-
-const resetTeacherPassword = asyncHandler(async (req, res) => {
-	const result = await AuthService.resetPassword(User, req.body.token, req.body.newPassword);
-	return ApiResponse.success(res, null, result.message);
-});
-
-// ══════════════════════════════════════════════════════════════════
-// TOKEN REFRESH
-// ══════════════════════════════════════════════════════════════════
-
-const refreshTeacherToken = asyncHandler(async (req, res) => {
-	const result = await AuthService.refreshTokens(User, req.body.refreshToken);
-	return ApiResponse.success(res, result, 'Token refreshed successfully');
-});
-
-// ══════════════════════════════════════════════════════════════════
-// EXPORTS (must be at the end to avoid const hoisting issues)
-// ══════════════════════════════════════════════════════════════════
-
 export {
-	createTeacher,
-	loginTeacher,
-	googleLoginTeacher,
-	logoutTeacher,
 	updateTeacher,
 	changePassword,
 	getDashboardStats,
-	verifyTeacherEmail,
-	resendTeacherVerification,
-	resetTeacherPassword,
 	exportTeacherProfile,
 	exportTeacherExams,
-	refreshTeacherToken,
 };
