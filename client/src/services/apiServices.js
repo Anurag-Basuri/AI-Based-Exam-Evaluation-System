@@ -1,9 +1,7 @@
 import { apiClient, publicClient, parseAxiosError } from './api.js';
 import { setToken, removeToken } from '../utils/handleToken.js';
 
-// ═══════════════════════════════════════════════════════════════════
 // HELPERS
-// ═══════════════════════════════════════════════════════════════════
 
 // Remove tokens on unauthorized/forbidden
 const maybeInvalidateToken = error => {
@@ -24,9 +22,7 @@ const applyTokensFromResponse = response => {
 	return false;
 };
 
-// ═══════════════════════════════════════════════════════════════════
 // STUDENT AUTH
-// ═══════════════════════════════════════════════════════════════════
 
 export const registerStudent = async studentData => {
 	try {
@@ -101,9 +97,7 @@ export const updateStudentProfile = async profileData => {
 	}
 };
 
-// ═══════════════════════════════════════════════════════════════════
 // TEACHER AUTH
-// ═══════════════════════════════════════════════════════════════════
 
 export const registerTeacher = async teacherData => {
 	try {
@@ -178,9 +172,7 @@ export const updateTeacherProfile = async profileData => {
 	}
 };
 
-// ═══════════════════════════════════════════════════════════════════
 // EMAIL VERIFICATION
-// ═══════════════════════════════════════════════════════════════════
 
 export const verifyStudentEmail = async token => {
 	try {
@@ -222,22 +214,11 @@ export const resendTeacherVerification = async () => {
 	}
 };
 
-// ═══════════════════════════════════════════════════════════════════
 // PASSWORD RESET
-// ═══════════════════════════════════════════════════════════════════
 
-export const forgotStudentPassword = async email => {
+export const forgotPassword = async email => {
 	try {
-		const response = await publicClient.post('/api/students/forgot-password', { email });
-		return response.data;
-	} catch (err) {
-		throw parseAxiosError(err);
-	}
-};
-
-export const forgotTeacherPassword = async email => {
-	try {
-		const response = await publicClient.post('/api/teachers/forgot-password', { email });
+		const response = await publicClient.post('/api/auth/forgot-password', { email });
 		return response.data;
 	} catch (err) {
 		throw parseAxiosError(err);

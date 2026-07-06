@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { forgotStudentPassword, forgotTeacherPassword } from '../services/apiServices';
+import { forgotPassword } from '../services/apiServices';
 import './Auth.css'; // Utilizing standard auth UI architecture
 
 const ForgotPassword = () => {
 	const navigate = useNavigate();
-	const [role, setRole] = useState('student');
 	const [email, setEmail] = useState('');
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState('');
@@ -21,8 +20,7 @@ const ForgotPassword = () => {
 
 		setLoading(true);
 		try {
-			const fn = role === 'student' ? forgotStudentPassword : forgotTeacherPassword;
-			await fn(email.trim().toLowerCase());
+			await forgotPassword(email.trim().toLowerCase());
 			setSent(true);
 		} catch (err) {
 			setError(err?.message || 'Something went wrong. Please try again.');
@@ -51,17 +49,16 @@ const ForgotPassword = () => {
 							className="auth-subtitle"
 							style={{ textAlign: 'center', marginBottom: 20 }}
 						>
-							If an account with <strong>{email}</strong> exists, we've carefully sent
-							a password reset link. It expires securely in{' '}
-							<strong>10 minutes</strong>.
+							We've carefully sent a password reset link to <strong>{email}</strong>. 
+							It expires securely in <strong>10 minutes</strong>.
 						</p>
 						<p className="auth-subtitle" style={{ fontSize: 13, textAlign: 'center' }}>
-							Didn't receive it? Check your spam folder or try again safely.
+							Didn't receive it? Check your spam folder or try again.
 						</p>
 						<button
 							type="button"
 							onClick={() => setSent(false)}
-							className={`auth-submit-btn ${role}`}
+							className="auth-submit-btn"
 							style={{ marginBottom: 16 }}
 						>
 							Try Another Email
@@ -69,7 +66,7 @@ const ForgotPassword = () => {
 						<button
 							type="button"
 							onClick={() => navigate('/auth?mode=login')}
-							className={`link-btn ${role}`}
+							className="link-btn"
 							style={{ width: '100%', textAlign: 'center' }}
 						>
 							← Back to Login
@@ -79,31 +76,9 @@ const ForgotPassword = () => {
 					<>
 						<h2 className="auth-title">Forgot Password?</h2>
 						<p className="auth-subtitle">
-							Enter the email address securely associated with your account state and
+							Enter the email address securely associated with your account and
 							we'll dispatch a link to reset your password.
 						</p>
-
-						{/* Standard Role Switcher */}
-						<div className="role-pill-container" role="tablist">
-							<button
-								type="button"
-								role="tab"
-								aria-selected={role === 'student'}
-								onClick={() => setRole('student')}
-								className={`role-pill ${role === 'student' ? 'active student' : ''}`}
-							>
-								🎓 Student
-							</button>
-							<button
-								type="button"
-								role="tab"
-								aria-selected={role === 'teacher'}
-								onClick={() => setRole('teacher')}
-								className={`role-pill ${role === 'teacher' ? 'active teacher' : ''}`}
-							>
-								👨‍🏫 Teacher
-							</button>
-						</div>
 
 						<form onSubmit={handleSubmit} noValidate>
 							<div className="input-group">
@@ -135,7 +110,7 @@ const ForgotPassword = () => {
 
 							<button
 								type="submit"
-								className={`auth-submit-btn ${role}`}
+								className="auth-submit-btn"
 								disabled={loading}
 								style={{ marginBottom: 16 }}
 							>
@@ -153,7 +128,7 @@ const ForgotPassword = () => {
 						<button
 							type="button"
 							onClick={() => navigate('/auth?mode=login')}
-							className={`link-btn ${role}`}
+							className="link-btn"
 							style={{ width: '100%', textAlign: 'center' }}
 						>
 							← Back to Login

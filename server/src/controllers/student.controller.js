@@ -112,10 +112,6 @@ const resendStudentVerification = asyncHandler(async (req, res) => {
 // PASSWORD RESET
 // ══════════════════════════════════════════════════════════════════
 
-const forgotStudentPassword = asyncHandler(async (req, res) => {
-	const result = await AuthService.forgotPassword(User, req.body.email, 'student');
-	return ApiResponse.success(res, null, result.message);
-});
 
 const resetStudentPassword = asyncHandler(async (req, res) => {
 	const result = await AuthService.resetPassword(User, req.body.token, req.body.newPassword);
@@ -200,7 +196,6 @@ export {
 	changePassword,
 	verifyStudentEmail,
 	resendStudentVerification,
-	forgotStudentPassword,
 	resetStudentPassword,
 	exportStudentProfile,
 	exportStudentSubmissions,

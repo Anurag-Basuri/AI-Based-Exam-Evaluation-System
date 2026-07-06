@@ -409,10 +409,6 @@ const resendTeacherVerification = asyncHandler(async (req, res) => {
 // PASSWORD RESET
 // ══════════════════════════════════════════════════════════════════
 
-const forgotTeacherPassword = asyncHandler(async (req, res) => {
-	const result = await AuthService.forgotPassword(User, req.body.email, 'teacher');
-	return ApiResponse.success(res, null, result.message);
-});
 
 const resetTeacherPassword = asyncHandler(async (req, res) => {
 	const result = await AuthService.resetPassword(User, req.body.token, req.body.newPassword);
@@ -442,7 +438,6 @@ export {
 	getDashboardStats,
 	verifyTeacherEmail,
 	resendTeacherVerification,
-	forgotTeacherPassword,
 	resetTeacherPassword,
 	exportTeacherProfile,
 	exportTeacherExams,
