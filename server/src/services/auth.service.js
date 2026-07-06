@@ -21,14 +21,33 @@ export function sanitize(doc) {
 }
 
 // Register a new user
-export async function registerUser(Model, { username, fullname, email, password }, roleName) {
+export async function registerUser(Model, { username, fullname, email, password, role: roleName }) {
 	if (!username || !fullname || !email || !password) {
 		throw ApiError.BadRequest('All fields are required');
 	}
+	if (!roleName || !['student', 'teacher'].includes(roleName)) {
+		throw ApiError.BadRequest('Role must be either student or teacher');
+	}
 
-	const existing = await Model.findOne({ $or: [{ username }, { email }] });
-	if (existing) {
-		throw ApiError.Conflict('Username or email already exists');
+	// Check if username is already taken
+	const usernameExists = await Model.findOne({ username });
+	if (usernameExists) {
+		throw ApiError.Conflict('This username is already taken. Please choose another.');
+	}
+
+	// Check if email is already registered
+	const emailExists = await Model.findOne({ email: email.toLowerCase().trim() });
+	if (emailExists) {
+		if (emailExists.role !== roleName) {
+			const existingRole =
+				emailExists.role.charAt(0).toUpperCase() + emailExists.role.slice(1);
+			throw ApiError.Conflict(
+				`This email is already registered as a ${existingRole} account. Please log in as a ${existingRole} instead.`,
+			);
+		}
+		throw ApiError.Conflict(
+			'An account with this email already exists. Please log in instead.',
+		);
 	}
 
 	const newUser = new Model({ username, fullname, email, password, role: roleName });
@@ -53,7 +72,7 @@ export async function registerUser(Model, { username, fullname, email, password 
 	};
 }
 
-// Login with credentials
+// Login with credentials (role-agnostic — returns user's actual role)
 export async function loginWithCredentials(Model, { username, email, password }) {
 	if ((!username && !email) || !password) {
 		throw ApiError.BadRequest('Username or email and password are required');
@@ -61,9 +80,9 @@ export async function loginWithCredentials(Model, { username, email, password })
 
 	const filter = {};
 	if (username && username.trim() !== '') {
-		filter.username = username;
+		filter.username = username.trim();
 	} else if (email && email.trim() !== '') {
-		filter.email = email;
+		filter.email = email.toLowerCase().trim();
 	} else {
 		throw ApiError.BadRequest('Provide a valid username or email');
 	}
@@ -94,17 +113,27 @@ export async function loginWithCredentials(Model, { username, email, password })
 	return { user: sanitize(user), authToken, refreshToken };
 }
 
-// Google OAuth login
-export async function loginWithGoogle(Model, OtherModel, idToken, roleName) {
+// Google OAuth login (single-model, role-aware)
+export async function loginWithGoogle(Model, idToken, roleName) {
 	if (!idToken) throw ApiError.BadRequest('Google ID token is required');
+	if (!roleName || !['student', 'teacher'].includes(roleName)) {
+		throw ApiError.BadRequest('Role must be either student or teacher');
+	}
 
 	const payload = await verifyGoogleIdToken(idToken);
 	const { email, name, picture, sub: googleId } = payload;
 
-	let user = await Model.findOne({ email });
+	let user = await Model.findOne({ email: email.toLowerCase().trim() });
 
 	if (user) {
-		// Existing user — link Google account if not already linked
+		// Existing user — check role matches
+		if (user.role !== roleName) {
+			const existingRole = user.role.charAt(0).toUpperCase() + user.role.slice(1);
+			throw ApiError.Conflict(
+				`This email is already registered as a ${existingRole} account. Please log in as a ${existingRole} instead.`,
+			);
+		}
+		// Link Google account if not already linked
 		if (!user.googleId) {
 			user.googleId = googleId;
 			if (picture && !user.profilePicture) user.profilePicture = picture;
@@ -112,20 +141,11 @@ export async function loginWithGoogle(Model, OtherModel, idToken, roleName) {
 			await user.save();
 		}
 	} else {
-		// Prevent cross-role duplicate: check if email already exists as the other role
-		const existing = await OtherModel.findOne({ email });
-		if (existing) {
-			const otherRole = roleName === 'student' ? 'Teacher' : 'Student';
-			throw ApiError.Conflict(
-				`This email is already registered as a ${otherRole} account. Please log in as a ${otherRole} instead.`,
-			);
-		}
-
 		// New user created via Google
 		user = await Model.create({
 			username: email.split('@')[0] + '_' + Math.floor(Math.random() * 10000),
 			fullname: name,
-			email,
+			email: email.toLowerCase().trim(),
 			googleId,
 			profilePicture: picture || '',
 			isEmailVerified: true,
@@ -195,11 +215,11 @@ export async function verifyEmail(Model, token) {
 }
 
 // Resend verification email
-export async function resendVerification(Model, userId, roleName) {
+export async function resendVerification(Model, userId) {
 	const user = await Model.findById(userId).select(
 		'+emailVerificationToken +emailVerificationExpires',
 	);
-	if (!user) throw ApiError.NotFound(`${roleName} not found`);
+	if (!user) throw ApiError.NotFound('User not found');
 
 	if (user.isEmailVerified) {
 		return { isEmailVerified: true, alreadyVerified: true };
@@ -208,7 +228,7 @@ export async function resendVerification(Model, userId, roleName) {
 	const verifyToken = user.createEmailVerificationToken();
 	await user.save({ validateBeforeSave: false });
 
-	await sendVerificationEmail(user.email, user.fullname, verifyToken, roleName);
+	await sendVerificationEmail(user.email, user.fullname, verifyToken, user.role);
 
 	return { emailVerificationSent: true };
 }
@@ -217,26 +237,23 @@ export async function resendVerification(Model, userId, roleName) {
 export async function forgotPassword(Model, email) {
 	if (!email) throw ApiError.BadRequest('Email address is required');
 
-	const user = await Model.findOne({ email: email.toLowerCase().trim() }).select('+password +googleId');
+	const user = await Model.findOne({ email: email.toLowerCase().trim() }).select(
+		'+password +googleId',
+	);
 	if (!user) {
 		throw ApiError.NotFound('No account found with this email address.');
 	}
 
 	if (user.googleId && !user.password) {
 		throw ApiError.Conflict(
-			'This account is linked to Google. Please log in with Google instead of resetting your password.'
+			'This account is linked to Google. Please log in with Google instead of resetting your password.',
 		);
 	}
 
 	const resetToken = user.createPasswordResetToken();
 	await user.save({ validateBeforeSave: false });
 
-	const result = await sendPasswordResetEmail(
-		user.email,
-		user.fullname,
-		resetToken,
-		user.role,
-	);
+	const result = await sendPasswordResetEmail(user.email, user.fullname, resetToken, user.role);
 
 	if (!result.success) {
 		// Don't leak the error to the user
