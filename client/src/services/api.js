@@ -1,5 +1,11 @@
 import axios from 'axios';
-import { isTokenExpired, getToken, removeToken, setToken, decodeToken } from '../utils/handleToken.js';
+import {
+	isTokenExpired,
+	getToken,
+	removeToken,
+	setToken,
+	decodeToken,
+} from '../utils/handleToken.js';
 
 // BASE CONFIG
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
@@ -27,7 +33,6 @@ const publicClient = axios.create({
 });
 
 // CENTRALIZED ERROR HANDLING
-
 
 // Unified API error class used across all service files.
 export class ApiError extends Error {
@@ -111,22 +116,8 @@ const processQueue = (error, token = null) => {
 	failedQueue = [];
 };
 
-// Determine the correct refresh endpoint based on the user's stored role.
-// Falls back to decoding the expired access token for its role claim.
 const getRefreshEndpoint = () => {
-	try {
-		const stored = localStorage.getItem('preferredRole');
-		if (stored === 'teacher') return '/api/teachers/refresh-token';
-		if (stored === 'student') return '/api/students/refresh-token';
-
-		// Fallback: decode the (possibly expired) access token
-		const { accessToken } = getToken();
-		if (accessToken) {
-			const decoded = decodeToken(accessToken);
-			if (decoded?.role === 'teacher') return '/api/teachers/refresh-token';
-		}
-	} catch {}
-	return '/api/students/refresh-token';
+	return '/api/auth/refresh-token';
 };
 
 apiClient.interceptors.response.use(

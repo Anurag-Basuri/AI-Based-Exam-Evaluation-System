@@ -22,11 +22,11 @@ const applyTokensFromResponse = response => {
 	return false;
 };
 
-// STUDENT AUTH
+// UNIFIED AUTH
 
-export const registerStudent = async studentData => {
+export const registerUser = async userData => {
 	try {
-		const response = await publicClient.post('/api/students/register', studentData);
+		const response = await publicClient.post('/api/auth/register', userData);
 		const hasTokens = applyTokensFromResponse(response);
 		if (!hasTokens) removeToken();
 		return response.data;
@@ -37,9 +37,9 @@ export const registerStudent = async studentData => {
 	}
 };
 
-export const loginStudent = async credentials => {
+export const loginUser = async credentials => {
 	try {
-		const response = await publicClient.post('/api/students/login', credentials);
+		const response = await publicClient.post('/api/auth/login', credentials);
 		const hasTokens = applyTokensFromResponse(response);
 		if (!hasTokens) removeToken();
 		return response.data;
@@ -50,9 +50,9 @@ export const loginStudent = async credentials => {
 	}
 };
 
-export const googleLoginStudent = async idToken => {
+export const googleLogin = async (idToken, role) => {
 	try {
-		const response = await publicClient.post('/api/students/google-login', { idToken });
+		const response = await publicClient.post('/api/auth/google-login', { idToken, role });
 		const hasTokens = applyTokensFromResponse(response);
 		if (!hasTokens) removeToken();
 		return response.data;
@@ -63,9 +63,9 @@ export const googleLoginStudent = async idToken => {
 	}
 };
 
-export const logoutStudent = async () => {
+export const logoutUser = async () => {
 	try {
-		const response = await apiClient.post('/api/students/logout');
+		const response = await apiClient.post('/api/auth/logout');
 		removeToken();
 		return response.data;
 	} catch (err) {
@@ -74,6 +74,10 @@ export const logoutStudent = async () => {
 		throw apiErr;
 	}
 };
+
+// PROFILE / ACCOUNT SETTINGS (Role-specific endpoints)
+
+// STUDENT
 
 export const changeStudentPassword = async pwData => {
 	try {
@@ -97,58 +101,7 @@ export const updateStudentProfile = async profileData => {
 	}
 };
 
-// TEACHER AUTH
-
-export const registerTeacher = async teacherData => {
-	try {
-		const response = await publicClient.post('/api/teachers/register', teacherData);
-		const hasTokens = applyTokensFromResponse(response);
-		if (!hasTokens) removeToken();
-		return response.data;
-	} catch (err) {
-		const apiErr = parseAxiosError(err);
-		maybeInvalidateToken(apiErr);
-		throw apiErr;
-	}
-};
-
-export const loginTeacher = async credentials => {
-	try {
-		const response = await publicClient.post('/api/teachers/login', credentials);
-		const hasTokens = applyTokensFromResponse(response);
-		if (!hasTokens) removeToken();
-		return response.data;
-	} catch (err) {
-		const apiErr = parseAxiosError(err);
-		maybeInvalidateToken(apiErr);
-		throw apiErr;
-	}
-};
-
-export const googleLoginTeacher = async idToken => {
-	try {
-		const response = await publicClient.post('/api/teachers/google-login', { idToken });
-		const hasTokens = applyTokensFromResponse(response);
-		if (!hasTokens) removeToken();
-		return response.data;
-	} catch (err) {
-		const apiErr = parseAxiosError(err);
-		maybeInvalidateToken(apiErr);
-		throw apiErr;
-	}
-};
-
-export const logoutTeacher = async () => {
-	try {
-		const response = await apiClient.post('/api/teachers/logout');
-		removeToken();
-		return response.data;
-	} catch (err) {
-		const apiErr = parseAxiosError(err);
-		removeToken();
-		throw apiErr;
-	}
-};
+// TEACHER
 
 export const changeTeacherPassword = async pwData => {
 	try {
@@ -174,38 +127,18 @@ export const updateTeacherProfile = async profileData => {
 
 // EMAIL VERIFICATION
 
-export const verifyStudentEmail = async token => {
+export const verifyEmail = async token => {
 	try {
-		const response = await publicClient.post('/api/students/verify-email', { token });
+		const response = await publicClient.post('/api/auth/verify-email', { token });
 		return response.data;
 	} catch (err) {
 		throw parseAxiosError(err);
 	}
 };
 
-export const verifyTeacherEmail = async token => {
+export const resendVerification = async () => {
 	try {
-		const response = await publicClient.post('/api/teachers/verify-email', { token });
-		return response.data;
-	} catch (err) {
-		throw parseAxiosError(err);
-	}
-};
-
-export const resendStudentVerification = async () => {
-	try {
-		const response = await apiClient.post('/api/students/resend-verification');
-		return response.data;
-	} catch (err) {
-		const apiErr = parseAxiosError(err);
-		maybeInvalidateToken(apiErr);
-		throw apiErr;
-	}
-};
-
-export const resendTeacherVerification = async () => {
-	try {
-		const response = await apiClient.post('/api/teachers/resend-verification');
+		const response = await apiClient.post('/api/auth/resend-verification');
 		return response.data;
 	} catch (err) {
 		const apiErr = parseAxiosError(err);
@@ -225,21 +158,9 @@ export const forgotPassword = async email => {
 	}
 };
 
-export const resetStudentPassword = async (token, newPassword) => {
+export const resetPassword = async (token, newPassword) => {
 	try {
-		const response = await publicClient.post('/api/students/reset-password', {
-			token,
-			newPassword,
-		});
-		return response.data;
-	} catch (err) {
-		throw parseAxiosError(err);
-	}
-};
-
-export const resetTeacherPassword = async (token, newPassword) => {
-	try {
-		const response = await publicClient.post('/api/teachers/reset-password', {
+		const response = await publicClient.post('/api/auth/reset-password', {
 			token,
 			newPassword,
 		});
