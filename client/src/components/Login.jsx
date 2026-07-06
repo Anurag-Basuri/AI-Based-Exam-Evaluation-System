@@ -11,14 +11,14 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
 	const returnTo = location?.state?.from || null;
 	const sessionExpired = searchParams.get('session_expired') === 'true';
 
-	const { loginStudent, loginTeacher, googleLoginStudent, googleLoginTeacher } = useAuth();
+	const { login, googleLogin } = useAuth();
 
 	const [role, setRole] = useState('student'); // "student" | "teacher"
 	const [identifier, setIdentifier] = useState(''); // username or email
 	const [password, setPassword] = useState('');
 	const [showPassword, setShowPassword] = useState(false);
 	const [remember, setRemember] = useState(true);
-	
+
 	const [loading, setLoading] = useState(false);
 	const [googleLoading, setGoogleLoading] = useState(false);
 
@@ -76,16 +76,20 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
 			localStorage.setItem('rememberMe', remember ? 'true' : 'false');
 
 			const payload = buildPayload();
-			const res =
-				role === 'student' ? await loginStudent(payload) : await loginTeacher(payload);
+			const res = await login(payload);
 
-			try { localStorage.setItem('preferredRole', role); } catch {}
+			// The backend tells us what role this user actually is
+			const actualRole = res?.data?.user?.role || role;
+
+			try {
+				localStorage.setItem('preferredRole', actualRole);
+			} catch {}
 
 			if (typeof onLogin === 'function') {
-				onLogin({ role, user: res?.data?.user || null });
+				onLogin({ role: actualRole, user: res?.data?.user || null });
 			}
 
-			const dashboard = role === 'teacher' ? '/teacher' : '/student';
+			const dashboard = actualRole === 'teacher' ? '/teacher' : '/student';
 			navigate(returnTo || dashboard, { replace: true });
 		} catch (err) {
 			setAlertObj(classifyError(err));
@@ -101,16 +105,20 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
 			localStorage.setItem('rememberMe', remember ? 'true' : 'false');
 
 			const { credential } = credentialResponse;
-			if (role === 'student') await googleLoginStudent(credential);
-			else await googleLoginTeacher(credential);
+			// Provide the currently selected role tab as a hint for registration if they don't exist
+			const res = await googleLogin(credential, role);
 
-			try { localStorage.setItem('preferredRole', role); } catch {}
-			
+			const actualRole = res?.data?.user?.role || role;
+
+			try {
+				localStorage.setItem('preferredRole', actualRole);
+			} catch {}
+
 			if (typeof onLogin === 'function') {
-				onLogin({ role, user: null });
+				onLogin({ role: actualRole, user: res?.data?.user || null });
 			}
 
-			const dashboard = role === 'teacher' ? '/teacher' : '/student';
+			const dashboard = actualRole === 'teacher' ? '/teacher' : '/student';
 			navigate(returnTo || dashboard, { replace: true });
 		} catch (err) {
 			setAlertObj(classifyError(err));
@@ -123,7 +131,10 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
 		<form onSubmit={handleSubmit} aria-labelledby="login-title" noValidate>
 			{googleLoading && (
 				<div className="auth-google-loading">
-					<div className="auth-spinner" style={{ borderTopColor: 'var(--primary)', marginBottom: 12 }}></div>
+					<div
+						className="auth-spinner"
+						style={{ borderTopColor: 'var(--primary)', marginBottom: 12 }}
+					></div>
 					<div style={{ fontWeight: 600 }}>Connecting to Google...</div>
 				</div>
 			)}
@@ -147,7 +158,10 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
 					type="button"
 					role="tab"
 					aria-selected={role === 'student'}
-					onClick={() => { setRole('student'); setAlertObj(null); }}
+					onClick={() => {
+						setRole('student');
+						setAlertObj(null);
+					}}
 					className={`role-pill ${role === 'student' ? 'active student' : ''}`}
 				>
 					🎓 Student
@@ -156,7 +170,10 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
 					type="button"
 					role="tab"
 					aria-selected={role === 'teacher'}
-					onClick={() => { setRole('teacher'); setAlertObj(null); }}
+					onClick={() => {
+						setRole('teacher');
+						setAlertObj(null);
+					}}
 					className={`role-pill ${role === 'teacher' ? 'active teacher' : ''}`}
 				>
 					👨‍🏫 Teacher
@@ -165,9 +182,9 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
 
 			{/* Top Error Alert */}
 			{alertObj && (
-				<AuthAlert 
-					type={alertObj.type} 
-					icon={alertObj.icon} 
+				<AuthAlert
+					type={alertObj.type}
+					icon={alertObj.icon}
 					title={alertObj.title}
 					onDismiss={() => setAlertObj(null)}
 				>
@@ -221,7 +238,9 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
 						{showPassword ? '🙈' : '👁️'}
 					</button>
 				</div>
-				{fieldErrors.password && <span className="error-text">❌ {fieldErrors.password}</span>}
+				{fieldErrors.password && (
+					<span className="error-text">❌ {fieldErrors.password}</span>
+				)}
 			</div>
 
 			<div className="options-row">
@@ -242,7 +261,11 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
 				</button>
 			</div>
 
-			<button type="submit" className={`auth-submit-btn ${role} ${loading ? 'loading' : ''}`} disabled={loading || googleLoading}>
+			<button
+				type="submit"
+				className={`auth-submit-btn ${role} ${loading ? 'loading' : ''}`}
+				disabled={loading || googleLoading}
+			>
 				{loading ? (
 					<>
 						<span className="auth-spinner" />
@@ -262,9 +285,14 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
 			<div style={{ display: 'flex', justifyContent: 'center' }}>
 				<GoogleLogin
 					onSuccess={handleGoogleSuccess}
-					onError={() => setAlertObj({
-						type: 'error', icon: '❌', title: 'Google Sign-In failed', message: 'Could not connect to Google.'
-					})}
+					onError={() =>
+						setAlertObj({
+							type: 'error',
+							icon: '❌',
+							title: 'Google Sign-In failed',
+							message: 'Could not connect to Google.',
+						})
+					}
 					text="signin_with"
 					shape="rectangular"
 					size="large"

@@ -1,14 +1,10 @@
 import React, { createContext, useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-	registerStudent,
-	loginStudent,
-	googleLoginStudent,
-	logoutStudent,
-	registerTeacher,
-	loginTeacher,
-	googleLoginTeacher,
-	logoutTeacher,
+	registerUser,
+	loginUser,
+	googleLogin,
+	logoutUser,
 } from '../services/apiServices';
 import { getToken, removeToken, isTokenExpired, decodeToken } from '../utils/handleToken';
 
@@ -89,16 +85,16 @@ export const AuthProvider = ({ children }) => {
 		return e;
 	};
 
-	// ── Student auth handlers ───────────────────────────────────────
+	// ── Unified auth handlers ───────────────────────────────────────
 	// NOTE: These handlers update context state only.
 	// Navigation is the caller's responsibility (Login.jsx, Register.jsx, etc.)
 
-	const handleRegisterStudent = async studentData => {
+	const handleRegister = async userData => {
 		setLoading(true);
 		try {
-			const res = await registerStudent(studentData);
+			const res = await registerUser(userData);
 			if (res?.data?.authToken) {
-				applyAuthFromToken(decodeToken(res.data.authToken), 'student');
+				applyAuthFromToken(decodeToken(res.data.authToken), userData.role);
 			}
 			return res;
 		} catch (err) {
@@ -109,12 +105,13 @@ export const AuthProvider = ({ children }) => {
 		}
 	};
 
-	const handleLoginStudent = async credentials => {
+	const handleLogin = async credentials => {
 		setLoading(true);
 		try {
-			const res = await loginStudent(credentials);
+			const res = await loginUser(credentials);
 			if (res?.data?.authToken) {
-				applyAuthFromToken(decodeToken(res.data.authToken), 'student');
+				// We don't know the role until the backend tells us
+				applyAuthFromToken(decodeToken(res.data.authToken));
 			}
 			return res;
 		} catch (err) {
@@ -125,12 +122,12 @@ export const AuthProvider = ({ children }) => {
 		}
 	};
 
-	const handleGoogleLoginStudent = async idToken => {
+	const handleGoogleLogin = async (idToken, roleHint) => {
 		setLoading(true);
 		try {
-			const res = await googleLoginStudent(idToken);
+			const res = await googleLogin(idToken, roleHint);
 			if (res?.data?.authToken) {
-				applyAuthFromToken(decodeToken(res.data.authToken), 'student');
+				applyAuthFromToken(decodeToken(res.data.authToken), roleHint);
 			}
 			return res;
 		} catch (err) {
@@ -141,10 +138,10 @@ export const AuthProvider = ({ children }) => {
 		}
 	};
 
-	const handleLogoutStudent = async () => {
+	const handleLogout = async () => {
 		setLoading(true);
 		try {
-			await logoutStudent();
+			await logoutUser();
 		} catch {
 			// Best-effort: server logout may fail, but we still clear locally
 		} finally {
@@ -154,80 +151,6 @@ export const AuthProvider = ({ children }) => {
 			navigate('/auth?mode=login', { replace: true });
 		}
 	};
-
-	// ── Teacher auth handlers ───────────────────────────────────────
-
-	const handleRegisterTeacher = async teacherData => {
-		setLoading(true);
-		try {
-			const res = await registerTeacher(teacherData);
-			if (res?.data?.authToken) {
-				applyAuthFromToken(decodeToken(res.data.authToken), 'teacher');
-			}
-			return res;
-		} catch (err) {
-			clearAuthState();
-			throw normalizeError(err);
-		} finally {
-			setLoading(false);
-		}
-	};
-
-	const handleLoginTeacher = async credentials => {
-		setLoading(true);
-		try {
-			const res = await loginTeacher(credentials);
-			if (res?.data?.authToken) {
-				applyAuthFromToken(decodeToken(res.data.authToken), 'teacher');
-			}
-			return res;
-		} catch (err) {
-			clearAuthState();
-			throw normalizeError(err);
-		} finally {
-			setLoading(false);
-		}
-	};
-
-	const handleGoogleLoginTeacher = async idToken => {
-		setLoading(true);
-		try {
-			const res = await googleLoginTeacher(idToken);
-			if (res?.data?.authToken) {
-				applyAuthFromToken(decodeToken(res.data.authToken), 'teacher');
-			}
-			return res;
-		} catch (err) {
-			clearAuthState();
-			throw normalizeError(err);
-		} finally {
-			setLoading(false);
-		}
-	};
-
-	const handleLogoutTeacher = async () => {
-		setLoading(true);
-		try {
-			await logoutTeacher();
-		} catch {
-			// Best-effort: server logout may fail, but we still clear locally
-		} finally {
-			clearAuthState();
-			try { removeToken(); } catch {}
-			setLoading(false);
-			navigate('/auth?mode=login', { replace: true });
-		}
-	};
-
-	// ── Unified logout ──────────────────────────────────────────────
-
-	const logout = useCallback(async () => {
-		if (role === 'teacher') {
-			await handleLogoutTeacher();
-		} else {
-			await handleLogoutStudent();
-		}
-	}, [role]);
 
 	// ── Context value ───────────────────────────────────────────────
 
@@ -237,16 +160,10 @@ export const AuthProvider = ({ children }) => {
 		role,
 		isEmailVerified,
 		loading,
-		registerStudent: handleRegisterStudent,
-		loginStudent: handleLoginStudent,
-		googleLoginStudent: handleGoogleLoginStudent,
-		logoutStudent: handleLogoutStudent,
-		registerTeacher: handleRegisterTeacher,
-		loginTeacher: handleLoginTeacher,
-		googleLoginTeacher: handleGoogleLoginTeacher,
-		logoutTeacher: handleLogoutTeacher,
-		// Unified alias so UI can just call `logout()`
-		logout,
+		register: handleRegister,
+		login: handleLogin,
+		googleLogin: handleGoogleLogin,
+		logout: handleLogout,
 		setUser,
 		setRole,
 		setIsAuthenticated,
