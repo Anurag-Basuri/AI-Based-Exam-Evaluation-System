@@ -8,7 +8,7 @@ import {
 	sendPasswordChangedEmail,
 } from './email.service.js';
 
-// ── Helper: Strip sensitive fields from a user doc ──────────────
+// Helper: Strip sensitive fields from a user doc
 export function sanitize(doc) {
 	const obj = doc.toObject ? doc.toObject() : { ...doc };
 	delete obj.password;
@@ -20,7 +20,7 @@ export function sanitize(doc) {
 	return obj;
 }
 
-// ── Register a new user ─────────────────────────────────────────
+// Register a new user
 export async function registerUser(Model, { username, fullname, email, password }, roleName) {
 	if (!username || !fullname || !email || !password) {
 		throw ApiError.BadRequest('All fields are required');
@@ -53,7 +53,7 @@ export async function registerUser(Model, { username, fullname, email, password 
 	};
 }
 
-// ── Login with credentials ──────────────────────────────────────
+// Login with credentials
 export async function loginWithCredentials(Model, { username, email, password }) {
 	if ((!username && !email) || !password) {
 		throw ApiError.BadRequest('Username or email and password are required');
@@ -94,7 +94,7 @@ export async function loginWithCredentials(Model, { username, email, password })
 	return { user: sanitize(user), authToken, refreshToken };
 }
 
-// ── Google OAuth login ──────────────────────────────────────────
+// Google OAuth login
 export async function loginWithGoogle(Model, OtherModel, idToken, roleName) {
 	if (!idToken) throw ApiError.BadRequest('Google ID token is required');
 
@@ -142,7 +142,7 @@ export async function loginWithGoogle(Model, OtherModel, idToken, roleName) {
 	return { user: sanitize(user), authToken, refreshToken };
 }
 
-// ── Token refresh (rotation) ────────────────────────────────────
+// Token refresh (rotation)
 export async function refreshTokens(Model, refreshToken) {
 	if (!refreshToken) throw ApiError.BadRequest('Refresh token is required');
 
@@ -166,7 +166,7 @@ export async function refreshTokens(Model, refreshToken) {
 	return { authToken: newAuthToken, refreshToken: newRefreshToken };
 }
 
-// ── Verify email with token ─────────────────────────────────────
+// Verify email with token
 export async function verifyEmail(Model, token) {
 	if (!token) throw ApiError.BadRequest('Verification token is required');
 
@@ -194,7 +194,7 @@ export async function verifyEmail(Model, token) {
 	return { isEmailVerified: true, authToken };
 }
 
-// ── Resend verification email ───────────────────────────────────
+// Resend verification email
 export async function resendVerification(Model, userId, roleName) {
 	const user = await Model.findById(userId).select(
 		'+emailVerificationToken +emailVerificationExpires',
@@ -213,15 +213,13 @@ export async function resendVerification(Model, userId, roleName) {
 	return { emailVerificationSent: true };
 }
 
-// ── Forgot password ─────────────────────────────────────────────
-export async function forgotPassword(Model, email, roleName) {
+// Forgot password
+export async function forgotPassword(Model, email) {
 	if (!email) throw ApiError.BadRequest('Email address is required');
-
-	const genericMsg = 'If an account with that email exists, a password reset link has been sent.';
 
 	const user = await Model.findOne({ email: email.toLowerCase().trim() });
 	if (!user) {
-		return { message: genericMsg };
+		throw ApiError.NotFound('No account found with this email address.');
 	}
 
 	const resetToken = user.createPasswordResetToken();
@@ -231,7 +229,7 @@ export async function forgotPassword(Model, email, roleName) {
 		user.email,
 		user.fullname,
 		resetToken,
-		roleName,
+		user.role,
 	);
 
 	if (!result.success) {
@@ -244,10 +242,10 @@ export async function forgotPassword(Model, email, roleName) {
 		);
 	}
 
-	return { message: genericMsg };
+	return { message: 'Password reset link sent to your email.' };
 }
 
-// ── Reset password with token ───────────────────────────────────
+// Reset password with token
 export async function resetPassword(Model, token, newPassword) {
 	if (!token || !newPassword) {
 		throw ApiError.BadRequest('Token and new password are required');
@@ -281,7 +279,7 @@ export async function resetPassword(Model, token, newPassword) {
 	return { message: 'Password reset successfully. You can now log in with your new password.' };
 }
 
-// ── Change password (authenticated) ─────────────────────────────
+// Change password (authenticated)
 export async function changePassword(Model, userId, currentPassword, newPassword) {
 	if (!currentPassword || !newPassword) {
 		throw ApiError.BadRequest('Current and new passwords are required');
@@ -303,7 +301,7 @@ export async function changePassword(Model, userId, currentPassword, newPassword
 	return { message: 'Password changed successfully' };
 }
 
-// ── Logout ──────────────────────────────────────────────────────
+// Logout
 export async function logoutUser(Model, userId) {
 	await Model.findByIdAndUpdate(userId, { refreshToken: null });
 	return { message: 'Logged out successfully' };

@@ -9,7 +9,6 @@ import {
 	getDashboardStats,
 	verifyTeacherEmail,
 	resendTeacherVerification,
-	forgotTeacherPassword,
 	resetTeacherPassword,
 	exportTeacherProfile,
 	exportTeacherExams,
@@ -22,7 +21,7 @@ import { body } from 'express-validator';
 
 const router = Router();
 
-// ── Public: Auth ──────────────────────────────────────────────────
+// Public: Auth
 
 // Register a new teacher
 router.post(
@@ -56,7 +55,7 @@ router.post(
 	googleLoginTeacher,
 );
 
-// ── Public: Email verification & Password reset ──────────────────
+// Public: Email verification & Password reset
 
 // Verify email with token (from email link)
 router.post(
@@ -67,14 +66,6 @@ router.post(
 	verifyTeacherEmail,
 );
 
-// Forgot password — sends reset email
-router.post(
-	'/forgot-password',
-	emailLimiter,
-	body('email').isEmail().withMessage('Valid email is required'),
-	validate,
-	forgotTeacherPassword,
-);
 
 // Reset password with token
 router.post(
@@ -86,7 +77,7 @@ router.post(
 	resetTeacherPassword,
 );
 
-// ── Authenticated routes ─────────────────────────────────────────
+// Authenticated routes
 
 // Teacher logout
 router.post('/logout', checkAuth, verifyTeacher, logoutTeacher);
@@ -138,7 +129,7 @@ router.post(
 	resendTeacherVerification,
 );
 
-// ── Export Routes ────────────────────────────────────────────────
+// Export Routes
 
 // Export profile to CSV
 router.get('/export/profile', checkAuth, verifyTeacher, exportTeacherProfile);

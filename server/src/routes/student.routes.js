@@ -9,7 +9,6 @@ import {
 	changePassword,
 	verifyStudentEmail,
 	resendStudentVerification,
-	forgotStudentPassword,
 	resetStudentPassword,
 	exportStudentProfile,
 	exportStudentSubmissions,
@@ -56,7 +55,7 @@ router.post(
 	googleLoginStudent,
 );
 
-// ── Public: Email verification & Password reset ──────────────────
+// Public: Email verification & Password reset 
 
 // Verify email with token (from email link)
 router.post(
@@ -67,14 +66,6 @@ router.post(
 	verifyStudentEmail,
 );
 
-// Forgot password — sends reset email
-router.post(
-	'/forgot-password',
-	emailLimiter,
-	body('email').isEmail().withMessage('Valid email is required'),
-	validate,
-	forgotStudentPassword,
-);
 
 // Reset password with token
 router.post(
@@ -86,7 +77,7 @@ router.post(
 	resetStudentPassword,
 );
 
-// ── Authenticated routes ─────────────────────────────────────────
+// Authenticated routes
 
 // Student logout
 router.post('/logout', checkAuth, verifyStudent, logoutStudent);
@@ -138,7 +129,7 @@ router.post(
 	resendStudentVerification,
 );
 
-// ── Export Routes ────────────────────────────────────────────────
+// Export Routes
 
 // Export profile to CSV
 router.get('/export/profile', checkAuth, verifyStudent, exportStudentProfile);

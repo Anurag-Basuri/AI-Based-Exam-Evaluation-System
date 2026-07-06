@@ -4,6 +4,7 @@ import { getRedisStore } from '../../middlewares/rateLimit.middleware.js';
 
 import studentRouter from '../student.routes.js';
 import teacherRouter from '../teacher.routes.js';
+import authRouter from '../auth.routes.js';
 import examRouter from '../exam.routes.js';
 import questionRouter from '../question.routes.js';
 import submissionRouter from '../submission.routes.js';
@@ -11,7 +12,7 @@ import issueRouter from '../issue.routes.js';
 
 const router = Router();
 
-// ── Global API Rate Limit (500 req/min per IP) ──────────────────
+// Global API Rate Limit (500 req/min per IP)
 const globalLimiter = rateLimit({
 	windowMs: 60 * 1000,
 	max: 500,
@@ -27,14 +28,14 @@ const globalLimiter = rateLimit({
 
 router.use(globalLimiter);
 
-// ── Request ID (for log tracing) ────────────────────────────────
+// Request ID (for log tracing)
 router.use((req, res, next) => {
 	req.requestId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 	res.setHeader('X-Request-Id', req.requestId);
 	next();
 });
 
-// ── Slow Request Logging ────────────────────────────────────────
+// Slow Request Logging
 router.use((req, res, next) => {
 	const start = process.hrtime.bigint();
 	res.on('finish', () => {
@@ -46,7 +47,8 @@ router.use((req, res, next) => {
 	next();
 });
 
-// ── Mount domain routers ────────────────────────────────────────
+// Mount domain routers
+router.use('/auth', authRouter);
 router.use('/students', studentRouter);
 router.use('/teachers', teacherRouter);
 router.use('/exams', examRouter);
