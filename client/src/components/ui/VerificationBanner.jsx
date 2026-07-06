@@ -1,16 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth.js';
-import {
-	resendStudentVerification,
-	resendTeacherVerification,
-} from '../../services/apiServices.js';
+import { resendVerification } from '../../services/apiServices.js';
 
-/**
- * A dismissible warning banner that appears at the top of the dashboard
- * when the user's email is not verified. Offers one-click resend + link
- * to the verification page.
- */
+// A dismissible warning banner that appears at the top of the dashboard
+// when the user's email is not verified. Offers one-click resend + link to the verification page.
 const VerificationBanner = () => {
 	const navigate = useNavigate();
 	const { user, role } = useAuth();
@@ -26,8 +20,7 @@ const VerificationBanner = () => {
 		setSending(true);
 		setError('');
 		try {
-			const fn = role === 'teacher' ? resendTeacherVerification : resendStudentVerification;
-			await fn();
+			await resendVerification();
 			setSent(true);
 		} catch (err) {
 			setError(err?.message || 'Failed to send email');

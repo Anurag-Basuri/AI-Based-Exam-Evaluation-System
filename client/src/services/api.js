@@ -194,11 +194,15 @@ apiClient.interceptors.response.use(
 
 // RENDER WAKE-UP (Health Check)
 
+let hasPingedHealth = false;
+
 // Ping the backend health endpoint to wake up the Render server.
 // Call this on landing/auth page mounts. Failures are silently ignored.
 export const pingBackendHealth = async () => {
+	if (hasPingedHealth) return true;
 	try {
 		await publicClient.get('/api/health', { timeout: 30000 });
+		hasPingedHealth = true;
 		return true;
 	} catch {
 		return false;

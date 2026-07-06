@@ -1,11 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import {
-	verifyStudentEmail,
-	verifyTeacherEmail,
-	resendStudentVerification,
-	resendTeacherVerification,
-} from '../services/apiServices';
+import { verifyEmail, resendVerification } from '../services/apiServices';
 import { useAuth } from '../hooks/useAuth.js';
 import { setToken } from '../utils/handleToken.js';
 import './Auth.css';
@@ -30,8 +25,7 @@ const VerifyEmail = () => {
 
 		(async () => {
 			try {
-				const fn = role === 'teacher' ? verifyTeacherEmail : verifyStudentEmail;
-				const result = await fn(token);
+				const result = await verifyEmail(token);
 
 				// Store the fresh token with updated isEmailVerified claim
 				if (result?.data?.authToken) {
@@ -64,8 +58,7 @@ const VerifyEmail = () => {
 		setResending(true);
 		setResendSuccess(false);
 		try {
-			const fn = role === 'teacher' ? resendTeacherVerification : resendStudentVerification;
-			await fn();
+			await resendVerification();
 			setResendSuccess(true);
 		} catch (err) {
 			setError(err?.message || 'Failed to resend verification email.');

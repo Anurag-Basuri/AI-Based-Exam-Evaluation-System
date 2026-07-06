@@ -7,7 +7,6 @@ import { initSocket } from './socket/initSocket.js';
 import { startExamStatusScheduler } from './services/examStatus.service.js';
 import { recoverStuckEvaluations, setSocketRef, gracefulShutdown as shutdownJobQueue } from './services/jobQueue.service.js';
 
-
 const PORT = process.env.PORT || 8000;
 
 // Validate critical environment variables (PORT is optional due to default)
