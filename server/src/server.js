@@ -5,7 +5,11 @@ import app from './app.js';
 import connectDB from './db.js';
 import { initSocket } from './socket/initSocket.js';
 import { startExamStatusScheduler } from './services/examStatus.service.js';
-import { recoverStuckEvaluations, setSocketRef, gracefulShutdown as shutdownJobQueue } from './services/jobQueue.service.js';
+import {
+	recoverStuckEvaluations,
+	setSocketRef,
+	gracefulShutdown as shutdownJobQueue,
+} from './services/jobQueue.service.js';
 
 const PORT = process.env.PORT || 8000;
 

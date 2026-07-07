@@ -8,7 +8,6 @@ import helmet from 'helmet';
 import { ApiError } from './utils/ApiError.js';
 import colors from 'colors';
 
-
 import v1Router from './routes/v1/index.js';
 
 const app = express();
@@ -57,10 +56,6 @@ app.get('/', (req, res) => {
 
 // API Routes (versioned)
 app.use('/api/v1', v1Router);
-
-// Legacy compatibility: /api/* still works (same router)
-// This can be removed once frontend is migrated to /api/v1
-app.use('/api', v1Router);
 
 // 404 handler
 app.use((req, res, next) => {
@@ -150,9 +145,10 @@ app.use((err, req, res, next) => {
 	res.status(statusCode).json({
 		status: 'error',
 		statusCode,
-		message: process.env.NODE_ENV === 'production'
-			? 'Internal Server Error'
-			: err.message || 'Internal Server Error',
+		message:
+			process.env.NODE_ENV === 'production'
+				? 'Internal Server Error'
+				: err.message || 'Internal Server Error',
 		...(process.env.NODE_ENV !== 'production' && { stack: err.stack }),
 	});
 });
