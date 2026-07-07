@@ -46,6 +46,7 @@ router.patch(
 	'/:id/questions',
 	checkAuth,
 	verifyTeacher,
+	sensitiveWriteLimiter,
 	body('questionIds').isArray().withMessage('questionIds must be an array'),
 	validate,
 	addQuestionsToExam,
@@ -56,6 +57,7 @@ router.patch(
 	'/:id/questions/remove',
 	checkAuth,
 	verifyTeacher,
+	sensitiveWriteLimiter,
 	body('questionIds').isArray().withMessage('questionIds must be an array'),
 	validate,
 	removeQuestionsFromExam,
@@ -72,7 +74,7 @@ router.get('/search/:code', checkAuth, verifyStudent, searchExamByCode);
 router.get('/my', checkAuth, verifyTeacher, getMyExams);
 
 // Optional: ops/testing — trigger a sync now
-router.post('/sync-status', checkAuth, verifyTeacher, syncStatusesNow);
+router.post('/sync-status', checkAuth, verifyTeacher, sensitiveWriteLimiter, syncStatusesNow);
 
 // Get exam stats
 router.get('/stats', checkAuth, verifyTeacher, getExamStats);
@@ -96,16 +98,17 @@ router.post('/:id/end-now', checkAuth, verifyTeacher, sensitiveWriteLimiter, end
 router.post('/:id/cancel', checkAuth, verifyTeacher, sensitiveWriteLimiter, cancelExam);
 
 // Extend end time (body: { minutes?: number, endTime?: ISOString })
-router.patch('/:id/extend', checkAuth, verifyTeacher, extendExam);
+router.patch('/:id/extend', checkAuth, verifyTeacher, sensitiveWriteLimiter, extendExam);
 
 // Regenerate share/search code
-router.post('/:id/regenerate-code', checkAuth, verifyTeacher, regenerateExamCode);
+router.post('/:id/regenerate-code', checkAuth, verifyTeacher, sensitiveWriteLimiter, regenerateExamCode);
 
 // Reorder questions (order only)
 router.patch(
 	'/:id/reorder',
 	checkAuth,
 	verifyTeacher,
+	sensitiveWriteLimiter,
 	body('order').isArray({ min: 1 }).withMessage('order array required'),
 	validate,
 	reorderExamQuestions,
@@ -116,6 +119,7 @@ router.patch(
 	'/:id/questions/set',
 	checkAuth,
 	verifyTeacher,
+	sensitiveWriteLimiter,
 	body('questionIds').isArray().withMessage('questionIds array required'),
 	validate,
 	setExamQuestions,
@@ -126,6 +130,7 @@ router.post(
 	'/:id/questions/create',
 	checkAuth,
 	verifyTeacher,
+	sensitiveWriteLimiter,
 	body('type').notEmpty().withMessage('Type is required'),
 	body('text').notEmpty().withMessage('Text is required'),
 	body('max_marks').notEmpty().withMessage('Max marks is required'),

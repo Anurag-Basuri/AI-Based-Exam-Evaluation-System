@@ -7,7 +7,7 @@ import {
 	verifyTeacher,
 	requireVerifiedEmail,
 } from '../middlewares/auth.middleware.js';
-import { submissionLimiter, aiEvalLimiter, exportLimiter } from '../middlewares/rateLimit.middleware.js';
+import { submissionLimiter, aiEvalLimiter, exportLimiter, sensitiveWriteLimiter, authLimiter } from '../middlewares/rateLimit.middleware.js';
 import {
 	startSubmission,
 	submitSubmission,
@@ -34,7 +34,7 @@ import {
 const router = Router();
 
 // Directly test the AI evaluation service with a sample question/answer
-router.post('/test-evaluation', testEvaluationService);
+router.post('/test-evaluation', authLimiter, testEvaluationService);
 router.get('/my-submissions', checkAuth, verifyStudent, getMySubmissions);
 
 // --- Student gets their own submission details for the results page ---
@@ -107,6 +107,7 @@ router.post(
 	'/submit',
 	checkAuth,
 	verifyStudent,
+	submissionLimiter,
 	body('examId').notEmpty().withMessage('Exam ID is required'),
 	validate,
 	submitSubmission,
@@ -117,6 +118,7 @@ router.post(
 	'/:id/submit',
 	checkAuth,
 	verifyStudent,
+	submissionLimiter,
 	param('id').notEmpty().withMessage('Submission ID is required'),
 	validate,
 	submitSubmissionById,
@@ -124,16 +126,16 @@ router.post(
 
 // --- Teacher-facing routes ---
 router.get('/exam/:id', checkAuth, verifyTeacher, getExamSubmissions);
-router.put('/:id/evaluate', checkAuth, verifyTeacher, updateEvaluation);
+router.put('/:id/evaluate', checkAuth, verifyTeacher, sensitiveWriteLimiter, updateEvaluation);
 router.post('/:id/evaluate-auto', checkAuth, verifyTeacher, aiEvalLimiter, evaluateSubmission);
-router.patch('/:id/override', checkAuth, verifyTeacher, overrideEvaluation);
+router.patch('/:id/override', checkAuth, verifyTeacher, sensitiveWriteLimiter, overrideEvaluation);
 
 // --- Get a single submission for grading (Teacher Only) ---
 router.get('/teacher/:id', checkAuth, verifyTeacher, getSubmissionForGrading);
 
 // --- Result Publishing Routes (Teacher Only) ---
-router.post('/:id/publish', checkAuth, verifyTeacher, publishSingleSubmissionResult);
-router.post('/exam/:examId/publish-all', checkAuth, verifyTeacher, publishAllExamResults);
+router.post('/:id/publish', checkAuth, verifyTeacher, sensitiveWriteLimiter, publishSingleSubmissionResult);
+router.post('/exam/:examId/publish-all', checkAuth, verifyTeacher, sensitiveWriteLimiter, publishAllExamResults);
 
 // --- Export Routes (Teacher Only) ---
 router.get('/exam/:id/export', checkAuth, verifyTeacher, exportLimiter, exportExamSubmissionsList);
