@@ -92,7 +92,6 @@ apiClient.interceptors.request.use(config => {
 		if (isTokenExpired(accessToken)) {
 			// Don't immediately invalidate — let the response interceptor
 			// try a refresh first. Just skip attaching the expired token.
-			// The request will likely 401, triggering the refresh flow below.
 		}
 		config.headers['Authorization'] = `Bearer ${accessToken}`;
 	}
@@ -100,11 +99,7 @@ apiClient.interceptors.request.use(config => {
 });
 
 // RESPONSE INTERCEPTOR — AUTOMATIC TOKEN REFRESH
-
-// Mutex to prevent multiple simultaneous refresh attempts.
 let isRefreshing = false;
-
-// Queue of requests waiting for a token refresh to complete.
 let failedQueue = [];
 
 // Resolve or reject all queued requests once the refresh completes.
@@ -117,7 +112,7 @@ const processQueue = (error, token = null) => {
 };
 
 const getRefreshEndpoint = () => {
-	return '/api/auth/refresh-token';
+	return '/api/v1/auth/refresh-token';
 };
 
 apiClient.interceptors.response.use(

@@ -26,7 +26,7 @@ const applyTokensFromResponse = response => {
 
 export const registerUser = async userData => {
 	try {
-		const response = await publicClient.post('/api/auth/register', userData);
+		const response = await publicClient.post('/api/v1/auth/register', userData);
 		const hasTokens = applyTokensFromResponse(response);
 		if (!hasTokens) removeToken();
 		return response.data;
@@ -39,7 +39,7 @@ export const registerUser = async userData => {
 
 export const loginUser = async credentials => {
 	try {
-		const response = await publicClient.post('/api/auth/login', credentials);
+		const response = await publicClient.post('/api/v1/auth/login', credentials);
 		const hasTokens = applyTokensFromResponse(response);
 		if (!hasTokens) removeToken();
 		return response.data;
@@ -52,7 +52,7 @@ export const loginUser = async credentials => {
 
 export const googleLogin = async (idToken, role) => {
 	try {
-		const response = await publicClient.post('/api/auth/google-login', { idToken, role });
+		const response = await publicClient.post('/api/v1/auth/google-login', { idToken, role });
 		const hasTokens = applyTokensFromResponse(response);
 		if (!hasTokens) removeToken();
 		return response.data;
@@ -65,7 +65,7 @@ export const googleLogin = async (idToken, role) => {
 
 export const logoutUser = async () => {
 	try {
-		const response = await apiClient.post('/api/auth/logout');
+		const response = await apiClient.post('/api/v1/auth/logout');
 		removeToken();
 		return response.data;
 	} catch (err) {
@@ -81,7 +81,7 @@ export const logoutUser = async () => {
 
 export const changeStudentPassword = async pwData => {
 	try {
-		const response = await apiClient.put('/api/students/change-password', pwData);
+		const response = await apiClient.put('/api/v1/students/change-password', pwData);
 		return response.data;
 	} catch (err) {
 		const apiErr = parseAxiosError(err);
@@ -92,7 +92,7 @@ export const changeStudentPassword = async pwData => {
 
 export const updateStudentProfile = async profileData => {
 	try {
-		const response = await apiClient.put('/api/students/update', profileData);
+		const response = await apiClient.put('/api/v1/students/update', profileData);
 		return response.data;
 	} catch (err) {
 		const apiErr = parseAxiosError(err);
@@ -105,7 +105,7 @@ export const updateStudentProfile = async profileData => {
 
 export const changeTeacherPassword = async pwData => {
 	try {
-		const response = await apiClient.put('/api/teachers/change-password', pwData);
+		const response = await apiClient.put('/api/v1/teachers/change-password', pwData);
 		return response.data;
 	} catch (err) {
 		const apiErr = parseAxiosError(err);
@@ -116,7 +116,7 @@ export const changeTeacherPassword = async pwData => {
 
 export const updateTeacherProfile = async profileData => {
 	try {
-		const response = await apiClient.put('/api/teachers/update', profileData);
+		const response = await apiClient.put('/api/v1/teachers/update', profileData);
 		return response.data;
 	} catch (err) {
 		const apiErr = parseAxiosError(err);
@@ -129,7 +129,7 @@ export const updateTeacherProfile = async profileData => {
 
 export const verifyEmail = async token => {
 	try {
-		const response = await publicClient.post('/api/auth/verify-email', { token });
+		const response = await publicClient.post('/api/v1/auth/verify-email', { token });
 		return response.data;
 	} catch (err) {
 		throw parseAxiosError(err);
@@ -138,7 +138,7 @@ export const verifyEmail = async token => {
 
 export const resendVerification = async () => {
 	try {
-		const response = await apiClient.post('/api/auth/resend-verification');
+		const response = await apiClient.post('/api/v1/auth/resend-verification');
 		return response.data;
 	} catch (err) {
 		const apiErr = parseAxiosError(err);
@@ -151,7 +151,7 @@ export const resendVerification = async () => {
 
 export const forgotPassword = async email => {
 	try {
-		const response = await publicClient.post('/api/auth/forgot-password', { email });
+		const response = await publicClient.post('/api/v1/auth/forgot-password', { email });
 		return response.data;
 	} catch (err) {
 		throw parseAxiosError(err);
@@ -160,7 +160,7 @@ export const forgotPassword = async email => {
 
 export const resetPassword = async (token, newPassword) => {
 	try {
-		const response = await publicClient.post('/api/auth/reset-password', {
+		const response = await publicClient.post('/api/v1/auth/reset-password', {
 			token,
 			newPassword,
 		});

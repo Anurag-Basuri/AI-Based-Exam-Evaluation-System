@@ -3,7 +3,7 @@ import { apiClient, ApiError, parseAxiosError, safeApiCall } from './api.js';
 // Re-export so UI components importing from teacherServices still work
 export { safeApiCall };
 
-// ---------- Safe raw helpers ----------
+// Safe raw helpers 
 const safe = async promise => {
 	try {
 		return await promise;
@@ -12,7 +12,7 @@ const safe = async promise => {
 	}
 };
 
-// ---------- Fallback helpers (match studentServices) ----------
+// Fallback helpers (match studentServices)
 const tryGet = async (urls, config) => {
 	let lastErr;
 	for (const url of Array.isArray(urls) ? urls : [urls]) {
@@ -79,56 +79,56 @@ const tryDelete = async (urls, config) => {
 	throw parseAxiosError(lastErr);
 };
 
-// ---------- Endpoints (server-aligned) ----------
+// Endpoints (server-aligned)
 const EP = {
 	// Exams
-	exams: '/api/exams/my',
-	examById: id => `/api/exams/${encodeURIComponent(id)}`,
-	examCreate: '/api/exams/create',
-	examStats: '/api/exams/stats',
-	examUpdate: id => `/api/exams/${encodeURIComponent(id)}/update`,
-	examDelete: id => `/api/exams/${encodeURIComponent(id)}`,
-	examPublish: id => `/api/exams/${encodeURIComponent(id)}/publish`,
-	examDuplicate: id => `/api/exams/${encodeURIComponent(id)}/duplicate`,
-	examSetQuestions: id => `/api/exams/${encodeURIComponent(id)}/questions/set`,
-	examAddQuestions: id => `/api/exams/${encodeURIComponent(id)}/questions`,
-	examRemoveQuestions: id => `/api/exams/${encodeURIComponent(id)}/questions/remove`,
-	examReorder: id => `/api/exams/${encodeURIComponent(id)}/reorder`,
-	examEndNow: id => `/api/exams/${encodeURIComponent(id)}/end-now`,
-	examCancel: id => `/api/exams/${encodeURIComponent(id)}/cancel`,
-	examExtend: id => `/api/exams/${encodeURIComponent(id)}/extend`,
-	examRegenerateCode: id => `/api/exams/${encodeURIComponent(id)}/regenerate-code`,
+	exams: '/api/v1/exams/my',
+	examById: id => `/api/v1/exams/${encodeURIComponent(id)}`,
+	examCreate: '/api/v1/exams/create',
+	examStats: '/api/v1/exams/stats',
+	examUpdate: id => `/api/v1/exams/${encodeURIComponent(id)}/update`,
+	examDelete: id => `/api/v1/exams/${encodeURIComponent(id)}`,
+	examPublish: id => `/api/v1/exams/${encodeURIComponent(id)}/publish`,
+	examDuplicate: id => `/api/v1/exams/${encodeURIComponent(id)}/duplicate`,
+	examSetQuestions: id => `/api/v1/exams/${encodeURIComponent(id)}/questions/set`,
+	examAddQuestions: id => `/api/v1/exams/${encodeURIComponent(id)}/questions`,
+	examRemoveQuestions: id => `/api/v1/exams/${encodeURIComponent(id)}/questions/remove`,
+	examReorder: id => `/api/v1/exams/${encodeURIComponent(id)}/reorder`,
+	examEndNow: id => `/api/v1/exams/${encodeURIComponent(id)}/end-now`,
+	examCancel: id => `/api/v1/exams/${encodeURIComponent(id)}/cancel`,
+	examExtend: id => `/api/v1/exams/${encodeURIComponent(id)}/extend`,
+	examRegenerateCode: id => `/api/v1/exams/${encodeURIComponent(id)}/regenerate-code`,
 
 	// Questions
-	questions: '/api/questions/my',
-	questionCreate: '/api/questions/create',
-	questionBulkCreate: '/api/questions/bulk',
-	questionById: id => `/api/questions/${encodeURIComponent(id)}`,
-	questionUpdate: id => `/api/questions/${encodeURIComponent(id)}/update`,
-	questionDelete: id => `/api/questions/${encodeURIComponent(id)}`,
+	questions: '/api/v1/questions/my',
+	questionCreate: '/api/v1/questions/create',
+	questionBulkCreate: '/api/v1/questions/bulk',
+	questionById: id => `/api/v1/questions/${encodeURIComponent(id)}`,
+	questionUpdate: id => `/api/v1/questions/${encodeURIComponent(id)}/update`,
+	questionDelete: id => `/api/v1/questions/${encodeURIComponent(id)}`,
 
 	// Submissions
-	submissionsByExam: examId => `/api/submissions/exam/${encodeURIComponent(examId)}`,
-	submissionForGrading: id => `/api/submissions/teacher/${encodeURIComponent(id)}`,
-	submissionEvalUpdate: id => `/api/submissions/${encodeURIComponent(id)}/evaluate`,
-	publishSingle: id => `/api/submissions/${id}/publish`,
-	publishAll: examId => `/api/submissions/exam/${examId}/publish-all`,
+	submissionsByExam: examId => `/api/v1/submissions/exam/${encodeURIComponent(examId)}`,
+	submissionForGrading: id => `/api/v1/submissions/teacher/${encodeURIComponent(id)}`,
+	submissionEvalUpdate: id => `/api/v1/submissions/${encodeURIComponent(id)}/evaluate`,
+	publishSingle: id => `/api/v1/submissions/${id}/publish`,
+	publishAll: examId => `/api/v1/submissions/exam/${examId}/publish-all`,
 
 	// Issues
-	issues: '/api/issues/all',
-	issueById: id => `/api/issues/${id}`,
-	issueResolve: id => `/api/issues/${id}/resolve`,
-	issueStatus: id => `/api/issues/${id}/status`,
-	issueAddNote: id => `/api/issues/${id}/notes`,
-	issueBulkResolve: '/api/issues/bulk-resolve',
+	issues: '/api/v1/issues/all',
+	issueById: id => `/api/v1/issues/${id}`,
+	issueResolve: id => `/api/v1/issues/${id}/resolve`,
+	issueStatus: id => `/api/v1/issues/${id}/status`,
+	issueAddNote: id => `/api/v1/issues/${id}/notes`,
+	issueBulkResolve: '/api/v1/issues/bulk-resolve',
 
 	// Profile
-	teacherUpdate: '/api/teachers/update',
-	teacherChangePassword: '/api/teachers/change-password',
-	teacherDashboardStats: '/api/teachers/dashboard-stats',
+	teacherUpdate: '/api/v1/teachers/update',
+	teacherChangePassword: '/api/v1/teachers/change-password',
+	teacherDashboardStats: '/api/v1/teachers/dashboard-stats',
 };
 
-// ---------- Normalizers ----------
+// Normalizers
 const normalizeExam = e => {
 	const enrolled =
 		e?.enrolledCount ??
@@ -166,8 +166,8 @@ const normalizeExam = e => {
 		description: e?.description ?? '',
 		instructions: e?.instructions ?? '',
 		duration: e?.duration ?? 0,
-		status: rawStatus, // server status
-		derivedStatus, // UI status: draft/scheduled/live/completed/cancelled
+		status: rawStatus,
+		derivedStatus,
 		searchId: e?.searchId ?? e?.search_id ?? '',
 		startAt: formatDate(e?.startTime || e?.startAt),
 		endAt: formatDate(e?.endTime || e?.endAt),
@@ -274,7 +274,7 @@ const normalizeQuestion = q => ({
 	updatedAt: q?.updatedAt || '',
 });
 
-// ---------- Exams (Teacher) ----------
+// Exams (Teacher)
 export const createTeacherExam = async payload => {
 	const res = await tryPost(EP.examCreate, payload);
 	const data = res?.data?.data ?? res?.data ?? {};
@@ -380,7 +380,7 @@ export const deleteExam = async examId => {
 	return { success: ok };
 };
 
-// ---------- Questions (Teacher) ----------
+// Questions (Teacher)
 export const getTeacherQuestions = async (params = {}) => {
 	const res = await tryGet(EP.questions, { params });
 	const payload = res?.data?.data ?? res?.data ?? { items: [] };
@@ -422,7 +422,7 @@ export const deleteTeacherQuestion = async id => {
 	return { success: ok };
 };
 
-// ---------- Submissions (Teacher) ----------
+// Submissions (Teacher)
 export const getTeacherSubmissions = async examId => {
 	const res = await tryGet(EP.submissionsByExam(examId));
 	const list = res?.data?.data ?? res?.data ?? [];
@@ -431,7 +431,7 @@ export const getTeacherSubmissions = async examId => {
 
 export const evaluateTeacherSubmission = async submissionId => {
 	// This endpoint seems unused, but correcting for consistency
-	const res = await tryPost(`/api/submissions/${submissionId}/evaluate-auto`);
+	const res = await tryPost(`/api/v1/submissions/${submissionId}/evaluate-auto`);
 	return res?.data?.data ?? res?.data ?? {};
 };
 
@@ -442,7 +442,7 @@ export const updateSubmissionEvaluation = async (submissionId, evaluations) => {
 
 export const getSubmissionForGrading = async submissionId => {
 	const res = await tryGet(EP.submissionForGrading(submissionId));
-	// No normalization needed here, the grading component needs raw, detailed data
+	
 	return res?.data?.data ?? res?.data ?? null;
 };
 
@@ -456,10 +456,10 @@ export const publishAllResults = async examId => {
 	return res?.data?.data ?? res?.data ?? {};
 };
 
-// ---------- Issues (Teacher) ----------
+// Issues (Teacher)
 export const getTeacherIssues = async (params = {}) => {
 	const res = await tryGet(EP.issues, { params });
-	// This now correctly extracts the array of issues from the response data.
+	
 	const list = res?.data?.data || [];
 	return Array.isArray(list) ? list.map(normalizeIssue) : [];
 };
@@ -485,18 +485,18 @@ export const updateTeacherIssueStatus = async (issueId, status) => {
 // Service function to add an internal note
 export const addInternalNote = async (issueId, note) => {
 	const res = await tryPost(EP.issueAddNote(issueId), { note });
-	// The backend returns the new list of notes.
+	
 	return res?.data?.data;
 };
 
 // Service function to resolve issues in bulk
 export const bulkResolveIssues = async (issueIds, reply) => {
 	const res = await tryPost(EP.issueBulkResolve, { issueIds, reply });
-	// The backend returns { updatedCount }, which is useful for the UI.
+	
 	return res?.data?.data ?? { updatedCount: 0 };
 };
 
-// ---------- Profile & Settings (Teacher) ----------
+// Profile & Settings (Teacher) 
 export const updateTeacherProfile = async profile => {
 	// Allow partial updates by passing the profile object directly.
 	// The backend handles undefined fields by ignoring them (Mongoose behavior).
@@ -511,7 +511,7 @@ export const changeTeacherPassword = async ({ currentPassword, newPassword }) =>
 	return { success: !!(data?.success ?? true) };
 };
 
-// ---------- Dashboard (Teacher) ----------
+// Dashboard (Teacher)
 export const getTeacherDashboardStats = async () => {
 	const res = await tryGet(EP.teacherDashboardStats);
 
@@ -553,18 +553,17 @@ export const getTeacherDashboardStats = async () => {
 	};
 };
 
-// ---------- Export ----------
+// Export
 export const exportTeacherProfileCsv = () =>
-	apiClient.get('/api/teachers/export/profile', { responseType: 'blob' });
+	apiClient.get('/api/v1/teachers/export/profile', { responseType: 'blob' });
 export const exportTeacherExamsCsv = () =>
-	apiClient.get('/api/teachers/export/exams', { responseType: 'blob' });
+	apiClient.get('/api/v1/teachers/export/exams', { responseType: 'blob' });
 export const exportExamSubmissionsCsv = examId =>
-	apiClient.get(`/api/submissions/exam/${examId}/export`, { responseType: 'blob' });
+	apiClient.get(`/api/v1/submissions/exam/${examId}/export`, { responseType: 'blob' });
 
-// withCredentials is now set centrally in api.js
 
 // Service function to get exam statistics
 export const getExamStats = async () => {
-	const res = await apiClient.get('/api/exams/stats');
+	const res = await apiClient.get('/api/v1/exams/stats');
 	return res?.data?.data ?? {};
 };

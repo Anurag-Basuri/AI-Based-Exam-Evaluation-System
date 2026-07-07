@@ -3,7 +3,7 @@ import { apiClient, ApiError, parseAxiosError, safeApiCall } from './api.js';
 // Re-export centralized utilities so existing consumers don't break
 export { ApiError, safeApiCall };
 
-// ---------- Helpers for endpoint fallbacks ----------
+// Helpers for endpoint fallbacks
 const tryGet = async (urls, config) => {
 	let lastErr;
 	const urlArray = Array.isArray(urls) ? urls : [urls];
@@ -64,40 +64,40 @@ const tryPut = async (urls, body, config) => {
 	throw lastErr || new Error('All PUT endpoints failed');
 };
 
-// ---------- Endpoints (prioritize server-available first) ----------
+// Endpoints (prioritize server-available first)
 const EP = {
 	// Exams
-	examById: id => `/api/exams/${encodeURIComponent(id)}`,
-	examSearch: code => `/api/exams/search/${encodeURIComponent(code)}`,
+	examById: id => `/api/v1/exams/${encodeURIComponent(id)}`,
+	examSearch: code => `/api/v1/exams/search/${encodeURIComponent(code)}`,
 
 	// Submissions (student-facing)
 	submissionStart: examId => [
-		`/api/submissions/start/${encodeURIComponent(examId)}`, // Preferred: by param
-		'/api/submissions/start', // Fallback: by body
+		`/api/v1/submissions/start/${encodeURIComponent(examId)}`, // Preferred: by param
+		'/api/v1/submissions/start', // Fallback: by body
 	],
-	submissionsMine: ['/api/submissions/my-submissions'],
-	submissionById: id => `/api/submissions/${encodeURIComponent(id)}`,
-	submissionSyncById: id => `/api/submissions/${encodeURIComponent(id)}/answers`,
-	submissionSubmitById: id => `/api/submissions/${encodeURIComponent(id)}/submit`,
-	submissionForResults: id => `/api/submissions/results/${encodeURIComponent(id)}`,
+	submissionsMine: ['/api/v1/submissions/my-submissions'],
+	submissionById: id => `/api/v1/submissions/${encodeURIComponent(id)}`,
+	submissionSyncById: id => `/api/v1/submissions/${encodeURIComponent(id)}/answers`,
+	submissionSubmitById: id => `/api/v1/submissions/${encodeURIComponent(id)}/submit`,
+	submissionForResults: id => `/api/v1/submissions/results/${encodeURIComponent(id)}`,
 
 	// Issues (student-facing)
-	issuesMine: ['/api/issues/student', '/api/issues/me'],
-	issueCreate: ['/api/issues/create'],
-	issueById: id => `/api/issues/${encodeURIComponent(id)}`,
-	issueDelete: id => `/api/issues/${encodeURIComponent(id)}`,
+	issuesMine: ['/api/v1/issues/student', '/api/v1/issues/me'],
+	issueCreate: ['/api/v1/issues/create'],
+	issueById: id => `/api/v1/issues/${encodeURIComponent(id)}`,
+	issueDelete: id => `/api/v1/issues/${encodeURIComponent(id)}`,
 	issueReply: id => [
-		`/api/issues/${encodeURIComponent(id)}/reply`,
-		`/api/issues/${encodeURIComponent(id)}`,
+		`/api/v1/issues/${encodeURIComponent(id)}/reply`,
+		`/api/v1/issues/${encodeURIComponent(id)}`,
 	],
 
 	// Student account
-	me: ['/api/students/profile'],
-	updateMe: ['/api/students/update'],
-	changePassword: ['/api/students/change-password'],
+	me: ['/api/v1/students/profile'],
+	updateMe: ['/api/v1/students/update'],
+	changePassword: ['/api/v1/students/change-password'],
 };
 
-// ---------- Normalizers ----------
+// Normalizers
 const normalizeExam = e => {
 	const startMs = e.startTime ? new Date(e.startTime).getTime() : (e.start_ms ?? null);
 	const endMs = e.endTime ? new Date(e.endTime).getTime() : (e.end_ms ?? null);
@@ -203,7 +203,7 @@ const normalizeSubmission = s => {
 		examId: String(s.exam?._id ?? s.examId ?? s.exam ?? ''),
 		examTitle: s.exam?.title ?? s.examTitle ?? 'Exam',
 		examPolicy: s.exam?.aiPolicy,
-		instructions: s.instructions ?? s.exam?.instructions, // Add instructions
+		instructions: s.instructions ?? s.exam?.instructions,
 		duration: Number(s.duration ?? s.exam?.duration ?? 0),
 		answers: normalizedAnswers,
 		questions: questions,
@@ -212,15 +212,15 @@ const normalizeSubmission = s => {
 			: [],
 		score,
 		maxScore,
-		percentage, // Centralized percentage calculation
+		percentage,
 		status: s.status ?? 'pending',
-		startedAt: s.startedAt, // Keep original date object for timer
+		startedAt: s.startedAt,
 		submittedAt: formatDt(s.submittedAt),
-		remarks: s.remarks || '', // Ensure remarks field is present
+		remarks: s.remarks || '',
 	};
 };
 
-// ---------- Student: Exams ----------
+// Student: Exams
 export const searchExamByCode = async code => {
 	const cleaned = String(code || '')
 		.trim()
@@ -251,7 +251,7 @@ export const startExam = async examId => {
 	return normalizeSubmission(data);
 };
 
-// ---------- Student: Submissions ----------
+// Student: Submissions
 let submissionsCache = {
 	data: null,
 	timestamp: 0,
@@ -284,7 +284,7 @@ export const getMySubmissions = async (params = {}, forceRefresh = false) => {
 // Get submission details for results page
 export const getSubmissionForResults = async submissionId => {
 	const res = await tryGet(EP.submissionForResults(submissionId));
-	// server returns already-populated submission; return inner data
+	
 	return res?.data?.data ?? res?.data ?? null;
 };
 
@@ -305,7 +305,7 @@ export const submitSubmission = async (submissionId, payload) => {
 	return res?.data?.data ?? res?.data;
 };
 
-// ---------- Issues (Student) ----------
+// Issues (Student)
 const normalizeIssue = i => {
 	if (!i) {
 		return {
@@ -324,10 +324,8 @@ const normalizeIssue = i => {
 
 	return {
 		id: String(i._id ?? i.id ?? ''),
-		// BUGFIX: Safely access nested properties to prevent the crash.
 		examId: String(i.exam?._id ?? i.exam ?? ''),
 		examTitle: i.exam?.title ?? i.examTitle ?? 'Exam',
-		// Handle populated student from createIssue response
 		student: i.student?._id ? { _id: i.student._id } : i.student,
 		issueType: i.issueType ?? i.type ?? 'General',
 		description: i.description ?? '',
@@ -351,9 +349,9 @@ export const createIssue = async payload => {
 };
 
 export const deleteIssue = async issueId => {
-	// Use apiClient.delete for the new endpoint
 	const res = await apiClient.delete(EP.issueDelete(issueId));
-	return res?.data; // Return the success message
+
+	return res?.data;
 };
 
 export const getIssueById = async issueId => {
@@ -369,15 +367,13 @@ export const getMySubmissionsForIssues = async () => {
 	// Use the main getMySubmissions function to leverage caching and normalization
 	const submissions = await getMySubmissions({ status: 'submitted' });
 
-	// Create a user-friendly label for the dropdown
 	return submissions.map(s => ({
 		id: s.id,
-		// Use the already-formatted `submittedAt` string from the normalized object
 		label: `${s.examTitle} (Submitted: ${s.submittedAt || 'N/A'})`,
 	}));
 };
 
-// ---------- Student Profile Management ----------
+// Student Profile Management
 export const getStudentProfile = async () => {
 	const res = await tryGet(EP.me);
 	return res?.data?.data ?? res?.data ?? {};
@@ -393,10 +389,8 @@ export const changeStudentPassword = async payload => {
 	return res?.data?.data ?? res?.data ?? {};
 };
 
-// ---------- Export ----------
+// Export
 export const exportStudentProfileCsv = () =>
-	apiClient.get('/api/students/export/profile', { responseType: 'blob' });
+	apiClient.get('/api/v1/students/export/profile', { responseType: 'blob' });
 export const exportStudentSubmissionsCsv = () =>
-	apiClient.get('/api/students/export/submissions', { responseType: 'blob' });
-
-// withCredentials is now set centrally in api.js
+	apiClient.get('/api/v1/students/export/submissions', { responseType: 'blob' });
