@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { resetStudentPassword, resetTeacherPassword } from '../services/apiServices';
+import { resetPassword } from '../services/apiServices';
 import './Auth.css';
 
 const ResetPassword = () => {
@@ -56,8 +56,7 @@ const ResetPassword = () => {
 
 		setLoading(true);
 		try {
-			const fn = role === 'teacher' ? resetTeacherPassword : resetStudentPassword;
-			await fn(token, password);
+			await resetPassword(token, password);
 			setSuccess(true);
 			// Auto-redirect to login after 3s
 			setTimeout(() => navigate('/auth?mode=login', { replace: true }), 3000);

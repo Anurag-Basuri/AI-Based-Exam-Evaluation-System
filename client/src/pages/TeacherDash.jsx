@@ -153,6 +153,7 @@ const TeacherDash = () => {
 		() => [
 			{ key: 'home', label: 'Overview', icon: '📊', to: '/teacher', end: true },
 			{ key: 'exams', label: 'Exams', icon: '📝', to: '/teacher/exams' },
+			{ key: 'classrooms', label: 'Classrooms', icon: '🏫', to: '/teacher/classrooms' },
 			{ key: 'results', label: 'Submissions', icon: '📋', to: '/teacher/results' },
 			{
 				key: 'issues',

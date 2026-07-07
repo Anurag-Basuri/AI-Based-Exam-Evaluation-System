@@ -109,7 +109,10 @@ const StudentDash = () => {
 					disabled={loggingOut}
 				>
 					{loggingOut ? (
-						<><div className="dash-logout-spinner" /><span>Logging out…</span></>
+						<>
+							<div className="dash-logout-spinner" />
+							<span>Logging out…</span>
+						</>
 					) : (
 						<span>🚪 Logout</span>
 					)}
@@ -124,6 +127,7 @@ const StudentDash = () => {
 		() => [
 			{ key: 'home', label: 'Dashboard', icon: '🏠', to: '/student', end: true },
 			{ key: 'exams', label: 'Exams', icon: '📝', to: '/student/exams' },
+			{ key: 'classrooms', label: 'Classrooms', icon: '🏫', to: '/student/classrooms' },
 			{ key: 'results', label: 'Results', icon: '📊', to: '/student/results' },
 			{ key: 'issues', label: 'Support', icon: '🆘', to: '/student/issues' },
 			{ key: 'settings', label: 'Settings', icon: '⚙️', to: '/student/settings' },
