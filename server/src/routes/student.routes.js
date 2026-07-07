@@ -7,6 +7,7 @@ import {
 	exportStudentSubmissions,
 } from '../controllers/student.controller.js';
 import { checkAuth, verifyStudent } from '../middlewares/auth.middleware.js';
+import { sensitiveWriteLimiter, exportLimiter } from '../middlewares/rateLimit.middleware.js';
 import { validate } from '../middlewares/validate.middleware.js';
 import { body } from 'express-validator';
 
@@ -22,6 +23,7 @@ router.put(
 	'/update',
 	checkAuth,
 	verifyStudent,
+	sensitiveWriteLimiter,
 	body('username').optional(),
 	body('fullname').optional(),
 	body('email').optional().isEmail(),
@@ -37,6 +39,7 @@ router.put(
 	'/change-password',
 	checkAuth,
 	verifyStudent,
+	sensitiveWriteLimiter,
 	body('currentPassword').notEmpty().withMessage('Current password is required'),
 	body('newPassword')
 		.isLength({ min: 8 })
@@ -46,9 +49,9 @@ router.put(
 );
 
 // Export profile to CSV
-router.get('/export/profile', checkAuth, verifyStudent, exportStudentProfile);
+router.get('/export/profile', checkAuth, verifyStudent, exportLimiter, exportStudentProfile);
 
 // Export submissions to CSV
-router.get('/export/submissions', checkAuth, verifyStudent, exportStudentSubmissions);
+router.get('/export/submissions', checkAuth, verifyStudent, exportLimiter, exportStudentSubmissions);
 
 export default router;

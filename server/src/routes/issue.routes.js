@@ -11,6 +11,7 @@ import {
 	bulkResolveIssues,
 } from '../controllers/issue.controller.js';
 import { checkAuth, verifyStudent, verifyTeacher } from '../middlewares/auth.middleware.js';
+import { sensitiveWriteLimiter } from '../middlewares/rateLimit.middleware.js';
 import { validate } from '../middlewares/validate.middleware.js';
 import { body, param, query } from 'express-validator';
 
@@ -21,6 +22,7 @@ router.post(
 	'/create',
 	checkAuth,
 	verifyStudent,
+	sensitiveWriteLimiter,
 	body('submissionId').isMongoId().withMessage('A valid submission ID is required'),
 	body('issueType')
 		.isIn(['evaluation', 'technical', 'question', 'other'])
@@ -72,6 +74,7 @@ router.post(
 	'/bulk-resolve',
 	checkAuth,
 	verifyTeacher,
+	sensitiveWriteLimiter,
 	body('issueIds')
 		.isArray({ min: 1 })
 		.withMessage('Issue IDs must be a non-empty array of MongoIDs'),
@@ -85,6 +88,7 @@ router.patch(
 	'/:id/resolve',
 	checkAuth,
 	verifyTeacher,
+	sensitiveWriteLimiter,
 	param('id').isMongoId().withMessage('Issue ID is required'),
 	body('reply').isString().isLength({ min: 2 }).withMessage('Reply is required'),
 	validate,
@@ -105,6 +109,7 @@ router.delete(
 	'/:id',
 	checkAuth,
 	verifyStudent,
+	sensitiveWriteLimiter,
 	param('id').isMongoId().withMessage('A valid Issue ID is required'),
 	validate,
 	deleteIssue,

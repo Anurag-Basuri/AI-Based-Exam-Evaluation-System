@@ -7,6 +7,7 @@ import {
 	exportTeacherExams,
 } from '../controllers/teacher.controller.js';
 import { checkAuth, verifyTeacher } from '../middlewares/auth.middleware.js';
+import { sensitiveWriteLimiter, exportLimiter } from '../middlewares/rateLimit.middleware.js';
 import { validate } from '../middlewares/validate.middleware.js';
 import { body } from 'express-validator';
 
@@ -19,6 +20,7 @@ router.put(
 	'/update',
 	checkAuth,
 	verifyTeacher,
+	sensitiveWriteLimiter,
 	body('username').optional(),
 	body('fullname').optional(),
 	body('email').optional().isEmail(),
@@ -34,6 +36,7 @@ router.put(
 	'/change-password',
 	checkAuth,
 	verifyTeacher,
+	sensitiveWriteLimiter,
 	body('currentPassword').notEmpty().withMessage('Current password is required'),
 	body('newPassword')
 		.isLength({ min: 8 })
@@ -46,9 +49,9 @@ router.put(
 router.get('/dashboard-stats', checkAuth, verifyTeacher, getDashboardStats);
 
 // Export profile to CSV
-router.get('/export/profile', checkAuth, verifyTeacher, exportTeacherProfile);
+router.get('/export/profile', checkAuth, verifyTeacher, exportLimiter, exportTeacherProfile);
 
 // Export created exams to CSV
-router.get('/export/exams', checkAuth, verifyTeacher, exportTeacherExams);
+router.get('/export/exams', checkAuth, verifyTeacher, exportLimiter, exportTeacherExams);
 
 export default router;

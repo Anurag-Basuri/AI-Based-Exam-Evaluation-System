@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { body } from 'express-validator';
 import { validate } from '../middlewares/validate.middleware.js';
 import { checkAuth, verifyStudent, verifyTeacher, requireVerifiedEmail } from '../middlewares/auth.middleware.js';
+import { sensitiveWriteLimiter } from '../middlewares/rateLimit.middleware.js';
 import {
 	createExam,
 	addQuestionsToExam,
@@ -33,6 +34,7 @@ router.post(
 	checkAuth,
 	verifyTeacher,
 	requireVerifiedEmail,
+	sensitiveWriteLimiter,
 	body('title').notEmpty().withMessage('Title is required'),
 	body('description').notEmpty().withMessage('Description is required'),
 	validate,
@@ -79,19 +81,19 @@ router.get('/stats', checkAuth, verifyTeacher, getExamStats);
 router.get('/:id', checkAuth, getExamById);
 
 // Update exam
-router.put('/:id/update', checkAuth, verifyTeacher, updateExam);
+router.put('/:id/update', checkAuth, verifyTeacher, sensitiveWriteLimiter, updateExam);
 
 // Delete exam
-router.delete('/:id', checkAuth, verifyTeacher, deleteExam);
+router.delete('/:id', checkAuth, verifyTeacher, sensitiveWriteLimiter, deleteExam);
 
 // Publish (draft -> active)
-router.post('/:id/publish', checkAuth, verifyTeacher, requireVerifiedEmail, publishExam);
+router.post('/:id/publish', checkAuth, verifyTeacher, requireVerifiedEmail, sensitiveWriteLimiter, publishExam);
 
 // End live exam immediately
-router.post('/:id/end-now', checkAuth, verifyTeacher, endExamNow);
+router.post('/:id/end-now', checkAuth, verifyTeacher, sensitiveWriteLimiter, endExamNow);
 
 // Cancel a scheduled (not started) exam
-router.post('/:id/cancel', checkAuth, verifyTeacher, cancelExam);
+router.post('/:id/cancel', checkAuth, verifyTeacher, sensitiveWriteLimiter, cancelExam);
 
 // Extend end time (body: { minutes?: number, endTime?: ISOString })
 router.patch('/:id/extend', checkAuth, verifyTeacher, extendExam);
@@ -132,6 +134,6 @@ router.post(
 );
 
 // Duplicate exam
-router.post('/:id/duplicate', checkAuth, verifyTeacher, duplicateExam);
+router.post('/:id/duplicate', checkAuth, verifyTeacher, sensitiveWriteLimiter, duplicateExam);
 
 export default router;

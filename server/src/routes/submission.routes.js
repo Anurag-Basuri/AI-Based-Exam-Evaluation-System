@@ -7,6 +7,7 @@ import {
 	verifyTeacher,
 	requireVerifiedEmail,
 } from '../middlewares/auth.middleware.js';
+import { submissionLimiter, aiEvalLimiter, exportLimiter } from '../middlewares/rateLimit.middleware.js';
 import {
 	startSubmission,
 	submitSubmission,
@@ -62,6 +63,7 @@ router.post(
 	checkAuth,
 	verifyStudent,
 	requireVerifiedEmail,
+	submissionLimiter,
 	body('examId').notEmpty().withMessage('Exam ID is required'),
 	validate,
 	startSubmission,
@@ -73,6 +75,7 @@ router.post(
 	checkAuth,
 	verifyStudent,
 	requireVerifiedEmail,
+	submissionLimiter,
 	param('id').notEmpty().withMessage('Exam ID is required'),
 	validate,
 	startSubmissionByParam,
@@ -122,7 +125,7 @@ router.post(
 // --- Teacher-facing routes ---
 router.get('/exam/:id', checkAuth, verifyTeacher, getExamSubmissions);
 router.put('/:id/evaluate', checkAuth, verifyTeacher, updateEvaluation);
-router.post('/:id/evaluate-auto', checkAuth, verifyTeacher, evaluateSubmission);
+router.post('/:id/evaluate-auto', checkAuth, verifyTeacher, aiEvalLimiter, evaluateSubmission);
 router.patch('/:id/override', checkAuth, verifyTeacher, overrideEvaluation);
 
 // --- Get a single submission for grading (Teacher Only) ---
@@ -133,10 +136,10 @@ router.post('/:id/publish', checkAuth, verifyTeacher, publishSingleSubmissionRes
 router.post('/exam/:examId/publish-all', checkAuth, verifyTeacher, publishAllExamResults);
 
 // --- Export Routes (Teacher Only) ---
-router.get('/exam/:id/export', checkAuth, verifyTeacher, exportExamSubmissionsList);
+router.get('/exam/:id/export', checkAuth, verifyTeacher, exportLimiter, exportExamSubmissionsList);
 
 // --- Testing ---
-router.post('/test-eval', checkAuth, verifyTeacher, testEvaluationService);
+router.post('/test-eval', checkAuth, verifyTeacher, aiEvalLimiter, testEvaluationService);
 
 // Get a student's submission for an exam (query)
 router.get(

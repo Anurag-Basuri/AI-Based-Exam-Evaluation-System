@@ -1,6 +1,5 @@
 import { Router } from 'express';
-import rateLimit from 'express-rate-limit';
-import { getRedisStore } from '../../middlewares/rateLimit.middleware.js';
+import { globalLimiter } from '../../middlewares/rateLimit.middleware.js';
 
 import studentRouter from '../student.routes.js';
 import teacherRouter from '../teacher.routes.js';
@@ -12,20 +11,7 @@ import issueRouter from '../issue.routes.js';
 
 const router = Router();
 
-// Global API Rate Limit (500 req/min per IP)
-const globalLimiter = rateLimit({
-	windowMs: 60 * 1000,
-	max: 500,
-	standardHeaders: true,
-	legacyHeaders: false,
-	...getRedisStore('global'),
-	message: {
-		status: 'error',
-		statusCode: 429,
-		message: 'Too many requests. Please slow down.',
-	},
-});
-
+// Global API Rate Limit (200 req/min per IP via Upstash)
 router.use(globalLimiter);
 
 // Request ID (for log tracing)
