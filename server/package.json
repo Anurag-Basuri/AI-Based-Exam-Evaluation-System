@@ -16,6 +16,7 @@
 	"license": "ISC",
 	"description": "",
 	"dependencies": {
+		"@upstash/ratelimit": "^2.0.8",
 		"@upstash/redis": "^1.38.0",
 		"axios": "^1.12.2",
 		"bcryptjs": "^3.0.2",
@@ -25,7 +26,6 @@
 		"cors": "^2.8.5",
 		"dotenv": "^17.2.0",
 		"express": "^5.1.0",
-		"express-rate-limit": "^8.3.2",
 		"express-validator": "^7.2.1",
 		"google-auth-library": "^10.6.2",
 		"helmet": "^8.1.0",
@@ -39,7 +39,6 @@
 		"node-fetch": "^3.3.2",
 		"nodemailer": "^8.0.5",
 		"nodemon": "^3.1.10",
-		"rate-limit-redis": "^5.0.0",
 		"slugify": "^1.6.6",
 		"socket.io": "^4.8.1",
 		"validator": "^13.15.15"
