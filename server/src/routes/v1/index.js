@@ -8,6 +8,7 @@ import examRouter from '../exam.routes.js';
 import questionRouter from '../question.routes.js';
 import submissionRouter from '../submission.routes.js';
 import issueRouter from '../issue.routes.js';
+import classroomRouter from '../classroom.routes.js';
 
 const router = Router();
 
@@ -41,5 +42,6 @@ router.use('/exams', examRouter);
 router.use('/questions', questionRouter);
 router.use('/submissions', submissionRouter);
 router.use('/issues', issueRouter);
+router.use('/classrooms', classroomRouter);
 
 export default router;
