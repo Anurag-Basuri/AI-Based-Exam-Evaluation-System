@@ -349,6 +349,11 @@ a:focus-visible,
   }
 }
 
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 /* Loading Spinner */
 .spinner {
   width: 20px;

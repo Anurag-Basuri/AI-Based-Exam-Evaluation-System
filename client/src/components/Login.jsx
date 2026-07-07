@@ -8,7 +8,7 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
 	const navigate = useNavigate();
 	const location = useLocation();
 	const [searchParams] = useSearchParams();
-	const returnTo = location?.state?.from || null;
+	const returnTo = searchParams.get('redirect') || location?.state?.from || null;
 	const sessionExpired = searchParams.get('session_expired') === 'true';
 
 	const { login, googleLogin } = useAuth();

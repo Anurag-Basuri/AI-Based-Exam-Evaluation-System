@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../hooks/useAuth.js';
 import AuthAlert, { classifyError } from './AuthAlert.jsx';
@@ -25,7 +25,8 @@ const getStrengthDetails = score => {
 const Register = ({ onRegister, onSwitchToLogin }) => {
 	const navigate = useNavigate();
 	const location = useLocation();
-	const returnTo = location?.state?.from || null;
+	const [searchParams] = useSearchParams();
+	const returnTo = searchParams.get('redirect') || location?.state?.from || null;
 	const { register, googleLogin } = useAuth();
 
 	const [role, setRole] = useState('student'); // "student" | "teacher"
