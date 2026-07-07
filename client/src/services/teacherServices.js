@@ -126,6 +126,16 @@ const EP = {
 	teacherUpdate: '/api/v1/teachers/update',
 	teacherChangePassword: '/api/v1/teachers/change-password',
 	teacherDashboardStats: '/api/v1/teachers/dashboard-stats',
+
+	// Classrooms
+	classrooms: '/api/v1/classrooms/my',
+	classroomCreate: '/api/v1/classrooms',
+	classroomById: id => `/api/v1/classrooms/${id}`,
+	classroomUploadMaterial: id => `/api/v1/classrooms/${id}/materials`,
+	classroomDeleteMaterial: (id, materialId) => `/api/v1/classrooms/${id}/materials/${materialId}`,
+	classroomApprove: (id, studentId) => `/api/v1/classrooms/${id}/approve/${studentId}`,
+	classroomReject: (id, studentId) => `/api/v1/classrooms/${id}/reject/${studentId}`,
+	classroomDelete: id => `/api/v1/classrooms/${id}`,
 };
 
 // Normalizers
@@ -551,6 +561,49 @@ export const getTeacherDashboardStats = async () => {
 		recentSubmissions,
 		teacher,
 	};
+};
+
+// Classrooms (Teacher)
+export const getTeacherClassrooms = async () => {
+	const res = await tryGet(EP.classrooms);
+	return res?.data?.data || [];
+};
+
+export const createTeacherClassroom = async payload => {
+	const res = await tryPost(EP.classroomCreate, payload);
+	return res?.data?.data || {};
+};
+
+export const getTeacherClassroomById = async id => {
+	const res = await tryGet(EP.classroomById(id));
+	return res?.data?.data || null;
+};
+
+export const deleteTeacherClassroom = async id => {
+	const res = await apiClient.delete(EP.classroomDelete(id));
+	return res?.data;
+};
+
+export const uploadClassroomMaterial = async (classroomId, formData) => {
+	const res = await apiClient.post(EP.classroomUploadMaterial(classroomId), formData, {
+		headers: { 'Content-Type': 'multipart/form-data' },
+	});
+	return res?.data?.data || null;
+};
+
+export const deleteClassroomMaterial = async (classroomId, materialId) => {
+	const res = await apiClient.delete(EP.classroomDeleteMaterial(classroomId, materialId));
+	return res?.data;
+};
+
+export const approveClassroomStudent = async (classroomId, studentId) => {
+	const res = await apiClient.post(EP.classroomApprove(classroomId, studentId));
+	return res?.data;
+};
+
+export const rejectClassroomStudent = async (classroomId, studentId) => {
+	const res = await apiClient.post(EP.classroomReject(classroomId, studentId));
+	return res?.data;
 };
 
 // Export

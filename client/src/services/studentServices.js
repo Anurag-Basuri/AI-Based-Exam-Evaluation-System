@@ -95,6 +95,12 @@ const EP = {
 	me: ['/api/v1/students/profile'],
 	updateMe: ['/api/v1/students/update'],
 	changePassword: ['/api/v1/students/change-password'],
+
+	// Classrooms
+	classrooms: '/api/v1/classrooms/my',
+	classroomJoin: '/api/v1/classrooms/join',
+	classroomById: id => `/api/v1/classrooms/${id}`,
+	classroomPreview: code => `/api/v1/classrooms/preview/${code}`,
 };
 
 // Normalizers
@@ -371,6 +377,27 @@ export const getMySubmissionsForIssues = async () => {
 		id: s.id,
 		label: `${s.examTitle} (Submitted: ${s.submittedAt || 'N/A'})`,
 	}));
+};
+
+// ---------- Classrooms (Student) ----------
+export const getStudentClassrooms = async () => {
+	const res = await tryGet(EP.classrooms);
+	return res?.data?.data || [];
+};
+
+export const joinStudentClassroom = async joinCode => {
+	const res = await tryPost(EP.classroomJoin, { joinCode });
+	return res?.data || {};
+};
+
+export const getStudentClassroomById = async id => {
+	const res = await tryGet(EP.classroomById(id));
+	return res?.data?.data || null;
+};
+
+export const getClassroomPreview = async joinCode => {
+	const res = await tryGet(EP.classroomPreview(joinCode));
+	return res?.data?.data || null;
 };
 
 // Student Profile Management

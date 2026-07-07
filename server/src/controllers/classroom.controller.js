@@ -1,0 +1,374 @@
+import Classroom from '../models/classroom.model.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
+import { ApiError } from '../utils/ApiError.js';
+import { ApiResponse } from '../utils/ApiResponse.js';
+import { v2 as cloudinary } from 'cloudinary';
+
+// @desc    Create a new classroom
+// @route   POST /api/v1/classrooms
+// @access  Private (Teacher, Verified Email)
+const createClassroom = asyncHandler(async (req, res) => {
+	const teacherId = req.userDoc?._id || req.user?.id;
+	const { name, description } = req.body;
+
+	const classroom = await Classroom.create({
+		name,
+		description,
+		teacher: teacherId,
+	});
+
+	return ApiResponse.success(res, classroom, 'Classroom created successfully', 201);
+});
+
+// @desc    Get all classrooms for logged-in user (teacher or student)
+// @route   GET /api/v1/classrooms/my
+// @access  Private
+const getMyClassrooms = asyncHandler(async (req, res) => {
+	const userId = req.user?.id || req.user?._id;
+	const role = req.user?.role;
+
+	if (role === 'teacher') {
+		const classrooms = await Classroom.find({ teacher: userId })
+			.select('name description joinCode students pendingStudents materials createdAt updatedAt')
+			.sort({ createdAt: -1 })
+			.lean();
+
+		const result = classrooms.map(c => ({
+			...c,
+			studentCount: c.students?.length || 0,
+			pendingCount: c.pendingStudents?.length || 0,
+			materialCount: c.materials?.length || 0,
+			materials: undefined,
+			students: undefined,
+			pendingStudents: undefined,
+		}));
+
+		return ApiResponse.success(res, result, 'Classrooms fetched');
+	}
+
+	if (role === 'student') {
+		// Enrolled classrooms
+		const enrolled = await Classroom.find({ students: userId })
+			.populate('teacher', 'fullname email')
+			.select('name description teacher students materials createdAt updatedAt')
+			.sort({ createdAt: -1 })
+			.lean();
+
+		const enrolledResult = enrolled.map(c => ({
+			...c,
+			studentCount: c.students?.length || 0,
+			materialCount: c.materials?.length || 0,
+			status: 'enrolled',
+			materials: undefined,
+			students: undefined,
+		}));
+
+		// Pending classrooms
+		const pending = await Classroom.find({ pendingStudents: userId })
+			.populate('teacher', 'fullname email')
+			.select('name description teacher createdAt')
+			.sort({ createdAt: -1 })
+			.lean();
+
+		const pendingResult = pending.map(c => ({
+			...c,
+			studentCount: 0,
+			materialCount: 0,
+			status: 'pending',
+		}));
+
+		return ApiResponse.success(
+			res,
+			[...enrolledResult, ...pendingResult],
+			'Classrooms fetched',
+		);
+	}
+
+	throw ApiError.Forbidden('Invalid role for classroom access');
+});
+
+// @desc    Get classroom by ID (full detail)
+// @route   GET /api/v1/classrooms/:id
+// @access  Private (teacher who owns it or enrolled student)
+const getClassroomById = asyncHandler(async (req, res) => {
+	const userId = String(req.user?.id || req.user?._id);
+
+	const classroom = await Classroom.findById(req.params.id)
+		.populate('teacher', 'fullname email')
+		.populate('students', 'fullname email username')
+		.populate('pendingStudents', 'fullname email username');
+
+	if (!classroom) {
+		throw ApiError.NotFound('Classroom not found');
+	}
+
+	const isTeacher = String(classroom.teacher._id) === userId;
+	const isEnrolledStudent = classroom.students.some(s => String(s._id) === userId);
+	const isPendingStudent = classroom.pendingStudents.some(s => String(s._id) === userId);
+
+	if (!isTeacher && !isEnrolledStudent && !isPendingStudent) {
+		throw ApiError.Forbidden('You do not have access to this classroom');
+	}
+
+	// Pending students can only see basic info, not materials or student lists
+	if (isPendingStudent && !isTeacher && !isEnrolledStudent) {
+		const limited = {
+			_id: classroom._id,
+			name: classroom.name,
+			description: classroom.description,
+			teacher: classroom.teacher,
+			status: 'pending',
+		};
+		return ApiResponse.success(res, limited, 'Classroom fetched (pending approval)');
+	}
+
+	return ApiResponse.success(res, classroom, 'Classroom fetched');
+});
+
+// @desc    Preview classroom info by join code (for invite link landing page)
+// @route   GET /api/v1/classrooms/preview/:joinCode
+// @access  Private (any authenticated user)
+const getClassroomPreview = asyncHandler(async (req, res) => {
+	const { joinCode } = req.params;
+
+	const classroom = await Classroom.findOne({
+		joinCode: String(joinCode).toUpperCase().trim(),
+	})
+		.populate('teacher', 'fullname')
+		.select('name description teacher students pendingStudents')
+		.lean();
+
+	if (!classroom) {
+		throw ApiError.NotFound('Classroom not found');
+	}
+
+	const userId = String(req.user?.id || req.user?._id);
+	const isEnrolled = classroom.students?.some(s => String(s) === userId);
+	const isPending = classroom.pendingStudents?.some(s => String(s) === userId);
+
+	return ApiResponse.success(res, {
+		_id: classroom._id,
+		name: classroom.name,
+		description: classroom.description,
+		teacherName: classroom.teacher?.fullname || 'Unknown',
+		studentCount: classroom.students?.length || 0,
+		membershipStatus: isEnrolled ? 'enrolled' : isPending ? 'pending' : 'none',
+	}, 'Classroom preview fetched');
+});
+
+// @desc    Request to join a classroom via join code (goes to pending queue)
+// @route   POST /api/v1/classrooms/join
+// @access  Private (Student, Verified Email)
+const joinClassroom = asyncHandler(async (req, res) => {
+	const studentId = req.userDoc?._id || req.user?.id;
+	const { joinCode } = req.body;
+
+	const classroom = await Classroom.findOne({
+		joinCode: String(joinCode).toUpperCase().trim(),
+	});
+
+	if (!classroom) {
+		throw ApiError.NotFound('Invalid join code. Classroom not found.');
+	}
+
+	const alreadyEnrolled = classroom.students.some(sid => sid.equals(studentId));
+	if (alreadyEnrolled) {
+		throw ApiError.Conflict('You are already a member of this classroom');
+	}
+
+	const alreadyPending = classroom.pendingStudents.some(sid => sid.equals(studentId));
+	if (alreadyPending) {
+		throw ApiError.Conflict('Your join request is already pending approval');
+	}
+
+	classroom.pendingStudents.push(studentId);
+	await classroom.save();
+
+	return ApiResponse.success(
+		res,
+		{ classroomId: classroom._id, status: 'pending' },
+		'Join request sent. Waiting for teacher approval.',
+	);
+});
+
+// @desc    Approve a pending student
+// @route   POST /api/v1/classrooms/:id/approve/:studentId
+// @access  Private (Teacher)
+const approveStudent = asyncHandler(async (req, res) => {
+	const teacherId = String(req.userDoc?._id || req.user?.id);
+	const { id, studentId } = req.params;
+
+	const classroom = await Classroom.findById(id);
+
+	if (!classroom) {
+		throw ApiError.NotFound('Classroom not found');
+	}
+
+	if (String(classroom.teacher) !== teacherId) {
+		throw ApiError.Forbidden('Only the classroom teacher can approve students');
+	}
+
+	const pendingIndex = classroom.pendingStudents.findIndex(
+		sid => String(sid) === studentId,
+	);
+
+	if (pendingIndex === -1) {
+		throw ApiError.NotFound('Student is not in the pending list');
+	}
+
+	// Move from pending to enrolled
+	classroom.pendingStudents.splice(pendingIndex, 1);
+	classroom.students.push(studentId);
+	await classroom.save();
+
+	return ApiResponse.success(res, null, 'Student approved successfully');
+});
+
+// @desc    Reject a pending student
+// @route   POST /api/v1/classrooms/:id/reject/:studentId
+// @access  Private (Teacher)
+const rejectStudent = asyncHandler(async (req, res) => {
+	const teacherId = String(req.userDoc?._id || req.user?.id);
+	const { id, studentId } = req.params;
+
+	const classroom = await Classroom.findById(id);
+
+	if (!classroom) {
+		throw ApiError.NotFound('Classroom not found');
+	}
+
+	if (String(classroom.teacher) !== teacherId) {
+		throw ApiError.Forbidden('Only the classroom teacher can reject students');
+	}
+
+	const pendingIndex = classroom.pendingStudents.findIndex(
+		sid => String(sid) === studentId,
+	);
+
+	if (pendingIndex === -1) {
+		throw ApiError.NotFound('Student is not in the pending list');
+	}
+
+	classroom.pendingStudents.splice(pendingIndex, 1);
+	await classroom.save();
+
+	return ApiResponse.success(res, null, 'Student request rejected');
+});
+
+// @desc    Upload study material to classroom
+// @route   POST /api/v1/classrooms/:id/materials
+// @access  Private (Teacher, Verified Email)
+const uploadMaterial = asyncHandler(async (req, res) => {
+	const teacherId = String(req.userDoc?._id || req.user?.id);
+
+	const classroom = await Classroom.findById(req.params.id);
+
+	if (!classroom) {
+		throw ApiError.NotFound('Classroom not found');
+	}
+
+	if (String(classroom.teacher) !== teacherId) {
+		throw ApiError.Forbidden('Only the classroom teacher can add materials');
+	}
+
+	if (!req.file) {
+		throw ApiError.BadRequest('No file provided');
+	}
+
+	const { title } = req.body;
+
+	const newMaterial = {
+		title: title || req.file.originalname?.split('.')[0] || 'Untitled',
+		fileUrl: req.file.path,
+		originalName: req.file.originalname,
+		size: req.file.size || 0,
+		publicId: req.file.filename,
+	};
+
+	classroom.materials.push(newMaterial);
+	await classroom.save();
+
+	return ApiResponse.success(res, classroom, 'Material uploaded successfully');
+});
+
+// @desc    Delete study material from classroom
+// @route   DELETE /api/v1/classrooms/:id/materials/:materialId
+// @access  Private (Teacher)
+const deleteMaterial = asyncHandler(async (req, res) => {
+	const teacherId = String(req.userDoc?._id || req.user?.id);
+	const { id, materialId } = req.params;
+
+	const classroom = await Classroom.findById(id);
+
+	if (!classroom) {
+		throw ApiError.NotFound('Classroom not found');
+	}
+
+	if (String(classroom.teacher) !== teacherId) {
+		throw ApiError.Forbidden('Only the classroom teacher can delete materials');
+	}
+
+	const material = classroom.materials.id(materialId);
+	if (!material) {
+		throw ApiError.NotFound('Material not found');
+	}
+
+	if (material.publicId) {
+		try {
+			await cloudinary.uploader.destroy(material.publicId, { resource_type: 'raw' });
+		} catch (cloudErr) {
+			console.error('[CLASSROOM] Failed to delete from Cloudinary:', cloudErr.message);
+		}
+	}
+
+	classroom.materials.pull(materialId);
+	await classroom.save();
+
+	return ApiResponse.success(res, null, 'Material deleted successfully');
+});
+
+// @desc    Delete classroom
+// @route   DELETE /api/v1/classrooms/:id
+// @access  Private (Teacher, Verified Email)
+const deleteClassroom = asyncHandler(async (req, res) => {
+	const teacherId = String(req.userDoc?._id || req.user?.id);
+	const { id } = req.params;
+
+	const classroom = await Classroom.findById(id);
+
+	if (!classroom) {
+		throw ApiError.NotFound('Classroom not found');
+	}
+
+	if (String(classroom.teacher) !== teacherId) {
+		throw ApiError.Forbidden('Only the classroom teacher can delete the classroom');
+	}
+
+	// Delete all associated materials from Cloudinary
+	for (const material of classroom.materials) {
+		if (material.publicId) {
+			try {
+				await cloudinary.uploader.destroy(material.publicId, { resource_type: 'raw' });
+			} catch (cloudErr) {
+				console.error('[CLASSROOM] Failed to delete material from Cloudinary:', cloudErr.message);
+			}
+		}
+	}
+
+	await Classroom.findByIdAndDelete(id);
+
+	return ApiResponse.success(res, null, 'Classroom deleted successfully');
+});
+
+export {
+	createClassroom,
+	getMyClassrooms,
+	getClassroomById,
+	getClassroomPreview,
+	joinClassroom,
+	approveStudent,
+	rejectStudent,
+	uploadMaterial,
+	deleteMaterial,
+	deleteClassroom,
+};
