@@ -21,10 +21,13 @@ const AuthPage = lazy(() => import('../pages/auth.jsx'));
 const ForgotPassword = lazy(() => import('../pages/ForgotPassword.jsx'));
 const ResetPassword = lazy(() => import('../pages/ResetPassword.jsx'));
 const VerifyEmail = lazy(() => import('../pages/VerifyEmail.jsx'));
+const JoinClassroom = lazy(() => import('../pages/JoinClassroom.jsx'));
 
 // Student pages
 const StudentHome = lazy(() => import('../pages/student/Home.jsx'));
 const StudentExams = lazy(() => import('../pages/student/Exams.jsx'));
+const StudentClassrooms = lazy(() => import('../pages/student/Classrooms.jsx'));
+const StudentClassroomDetails = lazy(() => import('../pages/student/ClassroomDetails.jsx'));
 const StudentResults = lazy(() => import('../pages/student/result.jsx'));
 const StudentIssues = lazy(() => import('../pages/student/issue.jsx'));
 const StudentSettings = lazy(() => import('../pages/student/Settings.jsx'));
@@ -35,6 +38,8 @@ const TeacherHome = lazy(() => import('../pages/teacher/Home.jsx'));
 const TeacherExams = lazy(() => import('../pages/teacher/Exams.jsx'));
 const TeacherExamCreate = lazy(() => import('../pages/teacher/ExamCreate.jsx'));
 const TeacherExamEdit = lazy(() => import('../pages/teacher/ExamEdit.jsx'));
+const TeacherClassrooms = lazy(() => import('../pages/teacher/Classrooms.jsx'));
+const TeacherClassroomDetails = lazy(() => import('../pages/teacher/ClassroomDetails.jsx'));
 const TeacherResults = lazy(() => import('../pages/teacher/result.jsx'));
 const TeacherSubmissionGrade = lazy(() => import('../pages/teacher/SubmissionGrade.jsx'));
 const TeacherIssues = lazy(() => import('../pages/teacher/issue.jsx'));
@@ -156,11 +161,16 @@ const AppRoutes = () => (
 			<Route path="/auth/reset-password" element={withBoundary(<ResetPassword />)} />
 			<Route path="/auth/verify-email" element={withBoundary(<VerifyEmail />)} />
 
+			{/* ─── Classroom Invite Link (works for any auth state) ─── */}
+			<Route path="/join/:code" element={withBoundary(<JoinClassroom />)} />
+
 			{/* ─── Student ─── */}
 			<Route element={<ProtectedRoutes requireRole="student" />}>
 				<Route path="/student" element={withBoundary(<StudentDash />)}>
 					<Route index element={withBoundary(<StudentHome />)} />
 					<Route path="exams" element={withBoundary(<StudentExams />)} />
+					<Route path="classrooms" element={withBoundary(<StudentClassrooms />)} />
+					<Route path="classrooms/:id" element={withBoundary(<StudentClassroomDetails />)} />
 					<Route path="take/:id" element={withBoundary(<StudentTakeExam />)} />
 					<Route path="results" element={withBoundary(<StudentResults />)} />
 					<Route path="results/view/:id" element={withBoundary(<StudentResults />)} />
@@ -178,6 +188,8 @@ const AppRoutes = () => (
 					<Route path="exams" element={withBoundary(<TeacherExams />)} />
 					<Route path="exams/create" element={withBoundary(<TeacherExamCreate />)} />
 					<Route path="exams/edit/:id" element={withBoundary(<TeacherExamEdit />)} />
+					<Route path="classrooms" element={withBoundary(<TeacherClassrooms />)} />
+					<Route path="classrooms/:id" element={withBoundary(<TeacherClassroomDetails />)} />
 					<Route path="results" element={withBoundary(<TeacherResults />)} />
 					<Route path="results/:examId" element={withBoundary(<TeacherResults />)} />
 					{/* Grade route: supports both /teacher/grade/:submissionId (shortcut)
