@@ -11,6 +11,7 @@ const router = Router();
 router.post(
 	'/register',
 	authLimiter,
+	emailLimiter,
 	body('username').notEmpty().withMessage('Username is required'),
 	body('fullname').notEmpty().withMessage('Full name is required'),
 	body('email').isEmail().withMessage('Valid email is required'),
@@ -42,7 +43,7 @@ router.post(
 );
 
 // Logout (authenticated)
-router.post('/logout', checkAuth, authController.logout);
+router.post('/logout', authLimiter, checkAuth, authController.logout);
 
 // Refresh token
 router.post(

@@ -7,7 +7,7 @@ import {
 	exportTeacherExams,
 } from '../controllers/teacher.controller.js';
 import { checkAuth, verifyTeacher } from '../middlewares/auth.middleware.js';
-import { sensitiveWriteLimiter, exportLimiter } from '../middlewares/rateLimit.middleware.js';
+import { sensitiveWriteLimiter, exportLimiter, authLimiter } from '../middlewares/rateLimit.middleware.js';
 import { validate } from '../middlewares/validate.middleware.js';
 import { body } from 'express-validator';
 
@@ -36,6 +36,7 @@ router.put(
 	'/change-password',
 	checkAuth,
 	verifyTeacher,
+	authLimiter,
 	sensitiveWriteLimiter,
 	body('currentPassword').notEmpty().withMessage('Current password is required'),
 	body('newPassword')

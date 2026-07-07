@@ -7,7 +7,7 @@ import {
 	exportStudentSubmissions,
 } from '../controllers/student.controller.js';
 import { checkAuth, verifyStudent } from '../middlewares/auth.middleware.js';
-import { sensitiveWriteLimiter, exportLimiter } from '../middlewares/rateLimit.middleware.js';
+import { sensitiveWriteLimiter, exportLimiter, authLimiter } from '../middlewares/rateLimit.middleware.js';
 import { validate } from '../middlewares/validate.middleware.js';
 import { body } from 'express-validator';
 
@@ -39,6 +39,7 @@ router.put(
 	'/change-password',
 	checkAuth,
 	verifyStudent,
+	authLimiter,
 	sensitiveWriteLimiter,
 	body('currentPassword').notEmpty().withMessage('Current password is required'),
 	body('newPassword')
