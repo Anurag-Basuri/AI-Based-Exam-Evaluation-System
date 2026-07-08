@@ -101,6 +101,7 @@ const EP = {
 	classroomJoin: '/api/v1/classrooms/join',
 	classroomById: id => `/api/v1/classrooms/${id}`,
 	classroomPreview: code => `/api/v1/classrooms/preview/${code}`,
+	classroomLeave: id => `/api/v1/classrooms/${id}/leave`,
 };
 
 // Normalizers
@@ -398,6 +399,11 @@ export const getStudentClassroomById = async id => {
 export const getClassroomPreview = async joinCode => {
 	const res = await tryGet(EP.classroomPreview(joinCode));
 	return res?.data?.data || null;
+};
+
+export const leaveStudentClassroom = async id => {
+	const res = await tryPost(EP.classroomLeave(id));
+	return res?.data || {};
 };
 
 // Student Profile Management

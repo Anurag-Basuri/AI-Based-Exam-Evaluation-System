@@ -21,6 +21,7 @@ import {
 	deleteMaterial,
 	deleteClassroom,
 	resetJoinCode,
+	leaveClassroom,
 } from '../controllers/classroom.controller.js';
 
 const router = Router();
@@ -157,6 +158,17 @@ router.put(
 	validateObjectId('id'),
 	validate,
 	resetJoinCode,
+);
+
+// POST /:id/leave — student leaves a classroom
+router.post(
+	'/:id/leave',
+	checkAuth,
+	verifyStudent,
+	sensitiveWriteLimiter,
+	validateObjectId('id'),
+	validate,
+	leaveClassroom,
 );
 
 export default router;

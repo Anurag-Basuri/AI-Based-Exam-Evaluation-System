@@ -369,6 +369,34 @@ const resetJoinCode = asyncHandler(async (req, res) => {
 	);
 });
 
+// Student leaves a classroom
+const leaveClassroom = asyncHandler(async (req, res) => {
+	const studentId = String(req.userDoc?._id || req.user?.id);
+	const { id } = req.params;
+
+	const classroom = await Classroom.findById(id);
+
+	if (!classroom) {
+		throw ApiError.NotFound('Classroom not found');
+	}
+
+	// Check if student is enrolled
+	const isEnrolled = classroom.students.some(sid => String(sid) === studentId);
+	const isPending = classroom.pendingStudents.some(sid => String(sid) === studentId);
+
+	if (!isEnrolled && !isPending) {
+		throw ApiError.BadRequest('You are not a member of this classroom');
+	}
+
+	// Remove from enrolled and pending
+	classroom.students = classroom.students.filter(sid => String(sid) !== studentId);
+	classroom.pendingStudents = classroom.pendingStudents.filter(sid => String(sid) !== studentId);
+	
+	await classroom.save();
+
+	return ApiResponse.success(res, null, 'Successfully left the classroom');
+});
+
 export {
 	createClassroom,
 	getMyClassrooms,
@@ -381,4 +409,5 @@ export {
 	deleteMaterial,
 	deleteClassroom,
 	resetJoinCode,
+	leaveClassroom,
 };

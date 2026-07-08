@@ -13,9 +13,11 @@ import {
 	FileArchive,
 	FileCode,
 	FileSpreadsheet,
+	LogOut,
 } from 'lucide-react';
-import { getStudentClassroomById } from '../../services/studentServices';
+import { getStudentClassroomById, leaveStudentClassroom } from '../../services/studentServices';
 import { useToast } from '../../components/ui/Toaster';
+import ConfirmModal from '../../components/ui/ConfirmModal';
 
 const getFileIcon = (filename = '') => {
 	const ext = filename.split('.').pop().toLowerCase();
@@ -40,6 +42,16 @@ export default function StudentClassroomDetails() {
 
 	const [classroom, setClassroom] = useState(null);
 	const [loading, setLoading] = useState(true);
+	const [leavingClassroom, setLeavingClassroom] = useState(false);
+
+	const [confirmState, setConfirmState] = useState({
+		isOpen: false,
+		title: '',
+		message: '',
+		onConfirm: () => {},
+		confirmText: 'Confirm',
+		variant: 'danger',
+	});
 
 	useEffect(() => {
 		fetchClassroom();
@@ -55,6 +67,29 @@ export default function StudentClassroomDetails() {
 		} finally {
 			setLoading(false);
 		}
+	};
+
+	const handleLeaveClassroom = async () => {
+		setLeavingClassroom(true);
+		try {
+			await leaveStudentClassroom(id);
+			addToast('You have left the classroom', 'success');
+			navigate('/student/classrooms');
+		} catch (error) {
+			addToast(error.message || 'Failed to leave classroom', 'error');
+			setLeavingClassroom(false);
+		}
+	};
+
+	const requestLeaveClassroom = () => {
+		setConfirmState({
+			isOpen: true,
+			title: 'Leave Classroom',
+			message: 'Are you sure you want to leave this classroom? You will lose access to all study materials until you join again.',
+			confirmText: 'Leave Classroom',
+			variant: 'danger',
+			onConfirm: handleLeaveClassroom,
+		});
 	};
 
 	const formatBytes = (bytes, decimals = 1) => {
@@ -90,10 +125,11 @@ export default function StudentClassroomDetails() {
 					Back to Classrooms
 				</button>
 
-				<div className="flex items-start gap-4">
-					<div className="hidden h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 text-primary sm:flex">
-						<BookOpen className="h-8 w-8" />
-					</div>
+				<div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+					<div className="flex items-start gap-4">
+						<div className="hidden h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 text-primary sm:flex">
+							<BookOpen className="h-8 w-8" />
+						</div>
 					<div>
 						<h1 className="text-3xl font-bold text-gray-900 dark:text-white">
 							{classroom.name}
@@ -110,9 +146,20 @@ export default function StudentClassroomDetails() {
 						)}
 					</div>
 				</div>
+				<div className="mt-4 flex sm:mt-0">
+					<button
+						onClick={requestLeaveClassroom}
+						disabled={leavingClassroom}
+						className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 transition-colors hover:bg-red-100 disabled:opacity-50 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20"
+					>
+						{leavingClassroom ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
+						Leave Classroom
+					</button>
+				</div>
 			</div>
+		</div>
 
-			<div className="grid gap-8 lg:grid-cols-3">
+		<div className="grid gap-8 lg:grid-cols-3">
 				{/* Materials Section */}
 				<div className="lg:col-span-2">
 					<div className="mb-4 flex items-center gap-3">
@@ -220,6 +267,11 @@ export default function StudentClassroomDetails() {
 					</div>
 				</div>
 			</div>
+
+			<ConfirmModal
+				{...confirmState}
+				onClose={() => setConfirmState(prev => ({ ...prev, isOpen: false }))}
+			/>
 		</div>
 	);
 }
