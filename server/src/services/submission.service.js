@@ -3,7 +3,7 @@ import Exam from '../models/exam.model.js';
 import { enqueueEvaluation } from './jobQueue.service.js';
 import { ApiError } from '../utils/ApiError.js';
 
-// ── Helpers ──────────────────────────────────────────────────────
+// Helpers
 
 export const isExpired = (submission, exam) => {
 	if (!submission?.startedAt || !submission?.duration) return false;
@@ -31,7 +31,7 @@ export const mergeAnswers = (existingAnswers, incomingAnswers) => {
 	return existingAnswers;
 };
 
-// ── Operations ───────────────────────────────────────────────────
+// Operations
 
 export const finalize = async (submission, exam) => {
 	// Avoid double-finalization
@@ -51,7 +51,7 @@ export const start = async (examId, studentId) => {
 
 	const exam = await Exam.findById(examId).select('status startTime endTime duration questions');
 	if (!exam) throw ApiError.NotFound('Exam not found');
-	
+
 	if (exam.status !== 'active') throw ApiError.Forbidden('Exam is not active');
 
 	const now = new Date();
@@ -93,7 +93,7 @@ export const start = async (examId, studentId) => {
 		return { submission: normalizedExisting, statusMessage: 'Submission already started' };
 	}
 
-	// --- Pre-populate answer slots ---
+	// Pre-populate answer slots
 	const initialAnswers = (exam.questions || []).map(questionId => ({
 		question: questionId,
 		responseText: '',
@@ -107,7 +107,7 @@ export const start = async (examId, studentId) => {
 		duration: exam.duration,
 		status: 'in-progress',
 		answers: initialAnswers,
-		questions: exam.questions, 
+		questions: exam.questions,
 	});
 
 	await submission.save();
@@ -148,7 +148,7 @@ export const submit = async (examId, studentId, submissionType = 'manual') => {
 	await submission.save();
 
 	enqueueEvaluation(submission._id);
-	
+
 	return submission;
 };
 
@@ -156,11 +156,13 @@ import { evaluateSubmissionAnswers } from './jobQueue.service.js';
 import { evaluateAnswer } from './evaluation.service.js';
 
 export const updateEvaluation = async (submissionId, teacherId, evaluations) => {
-	if (!Array.isArray(evaluations) || evaluations.length === 0) throw ApiError.BadRequest('Evaluations must be a non-empty array.');
-	
+	if (!Array.isArray(evaluations) || evaluations.length === 0)
+		throw ApiError.BadRequest('Evaluations must be a non-empty array.');
+
 	const submission = await Submission.findById(submissionId).populate('exam');
 	if (!submission) throw ApiError.NotFound('Submission not found');
-	if (String(submission.exam?.createdBy) !== String(teacherId)) throw ApiError.Forbidden('Not authorized');
+	if (String(submission.exam?.createdBy) !== String(teacherId))
+		throw ApiError.Forbidden('Not authorized');
 
 	const updatesMap = new Map(evaluations.map(e => [String(e.question), e]));
 	submission.evaluations.forEach(existingEval => {
@@ -185,10 +187,13 @@ export const updateEvaluation = async (submissionId, teacherId, evaluations) => 
 	return submission;
 };
 
-export const triggerAutoEvaluation = async (submissionId) => {
-	const submission = await Submission.findById(submissionId).populate('exam').populate({ path: 'answers.question', model: 'Question' });
+export const triggerAutoEvaluation = async submissionId => {
+	const submission = await Submission.findById(submissionId)
+		.populate('exam')
+		.populate({ path: 'answers.question', model: 'Question' });
 	if (!submission) throw ApiError.NotFound('Submission not found');
-	if (submission.evaluations && submission.evaluations.length > 0) throw ApiError.Conflict('Submission already evaluated');
+	if (submission.evaluations && submission.evaluations.length > 0)
+		throw ApiError.Conflict('Submission already evaluated');
 
 	submission.evaluations = await evaluateSubmissionAnswers(submission);
 	submission.evaluatedAt = new Date();
@@ -197,41 +202,75 @@ export const triggerAutoEvaluation = async (submissionId) => {
 };
 
 export const getStudentSubmission = async (examId, studentId) => {
-	const submission = await Submission.findOne({ exam: examId, student: studentId }).populate('exam').populate({ path: 'answers.question', model: 'Question' }).lean();
+	const submission = await Submission.findOne({ exam: examId, student: studentId })
+		.populate('exam')
+		.populate({ path: 'answers.question', model: 'Question' })
+		.lean();
 	if (!submission) throw ApiError.NotFound('Submission not found');
 	return submission;
 };
 
-export const getExamSubmissionsList = async (examId) => {
+export const getExamSubmissionsList = async examId => {
 	const exam = await Exam.findById(examId).populate('questions', 'max_marks');
 	const maxScore = (exam?.questions || []).reduce((sum, q) => sum + (q.max_marks || 0), 0);
-	const submissions = await Submission.find({ exam: examId }).sort({ submittedAt: -1 }).populate('student', 'username fullname email').select('student status evaluations startedAt submittedAt violations').lean();
+	const submissions = await Submission.find({ exam: examId })
+		.sort({ submittedAt: -1 })
+		.populate('student', 'username fullname email')
+		.select('student status evaluations startedAt submittedAt violations')
+		.lean();
 	return submissions.map(sub => ({
 		...sub,
-		totalMarks: (sub.evaluations || []).reduce((sum, ev) => sum + (ev?.evaluation?.marks || 0), 0),
-		maxScore
+		totalMarks: (sub.evaluations || []).reduce(
+			(sum, ev) => sum + (ev?.evaluation?.marks || 0),
+			0,
+		),
+		maxScore,
 	}));
 };
 
 export const getSubmissionForResults = async (submissionId, studentId) => {
-	const submission = await Submission.findById(submissionId).populate({ path: 'exam', select: 'title' }).populate({ path: 'answers.question', model: 'Question', select: 'text type options max_marks' }).lean();
+	const submission = await Submission.findById(submissionId)
+		.populate({ path: 'exam', select: 'title' })
+		.populate({
+			path: 'answers.question',
+			model: 'Question',
+			select: 'text type options max_marks',
+		})
+		.lean();
 	if (!submission) throw ApiError.NotFound('Submission not found.');
-	if (String(submission.student) !== String(studentId)) throw ApiError.Forbidden('Not authorized');
+	if (String(submission.student) !== String(studentId))
+		throw ApiError.Forbidden('Not authorized');
 	return submission;
 };
 
 export const getSubmissionForGrading = async (submissionId, teacherId) => {
-	const submission = await Submission.findById(submissionId).populate({ path: 'exam', select: 'title createdBy' }).populate('student', 'fullname email').populate({ path: 'answers.question', model: 'Question', select: 'text type options max_marks' }).lean();
+	const submission = await Submission.findById(submissionId)
+		.populate({ path: 'exam', select: 'title createdBy' })
+		.populate('student', 'fullname email')
+		.populate({
+			path: 'answers.question',
+			model: 'Question',
+			select: 'text type options max_marks',
+		})
+		.lean();
 	if (!submission) throw ApiError.NotFound('Submission not found.');
-	if (String(submission.exam?.createdBy) !== String(teacherId)) throw ApiError.Forbidden('Not authorized');
+	if (String(submission.exam?.createdBy) !== String(teacherId))
+		throw ApiError.Forbidden('Not authorized');
 	return submission;
 };
 
-export const getMySubmissions = async (studentId) => {
-	const submissions = await Submission.find({ student: studentId }).populate('exam', 'title').populate({ path: 'questions', select: 'max_marks' }).lean();
+export const getMySubmissions = async studentId => {
+	const submissions = await Submission.find({ student: studentId })
+		.populate('exam', 'title')
+		.populate({ path: 'questions', select: 'max_marks' })
+		.lean();
 	return submissions.map(sub => {
-		const score = Array.isArray(sub.evaluations) ? sub.evaluations.reduce((acc, ev) => acc + (ev?.evaluation?.marks || 0), 0) : null;
-		const maxScore = Array.isArray(sub.questions) ? sub.questions.reduce((acc, q) => acc + (q?.max_marks || 0), 0) : 0;
+		const score = Array.isArray(sub.evaluations)
+			? sub.evaluations.reduce((acc, ev) => acc + (ev?.evaluation?.marks || 0), 0)
+			: null;
+		const maxScore = Array.isArray(sub.questions)
+			? sub.questions.reduce((acc, q) => acc + (q?.max_marks || 0), 0)
+			: 0;
 		return {
 			id: String(sub._id),
 			examTitle: sub.exam?.title || 'Exam',
@@ -245,14 +284,28 @@ export const getMySubmissions = async (studentId) => {
 };
 
 export const getSubmissionByIdForTaking = async (submissionId, studentId) => {
-	const submission = await Submission.findById(submissionId).populate({ path: 'exam', select: 'title duration instructions aiPolicy' }).populate({ path: 'questions', select: 'text type options max_marks' }).lean();
+	const submission = await Submission.findById(submissionId)
+		.populate({ path: 'exam', select: 'title duration instructions aiPolicy' })
+		.populate({ path: 'questions', select: 'text type options max_marks' })
+		.lean();
 	if (!submission) throw ApiError.NotFound('Submission not found');
-	if (String(submission.student) !== String(studentId)) throw ApiError.Forbidden('Not authorized');
+	if (String(submission.student) !== String(studentId))
+		throw ApiError.Forbidden('Not authorized');
 	return {
-		_id: submission._id, status: submission.status, startedAt: submission.startedAt, submittedAt: submission.submittedAt,
-		duration: submission.exam?.duration, examTitle: submission.exam?.title, examPolicy: submission.exam?.aiPolicy, instructions: submission.exam?.instructions,
-		questions: (submission.questions || []).map(q => ({ ...q, options: (q.options || []).map(opt => ({ ...opt })) })),
-		answers: submission.answers || [], markedForReview: submission.markedForReview || [],
+		_id: submission._id,
+		status: submission.status,
+		startedAt: submission.startedAt,
+		submittedAt: submission.submittedAt,
+		duration: submission.exam?.duration,
+		examTitle: submission.exam?.title,
+		examPolicy: submission.exam?.aiPolicy,
+		instructions: submission.exam?.instructions,
+		questions: (submission.questions || []).map(q => ({
+			...q,
+			options: (q.options || []).map(opt => ({ ...opt })),
+		})),
+		answers: submission.answers || [],
+		markedForReview: submission.markedForReview || [],
 	};
 };
 
@@ -274,24 +327,33 @@ export const syncAnswers = async (submissionId, studentId, answers, markedForRev
 	if (Array.isArray(answers)) submission.answers = mergeAnswers(submission.answers, answers);
 	if (Array.isArray(markedForReview)) {
 		const allowed = new Set(submission.answers.map(a => String(a.question)));
-		submission.markedForReview = Array.from(new Set(markedForReview.map(q => String(q)).filter(q => allowed.has(q))));
+		submission.markedForReview = Array.from(
+			new Set(markedForReview.map(q => String(q)).filter(q => allowed.has(q))),
+		);
 	}
 	await submission.save();
 
-	const populatedSubmission = await Submission.findById(submission._id).populate({ path: 'exam', select: 'title duration instructions aiPolicy' }).populate({ path: 'questions', select: 'text type options max_marks' }).lean();
+	const populatedSubmission = await Submission.findById(submission._id)
+		.populate({ path: 'exam', select: 'title duration instructions aiPolicy' })
+		.populate({ path: 'questions', select: 'text type options max_marks' })
+		.lean();
 	return { submission: populatedSubmission, message: 'State synced' };
 };
 
 export const overrideEvaluation = async (submissionId, teacherId, questionId, marks, remarks) => {
 	const submission = await Submission.findById(submissionId).populate('exam');
 	if (!submission) throw ApiError.NotFound('Submission not found');
-	if (String(submission.exam?.createdBy) !== String(teacherId)) throw ApiError.Forbidden('Not authorized');
+	if (String(submission.exam?.createdBy) !== String(teacherId))
+		throw ApiError.Forbidden('Not authorized');
 
 	const evalEntry = submission.evaluations.find(e => String(e.question) === String(questionId));
 	if (!evalEntry) throw ApiError.NotFound('No evaluation found for this question.');
 
 	evalEntry.evaluation = {
-		evaluator: 'teacher', marks: Number(marks), remarks: String(remarks || evalEntry.evaluation?.remarks || ''), evaluatedAt: new Date(),
+		evaluator: 'teacher',
+		marks: Number(marks),
+		remarks: String(remarks || evalEntry.evaluation?.remarks || ''),
+		evaluatedAt: new Date(),
 		meta: { ...(evalEntry.evaluation?.meta || {}), path: 'teacher-override' },
 	};
 	await submission.save();
@@ -302,7 +364,7 @@ export const logViolation = async (submissionId, studentId, type) => {
 	const submission = await Submission.findOneAndUpdate(
 		{ _id: submissionId, student: studentId, status: 'in-progress' },
 		{ $push: { violations: { type } } },
-		{ new: true }
+		{ new: true },
 	);
 	return submission ? submission.violations.length : 0;
 };
@@ -314,8 +376,10 @@ export const testEvaluationService = async (question, answer, referenceAnswer, p
 export const publishSingle = async (submissionId, teacherId) => {
 	const submission = await Submission.findById(submissionId).populate('exam');
 	if (!submission) throw ApiError.NotFound('Submission not found');
-	if (String(submission.exam?.createdBy) !== String(teacherId)) throw ApiError.Forbidden('Not authorized');
-	if (submission.status === 'in-progress' || submission.status === 'submitted') throw ApiError.BadRequest('Cannot publish unevaluated submission.');
+	if (String(submission.exam?.createdBy) !== String(teacherId))
+		throw ApiError.Forbidden('Not authorized');
+	if (submission.status === 'in-progress' || submission.status === 'submitted')
+		throw ApiError.BadRequest('Cannot publish unevaluated submission.');
 	if (submission.status === 'published') return submission;
 
 	submission.status = 'published';
@@ -331,7 +395,7 @@ export const publishAll = async (examId, teacherId) => {
 
 	const result = await Submission.updateMany(
 		{ exam: examId, status: 'evaluated' },
-		{ $set: { status: 'published', publishedAt: new Date() } }
+		{ $set: { status: 'published', publishedAt: new Date() } },
 	);
 	return result.modifiedCount;
 };
@@ -339,8 +403,11 @@ export const publishAll = async (examId, teacherId) => {
 export const getExportData = async (examId, teacherId) => {
 	const exam = await Exam.findById(examId);
 	if (!exam) throw ApiError.NotFound('Exam not found');
-	if (exam.createdBy.toString() !== teacherId.toString()) throw ApiError.Forbidden('Access denied');
+	if (exam.createdBy.toString() !== teacherId.toString())
+		throw ApiError.Forbidden('Access denied');
 
-	const submissions = await Submission.find({ exam: examId }).populate('student', 'fullname email username').lean();
+	const submissions = await Submission.find({ exam: examId })
+		.populate('student', 'fullname email username')
+		.lean();
 	return { exam, submissions };
 };

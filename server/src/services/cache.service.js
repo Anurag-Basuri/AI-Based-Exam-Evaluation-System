@@ -18,28 +18,25 @@ if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) 
 		useRedis = true;
 		console.log('[CACHE] ✅ Connected to Upstash Redis');
 	} catch (err) {
-		console.warn('[CACHE] ⚠️ Upstash Redis init failed, falling back to in-memory:', err.message);
+		console.warn(
+			'[CACHE] ⚠️ Upstash Redis init failed, falling back to in-memory:',
+			err.message,
+		);
 	}
 }
 
 // Fallback: local in-memory cache (same as original implementation)
 const localCache = new NodeCache({
-	stdTTL: 300,       // Default: 5 minutes
-	checkperiod: 60,   // Cleanup expired keys every 60s
-	useClones: false,  // Return references (faster, but callers must not mutate)
+	stdTTL: 300,
+	checkperiod: 60,
+	useClones: false,
 });
 
 if (!useRedis) {
 	console.log('[CACHE] 📦 Using in-memory cache (node-cache)');
 }
 
-/**
- * Get a value from cache, or fetch it and cache the result.
- * @param {string} key - Cache key
- * @param {number} ttlSeconds - Time to live in seconds
- * @param {Function} fetchFn - Async function that returns the data
- * @returns {Promise<*>} Cached or freshly fetched data
- */
+// Get a value from cache, or fetch it and cache the result.
 export const getCachedOrFetch = async (key, ttlSeconds, fetchFn) => {
 	if (useRedis) {
 		try {
@@ -52,8 +49,10 @@ export const getCachedOrFetch = async (key, ttlSeconds, fetchFn) => {
 			await redis.set(key, JSON.stringify(data), { ex: ttlSeconds });
 			return data;
 		} catch (err) {
-			console.warn(`[CACHE] Redis read/write error for key "${key}", falling back:`, err.message);
-			// Fall through to local cache on transient Redis errors
+			console.warn(
+				`[CACHE] Redis read/write error for key "${key}", falling back:`,
+				err.message,
+			);
 		}
 	}
 
@@ -66,10 +65,8 @@ export const getCachedOrFetch = async (key, ttlSeconds, fetchFn) => {
 	return data;
 };
 
-/**
- * Invalidate a specific cache key.
- */
-export const invalidate = async (key) => {
+// Invalidate a specific cache key.
+export const invalidate = async key => {
 	if (useRedis) {
 		try {
 			await redis.del(key);
@@ -80,11 +77,8 @@ export const invalidate = async (key) => {
 	localCache.del(key);
 };
 
-/**
- * Invalidate all keys matching a prefix.
- * Uses Redis SCAN to avoid blocking; also clears local cache matches.
- */
-export const invalidateByPrefix = async (prefix) => {
+// Invalidate all keys matching a prefix.
+export const invalidateByPrefix = async prefix => {
 	if (useRedis) {
 		try {
 			let cursor = 0;
@@ -105,9 +99,7 @@ export const invalidateByPrefix = async (prefix) => {
 	if (localKeys.length > 0) localCache.del(localKeys);
 };
 
-/**
- * Flush the entire cache.
- */
+// Flush the entire cache.
 export const flushAll = async () => {
 	if (useRedis) {
 		try {
@@ -119,9 +111,7 @@ export const flushAll = async () => {
 	localCache.flushAll();
 };
 
-/**
- * Get cache stats for monitoring.
- */
+// Get cache stats for monitoring.
 export const getStats = () => ({
 	backend: useRedis ? 'upstash-redis' : 'node-cache',
 	local: localCache.getStats(),

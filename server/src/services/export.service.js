@@ -1,11 +1,6 @@
 import { parse } from 'json2csv';
 
-/**
- * Transforms an array of JSON objects into a CSV string.
- * @param {Array<Object>} data - The dataset to convert.
- * @param {Array<String|Object>} fields - (Optional) List of fields to extract, or customized field maps.
- * @returns {String} The CSV formatted string.
- */
+// Transforms an array of JSON objects into a CSV string.
 export const generateCSV = (data, fields = null) => {
 	try {
 		if (!data || data.length === 0) {
@@ -21,12 +16,7 @@ export const generateCSV = (data, fields = null) => {
 	}
 };
 
-/**
- * Utility to attach the proper headers to an Express response to trigger a file download.
- * @param {Response} res - Express response object
- * @param {String} filename - Desired filename (must include .csv)
- * @param {String} csvData - The CSV string content
- */
+// Utility to attach the proper headers to an Express response to trigger a file download.
 export const sendCSVDowload = (res, filename, csvData) => {
 	res.setHeader('Content-Type', 'text/csv');
 	res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
