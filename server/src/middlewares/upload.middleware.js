@@ -1,6 +1,6 @@
 import multer from 'multer';
 import { CloudinaryStorage } from 'multer-storage-cloudinary';
-import { cloudinary } from '../config/cloudinary.config.js';
+import { cloudinary } from '../db.js';
 import { ApiError } from '../utils/ApiError.js';
 
 // Allowed MIME types for study materials

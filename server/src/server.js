@@ -3,7 +3,6 @@ import http from 'http';
 import colors from 'colors';
 import app from './app.js';
 import connectDB from './db.js';
-import connectCloudinary from './config/cloudinary.config.js';
 import { initSocket } from './socket/initSocket.js';
 import { startExamStatusScheduler } from './services/examStatus.service.js';
 import {
@@ -40,7 +39,6 @@ process.on('unhandledRejection', err => handleFatalError(err, 'Unhandled Rejecti
 	try {
 		// 1) Connect DB and external services
 		await connectDB();
-		connectCloudinary();
 
 		// 2) Create HTTP server and initialize Socket.IO exactly once
 		const httpServer = http.createServer(app);

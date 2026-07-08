@@ -1,4 +1,4 @@
-import { cloudinary } from '../config/cloudinary.config.js';
+import { cloudinary } from '../db.js';
 
 // Cloudinary folder constants
 const FOLDERS = {

@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import colors from 'colors';
 import dotenv from 'dotenv';
+import { v2 as cloudinary } from 'cloudinary';
 
 dotenv.config();
 
@@ -36,6 +37,21 @@ const connectDB = async () => {
 			console.log(colors.green('🔄 MongoDB reconnected.'));
 		});
 
+		const { CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET } = process.env;
+		if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_API_KEY || !CLOUDINARY_API_SECRET) {
+			console.warn(
+				colors.yellow('[CLOUDINARY] ⚠️ Missing credentials. File uploads will fail.'),
+			);
+		} else {
+			cloudinary.config({
+				cloud_name: CLOUDINARY_CLOUD_NAME,
+				api_key: CLOUDINARY_API_KEY,
+				api_secret: CLOUDINARY_API_SECRET,
+				secure: true,
+			});
+			console.log(colors.green('[CLOUDINARY] ✅ Connected to Cloudinary'));
+		}
+
 		return conn;
 	} catch (error) {
 		console.error(colors.red(`❌ MongoDB connection failed: ${error.message}`));
@@ -61,4 +77,5 @@ process.on('SIGTERM', gracefulExit);
 // Helper to check current DB connection status
 export const getConnectionStatus = () => mongoose.connection.readyState;
 
+export { cloudinary };
 export default connectDB;
