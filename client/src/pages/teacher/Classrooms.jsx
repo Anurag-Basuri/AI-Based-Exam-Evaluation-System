@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, Plus, Users, ChevronRight, Loader2 } from 'lucide-react';
+import { BookOpen, Plus, Users, ChevronRight, Loader2, FileText, Clock } from 'lucide-react';
 import { getTeacherClassrooms, createTeacherClassroom } from '../../services/teacherServices';
 import { useToast } from '../../components/ui/Toaster';
 
@@ -20,6 +20,16 @@ export default function TeacherClassrooms() {
 		fetchClassrooms();
 	}, []);
 
+	// Close modal on Escape
+	useEffect(() => {
+		if (!isCreateOpen) return;
+		const handleEsc = e => {
+			if (e.key === 'Escape') closeModal();
+		};
+		window.addEventListener('keydown', handleEsc);
+		return () => window.removeEventListener('keydown', handleEsc);
+	}, [isCreateOpen]);
+
 	const fetchClassrooms = async () => {
 		try {
 			const data = await getTeacherClassrooms();
@@ -30,6 +40,12 @@ export default function TeacherClassrooms() {
 			setLoading(false);
 		}
 	};
+
+	const closeModal = useCallback(() => {
+		setIsCreateOpen(false);
+		setNewClassName('');
+		setNewClassDesc('');
+	}, []);
 
 	const handleCreate = async e => {
 		e.preventDefault();
@@ -42,7 +58,7 @@ export default function TeacherClassrooms() {
 				description: newClassDesc,
 			});
 			addToast('Classroom created successfully!', 'success');
-			setIsCreateOpen(false);
+			closeModal();
 			navigate(`/teacher/classrooms/${newClass._id}`);
 		} catch (error) {
 			addToast(error.message || 'Failed to create classroom', 'error');
@@ -70,7 +86,7 @@ export default function TeacherClassrooms() {
 				</div>
 				<button
 					onClick={() => setIsCreateOpen(true)}
-					className="flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-primary/90 active:scale-[0.98]"
+					className="flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:bg-primary-strong hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98]"
 				>
 					<Plus className="h-5 w-5" />
 					Create Classroom
@@ -102,23 +118,28 @@ export default function TeacherClassrooms() {
 						<div
 							key={cls._id}
 							onClick={() => navigate(`/teacher/classrooms/${cls._id}`)}
-							className="group cursor-pointer rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition-all hover:shadow-md dark:border-gray-700 dark:bg-gray-800/80 dark:hover:border-primary/50"
+							className="group relative cursor-pointer overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg dark:border-gray-700 dark:bg-gray-800/80 dark:hover:border-primary/40 dark:hover:shadow-primary/5"
 						>
+							{/* Top accent gradient */}
+							<div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary to-primary-light opacity-0 transition-opacity group-hover:opacity-100" />
+
 							<div className="mb-4 flex items-start justify-between">
-								<div className="rounded-lg bg-primary/10 p-3 text-primary">
+								<div className="rounded-xl bg-primary/10 p-3 text-primary">
 									<BookOpen className="h-6 w-6" />
 								</div>
-								<span className="flex items-center gap-1.5 rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+								<span className="flex items-center gap-1.5 rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600 dark:bg-gray-700 dark:text-gray-300">
 									<Users className="h-3.5 w-3.5" />
 									{cls.studentCount ?? cls.students?.length ?? 0}
 								</span>
 							</div>
+
 							<h3 className="mb-2 truncate text-xl font-bold text-gray-900 dark:text-white">
 								{cls.name}
 							</h3>
 							<p className="mb-4 line-clamp-2 min-h-[2.5rem] text-sm text-gray-500 dark:text-gray-400">
 								{cls.description || 'No description provided.'}
 							</p>
+
 							{cls.pendingCount > 0 && (
 								<div className="mb-4 flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700 dark:bg-amber-500/10 dark:text-amber-400">
 									<span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-200 text-[10px] font-bold text-amber-800 dark:bg-amber-500/30 dark:text-amber-300">
@@ -127,10 +148,19 @@ export default function TeacherClassrooms() {
 									pending request{cls.pendingCount > 1 ? 's' : ''}
 								</div>
 							)}
-							<div className="flex items-center justify-between border-t border-gray-100 pt-4 dark:border-gray-800">
-								<span className="text-xs text-gray-500 dark:text-gray-400">
-									Code: <strong className="text-gray-900 dark:text-white">{cls.joinCode}</strong>
-								</span>
+
+							<div className="flex items-center justify-between border-t border-gray-100 pt-4 dark:border-gray-700">
+								<div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
+									<span>
+										Code: <strong className="font-mono tracking-wider text-gray-900 dark:text-white">{cls.joinCode}</strong>
+									</span>
+									{(cls.materialCount > 0) && (
+										<span className="flex items-center gap-1">
+											<FileText className="h-3 w-3" />
+											{cls.materialCount}
+										</span>
+									)}
+								</div>
 								<div className="flex items-center text-sm font-medium text-primary transition-transform group-hover:translate-x-1">
 									Manage <ChevronRight className="h-4 w-4" />
 								</div>
@@ -142,8 +172,15 @@ export default function TeacherClassrooms() {
 
 			{/* Create Modal */}
 			{isCreateOpen && (
-				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" style={{ animation: 'fadeIn 0.2s ease-out' }}>
-					<div className="w-full max-w-md scale-100 rounded-2xl bg-white p-6 shadow-xl dark:bg-gray-900 dark:border dark:border-gray-800" style={{ animation: 'scaleIn 0.2s ease-out' }}>
+				<div
+					className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+					style={{ animation: 'fadeIn 0.2s ease-out' }}
+					onClick={e => { if (e.target === e.currentTarget) closeModal(); }}
+				>
+					<div
+						className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-gray-700 dark:bg-gray-900"
+						style={{ animation: 'scaleIn 0.2s ease-out' }}
+					>
 						<h2 className="text-xl font-bold text-gray-900 dark:text-white">Create Classroom</h2>
 						<p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
 							Set up a new space to share study materials.
@@ -157,10 +194,11 @@ export default function TeacherClassrooms() {
 								<input
 									type="text"
 									required
+									autoFocus
 									value={newClassName}
 									onChange={e => setNewClassName(e.target.value)}
 									placeholder="e.g. Physics 101"
-									className="w-full rounded-xl border border-gray-300 bg-transparent px-4 py-2.5 text-gray-900 outline-none focus:border-primary focus:ring-1 focus:ring-primary dark:border-gray-700 dark:text-white"
+									className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500"
 								/>
 							</div>
 							<div>
@@ -172,22 +210,22 @@ export default function TeacherClassrooms() {
 									value={newClassDesc}
 									onChange={e => setNewClassDesc(e.target.value)}
 									placeholder="Briefly describe this classroom..."
-									className="w-full resize-none rounded-xl border border-gray-300 bg-transparent px-4 py-2.5 text-gray-900 outline-none focus:border-primary focus:ring-1 focus:ring-primary dark:border-gray-700 dark:text-white"
+									className="w-full resize-none rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500"
 								/>
 							</div>
 
-							<div className="mt-6 flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-800">
+							<div className="mt-6 flex justify-end gap-3 border-t border-gray-100 pt-4 dark:border-gray-800">
 								<button
 									type="button"
-									onClick={() => setIsCreateOpen(false)}
-									className="rounded-xl px-5 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+									onClick={closeModal}
+									className="rounded-xl px-5 py-2.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
 								>
 									Cancel
 								</button>
 								<button
 									type="submit"
 									disabled={creating || !newClassName.trim()}
-									className="flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-primary/90 disabled:opacity-50"
+									className="flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-primary-strong disabled:opacity-50"
 								>
 									{creating && <Loader2 className="h-4 w-4 animate-spin" />}
 									Create

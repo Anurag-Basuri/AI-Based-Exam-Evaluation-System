@@ -16,7 +16,7 @@ export default function JoinClassroom() {
 	const [preview, setPreview] = useState(null);
 	const [loading, setLoading] = useState(true);
 	const [joining, setJoining] = useState(false);
-	const [result, setResult] = useState(null); // { type: 'success'|'error'|'pending', message }
+	const [result, setResult] = useState(null);
 	const [error, setError] = useState(null);
 
 	useEffect(() => {
@@ -35,7 +35,6 @@ export default function JoinClassroom() {
 			const data = await getClassroomPreview(code);
 			setPreview(data);
 
-			// Auto-check membership status
 			if (data?.membershipStatus === 'enrolled') {
 				setResult({
 					type: 'success',
@@ -93,17 +92,17 @@ export default function JoinClassroom() {
 			<div className="auth-blob auth-blob-1" />
 			<div className="auth-blob auth-blob-2" />
 
-			<div className="flex w-full max-w-md items-center justify-center relative z-10 mx-auto mt-[10vh]">
+			<div className="relative z-10 mx-auto mt-[10vh] flex w-full max-w-md items-center justify-center">
 				<div className="auth-glass-card w-full" style={{ padding: '2rem' }}>
 					{/* Header */}
 					<div className="mb-6 text-center">
 						<div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
 							<BookOpen className="h-8 w-8" />
 						</div>
-						<h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+						<h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>
 							Join Classroom
 						</h1>
-						<p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+						<p className="mt-1 text-sm" style={{ color: 'var(--text-muted)' }}>
 							You've been invited to join a classroom
 						</p>
 					</div>
@@ -125,20 +124,20 @@ export default function JoinClassroom() {
 					{/* Not Authenticated */}
 					{!isAuthenticated && !error && (
 						<>
-							<div className="mb-6 rounded-xl bg-gray-50 p-5 dark:bg-gray-800/50">
-								<p className="text-center text-sm text-gray-600 dark:text-gray-300">
+							<div className="mb-6 rounded-xl p-5" style={{ background: 'var(--bg-secondary)' }}>
+								<p className="text-center text-sm" style={{ color: 'var(--text-muted)' }}>
 									Invite Code:{' '}
-									<strong className="font-mono tracking-wider text-gray-900 dark:text-white">
+									<strong className="font-mono tracking-wider" style={{ color: 'var(--text)' }}>
 										{code?.toUpperCase()}
 									</strong>
 								</p>
 							</div>
-							<p className="mb-6 text-center text-sm text-gray-500 dark:text-gray-400">
+							<p className="mb-6 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
 								Please log in to your student account to join this classroom.
 							</p>
 							<Link
 								to={loginUrl}
-								className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-white transition-all hover:bg-primary/90 active:scale-[0.98]"
+								className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-white transition-all hover:bg-primary-strong active:scale-[0.98]"
 							>
 								<LogIn className="h-5 w-5" />
 								Log In to Join
@@ -149,20 +148,20 @@ export default function JoinClassroom() {
 					{/* Authenticated — Preview Card */}
 					{isAuthenticated && preview && !error && (
 						<>
-							<div className="mb-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800/80">
-								<h2 className="text-xl font-bold text-gray-900 dark:text-white">
+							<div className="mb-6 rounded-2xl border p-5" style={{ borderColor: 'var(--border)', background: 'var(--bg)' }}>
+								<h2 className="text-xl font-bold" style={{ color: 'var(--text)' }}>
 									{preview.name}
 								</h2>
 								{preview.description && (
-									<p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+									<p className="mt-2 text-sm" style={{ color: 'var(--text-muted)' }}>
 										{preview.description}
 									</p>
 								)}
-								<div className="mt-4 flex flex-wrap items-center gap-4 text-xs font-medium text-gray-500 dark:text-gray-400">
-									<span className="flex items-center gap-1.5 rounded-md bg-gray-100 px-2.5 py-1 dark:bg-gray-700/50">
-										Teacher: <strong className="text-gray-900 dark:text-gray-100">{preview.teacherName}</strong>
+								<div className="mt-4 flex flex-wrap items-center gap-3 text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
+									<span className="flex items-center gap-1.5 rounded-md px-2.5 py-1" style={{ background: 'var(--bg-secondary)' }}>
+										Teacher: <strong style={{ color: 'var(--text)' }}>{preview.teacherName}</strong>
 									</span>
-									<span className="flex items-center gap-1.5 rounded-md bg-gray-100 px-2.5 py-1 dark:bg-gray-700/50">
+									<span className="flex items-center gap-1.5 rounded-md px-2.5 py-1" style={{ background: 'var(--bg-secondary)' }}>
 										<Users className="h-3.5 w-3.5" />
 										{preview.studentCount} student{preview.studentCount !== 1 ? 's' : ''}
 									</span>
@@ -176,7 +175,7 @@ export default function JoinClassroom() {
 									<p className="font-semibold text-green-800 dark:text-green-400">{result.message}</p>
 									<button
 										onClick={() => navigate(`/student/classrooms/${preview._id}`)}
-										className="mt-4 flex w-full items-center justify-center rounded-xl bg-green-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-500"
+										className="mt-4 flex w-full items-center justify-center rounded-xl bg-green-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-green-700"
 									>
 										Go to Classroom
 									</button>
@@ -189,7 +188,7 @@ export default function JoinClassroom() {
 									<p className="font-semibold text-amber-800 dark:text-amber-400">{result.message}</p>
 									<button
 										onClick={() => navigate('/student/classrooms')}
-										className="mt-4 flex w-full items-center justify-center rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-amber-600 dark:bg-amber-600 dark:hover:bg-amber-500"
+										className="mt-4 flex w-full items-center justify-center rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-amber-600"
 									>
 										View My Classrooms
 									</button>
@@ -202,7 +201,7 @@ export default function JoinClassroom() {
 									<p className="font-medium text-red-700 dark:text-red-400">{result.message}</p>
 									<button
 										onClick={() => navigate('/student')}
-										className="mt-4 flex w-full items-center justify-center rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-500"
+										className="mt-4 flex w-full items-center justify-center rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700"
 									>
 										Go to Dashboard
 									</button>
@@ -214,7 +213,7 @@ export default function JoinClassroom() {
 								<button
 									onClick={handleJoin}
 									disabled={joining}
-									className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-white shadow-md transition-all hover:bg-primary-strong active:scale-[0.98] disabled:opacity-50"
+									className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-white shadow-md shadow-primary/20 transition-all hover:bg-primary-strong hover:shadow-lg active:scale-[0.98] disabled:opacity-50"
 								>
 									{joining ? (
 										<Loader2 className="h-5 w-5 animate-spin" />
@@ -227,13 +226,14 @@ export default function JoinClassroom() {
 
 							{/* Teacher trying to join */}
 							{!result && role === 'teacher' && (
-								<div className="rounded-xl border border-gray-200 bg-gray-50 p-5 text-center dark:border-gray-700 dark:bg-gray-800/80">
-									<p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+								<div className="rounded-xl p-5 text-center" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
+									<p className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>
 										Teachers cannot join classrooms as students.
 									</p>
 									<button
 										onClick={() => navigate('/teacher/classrooms')}
-										className="mt-4 w-full rounded-xl bg-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-800 transition-colors hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+										className="mt-4 w-full rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors"
+										style={{ background: 'var(--border)', color: 'var(--text)' }}
 									>
 										Go to My Classrooms
 									</button>
