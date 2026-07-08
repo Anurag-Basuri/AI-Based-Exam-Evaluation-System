@@ -21,7 +21,8 @@ import {
 	Music,
 	FileArchive,
 	FileCode,
-	FileSpreadsheet
+	FileSpreadsheet,
+	RefreshCw
 } from 'lucide-react';
 import {
 	getTeacherClassroomById,
@@ -30,8 +31,10 @@ import {
 	approveClassroomStudent,
 	rejectClassroomStudent,
 	deleteTeacherClassroom,
+	resetClassroomJoinCode,
 } from '../../services/teacherServices';
 import { useToast } from '../../components/ui/Toaster';
+import ConfirmModal from '../../components/ui/ConfirmModal';
 
 const getFileIcon = (filename = '') => {
 	const ext = filename.split('.').pop().toLowerCase();
@@ -59,6 +62,16 @@ export default function TeacherClassroomDetails() {
 	const [copiedLink, setCopiedLink] = useState(false);
 	const [approvingId, setApprovingId] = useState(null);
 	const [rejectingId, setRejectingId] = useState(null);
+	const [resettingCode, setResettingCode] = useState(false);
+
+	const [confirmState, setConfirmState] = useState({
+		isOpen: false,
+		title: '',
+		message: '',
+		onConfirm: () => {},
+		confirmText: 'Confirm',
+		variant: 'danger',
+	});
 
 	useEffect(() => {
 		fetchClassroom();
@@ -125,8 +138,6 @@ export default function TeacherClassroomDetails() {
 	};
 
 	const handleDeleteMaterial = async materialId => {
-		if (!window.confirm('Are you sure you want to delete this material?')) return;
-
 		setDeletingId(materialId);
 		try {
 			await deleteClassroomMaterial(id, materialId);
@@ -142,9 +153,44 @@ export default function TeacherClassroomDetails() {
 		}
 	};
 
-	const handleDeleteClassroom = async () => {
-		if (!window.confirm('Are you sure you want to delete this classroom? This action cannot be undone and will delete all study materials.')) return;
+	const requestDeleteMaterial = materialId => {
+		setConfirmState({
+			isOpen: true,
+			title: 'Delete Material',
+			message: 'Are you sure you want to delete this material? This action cannot be undone.',
+			confirmText: 'Delete',
+			variant: 'danger',
+			onConfirm: () => handleDeleteMaterial(materialId),
+		});
+	};
 
+	const handleResetJoinCode = async () => {
+		setResettingCode(true);
+		try {
+			const resData = await resetClassroomJoinCode(id);
+			if (resData?.joinCode) {
+				setClassroom(prev => ({ ...prev, joinCode: resData.joinCode }));
+				addToast('Join code regenerated successfully', 'success');
+			}
+		} catch (error) {
+			addToast(error.message || 'Failed to regenerate join code', 'error');
+		} finally {
+			setResettingCode(false);
+		}
+	};
+
+	const requestResetJoinCode = () => {
+		setConfirmState({
+			isOpen: true,
+			title: 'Regenerate Join Code',
+			message: 'Are you sure you want to generate a new join code? The old code and invite links will stop working for new students.',
+			confirmText: 'Regenerate',
+			variant: 'primary',
+			onConfirm: handleResetJoinCode,
+		});
+	};
+
+	const handleDeleteClassroom = async () => {
 		setDeletingClassroom(true);
 		try {
 			await deleteTeacherClassroom(id);
@@ -154,6 +200,17 @@ export default function TeacherClassroomDetails() {
 			addToast(error.message || 'Failed to delete classroom', 'error');
 			setDeletingClassroom(false);
 		}
+	};
+
+	const requestDeleteClassroom = () => {
+		setConfirmState({
+			isOpen: true,
+			title: 'Delete Classroom',
+			message: 'Are you sure you want to delete this classroom? This action cannot be undone and will delete all study materials.',
+			confirmText: 'Delete Classroom',
+			variant: 'danger',
+			onConfirm: handleDeleteClassroom,
+		});
 	};
 
 	const handleApprove = async studentId => {
@@ -178,11 +235,10 @@ export default function TeacherClassroomDetails() {
 	};
 
 	const handleReject = async studentId => {
-		if (!window.confirm('Reject this student\'s request to join?')) return;
-
 		setRejectingId(studentId);
 		try {
 			await rejectClassroomStudent(id, studentId);
+			// Remove from pending
 			setClassroom(prev => ({
 				...prev,
 				pendingStudents: prev.pendingStudents.filter(s => s._id !== studentId),
@@ -193,6 +249,17 @@ export default function TeacherClassroomDetails() {
 		} finally {
 			setRejectingId(null);
 		}
+	};
+
+	const requestRejectStudent = studentId => {
+		setConfirmState({
+			isOpen: true,
+			title: 'Reject Request',
+			message: 'Are you sure you want to reject this student\'s request to join?',
+			confirmText: 'Reject',
+			variant: 'danger',
+			onConfirm: () => handleReject(studentId),
+		});
 	};
 
 	const formatBytes = (bytes, decimals = 2) => {
@@ -244,7 +311,7 @@ export default function TeacherClassroomDetails() {
 						</div>
 					</div>
 					<button
-						onClick={handleDeleteClassroom}
+						onClick={requestDeleteClassroom}
 						disabled={deletingClassroom}
 						className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 transition-colors hover:bg-red-100 disabled:opacity-50 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20"
 					>
@@ -266,19 +333,29 @@ export default function TeacherClassroomDetails() {
 				<div className="grid gap-3 sm:grid-cols-2">
 					{/* Join Code */}
 					<div className="flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800">
-						<div className="flex-1">
+						<div className="flex-1 min-w-0">
 							<p className="text-xs font-medium text-gray-500 dark:text-gray-400">Join Code</p>
-							<p className="font-mono text-xl font-bold tracking-widest text-gray-900 dark:text-white">
+							<p className="font-mono text-xl font-bold tracking-widest text-gray-900 dark:text-white truncate">
 								{classroom.joinCode}
 							</p>
 						</div>
-						<button
-							onClick={handleCopyCode}
-							className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-gray-600 shadow-sm transition-all hover:bg-gray-100 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-							title="Copy code"
-						>
-							{copiedCode ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-						</button>
+						<div className="flex items-center gap-2">
+							<button
+								onClick={requestResetJoinCode}
+								disabled={resettingCode}
+								className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-gray-600 shadow-sm transition-all hover:bg-gray-100 disabled:opacity-50 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+								title="Regenerate code"
+							>
+								<RefreshCw className={`h-4 w-4 ${resettingCode ? 'animate-spin' : ''}`} />
+							</button>
+							<button
+								onClick={handleCopyCode}
+								className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-gray-600 shadow-sm transition-all hover:bg-gray-100 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+								title="Copy code"
+							>
+								{copiedCode ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+							</button>
+						</div>
 					</div>
 
 					{/* Invite Link */}
@@ -332,7 +409,7 @@ export default function TeacherClassroomDetails() {
 							{classroom.materials.map(mat => (
 								<div
 									key={mat._id}
-									className="flex items-center justify-between rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900"
+									className="flex items-center justify-between rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800/80"
 								>
 									<div className="flex items-center gap-4">
 										<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -359,7 +436,7 @@ export default function TeacherClassroomDetails() {
 											<Download className="h-4 w-4" />
 										</a>
 										<button
-											onClick={() => handleDeleteMaterial(mat._id)}
+											onClick={() => requestDeleteMaterial(mat._id)}
 											disabled={deletingId === mat._id}
 											className="flex h-8 w-8 items-center justify-center rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10"
 											title="Delete"
@@ -422,7 +499,7 @@ export default function TeacherClassroomDetails() {
 												)}
 											</button>
 											<button
-												onClick={() => handleReject(student._id)}
+												onClick={() => requestRejectStudent(student._id)}
 												disabled={rejectingId === student._id}
 												className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-100 text-red-700 transition-colors hover:bg-red-200 disabled:opacity-50 dark:bg-red-500/20 dark:text-red-400 dark:hover:bg-red-500/30"
 												title="Reject"
@@ -479,6 +556,11 @@ export default function TeacherClassroomDetails() {
 					</div>
 				</div>
 			</div>
+
+			<ConfirmModal
+				{...confirmState}
+				onClose={() => setConfirmState(prev => ({ ...prev, isOpen: false }))}
+			/>
 		</div>
 	);
 }

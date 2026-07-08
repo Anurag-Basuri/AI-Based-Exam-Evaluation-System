@@ -290,7 +290,7 @@ export const getMySubmissions = async (params = {}, forceRefresh = false) => {
 // Get submission details for results page
 export const getSubmissionForResults = async submissionId => {
 	const res = await tryGet(EP.submissionForResults(submissionId));
-	
+
 	return res?.data?.data ?? res?.data ?? null;
 };
 

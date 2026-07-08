@@ -42,10 +42,8 @@ export default function TeacherClassrooms() {
 				description: newClassDesc,
 			});
 			addToast('Classroom created successfully!', 'success');
-			setClassrooms([newClass, ...classrooms]);
 			setIsCreateOpen(false);
-			setNewClassName('');
-			setNewClassDesc('');
+			navigate(`/teacher/classrooms/${newClass._id}`);
 		} catch (error) {
 			addToast(error.message || 'Failed to create classroom', 'error');
 		} finally {
@@ -104,7 +102,7 @@ export default function TeacherClassrooms() {
 						<div
 							key={cls._id}
 							onClick={() => navigate(`/teacher/classrooms/${cls._id}`)}
-							className="group cursor-pointer rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition-all hover:shadow-md dark:border-gray-800 dark:bg-gray-900"
+							className="group cursor-pointer rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition-all hover:shadow-md dark:border-gray-700 dark:bg-gray-800/80 dark:hover:border-primary/50"
 						>
 							<div className="mb-4 flex items-start justify-between">
 								<div className="rounded-lg bg-primary/10 p-3 text-primary">
