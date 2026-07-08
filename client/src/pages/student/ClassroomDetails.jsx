@@ -129,7 +129,7 @@ export default function StudentClassroomDetails() {
 							{classroom.materials.map(mat => (
 								<div
 									key={mat._id}
-									className="flex items-center justify-between rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md dark:border-gray-800 dark:bg-gray-900"
+									className="flex items-center justify-between rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md dark:border-gray-700 dark:bg-gray-800/80"
 								>
 									<div className="flex items-center gap-4">
 										<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">

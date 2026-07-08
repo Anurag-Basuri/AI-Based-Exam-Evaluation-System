@@ -89,7 +89,7 @@ export default function StudentClassrooms() {
 						{pendingClassrooms.map(cls => (
 							<div
 								key={cls._id}
-								className="rounded-2xl border border-amber-200 bg-amber-50 p-6 dark:border-amber-500/30 dark:bg-amber-500/10"
+								className="rounded-2xl border border-amber-200 bg-amber-50/50 p-6 shadow-sm dark:border-amber-900/50 dark:bg-amber-500/5"
 							>
 								<div className="mb-4 flex items-start justify-between">
 									<div className="rounded-lg bg-amber-100 p-3 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400">
@@ -147,7 +147,7 @@ export default function StudentClassrooms() {
 							<div
 								key={cls._id}
 								onClick={() => navigate(`/student/classrooms/${cls._id}`)}
-								className="group cursor-pointer rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition-all hover:shadow-md dark:border-gray-800 dark:bg-gray-900"
+								className="group cursor-pointer rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition-all hover:shadow-md dark:border-gray-700 dark:bg-gray-800/80 dark:hover:border-primary/50"
 							>
 								<div className="mb-4 flex items-start justify-between">
 									<div className="rounded-lg bg-primary/10 p-3 text-primary">

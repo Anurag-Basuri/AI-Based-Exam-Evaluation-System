@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '../../components/ui/Toaster.jsx';
 import PageHeader from '../../components/ui/PageHeader.jsx';
 import Alert from '../../components/ui/Alert.jsx';
+import ConfirmModal from '../../components/ui/ConfirmModal.jsx';
 import * as TeacherSvc from '../../services/teacherServices.js';
 
 // --- Icons ---
@@ -379,6 +380,14 @@ const TeacherSubmissionGrade = () => {
 
 	const [loading, setLoading] = React.useState(true);
 	const [saving, setSaving] = React.useState(false);
+	const [confirmState, setConfirmState] = React.useState({
+		isOpen: false,
+		title: '',
+		message: '',
+		onConfirm: () => {},
+		confirmText: 'Confirm',
+		variant: 'danger',
+	});
 	const [error, setError] = React.useState('');
 	const [submission, setSubmission] = React.useState(null);
 	const [updatedEvals, setUpdatedEvals] = React.useState({});
@@ -491,7 +500,15 @@ const TeacherSubmissionGrade = () => {
 
 	const navigateToSubmission = id => {
 		if (unsavedCount > 0) {
-			if (!window.confirm('You have unsaved changes. Discard them?')) return;
+			setConfirmState({
+				isOpen: true,
+				title: 'Unsaved Changes',
+				message: 'You have unsaved changes. Discard them?',
+				confirmText: 'Discard',
+				variant: 'danger',
+				onConfirm: () => navigate(`/teacher/results/${examId}/grade/${id}`),
+			});
+			return;
 		}
 		navigate(`/teacher/results/${examId}/grade/${id}`);
 	};
@@ -739,6 +756,11 @@ const TeacherSubmissionGrade = () => {
 					</aside>
 				</div>
 			</div>
+
+			<ConfirmModal
+				{...confirmState}
+				onClose={() => setConfirmState(prev => ({ ...prev, isOpen: false }))}
+			/>
 		</div>
 	);
 };
