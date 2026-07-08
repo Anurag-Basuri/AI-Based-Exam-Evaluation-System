@@ -1,14 +1,7 @@
 import multer from 'multer';
-import { v2 as cloudinary } from 'cloudinary';
 import { CloudinaryStorage } from 'multer-storage-cloudinary';
+import { cloudinary } from '../config/cloudinary.config.js';
 import { ApiError } from '../utils/ApiError.js';
-
-// Cloudinary configuration (reads from env)
-cloudinary.config({
-	cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-	api_key: process.env.CLOUDINARY_API_KEY,
-	api_secret: process.env.CLOUDINARY_API_SECRET,
-});
 
 // Allowed MIME types for study materials
 const ALLOWED_MIME_TYPES = new Set([
@@ -34,7 +27,8 @@ const ALLOWED_MIME_TYPES = new Set([
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
-const storage = new CloudinaryStorage({
+// Cloudinary storage for classroom materials
+const materialStorage = new CloudinaryStorage({
 	cloudinary,
 	params: {
 		folder: 'classroom_materials',
@@ -43,7 +37,7 @@ const storage = new CloudinaryStorage({
 });
 
 // File filter — reject disallowed types before uploading to Cloudinary
-const fileFilter = (_req, file, cb) => {
+const materialFileFilter = (_req, file, cb) => {
 	if (ALLOWED_MIME_TYPES.has(file.mimetype)) {
 		cb(null, true);
 	} else {
@@ -57,13 +51,14 @@ const fileFilter = (_req, file, cb) => {
 	}
 };
 
+// Multer instance for classroom study material uploads
 export const uploadMaterial = multer({
-	storage,
+	storage: materialStorage,
 	limits: { fileSize: MAX_FILE_SIZE },
-	fileFilter,
+	fileFilter: materialFileFilter,
 });
 
-// Express error-handling middleware to catch Multer errors (e.g. file too large)
+// Express error-handling middleware to catch Multer errors (file too large, etc.)
 export const handleMulterError = (err, _req, res, next) => {
 	if (!err) return next();
 
@@ -90,5 +85,3 @@ export const handleMulterError = (err, _req, res, next) => {
 
 	next(err);
 };
-
-export { cloudinary };

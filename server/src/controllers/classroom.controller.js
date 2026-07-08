@@ -2,7 +2,7 @@ import Classroom, { generateUniqueJoinCode } from '../models/classroom.model.js'
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
-import { v2 as cloudinary } from 'cloudinary';
+import { deleteFile, deleteFiles } from '../services/cloudinary.service.js';
 
 // Create a new classroom
 const createClassroom = asyncHandler(async (req, res) => {
@@ -299,7 +299,7 @@ const deleteMaterial = asyncHandler(async (req, res) => {
 
 	if (material.publicId) {
 		try {
-			await cloudinary.uploader.destroy(material.publicId, { resource_type: 'raw' });
+			await deleteFile(material.publicId);
 		} catch (cloudErr) {
 			console.error('[CLASSROOM] Failed to delete from Cloudinary:', cloudErr.message);
 		}
@@ -326,17 +326,16 @@ const deleteClassroom = asyncHandler(async (req, res) => {
 		throw ApiError.Forbidden('Only the classroom teacher can delete the classroom');
 	}
 
-	// Delete all associated materials from Cloudinary
-	for (const material of classroom.materials) {
-		if (material.publicId) {
-			try {
-				await cloudinary.uploader.destroy(material.publicId, { resource_type: 'raw' });
-			} catch (cloudErr) {
-				console.error(
-					'[CLASSROOM] Failed to delete material from Cloudinary:',
-					cloudErr.message,
-				);
-			}
+	// Delete all associated materials from Cloudinary (batch)
+	const publicIds = classroom.materials
+		.map(m => m.publicId)
+		.filter(Boolean);
+
+	if (publicIds.length > 0) {
+		try {
+			await deleteFiles(publicIds);
+		} catch (cloudErr) {
+			console.error('[CLASSROOM] Batch Cloudinary delete error:', cloudErr.message);
 		}
 	}
 
