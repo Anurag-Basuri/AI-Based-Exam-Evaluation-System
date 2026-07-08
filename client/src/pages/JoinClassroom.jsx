@@ -149,18 +149,20 @@ export default function JoinClassroom() {
 					{/* Authenticated — Preview Card */}
 					{isAuthenticated && preview && !error && (
 						<>
-							<div className="mb-6 rounded-xl border border-gray-100 bg-gray-50 p-5 dark:border-gray-800 dark:bg-gray-800/50">
-								<h2 className="text-lg font-bold text-gray-900 dark:text-white">
+							<div className="mb-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800/80">
+								<h2 className="text-xl font-bold text-gray-900 dark:text-white">
 									{preview.name}
 								</h2>
 								{preview.description && (
-									<p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+									<p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
 										{preview.description}
 									</p>
 								)}
-								<div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
-									<span>Teacher: <strong className="text-gray-900 dark:text-white">{preview.teacherName}</strong></span>
-									<span className="flex items-center gap-1">
+								<div className="mt-4 flex flex-wrap items-center gap-4 text-xs font-medium text-gray-500 dark:text-gray-400">
+									<span className="flex items-center gap-1.5 rounded-md bg-gray-100 px-2.5 py-1 dark:bg-gray-700/50">
+										Teacher: <strong className="text-gray-900 dark:text-gray-100">{preview.teacherName}</strong>
+									</span>
+									<span className="flex items-center gap-1.5 rounded-md bg-gray-100 px-2.5 py-1 dark:bg-gray-700/50">
 										<Users className="h-3.5 w-3.5" />
 										{preview.studentCount} student{preview.studentCount !== 1 ? 's' : ''}
 									</span>
@@ -169,35 +171,41 @@ export default function JoinClassroom() {
 
 							{/* Result Messages */}
 							{result?.type === 'success' && (
-								<div className="rounded-xl bg-green-50 p-4 text-center dark:bg-green-500/10">
-									<CheckCircle className="mx-auto mb-2 h-8 w-8 text-green-500" />
-									<p className="font-medium text-green-700 dark:text-green-400">{result.message}</p>
+								<div className="rounded-xl border border-green-200 bg-green-50 p-5 text-center dark:border-green-900/50 dark:bg-green-500/10">
+									<CheckCircle className="mx-auto mb-3 h-8 w-8 text-green-500" />
+									<p className="font-semibold text-green-800 dark:text-green-400">{result.message}</p>
 									<button
-										onClick={() => navigate('/student/classrooms')}
-										className="mt-3 text-sm font-medium text-primary hover:underline"
+										onClick={() => navigate(`/student/classrooms/${preview._id}`)}
+										className="mt-4 flex w-full items-center justify-center rounded-xl bg-green-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-500"
 									>
-										Go to My Classrooms
+										Go to Classroom
 									</button>
 								</div>
 							)}
 
 							{result?.type === 'pending' && (
-								<div className="rounded-xl bg-amber-50 p-4 text-center dark:bg-amber-500/10">
-									<Clock className="mx-auto mb-2 h-8 w-8 text-amber-500" />
-									<p className="font-medium text-amber-700 dark:text-amber-400">{result.message}</p>
+								<div className="rounded-xl border border-amber-200 bg-amber-50 p-5 text-center dark:border-amber-900/50 dark:bg-amber-500/10">
+									<Clock className="mx-auto mb-3 h-8 w-8 text-amber-500" />
+									<p className="font-semibold text-amber-800 dark:text-amber-400">{result.message}</p>
 									<button
 										onClick={() => navigate('/student/classrooms')}
-										className="mt-3 text-sm font-medium text-primary hover:underline"
+										className="mt-4 flex w-full items-center justify-center rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-amber-600 dark:bg-amber-600 dark:hover:bg-amber-500"
 									>
-										Go to My Classrooms
+										View My Classrooms
 									</button>
 								</div>
 							)}
 
 							{result?.type === 'error' && (
-								<div className="rounded-xl bg-red-50 p-4 text-center dark:bg-red-500/10">
-									<XCircle className="mx-auto mb-2 h-8 w-8 text-red-500" />
+								<div className="rounded-xl border border-red-200 bg-red-50 p-5 text-center dark:border-red-900/50 dark:bg-red-500/10">
+									<XCircle className="mx-auto mb-3 h-8 w-8 text-red-500" />
 									<p className="font-medium text-red-700 dark:text-red-400">{result.message}</p>
+									<button
+										onClick={() => navigate('/student')}
+										className="mt-4 flex w-full items-center justify-center rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-500"
+									>
+										Go to Dashboard
+									</button>
 								</div>
 							)}
 
@@ -206,26 +214,26 @@ export default function JoinClassroom() {
 								<button
 									onClick={handleJoin}
 									disabled={joining}
-									className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-white transition-all hover:bg-primary/90 active:scale-[0.98] disabled:opacity-50"
+									className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-white shadow-md transition-all hover:bg-primary-strong active:scale-[0.98] disabled:opacity-50"
 								>
 									{joining ? (
 										<Loader2 className="h-5 w-5 animate-spin" />
 									) : (
 										<LogIn className="h-5 w-5" />
 									)}
-									Request to Join
+									Request to Join Classroom
 								</button>
 							)}
 
 							{/* Teacher trying to join */}
 							{!result && role === 'teacher' && (
-								<div className="rounded-xl bg-gray-100 p-4 text-center dark:bg-gray-800">
-									<p className="text-sm text-gray-600 dark:text-gray-300">
+								<div className="rounded-xl border border-gray-200 bg-gray-50 p-5 text-center dark:border-gray-700 dark:bg-gray-800/80">
+									<p className="text-sm font-medium text-gray-700 dark:text-gray-300">
 										Teachers cannot join classrooms as students.
 									</p>
 									<button
 										onClick={() => navigate('/teacher/classrooms')}
-										className="mt-2 text-sm font-medium text-primary hover:underline"
+										className="mt-4 w-full rounded-xl bg-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-800 transition-colors hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
 									>
 										Go to My Classrooms
 									</button>

@@ -1,5 +1,6 @@
 import React from 'react';
 import { useToast } from '../../components/ui/Toaster.jsx';
+import ConfirmModal from '../../components/ui/ConfirmModal.jsx';
 import { useAuth } from '../../hooks/useAuth.js';
 import { useSocket } from '../../hooks/useSocket.js';
 import {
@@ -261,6 +262,15 @@ const StudentIssues = () => {
 		description: '',
 	});
 
+	const [confirmState, setConfirmState] = React.useState({
+		isOpen: false,
+		title: '',
+		message: '',
+		onConfirm: () => {},
+		confirmText: 'Confirm',
+		variant: 'danger',
+	});
+
 	const loadData = React.useCallback(async () => {
 		setLoading(true);
 		setError('');
@@ -323,24 +333,26 @@ const StudentIssues = () => {
 		};
 	}, [socket, user, toast]);
 
-	const handleDelete = async issueId => {
-		// Safety check: Confirm with the user before this destructive action
-		const isConfirmed = window.confirm(
-			'Are you sure you want to withdraw this issue? This action cannot be undone.',
-		);
-
-		if (!isConfirmed) {
-			return;
-		}
-
+	const executeDelete = async issueId => {
 		try {
 			await safeApiCall(deleteIssue, issueId);
 			// Optimistically remove the issue from the UI
 			setIssues(prevIssues => prevIssues.filter(issue => issue.id !== issueId));
 			toast.success('Issue withdrawn successfully.');
 		} catch (e) {
-			toast.error('Deletion Failed', { description: e.message });
+			toast.error(e?.message || 'Failed to withdraw issue');
 		}
+	};
+
+	const handleDelete = issueId => {
+		setConfirmState({
+			isOpen: true,
+			title: 'Withdraw Issue',
+			message: 'Are you sure you want to withdraw this issue? This action cannot be undone.',
+			confirmText: 'Withdraw',
+			variant: 'danger',
+			onConfirm: () => executeDelete(issueId),
+		});
 	};
 
 	const handleSubmit = async e => {
@@ -539,6 +551,11 @@ const StudentIssues = () => {
 					))}
 				</div>
 			)}
+
+			<ConfirmModal
+				{...confirmState}
+				onClose={() => setConfirmState(prev => ({ ...prev, isOpen: false }))}
+			/>
 		</div>
 	);
 };
