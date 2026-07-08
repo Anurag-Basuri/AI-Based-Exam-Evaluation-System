@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { resetPassword } from '../services/apiServices';
+import AuthAlert from '../components/AuthAlert.jsx';
 import './Auth.css';
 
 const ResetPassword = () => {
@@ -13,7 +14,7 @@ const ResetPassword = () => {
 	const [confirmPassword, setConfirmPassword] = useState('');
 	const [showPassword, setShowPassword] = useState(false);
 	const [loading, setLoading] = useState(false);
-	const [error, setError] = useState('');
+	const [alertObj, setAlertObj] = useState(null);
 	const [success, setSuccess] = useState(false);
 
 	// Password strength indicator
@@ -39,18 +40,33 @@ const ResetPassword = () => {
 
 	const handleSubmit = async e => {
 		e.preventDefault();
-		setError('');
+		setAlertObj(null);
 
 		if (!token) {
-			setError('Missing reset token. Please use the link from your email.');
+			setAlertObj({
+				type: 'error',
+				icon: '⚠️',
+				title: 'Missing Token',
+				message: 'Missing reset token. Please use the link from your email.',
+			});
 			return;
 		}
 		if (password.length < 8) {
-			setError('Password must be at least 8 characters.');
+			setAlertObj({
+				type: 'error',
+				icon: '⚠️',
+				title: 'Weak Password',
+				message: 'Password must be at least 8 characters.',
+			});
 			return;
 		}
 		if (password !== confirmPassword) {
-			setError('Passwords do not match.');
+			setAlertObj({
+				type: 'error',
+				icon: '⚠️',
+				title: 'Mismatch',
+				message: 'Passwords do not match.',
+			});
 			return;
 		}
 
@@ -61,7 +77,13 @@ const ResetPassword = () => {
 			// Auto-redirect to login after 3s
 			setTimeout(() => navigate('/auth?mode=login', { replace: true }), 3000);
 		} catch (err) {
-			setError(err?.message || 'Failed to reset password. The link may have expired.');
+			// Reuse classifyError if it was imported, but we'll manually set it for simplicity
+			setAlertObj({
+				type: 'error',
+				icon: '🚨',
+				title: 'Reset Failed',
+				message: err?.message || 'Failed to reset password. The link may have expired.',
+			});
 		} finally {
 			setLoading(false);
 		}
@@ -192,14 +214,9 @@ const ResetPassword = () => {
 								)}
 							</div>
 
-							{error && (
-								<div
-									className="top-error-banner"
-									role="alert"
-									aria-live="assertive"
-								>
-									<span>⚠️</span>
-									<div>{error}</div>
+							{alertObj && (
+								<div style={{ marginBottom: 20 }}>
+									<AuthAlert alert={alertObj} onDismiss={() => setAlertObj(null)} />
 								</div>
 							)}
 

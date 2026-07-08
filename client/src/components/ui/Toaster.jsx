@@ -26,6 +26,7 @@ export function ToastProvider({ children }) {
 			success: (msg, opts) => push('success', msg, opts),
 			info: (msg, opts) => push('info', msg, opts),
 			error: (msg, opts) => push('error', msg, opts),
+			addToast: (msg, type = 'info', opts) => push(type, msg, opts),
 			dismiss: id => setToasts(prev => prev.filter(t => t.id !== id)),
 		}),
 		[push],
