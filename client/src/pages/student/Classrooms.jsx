@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { BookOpen, LogIn, Users, ChevronRight, Loader2, Clock, FileText } from 'lucide-react';
 import { getStudentClassrooms, joinStudentClassroom } from '../../services/studentServices';
 import { useToast } from '../../components/ui/Toaster';
+import { useSocket } from '../../hooks/useSocket.js';
 
 export default function StudentClassrooms() {
 	const navigate = useNavigate();
@@ -15,9 +16,26 @@ export default function StudentClassrooms() {
 	const [joinCode, setJoinCode] = useState('');
 	const [joining, setJoining] = useState(false);
 
+	const { socket } = useSocket();
+
 	useEffect(() => {
 		fetchClassrooms();
 	}, []);
+
+	useEffect(() => {
+		if (!socket) return;
+		
+		const handleRequestUpdated = (data) => {
+			addToast(`Your join request was ${data.status}`, data.status === 'approved' ? 'success' : 'info');
+			fetchClassrooms();
+		};
+
+		socket.on('classroom-request-updated', handleRequestUpdated);
+
+		return () => {
+			socket.off('classroom-request-updated', handleRequestUpdated);
+		};
+	}, [socket]);
 
 	// Close modal on Escape
 	useEffect(() => {

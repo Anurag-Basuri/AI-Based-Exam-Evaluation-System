@@ -180,6 +180,11 @@ const joinClassroom = asyncHandler(async (req, res) => {
 	classroom.pendingStudents.push(studentId);
 	await classroom.save();
 
+	req.io?.to(String(classroom.teacher)).emit('classroom-join-request', {
+		classroomId: classroom._id,
+		studentId: studentId
+	});
+
 	return ApiResponse.success(
 		res,
 		{ classroomId: classroom._id, status: 'pending' },
@@ -213,6 +218,11 @@ const approveStudent = asyncHandler(async (req, res) => {
 	classroom.students.push(studentId);
 	await classroom.save();
 
+	req.io?.to(String(studentId)).emit('classroom-request-updated', {
+		classroomId: classroom._id,
+		status: 'approved'
+	});
+
 	return ApiResponse.success(res, null, 'Student approved successfully');
 });
 
@@ -239,6 +249,11 @@ const rejectStudent = asyncHandler(async (req, res) => {
 
 	classroom.pendingStudents.splice(pendingIndex, 1);
 	await classroom.save();
+
+	req.io?.to(String(studentId)).emit('classroom-request-updated', {
+		classroomId: classroom._id,
+		status: 'rejected'
+	});
 
 	return ApiResponse.success(res, null, 'Student request rejected');
 });
@@ -274,6 +289,11 @@ const uploadMaterial = asyncHandler(async (req, res) => {
 	classroom.materials.push(newMaterial);
 	await classroom.save();
 
+	req.io?.to(`classroom-${classroom._id}`).emit('classroom-materials-updated', {
+		classroomId: classroom._id,
+		material: newMaterial
+	});
+
 	return ApiResponse.success(res, classroom, 'Material uploaded successfully');
 });
 
@@ -307,6 +327,11 @@ const deleteMaterial = asyncHandler(async (req, res) => {
 
 	classroom.materials.pull(materialId);
 	await classroom.save();
+
+	req.io?.to(`classroom-${classroom._id}`).emit('classroom-materials-updated', {
+		classroomId: classroom._id,
+		deletedMaterialId: materialId
+	});
 
 	return ApiResponse.success(res, null, 'Material deleted successfully');
 });

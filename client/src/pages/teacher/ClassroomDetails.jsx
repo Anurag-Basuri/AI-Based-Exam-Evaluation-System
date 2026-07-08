@@ -37,6 +37,7 @@ import {
 } from '../../services/teacherServices';
 import { useToast } from '../../components/ui/Toaster';
 import ConfirmModal from '../../components/ui/ConfirmModal';
+import { useSocket } from '../../hooks/useSocket.js';
 
 const getFileIcon = (filename = '') => {
 	const ext = filename.split('.').pop().toLowerCase();
@@ -82,9 +83,39 @@ export default function TeacherClassroomDetails() {
 		variant: 'danger',
 	});
 
+	const { socket } = useSocket();
+
 	useEffect(() => {
 		fetchClassroom();
 	}, [id]);
+
+	useEffect(() => {
+		if (!socket) return;
+		
+		const room = `classroom-${id}`;
+		socket.emit('join', room);
+
+		const handleJoinRequest = (data) => {
+			if (data.classroomId === id) {
+				addToast('New join request received', 'info');
+				fetchClassroom();
+			}
+		};
+
+		const handleMaterialsUpdated = (data) => {
+			if (data.classroomId === id) {
+				fetchClassroom();
+			}
+		};
+
+		socket.on('classroom-join-request', handleJoinRequest);
+		socket.on('classroom-materials-updated', handleMaterialsUpdated);
+
+		return () => {
+			socket.off('classroom-join-request', handleJoinRequest);
+			socket.off('classroom-materials-updated', handleMaterialsUpdated);
+		};
+	}, [socket, id]);
 
 	const fetchClassroom = async () => {
 		try {
