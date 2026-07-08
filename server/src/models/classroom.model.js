@@ -1,8 +1,24 @@
 import mongoose from 'mongoose';
 import { customAlphabet } from 'nanoid';
 
-// Custom alphabet for join codes: uppercase letters and numbers, avoiding ambiguous characters (O, 0, I, L, 1).
-const generateJoinCode = customAlphabet('ABCDEFGHJKMNPQRSTUVWXYZ23456789', 8);
+// Custom alphabet for join codes: uppercase letters and numbers.
+// One number or letter must not be repeated consecutively.
+const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+const nanoid = customAlphabet(alphabet, 8);
+
+export function generateUniqueJoinCode() {
+	const code = nanoid();
+
+	// Check if the generated code has repeating consecutive characters
+	for (let i = 0; i < code.length - 2; i++) {
+		if (code[i] === code[i + 1] && code[i] === code[i + 2]) {
+			// If repeats found, generate a new code
+			return generateUniqueJoinCode();
+		}
+	}
+
+	return code;
+}
 
 const materialSchema = new mongoose.Schema(
 	{
@@ -53,7 +69,7 @@ const classroomSchema = new mongoose.Schema(
 		joinCode: {
 			type: String,
 			unique: true,
-			default: () => generateJoinCode(),
+			default: () => generateUniqueJoinCode(),
 			index: true,
 		},
 		teacher: {

@@ -1,12 +1,10 @@
-import Classroom from '../models/classroom.model.js';
+import Classroom, { generateUniqueJoinCode } from '../models/classroom.model.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import { v2 as cloudinary } from 'cloudinary';
 
-// @desc    Create a new classroom
-// @route   POST /api/v1/classrooms
-// @access  Private (Teacher, Verified Email)
+// Create a new classroom
 const createClassroom = asyncHandler(async (req, res) => {
 	const teacherId = req.userDoc?._id || req.user?.id;
 	const { name, description } = req.body;
@@ -20,16 +18,16 @@ const createClassroom = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, classroom, 'Classroom created successfully', 201);
 });
 
-// @desc    Get all classrooms for logged-in user (teacher or student)
-// @route   GET /api/v1/classrooms/my
-// @access  Private
+// Get all classrooms for logged-in user (teacher or student)
 const getMyClassrooms = asyncHandler(async (req, res) => {
 	const userId = req.user?.id || req.user?._id;
 	const role = req.user?.role;
 
 	if (role === 'teacher') {
 		const classrooms = await Classroom.find({ teacher: userId })
-			.select('name description joinCode students pendingStudents materials createdAt updatedAt')
+			.select(
+				'name description joinCode students pendingStudents materials createdAt updatedAt',
+			)
 			.sort({ createdAt: -1 })
 			.lean();
 
@@ -87,9 +85,7 @@ const getMyClassrooms = asyncHandler(async (req, res) => {
 	throw ApiError.Forbidden('Invalid role for classroom access');
 });
 
-// @desc    Get classroom by ID (full detail)
-// @route   GET /api/v1/classrooms/:id
-// @access  Private (teacher who owns it or enrolled student)
+// Get classroom by ID (full detail)
 const getClassroomById = asyncHandler(async (req, res) => {
 	const userId = String(req.user?.id || req.user?._id);
 
@@ -125,9 +121,7 @@ const getClassroomById = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, classroom, 'Classroom fetched');
 });
 
-// @desc    Preview classroom info by join code (for invite link landing page)
-// @route   GET /api/v1/classrooms/preview/:joinCode
-// @access  Private (any authenticated user)
+// Preview classroom info by join code (for invite link landing page)
 const getClassroomPreview = asyncHandler(async (req, res) => {
 	const { joinCode } = req.params;
 
@@ -146,19 +140,21 @@ const getClassroomPreview = asyncHandler(async (req, res) => {
 	const isEnrolled = classroom.students?.some(s => String(s) === userId);
 	const isPending = classroom.pendingStudents?.some(s => String(s) === userId);
 
-	return ApiResponse.success(res, {
-		_id: classroom._id,
-		name: classroom.name,
-		description: classroom.description,
-		teacherName: classroom.teacher?.fullname || 'Unknown',
-		studentCount: classroom.students?.length || 0,
-		membershipStatus: isEnrolled ? 'enrolled' : isPending ? 'pending' : 'none',
-	}, 'Classroom preview fetched');
+	return ApiResponse.success(
+		res,
+		{
+			_id: classroom._id,
+			name: classroom.name,
+			description: classroom.description,
+			teacherName: classroom.teacher?.fullname || 'Unknown',
+			studentCount: classroom.students?.length || 0,
+			membershipStatus: isEnrolled ? 'enrolled' : isPending ? 'pending' : 'none',
+		},
+		'Classroom preview fetched',
+	);
 });
 
-// @desc    Request to join a classroom via join code (goes to pending queue)
-// @route   POST /api/v1/classrooms/join
-// @access  Private (Student, Verified Email)
+// Request to join a classroom via join code (goes to pending queue)
 const joinClassroom = asyncHandler(async (req, res) => {
 	const studentId = req.userDoc?._id || req.user?.id;
 	const { joinCode } = req.body;
@@ -191,9 +187,7 @@ const joinClassroom = asyncHandler(async (req, res) => {
 	);
 });
 
-// @desc    Approve a pending student
-// @route   POST /api/v1/classrooms/:id/approve/:studentId
-// @access  Private (Teacher)
+// Approve a pending student
 const approveStudent = asyncHandler(async (req, res) => {
 	const teacherId = String(req.userDoc?._id || req.user?.id);
 	const { id, studentId } = req.params;
@@ -208,9 +202,7 @@ const approveStudent = asyncHandler(async (req, res) => {
 		throw ApiError.Forbidden('Only the classroom teacher can approve students');
 	}
 
-	const pendingIndex = classroom.pendingStudents.findIndex(
-		sid => String(sid) === studentId,
-	);
+	const pendingIndex = classroom.pendingStudents.findIndex(sid => String(sid) === studentId);
 
 	if (pendingIndex === -1) {
 		throw ApiError.NotFound('Student is not in the pending list');
@@ -224,9 +216,7 @@ const approveStudent = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, null, 'Student approved successfully');
 });
 
-// @desc    Reject a pending student
-// @route   POST /api/v1/classrooms/:id/reject/:studentId
-// @access  Private (Teacher)
+// Reject a pending student
 const rejectStudent = asyncHandler(async (req, res) => {
 	const teacherId = String(req.userDoc?._id || req.user?.id);
 	const { id, studentId } = req.params;
@@ -241,9 +231,7 @@ const rejectStudent = asyncHandler(async (req, res) => {
 		throw ApiError.Forbidden('Only the classroom teacher can reject students');
 	}
 
-	const pendingIndex = classroom.pendingStudents.findIndex(
-		sid => String(sid) === studentId,
-	);
+	const pendingIndex = classroom.pendingStudents.findIndex(sid => String(sid) === studentId);
 
 	if (pendingIndex === -1) {
 		throw ApiError.NotFound('Student is not in the pending list');
@@ -255,9 +243,7 @@ const rejectStudent = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, null, 'Student request rejected');
 });
 
-// @desc    Upload study material to classroom
-// @route   POST /api/v1/classrooms/:id/materials
-// @access  Private (Teacher, Verified Email)
+// Upload study material to classroom
 const uploadMaterial = asyncHandler(async (req, res) => {
 	const teacherId = String(req.userDoc?._id || req.user?.id);
 
@@ -291,9 +277,7 @@ const uploadMaterial = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, classroom, 'Material uploaded successfully');
 });
 
-// @desc    Delete study material from classroom
-// @route   DELETE /api/v1/classrooms/:id/materials/:materialId
-// @access  Private (Teacher)
+// Delete study material from classroom
 const deleteMaterial = asyncHandler(async (req, res) => {
 	const teacherId = String(req.userDoc?._id || req.user?.id);
 	const { id, materialId } = req.params;
@@ -327,9 +311,7 @@ const deleteMaterial = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, null, 'Material deleted successfully');
 });
 
-// @desc    Delete classroom
-// @route   DELETE /api/v1/classrooms/:id
-// @access  Private (Teacher, Verified Email)
+// Delete classroom
 const deleteClassroom = asyncHandler(async (req, res) => {
 	const teacherId = String(req.userDoc?._id || req.user?.id);
 	const { id } = req.params;
@@ -350,7 +332,10 @@ const deleteClassroom = asyncHandler(async (req, res) => {
 			try {
 				await cloudinary.uploader.destroy(material.publicId, { resource_type: 'raw' });
 			} catch (cloudErr) {
-				console.error('[CLASSROOM] Failed to delete material from Cloudinary:', cloudErr.message);
+				console.error(
+					'[CLASSROOM] Failed to delete material from Cloudinary:',
+					cloudErr.message,
+				);
 			}
 		}
 	}
@@ -358,6 +343,31 @@ const deleteClassroom = asyncHandler(async (req, res) => {
 	await Classroom.findByIdAndDelete(id);
 
 	return ApiResponse.success(res, null, 'Classroom deleted successfully');
+});
+
+// Regenerate classroom join code
+const resetJoinCode = asyncHandler(async (req, res) => {
+	const teacherId = String(req.userDoc?._id || req.user?.id);
+	const { id } = req.params;
+
+	const classroom = await Classroom.findById(id);
+
+	if (!classroom) {
+		throw ApiError.NotFound('Classroom not found');
+	}
+
+	if (String(classroom.teacher) !== teacherId) {
+		throw ApiError.Forbidden('Only the classroom teacher can reset the join code');
+	}
+
+	classroom.joinCode = generateUniqueJoinCode();
+	await classroom.save();
+
+	return ApiResponse.success(
+		res,
+		{ joinCode: classroom.joinCode },
+		'Classroom join code regenerated successfully',
+	);
 });
 
 export {
@@ -371,4 +381,5 @@ export {
 	uploadMaterial,
 	deleteMaterial,
 	deleteClassroom,
+	resetJoinCode,
 };

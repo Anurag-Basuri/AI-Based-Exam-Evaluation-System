@@ -20,6 +20,7 @@ import {
 	uploadMaterial as uploadMaterialController,
 	deleteMaterial,
 	deleteClassroom,
+	resetJoinCode,
 } from '../controllers/classroom.controller.js';
 
 const router = Router();
@@ -83,13 +84,7 @@ router.post(
 );
 
 // GET /:id — classroom details
-router.get(
-	'/:id',
-	checkAuth,
-	validateObjectId('id'),
-	validate,
-	getClassroomById,
-);
+router.get('/:id', checkAuth, validateObjectId('id'), validate, getClassroomById);
 
 // POST /:id/approve/:studentId — teacher approves a pending student
 router.post(
@@ -150,6 +145,18 @@ router.delete(
 	validateObjectId('id'),
 	validate,
 	deleteClassroom,
+);
+
+// PUT /:id/join-code — regenerate classroom join code
+router.put(
+	'/:id/join-code',
+	checkAuth,
+	verifyTeacher,
+	requireVerifiedEmail,
+	sensitiveWriteLimiter,
+	validateObjectId('id'),
+	validate,
+	resetJoinCode,
 );
 
 export default router;

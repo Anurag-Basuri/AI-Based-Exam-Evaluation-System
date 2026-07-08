@@ -3,7 +3,7 @@ import { apiClient, ApiError, parseAxiosError, safeApiCall } from './api.js';
 // Re-export so UI components importing from teacherServices still work
 export { safeApiCall };
 
-// Safe raw helpers 
+// Safe raw helpers
 const safe = async promise => {
 	try {
 		return await promise;
@@ -136,6 +136,7 @@ const EP = {
 	classroomApprove: (id, studentId) => `/api/v1/classrooms/${id}/approve/${studentId}`,
 	classroomReject: (id, studentId) => `/api/v1/classrooms/${id}/reject/${studentId}`,
 	classroomDelete: id => `/api/v1/classrooms/${id}`,
+	classroomResetJoinCode: id => `/api/v1/classrooms/${id}/join-code`,
 };
 
 // Normalizers
@@ -452,7 +453,7 @@ export const updateSubmissionEvaluation = async (submissionId, evaluations) => {
 
 export const getSubmissionForGrading = async submissionId => {
 	const res = await tryGet(EP.submissionForGrading(submissionId));
-	
+
 	return res?.data?.data ?? res?.data ?? null;
 };
 
@@ -469,7 +470,7 @@ export const publishAllResults = async examId => {
 // Issues (Teacher)
 export const getTeacherIssues = async (params = {}) => {
 	const res = await tryGet(EP.issues, { params });
-	
+
 	const list = res?.data?.data || [];
 	return Array.isArray(list) ? list.map(normalizeIssue) : [];
 };
@@ -495,18 +496,18 @@ export const updateTeacherIssueStatus = async (issueId, status) => {
 // Service function to add an internal note
 export const addInternalNote = async (issueId, note) => {
 	const res = await tryPost(EP.issueAddNote(issueId), { note });
-	
+
 	return res?.data?.data;
 };
 
 // Service function to resolve issues in bulk
 export const bulkResolveIssues = async (issueIds, reply) => {
 	const res = await tryPost(EP.issueBulkResolve, { issueIds, reply });
-	
+
 	return res?.data?.data ?? { updatedCount: 0 };
 };
 
-// Profile & Settings (Teacher) 
+// Profile & Settings (Teacher)
 export const updateTeacherProfile = async profile => {
 	// Allow partial updates by passing the profile object directly.
 	// The backend handles undefined fields by ignoring them (Mongoose behavior).
@@ -584,6 +585,11 @@ export const deleteTeacherClassroom = async id => {
 	return res?.data;
 };
 
+export const resetClassroomJoinCode = async id => {
+	const res = await apiClient.put(EP.classroomResetJoinCode(id));
+	return res?.data?.data || null;
+};
+
 export const uploadClassroomMaterial = async (classroomId, formData) => {
 	const res = await apiClient.post(EP.classroomUploadMaterial(classroomId), formData, {
 		headers: { 'Content-Type': 'multipart/form-data' },
@@ -613,7 +619,6 @@ export const exportTeacherExamsCsv = () =>
 	apiClient.get('/api/v1/teachers/export/exams', { responseType: 'blob' });
 export const exportExamSubmissionsCsv = examId =>
 	apiClient.get(`/api/v1/submissions/exam/${examId}/export`, { responseType: 'blob' });
-
 
 // Service function to get exam statistics
 export const getExamStats = async () => {
