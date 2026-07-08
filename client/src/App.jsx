@@ -8,7 +8,9 @@ import { ToastProvider } from './components/ui/Toaster.jsx';
 function App() {
 	const { theme } = useTheme();
 	const location = useLocation();
-	const isAuthPage = location.pathname.toLowerCase().startsWith('/auth');
+	const isAuthPage = location.pathname.toLowerCase().startsWith('/auth') || 
+					   location.pathname.toLowerCase().startsWith('/login') || 
+					   location.pathname.toLowerCase().startsWith('/signup');
 	const isLanding = location.pathname === '/';
 	const isTakingExam = location.pathname.includes('/take'); // <-- Add this check
 

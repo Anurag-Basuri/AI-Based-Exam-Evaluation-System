@@ -907,7 +907,7 @@ const LandingPage = () => {
 		pingBackendHealth();
 	}, []);
 
-	const handleAuth = (role, mode) => navigate(`/auth?mode=${mode}`);
+	const handleAuth = (role, mode) => navigate(`/${mode === 'register' ? 'signup' : 'login'}`);
 
 	return (
 		<div className="app-shell" style={{ overflowX: 'hidden' }}>

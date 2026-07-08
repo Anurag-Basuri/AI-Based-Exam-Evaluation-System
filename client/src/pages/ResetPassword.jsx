@@ -114,7 +114,7 @@ const ResetPassword = () => {
 						</p>
 						<button
 							type="button"
-							onClick={() => navigate('/auth?mode=login', { replace: true })}
+							onClick={() => navigate('/login', { replace: true })}
 							className={`auth-submit-btn ${role}`}
 						>
 							Go to Login Now

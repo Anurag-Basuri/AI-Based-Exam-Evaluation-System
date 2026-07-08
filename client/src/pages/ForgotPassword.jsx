@@ -71,7 +71,7 @@ const ForgotPassword = () => {
 						</button>
 						<button
 							type="button"
-							onClick={() => navigate('/auth?mode=login')}
+							onClick={() => navigate('/login')}
 							className="link-btn"
 							style={{ width: '100%', textAlign: 'center' }}
 						>
@@ -137,7 +137,7 @@ const ForgotPassword = () => {
 
 						<button
 							type="button"
-							onClick={() => navigate('/auth?mode=login')}
+							onClick={() => navigate('/login')}
 							className="link-btn"
 							style={{ width: '100%', textAlign: 'center' }}
 						>

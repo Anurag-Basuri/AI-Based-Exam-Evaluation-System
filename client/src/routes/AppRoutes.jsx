@@ -17,7 +17,8 @@ const TeacherDash = lazy(() => import('../pages/TeacherDash.jsx'));
 
 // Public pages
 const LandingPage = lazy(() => import('../pages/LandingPage.jsx'));
-const AuthPage = lazy(() => import('../pages/auth.jsx'));
+const LoginPage = lazy(() => import('../pages/Login.jsx'));
+const SignupPage = lazy(() => import('../pages/Signup.jsx'));
 const ForgotPassword = lazy(() => import('../pages/ForgotPassword.jsx'));
 const ResetPassword = lazy(() => import('../pages/ResetPassword.jsx'));
 const VerifyEmail = lazy(() => import('../pages/VerifyEmail.jsx'));
@@ -154,8 +155,12 @@ const AppRoutes = () => (
 				element={<RedirectIfAuth>{withBoundary(<LandingPage />)}</RedirectIfAuth>}
 			/>
 			<Route
-				path="/auth"
-				element={<RedirectIfAuth>{withBoundary(<AuthPage />)}</RedirectIfAuth>}
+				path="/login"
+				element={<RedirectIfAuth>{withBoundary(<LoginPage />)}</RedirectIfAuth>}
+			/>
+			<Route
+				path="/signup"
+				element={<RedirectIfAuth>{withBoundary(<SignupPage />)}</RedirectIfAuth>}
 			/>
 			<Route path="/auth/forgot-password" element={withBoundary(<ForgotPassword />)} />
 			<Route path="/auth/reset-password" element={withBoundary(<ResetPassword />)} />

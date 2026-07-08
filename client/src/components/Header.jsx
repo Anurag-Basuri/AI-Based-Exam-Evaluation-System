@@ -106,7 +106,7 @@ const Header = ({ transparent = false }) => {
 			console.error('Failed to persist preferred role', e);
 		}
 		try {
-			navigate('/auth?mode=login&role=student');
+			navigate('/login');
 		} catch (e) {
 			console.error('Failed to navigate to login', e);
 		}
@@ -119,7 +119,7 @@ const Header = ({ transparent = false }) => {
 			console.error('Failed to persist preferred role', e);
 		}
 		try {
-			navigate('/auth?mode=register&role=student');
+			navigate('/signup');
 		} catch (e) {
 			console.error('Failed to navigate to register', e);
 		}

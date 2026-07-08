@@ -38,7 +38,7 @@ const VerifyEmail = () => {
 					if (isAuthenticated) {
 						navigate(role === 'teacher' ? '/teacher' : '/student', { replace: true });
 					} else {
-						navigate('/auth?mode=login', { replace: true });
+						navigate('/login', { replace: true });
 					}
 				}, 3000);
 			} catch (err) {
@@ -52,7 +52,7 @@ const VerifyEmail = () => {
 
 	const handleResend = async () => {
 		if (!isAuthenticated) {
-			navigate('/auth?mode=login');
+			navigate('/login');
 			return;
 		}
 		setResending(true);
@@ -118,7 +118,7 @@ const VerifyEmail = () => {
 										? role === 'teacher'
 											? '/teacher'
 											: '/student'
-										: '/auth?mode=login',
+										: '/login',
 									{ replace: true },
 								)
 							}
@@ -165,7 +165,7 @@ const VerifyEmail = () => {
 
 						<button
 							type="button"
-							onClick={() => navigate('/auth?mode=login')}
+							onClick={() => navigate('/login')}
 							className={`link-btn ${role}`}
 							style={{ width: '100%' }}
 						>
@@ -217,7 +217,7 @@ const VerifyEmail = () => {
 										? role === 'teacher'
 											? '/teacher'
 											: '/student'
-										: '/auth?mode=login',
+										: '/login',
 								)
 							}
 							className={`link-btn ${role}`}
