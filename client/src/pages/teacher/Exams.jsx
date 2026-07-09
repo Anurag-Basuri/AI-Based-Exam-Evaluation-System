@@ -72,9 +72,10 @@ function Spinner({ size = 16, color = 'currentColor' }) {
 
 // Confirm Modal
 function ConfirmModal({ isOpen, onClose, onConfirm, config, loading, isDark }) {
+	const [inputValue, setInputValue] = useState('');
+
 	if (!isOpen) return null;
 	const { title, message, actionLabel, actionColor = '#ef4444', isInput = false } = config;
-	const [inputValue, setInputValue] = useState('');
 
 	return (
 		<div

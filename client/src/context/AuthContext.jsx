@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -35,7 +36,9 @@ export const AuthProvider = ({ children }) => {
 			}
 		} catch (err) {
 			clearAuthState();
-			try { removeToken(); } catch {}
+			try { removeToken(); } catch {
+				/* ignore */
+			}
 			console.error('Auth init failed:', err);
 		} finally {
 			setLoading(false);
@@ -47,8 +50,10 @@ export const AuthProvider = ({ children }) => {
 		const handleUnauthorized = () => {
 			if (!isAuthenticated) return;
 			clearAuthState();
-			try { removeToken(); } catch {}
-			navigate('/auth?mode=login&session_expired=true', { replace: true });
+			try { removeToken(); } catch {
+				/* ignore */
+			}
+			navigate('/login?session_expired=true', { replace: true });
 		};
 
 		window.addEventListener('api:unauthorized', handleUnauthorized);
@@ -154,9 +159,11 @@ export const AuthProvider = ({ children }) => {
 			// Best-effort: server logout may fail, but we still clear locally
 		} finally {
 			clearAuthState();
-			try { removeToken(); } catch {}
+			try { removeToken(); } catch {
+				/* ignore */
+			}
 			setLoading(false);
-			navigate('/auth?mode=login', { replace: true });
+			navigate('/login', { replace: true });
 		}
 	};
 

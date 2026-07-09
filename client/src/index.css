@@ -17,6 +17,7 @@
 :root {
     /* Brand Colors */
     --primary: #3b82f6;
+    --primary-rgb: 59, 130, 246;
     --primary-strong: #2563eb;
     --primary-light: #93c5fd;
     --secondary: #10b981;

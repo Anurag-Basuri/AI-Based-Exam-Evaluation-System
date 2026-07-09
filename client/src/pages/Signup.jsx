@@ -12,12 +12,14 @@ import {
 	AlertCircle, 
 	Loader2, 
 	Moon, 
-	Sun 
+	Sun,
+	Home
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.js';
 import { useTheme } from '../hooks/useTheme.js';
 import { pingBackendHealth } from '../services/api.js';
-import heroImage from '../assets/hero_3.png'; // Make sure this asset exists
+import heroImage from '../assets/hero_3.png';
+import { GoogleLogin } from '@react-oauth/google';
 import './Auth.css';
 
 export default function Signup() {
@@ -26,7 +28,7 @@ export default function Signup() {
 	const [searchParams] = useSearchParams();
 	const returnTo = searchParams.get('redirect') || location?.state?.from || null;
 
-	const { register } = useAuth();
+	const { register, googleLogin } = useAuth();
 	const { theme, toggleTheme } = useTheme();
 
 	const [role, setRole] = useState('student');
@@ -84,6 +86,32 @@ export default function Signup() {
 		return newErrors;
 	};
 
+	const calculatePasswordStrength = (password) => {
+		let strength = 0;
+		if (password.length >= 6) strength++;
+		if (password.length >= 10) strength++;
+		if (/[A-Z]/.test(password)) strength++;
+		if (/[0-9]/.test(password)) strength++;
+		if (/[^A-Za-z0-9]/.test(password)) strength++;
+		return Math.min(strength, 4);
+	};
+
+	const passwordStrength = calculatePasswordStrength(formData.password);
+	const getStrengthColor = () => {
+		if (formData.password.length === 0) return 'transparent';
+		if (passwordStrength <= 1) return '#ef4444'; // Red
+		if (passwordStrength === 2) return '#f59e0b'; // Orange
+		if (passwordStrength === 3) return '#84cc16'; // Light Green
+		return '#22c55e'; // Green
+	};
+	const getStrengthText = () => {
+		if (formData.password.length === 0) return '';
+		if (passwordStrength <= 1) return 'Weak';
+		if (passwordStrength === 2) return 'Fair';
+		if (passwordStrength === 3) return 'Good';
+		return 'Strong';
+	};
+
 	const handleSubmit = async e => {
 		e.preventDefault();
 		const validationErrors = validate();
@@ -114,19 +142,52 @@ export default function Signup() {
 		}
 	};
 
+	const handleGoogleSuccess = async credentialResponse => {
+		setLoading(true);
+		setGlobalError('');
+		try {
+			// Register/Login using Google credential, providing the currently selected role
+			const res = await googleLogin(credentialResponse.credential, role);
+			const actualRole = res?.data?.user?.role || role;
+			
+			try {
+				localStorage.setItem('preferredRole', actualRole);
+			} catch {
+				/* ignore */
+			}
+			
+			const dashboard = actualRole === 'teacher' ? '/teacher' : '/student';
+			navigate(returnTo || dashboard, { replace: true });
+		} catch (err) {
+			setGlobalError(err?.message || 'Google authentication failed. Please try again.');
+		} finally {
+			setLoading(false);
+		}
+	};
+
 	return (
 		<div className="auth-split-container">
 			{/* Left Side: Form */}
-			<div className="auth-form-section">
-				<button
-					className="auth-theme-toggle"
-					onClick={toggleTheme}
-					title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-				>
-					{theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
-				</button>
+			<div className="auth-form-section overflow-y-auto">
+				{/* Top Controls */}
+				<div className="absolute top-6 left-6 right-6 flex items-center justify-between z-50">
+					<button
+						className="flex items-center gap-2 rounded-full bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+						onClick={() => navigate('/')}
+					>
+						<Home size={16} />
+						<span className="hidden sm:inline">Back to Home</span>
+					</button>
+					<button
+						className="auth-theme-toggle !static"
+						onClick={toggleTheme}
+						title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+					>
+						{theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
+					</button>
+				</div>
 
-				<div className="auth-form-container" style={{ maxWidth: '480px' }}>
+				<div className="auth-form-container mt-16 sm:mt-8 pb-8" style={{ maxWidth: '480px' }}>
 					<div className="auth-header">
 						<div className="auth-header-icon">
 							<UserPlus size={24} />
@@ -268,6 +329,30 @@ export default function Signup() {
 									{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
 								</button>
 							</div>
+							
+							{/* Password Strength Indicator */}
+							{formData.password.length > 0 && !errors.password && (
+								<div className="flex items-center gap-2 mt-1 px-1">
+									<div className="flex-1 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden flex">
+										{[1, 2, 3, 4].map(idx => (
+											<div 
+												key={idx} 
+												className="h-full flex-1 border-r border-white dark:border-gray-900 last:border-0 transition-colors duration-300"
+												style={{ 
+													backgroundColor: idx <= passwordStrength ? getStrengthColor() : 'transparent' 
+												}}
+											/>
+										))}
+									</div>
+									<span 
+										className="text-xs font-semibold"
+										style={{ color: getStrengthColor() }}
+									>
+										{getStrengthText()}
+									</span>
+								</div>
+							)}
+
 							{errors.password && (
 								<div className="inline-error">
 									<AlertCircle size={14} />
@@ -283,6 +368,26 @@ export default function Signup() {
 								'Create Account'
 							)}
 						</button>
+						
+						<div className="relative flex items-center justify-center my-2">
+							<div className="absolute inset-0 flex items-center">
+								<div className="w-full border-t border-[var(--border)]"></div>
+							</div>
+							<div className="relative bg-[var(--bg)] px-4 text-sm text-[var(--text-muted)]">
+								Or sign up with
+							</div>
+						</div>
+						
+						<div className="flex justify-center w-full">
+							<GoogleLogin
+								onSuccess={handleGoogleSuccess}
+								onError={() => setGlobalError('Google Sign Up failed.')}
+								useOneTap
+								theme={theme === 'dark' ? 'filled_black' : 'outline'}
+								shape="pill"
+								width="100%"
+							/>
+						</div>
 					</form>
 
 					<p className="auth-footer">

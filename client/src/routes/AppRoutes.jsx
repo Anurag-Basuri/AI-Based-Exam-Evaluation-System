@@ -1,5 +1,5 @@
 import React, { Suspense, lazy } from 'react';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 
 // Boundaries & Fallbacks
 import ErrorBoundary from '../components/ErrorBoundary.jsx';
@@ -152,7 +152,7 @@ const AppRoutes = () => (
 			{/* ─── Public (redirect to dashboard if already logged in) ─── */}
 			<Route
 				path="/"
-				element={<RedirectIfAuth>{withBoundary(<LandingPage />)}</RedirectIfAuth>}
+				element={withBoundary(<LandingPage />)}
 			/>
 			<Route
 				path="/login"
