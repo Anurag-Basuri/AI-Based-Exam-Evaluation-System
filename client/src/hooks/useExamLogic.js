@@ -210,8 +210,6 @@ export const useExamLogic = submissionId => {
 
 		const onContextMenu = e => {
 			try {
-				const t = e.target;
-				if (t && (['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName) || t.isContentEditable)) return;
 				e.preventDefault();
 			} catch { /* */ }
 		};
@@ -219,8 +217,6 @@ export const useExamLogic = submissionId => {
 		const onCopyEvent = e => { e.preventDefault(); handleViolation('copy-attempt'); };
 		const onCutEvent = e => { e.preventDefault(); handleViolation('copy-attempt'); };
 		const onPasteEvent = e => {
-			const t = e.target;
-			if (t && (t.tagName === 'TEXTAREA' || t.tagName === 'INPUT') && t.classList.contains('subjective-input')) return;
 			e.preventDefault();
 			handleViolation('paste-attempt');
 		};
@@ -240,9 +236,7 @@ export const useExamLogic = submissionId => {
 				if (t && (t.tagName === 'TEXTAREA' || t.tagName === 'INPUT')) return;
 				e.preventDefault(); return;
 			}
-			if (mod && ['c', 'C', 'x', 'X'].includes(key)) {
-				const t = e.target;
-				if (t && (t.tagName === 'TEXTAREA' || t.tagName === 'INPUT')) return;
+			if (mod && ['c', 'C', 'x', 'X', 'v', 'V'].includes(key)) {
 				e.preventDefault(); handleViolation('copy-attempt'); return;
 			}
 		};

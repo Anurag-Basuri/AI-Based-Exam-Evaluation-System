@@ -123,7 +123,7 @@ export default function Signup() {
 
 		try {
 			await register({ ...formData, role });
-			navigate('/auth/verify-email', {
+			navigate('/verify-email', {
 				state: { email: formData.email, type: 'register' },
 			});
 		} catch (err) {

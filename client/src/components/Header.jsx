@@ -44,7 +44,7 @@ const Header = ({ transparent = false }) => {
 	const navigate = useNavigate();
 	const isMobile = useIsMobile();
 	const { theme, toggleTheme } = useTheme();
-	const { user, isAuthenticated, role, logoutStudent, logoutTeacher } = useAuth();
+	const { user, isAuthenticated, role, logout } = useAuth();
 
 	const userDdRef = useRef(null);
 	const [showUserDropdown, setShowUserDropdown] = useState(false);
@@ -128,7 +128,7 @@ const Header = ({ transparent = false }) => {
 	const handleLogout = async () => {
 		setShowUserDropdown(false);
 		try {
-			role === 'teacher' ? await logoutTeacher() : await logoutStudent();
+			await logout();
 		} catch (e) {
 			console.error('Logout failed', e);
 		}
