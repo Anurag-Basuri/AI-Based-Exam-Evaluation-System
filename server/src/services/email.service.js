@@ -113,7 +113,7 @@ function wrapHtml(body) {
 
 // Email Verification
 export async function sendVerificationEmail(to, name, token, role) {
-	const link = `${FRONTEND()}/auth/verify-email?token=${encodeURIComponent(token)}&role=${role}`;
+	const link = `${FRONTEND()}/verify-email?token=${encodeURIComponent(token)}&role=${role}`;
 
 	const html = wrapHtml(`
     <p>Hi <strong>${name}</strong>,</p>
@@ -150,7 +150,7 @@ export async function sendVerificationEmail(to, name, token, role) {
 
 // Password Reset
 export async function sendPasswordResetEmail(to, name, token, role) {
-	const link = `${FRONTEND()}/auth/reset-password?token=${encodeURIComponent(token)}&role=${role}`;
+	const link = `${FRONTEND()}/reset-password?token=${encodeURIComponent(token)}&role=${role}`;
 
 	const html = wrapHtml(`
     <p>Hi <strong>${name}</strong>,</p>

@@ -162,9 +162,9 @@ const AppRoutes = () => (
 				path="/signup"
 				element={<RedirectIfAuth>{withBoundary(<SignupPage />)}</RedirectIfAuth>}
 			/>
-			<Route path="/auth/forgot-password" element={withBoundary(<ForgotPassword />)} />
-			<Route path="/auth/reset-password" element={withBoundary(<ResetPassword />)} />
-			<Route path="/auth/verify-email" element={withBoundary(<VerifyEmail />)} />
+			<Route path="/forgot-password" element={withBoundary(<ForgotPassword />)} />
+			<Route path="/reset-password" element={withBoundary(<ResetPassword />)} />
+			<Route path="/verify-email" element={withBoundary(<VerifyEmail />)} />
 
 			{/* ─── Classroom Invite Link (works for any auth state) ─── */}
 			<Route path="/join/:code" element={withBoundary(<JoinClassroom />)} />

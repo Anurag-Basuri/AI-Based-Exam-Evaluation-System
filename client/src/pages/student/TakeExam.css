@@ -9,6 +9,8 @@
     color: var(--text);
     overflow: hidden;
     font-family: 'Inter', sans-serif;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 .exam-main {
