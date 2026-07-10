@@ -78,7 +78,7 @@ const ProtectedRoutes = ({ requireRole }) => {
 
 	// Not logged in → redirect to auth with return URL
 	if (!isAuthenticated || !user) {
-		return <Navigate to={`/auth?redirect=${encodeURIComponent(location.pathname)}`} replace />;
+		return <Navigate to={`/login?redirect=${encodeURIComponent(location.pathname)}`} replace />;
 	}
 
 	// Wrong role → show 403 with link to their correct dashboard

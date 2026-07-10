@@ -72,7 +72,7 @@ export default function JoinClassroom() {
 	};
 
 	const redirectUrl = `/join/${code}`;
-	const loginUrl = `/auth?redirect=${encodeURIComponent(redirectUrl)}`;
+	const loginUrl = `/login?redirect=${encodeURIComponent(redirectUrl)}`;
 
 	if (authLoading || loading) {
 		return (
