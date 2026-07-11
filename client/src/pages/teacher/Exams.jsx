@@ -846,23 +846,42 @@ export default function TeacherExams() {
 						Create, schedule, and monitor your assessments in real-time.
 					</p>
 				</div>
-				<Link
-					to="/teacher/exams/create"
-					style={{
-						display: 'inline-flex',
-						alignItems: 'center',
-						gap: 8,
-						background: '#6366f1',
-						color: '#fff',
-						padding: '10px 20px',
-						borderRadius: 10,
-						fontWeight: 600,
-						textDecoration: 'none',
-						boxShadow: '0 4px 12px rgba(99,102,241,0.3)',
-					}}
-				>
-					<Plus size={18} /> New Exam
-				</Link>
+				<div style={{ display: 'flex', gap: 12 }}>
+					<Link
+						to="/teacher/exams/ai-generator"
+						style={{
+							display: 'inline-flex',
+							alignItems: 'center',
+							gap: 8,
+							background: 'linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%)',
+							color: '#fff',
+							padding: '10px 20px',
+							borderRadius: 10,
+							fontWeight: 600,
+							textDecoration: 'none',
+							boxShadow: '0 4px 12px rgba(99,102,241,0.3)',
+						}}
+					>
+						<Rocket size={18} /> Generate with AI
+					</Link>
+					<Link
+						to="/teacher/exams/create"
+						style={{
+							display: 'inline-flex',
+							alignItems: 'center',
+							gap: 8,
+							background: isDark ? '#1e293b' : '#fff',
+							color: isDark ? '#f8fafc' : '#0f172a',
+							border: isDark ? '1px solid #334155' : '1px solid #cbd5e1',
+							padding: '10px 20px',
+							borderRadius: 10,
+							fontWeight: 600,
+							textDecoration: 'none',
+						}}
+					>
+						<Plus size={18} /> New Exam
+					</Link>
+				</div>
 			</div>
 
 			<StatsCard stats={stats} loading={statsLoading} isDark={isDark} />

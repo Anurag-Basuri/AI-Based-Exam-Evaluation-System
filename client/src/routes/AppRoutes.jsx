@@ -38,6 +38,7 @@ const StudentTakeExam = lazy(() => import('../pages/student/TakeExam.jsx'));
 const TeacherHome = lazy(() => import('../pages/teacher/Home.jsx'));
 const TeacherExams = lazy(() => import('../pages/teacher/Exams.jsx'));
 const TeacherExamCreate = lazy(() => import('../pages/teacher/ExamCreate.jsx'));
+const TeacherAIGenerator = lazy(() => import('../pages/teacher/AIGenerator.jsx'));
 const TeacherExamEdit = lazy(() => import('../pages/teacher/ExamEdit.jsx'));
 const TeacherClassrooms = lazy(() => import('../pages/teacher/Classrooms.jsx'));
 const TeacherClassroomDetails = lazy(() => import('../pages/teacher/ClassroomDetails.jsx'));
@@ -192,6 +193,7 @@ const AppRoutes = () => (
 					<Route index element={withBoundary(<TeacherHome />)} />
 					<Route path="exams" element={withBoundary(<TeacherExams />)} />
 					<Route path="exams/create" element={withBoundary(<TeacherExamCreate />)} />
+					<Route path="exams/ai-generator" element={withBoundary(<TeacherAIGenerator />)} />
 					<Route path="exams/edit/:id" element={withBoundary(<TeacherExamEdit />)} />
 					<Route path="classrooms" element={withBoundary(<TeacherClassrooms />)} />
 					<Route path="classrooms/:id" element={withBoundary(<TeacherClassroomDetails />)} />
