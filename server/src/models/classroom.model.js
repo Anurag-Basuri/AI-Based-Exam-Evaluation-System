@@ -48,6 +48,18 @@ const materialSchema = new mongoose.Schema(
 			type: Date,
 			default: Date.now,
 		},
+		embeddingStatus: {
+			type: String,
+			enum: ['pending', 'processing', 'completed', 'failed'],
+			default: 'pending',
+		},
+		lastEmbeddedAt: {
+			type: Date,
+		},
+		chunkCount: {
+			type: Number,
+			default: 0,
+		}
 	},
 	{ _id: true },
 );

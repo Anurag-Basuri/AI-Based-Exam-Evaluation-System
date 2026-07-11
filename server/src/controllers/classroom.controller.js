@@ -258,6 +258,8 @@ const rejectStudent = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, null, 'Student request rejected');
 });
 
+import axios from 'axios';
+
 // Upload study material to classroom
 const uploadMaterial = asyncHandler(async (req, res) => {
 	const teacherId = String(req.userDoc?._id || req.user?.id);
@@ -288,6 +290,31 @@ const uploadMaterial = asyncHandler(async (req, res) => {
 
 	classroom.materials.push(newMaterial);
 	await classroom.save();
+
+	// Get the newly added material (which now has an _id)
+	const savedMaterial = classroom.materials[classroom.materials.length - 1];
+
+	// Asynchronously trigger the embedding pipeline in the Python service
+	const AGENT_SERVICE_URL = process.env.AGENT_SERVICE_URL || 'http://localhost:8000';
+	axios.post(`${AGENT_SERVICE_URL}/embed`, {
+		classroom_id: classroom._id.toString(),
+		doc_id: savedMaterial._id.toString(),
+		file_url: savedMaterial.fileUrl,
+		original_name: savedMaterial.originalName
+	}).then(response => {
+		console.log(`[Embed] Triggered successfully for ${savedMaterial.originalName}`);
+		// Update status to processing
+		Classroom.updateOne(
+			{ 'materials._id': savedMaterial._id },
+			{ $set: { 'materials.$.embeddingStatus': 'processing' } }
+		).exec();
+	}).catch(err => {
+		console.error(`[Embed Error] Failed to trigger embed for ${savedMaterial.originalName}:`, err.message);
+		Classroom.updateOne(
+			{ 'materials._id': savedMaterial._id },
+			{ $set: { 'materials.$.embeddingStatus': 'failed' } }
+		).exec();
+	});
 
 	req.io?.to(`classroom-${classroom._id}`).emit('classroom-materials-updated', {
 		classroomId: classroom._id,

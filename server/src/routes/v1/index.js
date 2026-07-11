@@ -9,6 +9,7 @@ import questionRouter from '../question.routes.js';
 import submissionRouter from '../submission.routes.js';
 import issueRouter from '../issue.routes.js';
 import classroomRouter from '../classroom.routes.js';
+import agentRouter from '../agent.routes.js';
 
 const router = Router();
 
@@ -43,5 +44,6 @@ router.use('/questions', questionRouter);
 router.use('/submissions', submissionRouter);
 router.use('/issues', issueRouter);
 router.use('/classrooms', classroomRouter);
+router.use('/agent', agentRouter);
 
 export default router;

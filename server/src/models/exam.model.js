@@ -146,6 +146,15 @@ const examSchema = new mongoose.Schema(
 			trim: true,
 		},
 		aiPolicy: { type: AiPolicySchema, default: undefined },
+		generatedBy: {
+			type: String,
+			enum: ['manual', 'ai'],
+			default: 'manual',
+		},
+		agentSessionId: {
+			type: String, // Storing sessionId instead of ObjectId for direct mapping
+			default: null,
+		},
 	},
 	{
 		timestamps: true,
