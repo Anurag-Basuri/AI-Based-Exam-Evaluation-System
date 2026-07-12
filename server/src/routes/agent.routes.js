@@ -1,5 +1,5 @@
 import express from 'express';
-import { protect, requireRole } from '../middlewares/auth.middleware.js';
+import { checkAuth, verifyTeacher } from '../middlewares/auth.middleware.js';
 import {
 	createAgentSession,
 	streamSession,
@@ -10,8 +10,8 @@ import {
 const router = express.Router();
 
 // All agent routes require teacher role
-router.use(protect);
-router.use(requireRole('teacher'));
+router.use(checkAuth);
+router.use(verifyTeacher);
 
 // Create a new agent session
 router.post('/sessions', createAgentSession);

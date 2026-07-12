@@ -55,10 +55,18 @@ const withBoundary = node => <ErrorBoundary>{node}</ErrorBoundary>;
  * to their role-specific dashboard.
  */
 const RedirectIfAuth = ({ children }) => {
-	const { isAuthenticated, role, loading } = useAuth();
+	const { isAuthenticated, role, loading, isEmailVerified } = useAuth();
 	if (loading) return <RouteFallback />;
 	if (isAuthenticated && role) {
-		const dest = role === 'teacher' ? '/teacher' : '/student';
+		const params = new URLSearchParams(window.location.search);
+		const returnTo = params.get('redirect');
+		
+		// If they just signed up and aren't verified, guide them to the verification page
+		if (window.location.pathname === '/signup' && !isEmailVerified) {
+			return <Navigate to="/verify-email" replace />;
+		}
+
+		const dest = returnTo || (role === 'teacher' ? '/teacher' : '/student');
 		return <Navigate to={dest} replace />;
 	}
 	return children;
