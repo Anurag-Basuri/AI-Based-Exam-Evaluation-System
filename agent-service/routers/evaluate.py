@@ -21,8 +21,6 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-# ── Request / Response Schemas ──
-
 class PolicySchema(BaseModel):
     strictness: str = "moderate"       # lenient | moderate | strict
     reviewTone: str = "concise"        # concise | detailed | encouraging
@@ -35,10 +33,9 @@ class EvaluateRequest(BaseModel):
     max_marks: int = 100
     reference_answer: Optional[str] = None
     classroom_id: Optional[str] = None
-    # Strict filtering: only these doc IDs are searchable in ChromaDB
     allowed_doc_ids: Optional[List[str]] = None
-    # Whether this exam was manual or AI-created
-    exam_type: str = "manual"   # "manual" | "ai"
+    exam_type: str = "manual"
+    session_id: Optional[str] = None
     policy: Optional[PolicySchema] = None
 
 class EvaluateResponse(BaseModel):
@@ -58,13 +55,19 @@ async def evaluate_answer(req: EvaluateRequest):
     
     No outside knowledge is used.
     """
+    from session.manager import session_manager
     
-    # 1. Retrieve strictly-scoped context from ChromaDB
     context_text = ""
     sources_used = 0
     
+    if req.exam_type == "ai" and req.session_id:
+        state = session_manager.get_session(req.session_id)
+        if state and state.get("used_chunk_ids"):
+            req.allowed_doc_ids = state["used_chunk_ids"]
+            if not req.classroom_id:
+                req.classroom_id = state.get("classroom_id")
+    
     if req.classroom_id and req.allowed_doc_ids:
-        # Search ONLY within the allowed documents
         results = store.search(
             classroom_id=req.classroom_id,
             query=req.question,
@@ -82,15 +85,12 @@ async def evaluate_answer(req: EvaluateRequest):
     if not context_text:
         context_text = "No course materials available for this evaluation."
     
-    # 2. Setup policy
     policy = req.policy or PolicySchema()
     custom_instr = f"Additional Instructions: {policy.customInstructions}" if policy.customInstructions else ""
     
-    # 3. Build the chain
     llm, provider = get_llm()
     prompt = get_evaluation_prompt()
     
-    # 4. Invoke
     try:
         response = await llm.ainvoke(
             prompt.format_messages(
@@ -106,19 +106,15 @@ async def evaluate_answer(req: EvaluateRequest):
             )
         )
         
-        # Parse the JSON from the LLM response
         raw_text = response.content.strip()
         
-        # Handle potential markdown wrapping
         if raw_text.startswith("```"):
             lines = raw_text.split("\n")
-            # Remove first and last lines (```json and ```)
             lines = [l for l in lines if not l.strip().startswith("```")]
             raw_text = "\n".join(lines)
         
         result = json.loads(raw_text)
         
-        # Clamp score to valid range
         score = max(0, min(req.max_marks, int(result.get("score", 0))))
         review = result.get("review", "No review provided.")
         

@@ -16,7 +16,6 @@ logger = logging.getLogger(__name__)
 
 class VectorStoreManager:
     def __init__(self):
-        # We ensure the path exists
         os.makedirs(CHROMA_PERSIST_DIR, exist_ok=True)
         
         self.client = chromadb.PersistentClient(
@@ -24,7 +23,6 @@ class VectorStoreManager:
             settings=Settings(anonymized_telemetry=False)
         )
         
-        # Use sentence-transformers (local, lightweight)
         self.embedding_fn = embedding_functions.SentenceTransformerEmbeddingFunction(
             model_name=EMBEDDING_MODEL
         )
@@ -45,10 +43,8 @@ class VectorStoreManager:
             
         collection = self.get_or_create_collection(classroom_id)
         
-        # Generate unique IDs for each chunk
         ids = [f"{doc_id}_chunk_{i}" for i in range(len(chunks))]
         
-        # Add to ChromaDB (it will embed automatically using embedding_fn)
         collection.add(
             documents=chunks,
             ids=ids,
@@ -60,7 +56,6 @@ class VectorStoreManager:
         """Removes a specific document's chunks from a collection."""
         collection = self.get_or_create_collection(classroom_id)
         
-        # ChromaDB requires fetching IDs first based on metadata, then deleting
         results = collection.get(where={"doc_id": doc_id})
         if results and results["ids"]:
             collection.delete(ids=results["ids"])
@@ -73,7 +68,7 @@ class VectorStoreManager:
             self.client.delete_collection(name=collection_name)
             logger.info(f"[Chroma] Deleted collection {collection_name}")
         except ValueError:
-            pass # Collection didn't exist
+            pass
 
     def search(self, classroom_id: str, query: str, n_results: int = 5, doc_ids: list[str] = None) -> list[dict]:
         """
@@ -91,7 +86,6 @@ class VectorStoreManager:
             else:
                 where_clause = {"doc_id": {"$in": doc_ids}}
 
-        # Ensure we don't ask for more results than exist
         actual_n = min(n_results, collection.count())
 
         results = collection.query(
@@ -116,5 +110,4 @@ class VectorStoreManager:
         return formatted_results
 
 
-# Singleton instance
 store = VectorStoreManager()
