@@ -3,10 +3,10 @@ Apply Changes Node for Refinement.
 Executes zero-LLM operations directly or calls the LLM if needed.
 """
 
-import logging
 import json
+import logging
 from agent.state import AgentState, QuestionDraft
-from agent.nodes.generate import ExamOutputSchema
+from agent.nodes.generate import ExamOutputSchema, _parse_json_from_text
 from llm_factory import get_llm
 from prompts.refinement import get_exam_refinement_prompt
 
@@ -78,27 +78,52 @@ def apply_changes_node(state: AgentState) -> AgentState:
         context_text = "\n\n---\n\n".join(state.get("context_chunks", []))
         
         llm, provider = get_llm()
+        prompt = get_exam_refinement_prompt()
+        
+        # Strategy 1: Try structured output
         try:
             structured_llm = llm.with_structured_output(ExamOutputSchema)
-        except NotImplementedError:
-            structured_llm = llm.with_structured_output(ExamOutputSchema, method="json_mode")
+            chain = prompt | structured_llm
             
-        prompt = get_exam_refinement_prompt()
-        chain = prompt | structured_llm
-        
-        try:
             result: ExamOutputSchema = chain.invoke({
                 "current_draft": json.dumps(questions, indent=2),
                 "context": context_text if context_text else "No specific materials provided.",
                 "request": intent.get("raw", "")
             })
             
-            # Update state with new draft
             state["questions"] = [q.model_dump() for q in result.questions]
             state["steps_log"].append({"type": "info", "message": "AI modification successful."})
+            return state
             
         except Exception as e:
-            logger.error(f"[Agent] Refinement LLM failed: {e}")
+            logger.warning(f"[Agent] Structured refinement failed ({provider}): {e}. Falling back to raw JSON.")
+        
+        # Strategy 2: Raw JSON parsing
+        try:
+            chain = prompt | llm
+            
+            result = chain.invoke({
+                "current_draft": json.dumps(questions, indent=2),
+                "context": context_text if context_text else "No specific materials provided.",
+                "request": intent.get("raw", "")
+            })
+            
+            raw_text = result.content if hasattr(result, 'content') else str(result)
+            parsed = _parse_json_from_text(raw_text)
+            
+            if isinstance(parsed, dict) and "questions" in parsed:
+                exam = ExamOutputSchema(**parsed)
+                state["questions"] = [q.model_dump() for q in exam.questions]
+            elif isinstance(parsed, list):
+                exam = ExamOutputSchema(questions=parsed)
+                state["questions"] = [q.model_dump() for q in exam.questions]
+            else:
+                raise ValueError(f"Unexpected JSON structure: {list(parsed.keys())}")
+            
+            state["steps_log"].append({"type": "info", "message": "AI modification successful (via JSON fallback)."})
+            
+        except Exception as e:
+            logger.error(f"[Agent] Refinement LLM failed completely: {e}")
             state["validation_errors"].append(str(e))
             state["steps_log"].append({"type": "error", "message": f"AI modification failed: {e}"})
             

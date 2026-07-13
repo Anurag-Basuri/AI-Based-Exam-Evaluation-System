@@ -1,7 +1,9 @@
 """
 Generate Node for initial exam creation.
+Uses LLM with structured output when available, falls back to JSON parsing.
 """
 
+import json
 import logging
 from pydantic import BaseModel, Field
 
@@ -14,10 +16,47 @@ logger = logging.getLogger(__name__)
 class ExamOutputSchema(BaseModel):
     questions: list[QuestionDraft] = Field(description="The list of generated questions")
 
+def _parse_json_from_text(text: str) -> dict:
+    """Extract JSON from LLM text output, handling markdown code blocks."""
+    text = text.strip()
+    
+    # Strip markdown code fences
+    if text.startswith("```"):
+        lines = text.split("\n")
+        lines = [l for l in lines if not l.strip().startswith("```")]
+        text = "\n".join(lines).strip()
+    
+    # Try direct parse
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+    
+    # Try to find JSON object in the text
+    start = text.find("{")
+    end = text.rfind("}") + 1
+    if start >= 0 and end > start:
+        try:
+            return json.loads(text[start:end])
+        except json.JSONDecodeError:
+            pass
+    
+    # Try to find JSON array
+    start = text.find("[")
+    end = text.rfind("]") + 1
+    if start >= 0 and end > start:
+        try:
+            arr = json.loads(text[start:end])
+            return {"questions": arr}
+        except json.JSONDecodeError:
+            pass
+    
+    raise ValueError(f"Could not extract valid JSON from LLM output: {text[:300]}")
+
 def generate_node(state: AgentState) -> AgentState:
     """
     Calls the LLM to generate the exam based on config and context.
-    Uses structured output to guarantee JSON schema adherence.
+    Tries structured output first, falls back to raw JSON parsing.
     """
     config = state["config"]
     context_text = "\n\n---\n\n".join(state["context_chunks"])
@@ -34,19 +73,13 @@ def generate_node(state: AgentState) -> AgentState:
     logger.info(f"[Agent] Generating exam. Total: {total_q}")
     
     llm, provider = get_llm()
+    prompt = get_exam_generation_prompt()
     
-    # Try to use structured output (most modern LangChain LLMs support this)
+    # Strategy 1: Try structured output (works with Groq, Gemini, OpenAI-compatible)
     try:
         structured_llm = llm.with_structured_output(ExamOutputSchema)
-    except NotImplementedError:
-        logger.warning(f"[Agent] Provider {provider} does not support with_structured_output natively. Falling back.")
-        # Some older/basic providers don't support it directly. For production we assume Groq/Gemini/OpenAI do.
-        structured_llm = llm.with_structured_output(ExamOutputSchema, method="json_mode")
-    
-    prompt = get_exam_generation_prompt()
-    chain = prompt | structured_llm
-    
-    try:
+        chain = prompt | structured_llm
+        
         result: ExamOutputSchema = chain.invoke({
             "title": config.get("title", "Exam"),
             "total_questions": total_q,
@@ -60,15 +93,53 @@ def generate_node(state: AgentState) -> AgentState:
             "context": context_text if context_text else "No specific materials provided. Use general knowledge."
         })
         
-        # Convert pydantic models to dicts for state
         state["questions"] = [q.model_dump() for q in result.questions]
         state["steps_log"].append({
             "type": "info",
             "message": f"Successfully generated {len(state['questions'])} questions."
         })
+        return state
         
     except Exception as e:
-        logger.error(f"[Agent] Generation failed: {e}")
+        logger.warning(f"[Agent] Structured output failed ({provider}): {e}. Falling back to raw JSON parsing.")
+    
+    # Strategy 2: Raw LLM call + JSON parse (works with HuggingFace, etc.)
+    try:
+        chain = prompt | llm
+        
+        result = chain.invoke({
+            "title": config.get("title", "Exam"),
+            "total_questions": total_q,
+            "mcq_count": mcq_count,
+            "subjective_count": subj_count,
+            "difficulty": config.get("difficulty", "medium"),
+            "marks_per_mcq": config.get("marksPerMcq", 1),
+            "marks_per_subjective": config.get("marksPerSubjective", 5),
+            "topic_focus": config.get("topicFocus", "General"),
+            "additional_instructions": config.get("additionalInstructions", "None"),
+            "context": context_text if context_text else "No specific materials provided. Use general knowledge."
+        })
+        
+        raw_text = result.content if hasattr(result, 'content') else str(result)
+        parsed = _parse_json_from_text(raw_text)
+        
+        # Validate through pydantic
+        if isinstance(parsed, dict) and "questions" in parsed:
+            exam = ExamOutputSchema(**parsed)
+            state["questions"] = [q.model_dump() for q in exam.questions]
+        elif isinstance(parsed, list):
+            exam = ExamOutputSchema(questions=parsed)
+            state["questions"] = [q.model_dump() for q in exam.questions]
+        else:
+            raise ValueError(f"Unexpected JSON structure: {list(parsed.keys())}")
+        
+        state["steps_log"].append({
+            "type": "info",
+            "message": f"Successfully generated {len(state['questions'])} questions (via JSON fallback)."
+        })
+        
+    except Exception as e:
+        logger.error(f"[Agent] Generation failed completely: {e}")
         state["validation_errors"].append(str(e))
         state["steps_log"].append({
             "type": "error",

@@ -28,14 +28,15 @@ def _build_llm(provider: dict, api_key: str) -> BaseChatModel:
         )
 
     if provider["type"] == "huggingface":
-        from langchain_huggingface import ChatHuggingFace, HuggingFaceEndpoint
-        endpoint = HuggingFaceEndpoint(
-            repo_id=provider["model"],
-            huggingfacehub_api_token=api_key,
+        # Use the OpenAI-compatible HF Router endpoint for better compatibility
+        from langchain_openai import ChatOpenAI
+        return ChatOpenAI(
+            model=provider["model"],
+            api_key=api_key,
+            base_url="https://router.huggingface.co/v1",
             temperature=LLM_TEMPERATURE,
-            max_new_tokens=LLM_MAX_TOKENS,
+            max_tokens=LLM_MAX_TOKENS,
         )
-        return ChatHuggingFace(llm=endpoint)
 
     # Default: OpenAI-compatible (Groq, OpenRouter, Cerebras, etc.)
     from langchain_openai import ChatOpenAI

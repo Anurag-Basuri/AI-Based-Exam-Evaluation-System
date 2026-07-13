@@ -50,7 +50,7 @@ LLM_PROVIDERS = [
     {
         "name": "huggingface",
         "api_key_env": "HF_API_KEY",
-        "model": "mistralai/Mistral-7B-Instruct-v0.2",
+        "model": "Qwen/Qwen2.5-72B-Instruct",
         "base_url": None,
         "type": "huggingface",
     },
