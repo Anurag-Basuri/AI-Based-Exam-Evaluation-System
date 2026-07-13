@@ -10,7 +10,7 @@ from typing import Tuple, Optional
 
 from langchain_core.language_models.chat_models import BaseChatModel
 
-from config import LLM_PROVIDERS, LLM_TEMPERATURE, LLM_MAX_TOKENS
+from config import LLM_TEMPERATURE, LLM_MAX_TOKENS
 
 class LLMProviderExhaustedError(Exception):
     """Raised when no LLM providers are available or functioning."""
@@ -19,66 +19,97 @@ class LLMProviderExhaustedError(Exception):
 logger = logging.getLogger(__name__)
 
 
-def _build_llm(provider: dict, api_key: str) -> BaseChatModel:
-    """Instantiate a LangChain chat model for the given provider config."""
-
-    if provider["type"] == "google_genai":
+def _build_llm(provider: str, api_key: str) -> BaseChatModel:
+    """Instantiate a LangChain chat model for the given provider."""
+    if provider == "gemini":
         from langchain_google_genai import ChatGoogleGenerativeAI
         return ChatGoogleGenerativeAI(
-            model=provider["model"],
+            model="gemini-2.0-flash",
             google_api_key=api_key,
             temperature=LLM_TEMPERATURE,
             max_output_tokens=LLM_MAX_TOKENS,
         )
 
-    if provider["type"] == "huggingface":
-        from langchain_openai import ChatOpenAI
+    from langchain_openai import ChatOpenAI
+
+    if provider == "groq":
         return ChatOpenAI(
-            model=provider["model"],
+            model="llama-3.3-70b-versatile",
+            api_key=api_key,
+            base_url="https://api.groq.com/openai/v1",
+            temperature=LLM_TEMPERATURE,
+            max_tokens=LLM_MAX_TOKENS,
+        )
+
+    if provider == "openai":
+        return ChatOpenAI(
+            model="gpt-4o-mini",
+            api_key=api_key,
+            temperature=LLM_TEMPERATURE,
+            max_tokens=LLM_MAX_TOKENS,
+        )
+
+    if provider == "cerebras":
+        return ChatOpenAI(
+            model="llama-3.3-70b",
+            api_key=api_key,
+            base_url="https://api.cerebras.ai/v1",
+            temperature=LLM_TEMPERATURE,
+            max_tokens=LLM_MAX_TOKENS,
+        )
+
+    if provider == "openrouter":
+        return ChatOpenAI(
+            model="meta-llama/llama-3.3-70b-instruct:free",
+            api_key=api_key,
+            base_url="https://openrouter.ai/api/v1",
+            temperature=LLM_TEMPERATURE,
+            max_tokens=LLM_MAX_TOKENS,
+        )
+
+    if provider == "huggingface":
+        return ChatOpenAI(
+            model="Qwen/Qwen2.5-72B-Instruct",
             api_key=api_key,
             base_url="https://router.huggingface.co/v1",
             temperature=LLM_TEMPERATURE,
             max_tokens=LLM_MAX_TOKENS,
         )
 
-    from langchain_openai import ChatOpenAI
-    return ChatOpenAI(
-        model=provider["model"],
-        api_key=api_key,
-        base_url=provider.get("base_url"),
-        temperature=LLM_TEMPERATURE,
-        max_tokens=LLM_MAX_TOKENS,
-    )
+    raise ValueError(f"Unknown LLM provider: {provider}")
 
 
 def get_llm_with_fallback(skip_health_check: bool = False) -> Tuple[BaseChatModel, str]:
     """
-    Try each provider in the fallback chain.
+    Try each provider in sequential priority order.
     Returns (llm_instance, provider_name).
-    Raises RuntimeError if all providers fail.
     """
+    providers = [
+        ("gemini", "GEMINI_API_KEY"),
+        ("groq", "GROQ_API_KEY"),
+        ("openai", "OPENAI_API_KEY"),
+        ("cerebras", "CEREBRAS_API_KEY"),
+        ("openrouter", "OPENROUTER_API_KEY"),
+        ("huggingface", "HF_API_KEY"),
+    ]
+
     errors = []
 
-    for provider in LLM_PROVIDERS:
-        api_key = os.getenv(provider["api_key_env"])
+    for name, env_var in providers:
+        api_key = os.getenv(env_var)
         if not api_key:
-            logger.debug(f"[LLM] Skipping {provider['name']}: no API key configured")
             continue
 
         try:
-            llm = _build_llm(provider, api_key)
-
+            llm = _build_llm(name, api_key)
             if not skip_health_check:
                 llm.invoke("Respond with OK")
-
-            logger.info(f"[LLM] ✅ Using provider: {provider['name']} ({provider['model']})")
-            return llm, provider["name"]
-
+            logger.info(f"[LLM] ✅ Using provider: {name}")
+            return llm, name
         except Exception as e:
-            msg = f"{provider['name']}: {type(e).__name__}: {e}"
-            logger.warning(f"[LLM] ❌ Provider failed — {msg}")
+            msg = f"{name}: {type(e).__name__}: {e}"
+            logger.warning(f"[LLM] ❌ Provider {name} failed — {msg}")
             errors.append(msg)
-            continue
 
     error_summary = "\n".join(f"  • {err}" for err in errors) if errors else "  No providers configured."
     raise LLMProviderExhaustedError(

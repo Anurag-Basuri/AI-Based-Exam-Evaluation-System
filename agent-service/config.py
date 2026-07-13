@@ -17,58 +17,23 @@ EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
 LLM_TEMPERATURE: float = float(os.getenv("LLM_TEMPERATURE", "0.3"))
 LLM_MAX_TOKENS: int = int(os.getenv("LLM_MAX_TOKENS", "4096"))
 
-from typing import List, Dict, Any
-
-LLM_PROVIDERS: List[Dict[str, Any]] = [
-    {
-        "name": "groq",
-        "api_key_env": "GROQ_API_KEY",
-        "model": "llama-3.3-70b-versatile",
-        "base_url": "https://api.groq.com/openai/v1",
-        "type": "openai_compatible",
-    },
-    {
-        "name": "gemini",
-        "api_key_env": "GEMINI_API_KEY",
-        "model": "gemini-2.0-flash",
-        "base_url": None,
-        "type": "google_genai",
-    },
-    {
-        "name": "openrouter",
-        "api_key_env": "OPENROUTER_API_KEY",
-        "model": "meta-llama/llama-3.3-70b-instruct:free",
-        "base_url": "https://openrouter.ai/api/v1",
-        "type": "openai_compatible",
-    },
-    {
-        "name": "huggingface",
-        "api_key_env": "HF_API_KEY",
-        "model": "Qwen/Qwen2.5-72B-Instruct",
-        "base_url": None,
-        "type": "huggingface",
-    },
-]
-
-_cerebras_key = os.getenv("CEREBRAS_API_KEY")
-if _cerebras_key:
-    LLM_PROVIDERS.insert(1, {
-        "name": "cerebras",
-        "api_key_env": "CEREBRAS_API_KEY",
-        "model": "llama-3.3-70b",
-        "base_url": "https://api.cerebras.ai/v1",
-        "type": "openai_compatible",
-    })
-
-
 def get_available_providers() -> list[dict]:
     """Return only providers that have an API key configured."""
+    keys = [
+        {"name": "gemini", "env": "GEMINI_API_KEY", "model": "gemini-2.0-flash"},
+        {"name": "groq", "env": "GROQ_API_KEY", "model": "llama-3.3-70b-versatile"},
+        {"name": "openai", "env": "OPENAI_API_KEY", "model": "gpt-4o-mini"},
+        {"name": "cerebras", "env": "CEREBRAS_API_KEY", "model": "llama-3.3-70b"},
+        {"name": "openrouter", "env": "OPENROUTER_API_KEY", "model": "meta-llama/llama-3.3-70b-instruct:free"},
+        {"name": "huggingface", "env": "HF_API_KEY", "model": "Qwen/Qwen2.5-72B-Instruct"},
+    ]
+    
     available = []
-    for p in LLM_PROVIDERS:
-        key = os.getenv(p["api_key_env"])
+    for k in keys:
+        has_key = bool(os.getenv(k["env"]))
         available.append({
-            "name": p["name"],
-            "model": p["model"],
-            "configured": bool(key),
+            "name": k["name"],
+            "model": k["model"],
+            "configured": has_key
         })
     return available
