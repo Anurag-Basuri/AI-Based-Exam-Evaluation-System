@@ -18,7 +18,6 @@ logger = logging.getLogger(__name__)
 
 class SessionManager:
     def __init__(self):
-        # session_id -> AgentState
         self.sessions: Dict[str, AgentState] = {}
         
         self.generate_graph = build_generate_graph()
@@ -37,7 +36,7 @@ class SessionManager:
             "used_chunk_ids": [],
             "questions": [],
             "validation_errors": [],
-            "retried": False,
+            "retry_count": 0,
             "messages": [],
             "current_intent": None,
             "steps_log": [],
@@ -59,10 +58,9 @@ class SessionManager:
 
         yield {"event": "start", "data": "Starting exam generation pipeline"}
         
-        # Reset transient state
         state["steps_log"] = []
         state["validation_errors"] = []
-        state["retried"] = False
+        state["retry_count"] = 0
         
         try:
             for output in self.generate_graph.stream(state):
@@ -91,17 +89,15 @@ class SessionManager:
             yield {"event": "error", "data": "Session not found"}
             return
 
-        # Add teacher's message to chat history
         state["messages"].append({
             "role": "teacher",
             "content": message,
             "timestamp": time.time()
         })
         
-        # Reset transient state
         state["steps_log"] = []
         state["validation_errors"] = []
-        state["retried"] = False
+        state["retry_count"] = 0
         
         yield {"event": "start", "data": "Processing refinement request"}
         
@@ -116,7 +112,6 @@ class SessionManager:
                     updated_state["steps_log"] = []
                     yield {"event": "node_complete", "data": node_name}
                     
-            # Add agent's response to chat history
             self.sessions[session_id]["messages"].append({
                 "role": "agent",
                 "content": "Draft updated.",
@@ -132,5 +127,4 @@ class SessionManager:
             logger.error(f"[Session] Refine error: {e}")
             yield {"event": "error", "data": str(e)}
 
-# Singleton instance
 session_manager = SessionManager()

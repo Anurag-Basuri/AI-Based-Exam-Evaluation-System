@@ -20,19 +20,16 @@ def _parse_json_from_text(text: str) -> dict:
     """Extract JSON from LLM text output, handling markdown code blocks."""
     text = text.strip()
     
-    # Strip markdown code fences
     if text.startswith("```"):
         lines = text.split("\n")
         lines = [l for l in lines if not l.strip().startswith("```")]
         text = "\n".join(lines).strip()
-    
-    # Try direct parse
+        
     try:
         return json.loads(text)
     except json.JSONDecodeError:
         pass
     
-    # Try to find JSON object in the text
     start = text.find("{")
     end = text.rfind("}") + 1
     if start >= 0 and end > start:
@@ -41,7 +38,6 @@ def _parse_json_from_text(text: str) -> dict:
         except json.JSONDecodeError:
             pass
     
-    # Try to find JSON array
     start = text.find("[")
     end = text.rfind("]") + 1
     if start >= 0 and end > start:
@@ -61,7 +57,6 @@ def generate_node(state: AgentState) -> AgentState:
     config = state["config"]
     context_text = "\n\n---\n\n".join(state["context_chunks"])
     
-    # Extract config vars
     total_q = config.get("totalQuestions", 5)
     mcq_count = config.get("mcqCount", 3)
     subj_count = total_q - mcq_count
@@ -75,7 +70,6 @@ def generate_node(state: AgentState) -> AgentState:
     llm, provider = get_llm()
     prompt = get_exam_generation_prompt()
     
-    # Strategy 1: Try structured output (works with Groq, Gemini, OpenAI-compatible)
     try:
         structured_llm = llm.with_structured_output(ExamOutputSchema)
         chain = prompt | structured_llm
@@ -103,7 +97,6 @@ def generate_node(state: AgentState) -> AgentState:
     except Exception as e:
         logger.warning(f"[Agent] Structured output failed ({provider}): {e}. Falling back to raw JSON parsing.")
     
-    # Strategy 2: Raw LLM call + JSON parse (works with HuggingFace, etc.)
     try:
         chain = prompt | llm
         
@@ -123,7 +116,6 @@ def generate_node(state: AgentState) -> AgentState:
         raw_text = result.content if hasattr(result, 'content') else str(result)
         parsed = _parse_json_from_text(raw_text)
         
-        # Validate through pydantic
         if isinstance(parsed, dict) and "questions" in parsed:
             exam = ExamOutputSchema(**parsed)
             state["questions"] = [q.model_dump() for q in exam.questions]

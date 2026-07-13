@@ -28,12 +28,18 @@ def retrieve_node(state: AgentState) -> AgentState:
         "message": f"Searching classroom materials for topic: '{topic}'..."
     })
     
-    results = store.search(classroom_id, query=topic, n_results=8, doc_ids=doc_ids)
+    try:
+        results = store.search(classroom_id, query=topic, n_results=8, doc_ids=doc_ids)
+    except Exception as e:
+        logger.error(f"[Agent] Retrieval failed: {e}")
+        state["steps_log"].append({
+            "type": "error",
+            "message": f"Failed to retrieve context: {e}"
+        })
+        results = []
     
     context_chunks = [res["text"] for res in results]
     
-    # Record the chunk IDs that were used — these will be stored on the Exam
-    # so the evaluator can search ONLY these chunks when grading student answers
     used_chunk_ids = []
     for res in results:
         meta = res.get("metadata", {})

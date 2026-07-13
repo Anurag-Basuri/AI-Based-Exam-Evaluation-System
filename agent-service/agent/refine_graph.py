@@ -8,10 +8,13 @@ from agent.nodes.parse_intent import parse_intent_node
 from agent.nodes.apply_changes import apply_changes_node
 from agent.nodes.format_output import format_node
 
+MAX_RETRIES = 3
+
 def should_retry(state: AgentState):
-    """Conditional edge: Retry once if validation fails."""
-    if state.get("validation_errors") and not state.get("retried"):
-        state["retried"] = True
+    """Conditional edge: Retry if validation fails, up to MAX_RETRIES times."""
+    retry_count = state.get("retry_count", 0)
+    
+    if state.get("validation_errors") and retry_count < MAX_RETRIES:
         return "retry"
     return "end"
 

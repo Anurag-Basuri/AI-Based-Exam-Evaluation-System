@@ -37,14 +37,15 @@ def format_node(state: AgentState) -> AgentState:
                 
     if errors:
         state["validation_errors"] = errors
+        state["retry_count"] = state.get("retry_count", 0) + 1
         state["steps_log"].append({
             "type": "error",
             "message": "Validation failed:\n" + "\n".join(errors)
         })
-        logger.warning(f"[Agent] Validation failed with {len(errors)} errors.")
+        logger.warning(f"[Agent] Validation failed with {len(errors)} errors. (retry {state['retry_count']})")
     else:
         state["validation_errors"] = []
-        if state.get("retried"):
+        if state.get("retry_count", 0) > 0:
             state["steps_log"].append({
                 "type": "info",
                 "message": "Validation passed after retry."

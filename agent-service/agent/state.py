@@ -20,33 +20,23 @@ class QuestionDraft(BaseModel):
     tags: list[str] = Field(default_factory=list, description="Topic tags")
 
 class AgentState(TypedDict):
-    # Session identifiers
     session_id: str
     classroom_id: str
     teacher_id: str
     
-    # Input config from the teacher
     config: dict
     
-    # RAG state
     context_chunks: list[str]
-    # Track exactly which ChromaDB chunk IDs were used for generation
-    # These are persisted so evaluation can use the SAME references
     used_chunk_ids: list[str]
     
-    # Current draft
     questions: list[dict]
     
-    # Validation state
     validation_errors: list[str]
-    retried: bool
+    retry_count: int
     
-    # Chat / Intent state
     messages: list[dict]
     current_intent: Optional[dict]
     
-    # Log stream
     steps_log: list[dict]
     
-    # Token usage
     token_usage: dict
