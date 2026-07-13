@@ -1,150 +1,143 @@
-from fastapi import APIRouter, HTTPException, Depends
+"""
+Evaluation Router — Strict RAG-based Answer Evaluation.
+
+Evaluation logic:
+- Manual Exams: Uses the teacher's attached material_ids to filter ChromaDB search.
+- AI-Generated Exams: Uses the exact doc_ids that the AI used during exam generation.
+- No external knowledge is allowed. The LLM prompt strictly enforces reference-only grading.
+"""
+
+import json
+import logging
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
-from typing import Optional, Dict, Any
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import JsonOutputParser
+from typing import Optional, List, Dict, Any
 
-from config import LLM_TEMPERATURE
 from llm_factory import get_llm
-from rag.store import VectorStoreManager
+from rag.store import store
+from prompts.evaluation import get_evaluation_prompt
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
-vector_store = VectorStoreManager()
+
+
+# ── Request / Response Schemas ──
 
 class PolicySchema(BaseModel):
-    strictness: str = "moderate"
-    reviewTone: str = "concise"
-    expectedLength: int = 20
-    customInstructions: str = ""
+    strictness: str = "moderate"       # lenient | moderate | strict
+    reviewTone: str = "concise"        # concise | detailed | encouraging
+    expectedLength: int = 30           # approximate word count for review
+    customInstructions: str = ""       # any teacher-specific grading notes
 
 class EvaluateRequest(BaseModel):
     question: str
     student_answer: str
+    max_marks: int = 100
     reference_answer: Optional[str] = None
     classroom_id: Optional[str] = None
+    # Strict filtering: only these doc IDs are searchable in ChromaDB
+    allowed_doc_ids: Optional[List[str]] = None
+    # Whether this exam was manual or AI-created
+    exam_type: str = "manual"   # "manual" | "ai"
     policy: Optional[PolicySchema] = None
 
 class EvaluateResponse(BaseModel):
-    score: int = Field(ge=0, le=100)
+    score: int = Field(ge=0)
     review: str
     meta: Dict[str, Any]
 
-class EvalOutput(BaseModel):
-    score: int = Field(description="The evaluation score from 0 to 100")
-    review: str = Field(description="A brief explanation for the score")
-
-EVAL_TEMPLATE = """You are an expert, impartial exam evaluator.
-Your task is to score a student's answer based on a given question, an optional reference answer, and relevant course materials.
-You must return your evaluation as a JSON object with 'score' (0-100) and 'review' (string).
-
-**TEACHER'S POLICY**
-Strictness: {strictness}
-Review Tone: {reviewTone}
-Expected Length: {expectedLength} words
-{customInstructions}
-
-**RELEVANT COURSE MATERIAL (CONTEXT)**
-{context}
-
-**QUESTION**
-{question}
-
-**REFERENCE ANSWER**
-{reference_answer}
-
-**STUDENT'S ANSWER**
-{student_answer}
-
-Now, provide your evaluation strictly as JSON.
-"""
 
 @router.post("/evaluate", response_model=EvaluateResponse)
 async def evaluate_answer(req: EvaluateRequest):
-    # 1. Retrieve context if classroom_id is provided
-    docs = []
-    if req.classroom_id:
-        store = vector_store.get_store(req.classroom_id)
-        if store:
-            docs = store.similarity_search(req.question, k=3)
-            
-    context_text = "\n\n---\n\n".join([doc.page_content for doc in docs]) if docs else "No course materials provided."
+    """
+    Evaluate a student's subjective answer using strict RAG.
     
-    # 2. Setup LLM and parser
-    parser = JsonOutputParser(pydantic_object=EvalOutput)
+    The evaluation ONLY uses:
+    1. The reference_answer (if provided by the teacher)
+    2. ChromaDB chunks filtered by allowed_doc_ids (if provided)
     
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", "You are an AI evaluator. Format your output strictly according to the schema:\n{format_instructions}"),
-        ("user", EVAL_TEMPLATE)
-    ])
+    No outside knowledge is used.
+    """
     
-    # Use the best available LLM for evaluation
+    # 1. Retrieve strictly-scoped context from ChromaDB
+    context_text = ""
+    sources_used = 0
+    
+    if req.classroom_id and req.allowed_doc_ids:
+        # Search ONLY within the allowed documents
+        results = store.search(
+            classroom_id=req.classroom_id,
+            query=req.question,
+            n_results=5,
+            doc_ids=req.allowed_doc_ids
+        )
+        sources_used = len(results)
+        
+        if results:
+            context_text = "\n\n---\n\n".join([
+                f"[Source: {r.get('metadata', {}).get('source', 'unknown')}]\n{r['text']}"
+                for r in results
+            ])
+    
+    if not context_text:
+        context_text = "No course materials available for this evaluation."
+    
+    # 2. Setup policy
+    policy = req.policy or PolicySchema()
+    custom_instr = f"Additional Instructions: {policy.customInstructions}" if policy.customInstructions else ""
+    
+    # 3. Build the chain
     llm, provider = get_llm()
+    prompt = get_evaluation_prompt()
     
-    # 3. Apply policy
-    policy_dict = req.policy.model_dump() if req.policy else {
-        "strictness": "moderate",
-        "reviewTone": "concise",
-        "expectedLength": 20,
-        "customInstructions": ""
-    }
-    
+    # 4. Invoke
     try:
-        # Fallback for LLMs that don't support structured output perfectly
-        if hasattr(llm, "with_structured_output"):
-            try:
-                structured_llm = llm.with_structured_output(EvalOutput)
-                chain = prompt | structured_llm
-                result_obj = await chain.ainvoke({
-                    "format_instructions": "Return JSON with score and review.",
-                    "strictness": policy_dict["strictness"],
-                    "reviewTone": policy_dict["reviewTone"],
-                    "expectedLength": policy_dict["expectedLength"],
-                    "customInstructions": policy_dict["customInstructions"],
-                    "context": context_text,
-                    "question": req.question,
-                    "reference_answer": req.reference_answer or "None provided. Use course material context.",
-                    "student_answer": req.student_answer
-                })
-                # Handle pydantic object vs dict
-                if isinstance(result_obj, dict):
-                    result = result_obj
-                else:
-                    result = result_obj.dict()
-            except Exception as e:
-                print(f"Structured output failed, falling back to JsonOutputParser: {e}")
-                chain = prompt | llm | parser
-                result = await chain.ainvoke({
-                    "format_instructions": parser.get_format_instructions(),
-                    "strictness": policy_dict["strictness"],
-                    "reviewTone": policy_dict["reviewTone"],
-                    "expectedLength": policy_dict["expectedLength"],
-                    "customInstructions": policy_dict["customInstructions"],
-                    "context": context_text,
-                    "question": req.question,
-                    "reference_answer": req.reference_answer or "None provided. Use course material context.",
-                    "student_answer": req.student_answer
-                })
-        else:
-            chain = prompt | llm | parser
-            result = await chain.ainvoke({
-                "format_instructions": parser.get_format_instructions(),
-                "strictness": policy_dict["strictness"],
-                "reviewTone": policy_dict["reviewTone"],
-                "expectedLength": policy_dict["expectedLength"],
-                "customInstructions": policy_dict["customInstructions"],
-                "context": context_text,
-                "question": req.question,
-                "reference_answer": req.reference_answer or "None provided. Use course material context.",
-                "student_answer": req.student_answer
-            })
-            
+        response = await llm.ainvoke(
+            prompt.format_messages(
+                strictness=policy.strictness,
+                review_tone=policy.reviewTone,
+                expected_length=policy.expectedLength,
+                custom_instructions=custom_instr,
+                context=context_text,
+                reference_answer=req.reference_answer or "No model answer provided by teacher.",
+                question=req.question,
+                student_answer=req.student_answer,
+                max_marks=req.max_marks
+            )
+        )
+        
+        # Parse the JSON from the LLM response
+        raw_text = response.content.strip()
+        
+        # Handle potential markdown wrapping
+        if raw_text.startswith("```"):
+            lines = raw_text.split("\n")
+            # Remove first and last lines (```json and ```)
+            lines = [l for l in lines if not l.strip().startswith("```")]
+            raw_text = "\n".join(lines)
+        
+        result = json.loads(raw_text)
+        
+        # Clamp score to valid range
+        score = max(0, min(req.max_marks, int(result.get("score", 0))))
+        review = result.get("review", "No review provided.")
+        
         return EvaluateResponse(
-            score=result["score"],
-            review=result["review"],
+            score=score,
+            review=review,
             meta={
-                "evaluator": "rag-ai",
-                "sources_used": len(docs)
+                "evaluator": "strict-rag-ai",
+                "provider": provider,
+                "exam_type": req.exam_type,
+                "sources_used": sources_used,
+                "allowed_doc_ids": req.allowed_doc_ids or [],
+                "had_reference_answer": bool(req.reference_answer),
             }
         )
+        
+    except json.JSONDecodeError as e:
+        logger.error(f"[Eval] Failed to parse LLM JSON output: {e}\nRaw: {raw_text[:500]}")
+        raise HTTPException(status_code=500, detail=f"LLM returned invalid JSON: {e}")
     except Exception as e:
+        logger.error(f"[Eval] Evaluation failed: {e}")
         raise HTTPException(status_code=500, detail=f"Evaluation failed: {str(e)}")
