@@ -63,7 +63,7 @@ app = FastAPI(
 # CORS — Allow Node.js backend and dev frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5000", "http://localhost:5173", "http://localhost:3000"],
+    allow_origins=["http://localhost:8000", "http://localhost:5173", "http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -116,7 +116,7 @@ async def reset_providers():
         raise HTTPException(status_code=503, detail=str(e))
 
 
-# ── Placeholder routes (will be implemented in Phase 2) ──
+# ── Document Embedding ──
 
 class EmbedRequest(BaseModel):
     classroom_id: str
@@ -126,7 +126,7 @@ class EmbedRequest(BaseModel):
 
 @app.post("/embed")
 async def embed_document(req: EmbedRequest):
-    """Embed a document into ChromaDB."""
+    """Embed a document into ChromaDB for RAG retrieval."""
     try:
         result = await process_and_store_document(
             req.classroom_id, req.doc_id, req.file_url, req.original_name
@@ -135,6 +135,27 @@ async def embed_document(req: EmbedRequest):
     except Exception as e:
         logger.error(f"Embed failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+class DeleteEmbedRequest(BaseModel):
+    classroom_id: str
+    doc_id: str
+
+@app.delete("/embed")
+async def delete_embedding(req: DeleteEmbedRequest):
+    """Remove a document's embeddings from ChromaDB."""
+    from rag.store import store
+    try:
+        store.delete_document(req.classroom_id, req.doc_id)
+        return {"status": "success"}
+    except Exception as e:
+        logger.error(f"Delete embed failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── Agent Session Endpoints ──
+
+from sse_starlette.sse import EventSourceResponse
+import json
 
 @app.post("/sessions")
 async def create_session(req: CreateSessionRequest):
@@ -146,12 +167,9 @@ async def create_session(req: CreateSessionRequest):
         logger.error(f"Session creation failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-from sse_starlette.sse import EventSourceResponse
-import json
-
 @app.get("/sessions/{session_id}/generate/stream")
 async def stream_generate(session_id: str):
-    """Stream the generation process."""
+    """Stream the generation process via SSE."""
     
     async def event_generator():
         async for event in session_manager.run_generate(session_id):
@@ -185,7 +203,8 @@ async def get_session(session_id: str):
     return {
         "session_id": state["session_id"],
         "draft": state.get("questions", []),
-        "messages": state.get("messages", [])
+        "messages": state.get("messages", []),
+        "used_chunk_ids": state.get("used_chunk_ids", [])
     }
 
 
