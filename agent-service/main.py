@@ -13,13 +13,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from config import AGENT_HOST, AGENT_PORT, get_available_providers, CHROMA_PERSIST_DIR
-from llm_factory import get_llm, reset_llm_cache
+from llm_factory import get_llm, reset_llm_cache, LLMProviderExhaustedError
 from rag.embedder import process_and_store_document
 from session.models import CreateSessionRequest, SendMessageRequest
 from session.manager import session_manager
 from routers.evaluate import router as evaluate_router
 
-# ── Logging ──
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
@@ -28,7 +27,6 @@ logging.basicConfig(
 logger = logging.getLogger("agent-service")
 
 
-# ── Lifespan ──
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup and shutdown logic."""
@@ -52,7 +50,6 @@ async def lifespan(app: FastAPI):
     logger.info("Agent Service shutting down.")
 
 
-# ── App ──
 app = FastAPI(
     title="AI Exam Agent Service",
     description="LangGraph-powered exam generation and evaluation agent",
@@ -60,7 +57,6 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS — Allow Node.js backend and dev frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:8000", "http://localhost:5173", "http://localhost:3000"],
@@ -72,7 +68,6 @@ app.add_middleware(
 app.include_router(evaluate_router, prefix="/api/v1/ai", tags=["Evaluate"])
 
 
-# ── Health Check ──
 class HealthResponse(BaseModel):
     status: str
     uptime_seconds: float
@@ -92,7 +87,7 @@ async def health_check():
     try:
         _, provider_name = get_llm()
         active = provider_name
-    except RuntimeError as e:
+    except LLMProviderExhaustedError as e:
         error = str(e)
 
     return HealthResponse(
@@ -104,7 +99,6 @@ async def health_check():
     )
 
 
-# ── LLM Provider Management ──
 @app.post("/providers/reset")
 async def reset_providers():
     """Force re-evaluation of the LLM fallback chain."""
@@ -112,11 +106,9 @@ async def reset_providers():
     try:
         _, name = get_llm()
         return {"status": "ok", "active_provider": name}
-    except RuntimeError as e:
+    except LLMProviderExhaustedError as e:
         raise HTTPException(status_code=503, detail=str(e))
 
-
-# ── Document Embedding ──
 
 class EmbedRequest(BaseModel):
     classroom_id: str
@@ -151,8 +143,6 @@ async def delete_embedding(req: DeleteEmbedRequest):
         logger.error(f"Delete embed failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-
-# ── Agent Session Endpoints ──
 
 from sse_starlette.sse import EventSourceResponse
 import json
@@ -208,13 +198,12 @@ async def get_session(session_id: str):
     }
 
 
-# ── Run ──
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
         "main:app",
         host=AGENT_HOST,
         port=AGENT_PORT,
-        reload=True,
+        reload=False,
         log_level="info",
     )

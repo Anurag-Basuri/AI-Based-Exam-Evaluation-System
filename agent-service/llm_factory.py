@@ -12,6 +12,10 @@ from langchain_core.language_models.chat_models import BaseChatModel
 
 from config import LLM_PROVIDERS, LLM_TEMPERATURE, LLM_MAX_TOKENS
 
+class LLMProviderExhaustedError(Exception):
+    """Raised when no LLM providers are available or functioning."""
+    pass
+
 logger = logging.getLogger(__name__)
 
 
@@ -28,7 +32,6 @@ def _build_llm(provider: dict, api_key: str) -> BaseChatModel:
         )
 
     if provider["type"] == "huggingface":
-        # Use the OpenAI-compatible HF Router endpoint for better compatibility
         from langchain_openai import ChatOpenAI
         return ChatOpenAI(
             model=provider["model"],
@@ -38,7 +41,6 @@ def _build_llm(provider: dict, api_key: str) -> BaseChatModel:
             max_tokens=LLM_MAX_TOKENS,
         )
 
-    # Default: OpenAI-compatible (Groq, OpenRouter, Cerebras, etc.)
     from langchain_openai import ChatOpenAI
     return ChatOpenAI(
         model=provider["model"],
@@ -67,7 +69,6 @@ def get_llm_with_fallback(skip_health_check: bool = False) -> Tuple[BaseChatMode
             llm = _build_llm(provider, api_key)
 
             if not skip_health_check:
-                # Quick validation: invoke with a trivial prompt
                 llm.invoke("Respond with OK")
 
             logger.info(f"[LLM] ✅ Using provider: {provider['name']} ({provider['model']})")
@@ -80,7 +81,7 @@ def get_llm_with_fallback(skip_health_check: bool = False) -> Tuple[BaseChatMode
             continue
 
     error_summary = "\n".join(f"  • {err}" for err in errors) if errors else "  No providers configured."
-    raise RuntimeError(
+    raise LLMProviderExhaustedError(
         f"All LLM providers exhausted. Configure at least one API key.\n{error_summary}"
     )
 
@@ -93,7 +94,6 @@ def get_llm_lazy() -> Tuple[BaseChatModel, str]:
     return get_llm_with_fallback(skip_health_check=True)
 
 
-# ── Cached singleton ──
 _cached_llm: Optional[Tuple[BaseChatModel, str]] = None
 
 

@@ -8,24 +8,18 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# ── Server ──
-AGENT_HOST = os.getenv("AGENT_SERVICE_HOST", "0.0.0.0")
-AGENT_PORT = int(os.getenv("AGENT_SERVICE_PORT", "8000"))
-NODE_BACKEND_URL = os.getenv("NODE_BACKEND_URL", "http://localhost:5000")
+AGENT_HOST: str = os.getenv("AGENT_SERVICE_HOST", "0.0.0.0")
+AGENT_PORT: int = int(os.getenv("AGENT_SERVICE_PORT", "8001"))
+NODE_BACKEND_URL: str = os.getenv("NODE_BACKEND_URL", "http://localhost:5000")
 
-# ── ChromaDB ──
-CHROMA_PERSIST_DIR = os.getenv("CHROMA_PERSIST_DIR", "./chroma_data")
+CHROMA_PERSIST_DIR: str = os.getenv("CHROMA_PERSIST_DIR", "./chroma_data")
+EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
+LLM_TEMPERATURE: float = float(os.getenv("LLM_TEMPERATURE", "0.3"))
+LLM_MAX_TOKENS: int = int(os.getenv("LLM_MAX_TOKENS", "4096"))
 
-# ── Embedding ──
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
+from typing import List, Dict, Any
 
-# ── LLM Defaults ──
-LLM_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", "0.3"))
-LLM_MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", "4096"))
-
-# ── LLM Provider Fallback Chain ──
-# Ordered by priority: Groq (fastest) → Gemini (most generous) → OpenRouter (aggregator) → HuggingFace (existing)
-LLM_PROVIDERS = [
+LLM_PROVIDERS: List[Dict[str, Any]] = [
     {
         "name": "groq",
         "api_key_env": "GROQ_API_KEY",
@@ -56,10 +50,8 @@ LLM_PROVIDERS = [
     },
 ]
 
-# Optional 5th tier: Cerebras
 _cerebras_key = os.getenv("CEREBRAS_API_KEY")
 if _cerebras_key:
-    # Insert Cerebras as position 2 (after Groq, before Gemini) due to extreme speed
     LLM_PROVIDERS.insert(1, {
         "name": "cerebras",
         "api_key_env": "CEREBRAS_API_KEY",
