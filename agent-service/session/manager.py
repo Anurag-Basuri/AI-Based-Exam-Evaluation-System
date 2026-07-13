@@ -34,6 +34,7 @@ class SessionManager:
             "teacher_id": req.teacher_id,
             "config": req.config.model_dump(),
             "context_chunks": [],
+            "used_chunk_ids": [],
             "questions": [],
             "validation_errors": [],
             "retried": False,
@@ -63,27 +64,21 @@ class SessionManager:
         state["validation_errors"] = []
         state["retried"] = False
         
-        # We run the graph in an executor to avoid blocking the event loop
-        # (Since LangChain/LangGraph nodes are currently synchronous)
-        loop = asyncio.get_event_loop()
         try:
-            # We can step through the graph to yield progress
             for output in self.generate_graph.stream(state):
-                # The output is a dict with node name as key and state update as value
                 for node_name, updated_state in output.items():
-                    # Update our in-memory session with the new state
                     self.sessions[session_id] = updated_state
                     
-                    # Yield any new step logs
                     for log in updated_state.get("steps_log", []):
                         yield {"event": "step", "data": log}
                     
-                    # Clear logs so we don't re-yield them
                     updated_state["steps_log"] = []
-                    
                     yield {"event": "node_complete", "data": node_name}
                     
-            yield {"event": "complete", "data": self.sessions[session_id].get("questions", [])}
+            yield {"event": "complete", "data": {
+                "questions": self.sessions[session_id].get("questions", []),
+                "used_chunk_ids": self.sessions[session_id].get("used_chunk_ids", [])
+            }}
             
         except Exception as e:
             logger.error(f"[Session] Generate error: {e}")
@@ -110,7 +105,6 @@ class SessionManager:
         
         yield {"event": "start", "data": "Processing refinement request"}
         
-        loop = asyncio.get_event_loop()
         try:
             for output in self.refine_graph.stream(state):
                 for node_name, updated_state in output.items():
@@ -129,7 +123,10 @@ class SessionManager:
                 "timestamp": time.time()
             })
                     
-            yield {"event": "complete", "data": self.sessions[session_id].get("questions", [])}
+            yield {"event": "complete", "data": {
+                "questions": self.sessions[session_id].get("questions", []),
+                "used_chunk_ids": self.sessions[session_id].get("used_chunk_ids", [])
+            }}
             
         except Exception as e:
             logger.error(f"[Session] Refine error: {e}")

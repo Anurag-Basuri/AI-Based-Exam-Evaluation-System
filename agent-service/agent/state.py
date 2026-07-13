@@ -30,6 +30,9 @@ class AgentState(TypedDict):
     
     # RAG state
     context_chunks: list[str]
+    # Track exactly which ChromaDB chunk IDs were used for generation
+    # These are persisted so evaluation can use the SAME references
+    used_chunk_ids: list[str]
     
     # Current draft
     questions: list[dict]
