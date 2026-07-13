@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import axiosInstance from '../utils/axios';
+import { apiClient as axiosInstance, API_BASE_URL } from '../services/api';
 import { toast } from 'react-toastify';
 
 export const useAgentSession = () => {
@@ -83,7 +83,7 @@ export const useAgentSession = () => {
             setSessionId(newSessionId);
             
             // Start listening to the stream
-            const streamUrl = `${axiosInstance.defaults.baseURL}/api/v1/agent/sessions/${newSessionId}/generate/stream`;
+            const streamUrl = `${API_BASE_URL}/api/v1/agent/sessions/${newSessionId}/generate/stream`;
             await _handleStream(streamUrl);
             
         } catch (error) {
@@ -99,12 +99,50 @@ export const useAgentSession = () => {
             // Optimistically add to UI
             setMessages(prev => [...prev, { role: 'teacher', content, timestamp: Date.now() }]);
             
-            // Trigger the backend to append and stream refine
-            await axiosInstance.post(`/api/v1/agent/sessions/${sessionId}/message`, { content });
+            setIsGenerating(true);
+            const res = await fetch(`${API_BASE_URL}/api/v1/agent/sessions/${sessionId}/message`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}` // assuming token is here, or handle credentials
+                },
+                body: JSON.stringify({ content }),
+                credentials: 'include'
+            });
+
+            if (!res.ok) throw new Error('Failed to send message');
+
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder();
+            let isComplete = false;
             
-            // Stream the refinement process
-            const streamUrl = `${axiosInstance.defaults.baseURL}/api/v1/agent/sessions/${sessionId}/message`;
-            await _handleStream(streamUrl);
+            while (!isComplete) {
+                const { value, done } = await reader.read();
+                if (done) break;
+                
+                const chunk = decoder.decode(value, { stream: true });
+                const lines = chunk.split('\n');
+                
+                for (const line of lines) {
+                    if (line.startsWith('data:')) {
+                        const dataStr = line.replace('data:', '').trim();
+                        if (!dataStr) continue;
+                        
+                        try {
+                            const eventData = JSON.parse(dataStr);
+                            if (eventData.event === 'step') {
+                                setSteps(prev => [...prev, { ...eventData.data, id: Date.now() }]);
+                            } else if (eventData.event === 'complete') {
+                                setDraft(eventData.data.questions);
+                                isComplete = true;
+                            }
+                        } catch (e) {
+                            // ignore partial parses
+                        }
+                    }
+                }
+            }
+            setIsGenerating(false);
             
             // Fetch updated messages (to get agent response)
             fetchSessionState(sessionId);

@@ -89,6 +89,19 @@ export async function evaluateAnswer(
 		};
 	}
 
+	// Health Check before firing
+	try {
+		await axios.get(`${AGENT_SERVICE_URL}/health`, { timeout: 3000 });
+	} catch (e) {
+		console.warn(`[EVAL_SERVICE ${evalId}] Agent service unreachable. Skipping to heuristic.`);
+		const fbHeuristic = heuristicFallback(cleanAns, policy, weight);
+		return {
+			score: fbHeuristic.score,
+			review: limitSentences(fbHeuristic.review, 3),
+			meta: { fallback: true, type: 'heuristic', reason: 'agent_down', evalId },
+		};
+	}
+
 	// Make request to new Python Agent Service
 	let attempt = 0;
 	let lastError = null;

@@ -3,7 +3,7 @@ import { AgentSession } from '../models/agentSession.model.js';
 import Exam from '../models/exam.model.js';
 import Question from '../models/question.model.js';
 
-const AGENT_SERVICE_URL = process.env.AGENT_SERVICE_URL || 'http://localhost:8000';
+const AGENT_SERVICE_URL = process.env.AGENT_SERVICE_URL || 'http://localhost:8001';
 
 export const createAgentSession = async (req, res) => {
 	try {
@@ -47,6 +47,7 @@ export const streamSession = async (req, res) => {
 			method: 'get',
 			url: `${AGENT_SERVICE_URL}/sessions/${sessionId}/generate/stream`,
 			responseType: 'stream',
+			timeout: 120000, // 2 minutes for generation
 		});
 
 		res.setHeader('Content-Type', 'text/event-stream');
@@ -78,9 +79,10 @@ export const sendMessageToAgent = async (req, res) => {
 			url: `${AGENT_SERVICE_URL}/sessions/${sessionId}/message`,
 			data: { content },
 			responseType: 'stream',
+			timeout: 120000, // 2 minutes for refinement
 		});
 
-		res.setHeader('Content-Type', 'text-event-stream');
+		res.setHeader('Content-Type', 'text/event-stream');
 		res.setHeader('Cache-Control', 'no-cache');
 		res.setHeader('Connection', 'keep-alive');
 
