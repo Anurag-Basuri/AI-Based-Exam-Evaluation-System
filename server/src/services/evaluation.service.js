@@ -4,149 +4,37 @@ dotenv.config();
 import axios from 'axios';
 import { ApiError } from '../utils/ApiError.js';
 
-const api = process.env.HF_API_URL;
-const apiKey = process.env.HF_API_KEY;
-console.log(
-	`[EVAL_SERVICE] HF_API_URL=${api ? '[SET]' : '[MISSING]'} HF_API_KEY=${
-		apiKey ? '[SET]' : '[MISSING]'
-	}`,
-);
+const AGENT_SERVICE_URL = process.env.AGENT_SERVICE_URL || 'http://127.0.0.1:8001';
 
-const model = 'mistralai/Mistral-7B-Instruct-v0.2:featherless-ai';
-
-const EVAL_TIMEOUT_MS = Number(process.env.EVAL_TIMEOUT_MS || 15000);
+const EVAL_TIMEOUT_MS = Number(process.env.EVAL_TIMEOUT_MS || 30000);
 const EVAL_MAX_RETRIES = Number(process.env.EVAL_MAX_RETRIES || 1);
-const EVAL_RETRY_DELAY_MS = Number(process.env.EVAL_RETRY_DELAY_MS || 500);
-const EVAL_TEMPERATURE = Number(process.env.EVAL_TEMPERATURE ?? 0.2);
-const EVAL_TOP_P = Number(process.env.EVAL_TOP_P ?? 0.9);
-const EVAL_DO_SAMPLE = String(process.env.EVAL_DO_SAMPLE ?? 'false') === 'true';
-const EVAL_MAX_NEW_TOKENS = Number(process.env.EVAL_MAX_NEW_TOKENS || 150);
-const MAX_ANSWER_CHARS = Number(process.env.EVAL_MAX_ANSWER_CHARS || 1500);
-
-// Enrich policy: Set defaults for fields that exist in the model.
-function enrichPolicy(basePolicy = {}) {
-	const policy = { ...(basePolicy || {}) };
-	policy.strictness = policy.strictness || 'moderate';
-	policy.reviewTone = policy.reviewTone || 'concise';
-	policy.expectedLength = Number(policy.expectedLength || 20);
-	policy.customInstructions = policy.customInstructions || '';
-	return policy;
-}
-
-// Summarize the policy based on fields that actually exist in the exam model.
-function summarizePolicy(policy = {}, questionRemarks = '') {
-	const {
-		strictness = 'moderate',
-		reviewTone = 'concise',
-		expectedLength = 20,
-		customInstructions = '',
-	} = policy;
-
-	const lines = [
-		`Evaluation Strictness: ${strictness}.`,
-		`Review Tone: ${reviewTone}.`,
-		`Expected Answer Length: Around ${expectedLength} words.`,
-	];
-
-	if (customInstructions) {
-		lines.push(`General Instructions: ${customInstructions}`);
-	}
-	if (questionRemarks) {
-		lines.push(`Note for this specific question: ${questionRemarks}`);
-	}
-
-	return lines.join('\n');
-}
-
-// Build a simpler, more direct, and more effective prompt.
-function buildPrompt(question, studentAnswer, referenceAnswer, policySummary) {
-	const guidanceWhenNoRef = referenceAnswer
-		? ''
-		: 'No reference answer is provided. Use your expert knowledge to assess correctness.';
-
-	return [
-		'You are an expert, impartial exam evaluator.',
-		"Your task is to score a student's answer based on a given question and a teacher's policy.",
-		'You must return ONLY a single, raw JSON object with no markdown, comments, or extra text.',
-		'The JSON schema is: {"score": number, "review": "string"}',
-		'The "score" must be an integer between 0 and 100.',
-		'The "review" must be a brief explanation for the score, adhering to the teacher\'s requested tone.',
-		'---',
-		'**CONTEXT**',
-		`Question: "${question}"`,
-		referenceAnswer ? `Reference Answer (for ideal context): "${referenceAnswer}"` : '',
-		`Student's Answer: "${studentAnswer}"`,
-		'',
-		"**TEACHER'S POLICY**",
-		policySummary,
-		guidanceWhenNoRef,
-		'---',
-		'Now, provide your evaluation as a single JSON object.',
-	]
-		.filter(Boolean)
-		.join('\n');
-}
+const EVAL_RETRY_DELAY_MS = Number(process.env.EVAL_RETRY_DELAY_MS || 1000);
 
 // ---------- Uniformity helpers ----------
 function createEvalId() {
 	const rnd = Math.random().toString(16).slice(2, 8);
 	return `EVAL-${Date.now()}-${rnd}`;
 }
+
 function delay(ms) {
 	return new Promise(res => setTimeout(res, ms));
 }
+
 function sanitizeAnswer(text) {
 	const src = String(text ?? '');
 	const trimmed = src.trim().replace(/\s+/g, ' ');
-	if (trimmed.length <= MAX_ANSWER_CHARS) return { text: trimmed, truncated: false };
-	return { text: trimmed.slice(0, MAX_ANSWER_CHARS), truncated: true };
-}
-function toNumber0_100(any) {
-	if (typeof any === 'number') return Math.max(0, Math.min(100, Math.round(any)));
-	const m = String(any ?? '').match(/([0-9]{1,3})(?:\s*\/\s*100)?/);
-	const n = m ? Number(m[1]) : 0;
-	return Math.max(0, Math.min(100, Math.round(isNaN(n) ? 0 : n)));
-}
-function limitSentences(text, maxSentences) {
-	const s = String(text || '')
-		.replace(/\s+/g, ' ')
-		.trim();
-	if (!s) return s;
-	const parts = s.split(/(?<=[.!?])\s+/);
-	return parts.slice(0, Math.max(1, maxSentences)).join(' ');
+	const MAX_CHARS = 1500;
+	if (trimmed.length > MAX_CHARS) {
+		return { text: trimmed.substring(0, MAX_CHARS), truncated: true };
+	}
+	return { text: trimmed, truncated: false };
 }
 
-/**
- * Extract a JSON object from model output.
- */
-function extractJson(rawOutput) {
-	if (!rawOutput || !rawOutput.length) {
-		console.error('[EVAL_SERVICE_EXTRACT] Empty rawOutput provided to extractJson.');
-		throw new ApiError(500, 'Empty model response', { rawOutput });
-	}
-	const firstBrace = rawOutput.indexOf('{');
-	const lastBrace = rawOutput.lastIndexOf('}');
-	if (firstBrace === -1 || lastBrace === -1 || lastBrace < firstBrace) {
-		console.error(
-			'[EVAL_SERVICE_EXTRACT] No JSON boundaries found. firstBrace=',
-			firstBrace,
-			' lastBrace=',
-			lastBrace,
-		);
-		throw new ApiError(500, 'No valid JSON object found in model response', { rawOutput });
-	}
-	const jsonString = rawOutput.substring(firstBrace, lastBrace + 1);
-	try {
-		const cleaned = jsonString.replace(/,\s*\]/g, ']').replace(/,\s*\}/g, '}');
-		return JSON.parse(cleaned);
-	} catch (e) {
-		console.error('[EVAL_SERVICE_EXTRACT] JSON parsing failed:', e.message);
-		console.error('[EVAL_SERVICE_EXTRACT] jsonString (truncated):', jsonString.slice(0, 1000));
-		throw new ApiError(500, 'Model returned invalid JSON', {
-			originalError: e.message,
-			jsonString,
-		});
-	}
+function limitSentences(text, maxSentences) {
+	if (!text) return '';
+	const match = text.match(/[^.!?]+[.!?]*/g);
+	if (!match) return text;
+	return match.slice(0, maxSentences).join(' ').trim();
 }
 
 /**
@@ -179,6 +67,7 @@ export async function evaluateAnswer(
 	referenceAnswer = null,
 	weight = 1,
 	policy = null,
+	examDoc = null
 ) {
 	const evalId = createEvalId();
 	const cleanQ = questionObj ? String(questionObj.text).trim() : '';
@@ -200,87 +89,68 @@ export async function evaluateAnswer(
 		};
 	}
 
-	const effectivePolicy = enrichPolicy(policy || {});
-	const policySummary = summarizePolicy(effectivePolicy, qRemarks);
-	const prompt = buildPrompt(cleanQ, cleanAns, referenceAnswer, policySummary);
-
-	if (!api || !apiKey) {
-		console.warn(`[EVAL_SERVICE ${evalId}] Missing HF API config. Using fallback scoring.`);
-		const fbHeuristic = heuristicFallback(cleanAns, effectivePolicy, weight);
-		return {
-			score: fbHeuristic.score,
-			review: limitSentences(fbHeuristic.review, 3),
-			meta: {
-				fallback: true,
-				type: 'config-heuristic',
-				evalId,
-			},
-		};
-	}
-
+	// Make request to new Python Agent Service
 	let attempt = 0;
 	let lastError = null;
 
 	while (attempt <= EVAL_MAX_RETRIES) {
 		try {
 			if (attempt > 0) console.warn(`[EVAL_SERVICE ${evalId}] Retry attempt ${attempt}`);
-			console.log(`[EVAL_SERVICE ${evalId}] Sending request to HF (attempt ${attempt})`);
+			console.log(`[EVAL_SERVICE ${evalId}] Sending request to Agent Service (attempt ${attempt})`);
+			
+			// Try to find the sessionId and classroom_id
+			const sessionId = examDoc?.agentSessionId || null;
+			let classroomId = null;
+            // The classroomId is essentially the teacher's ID here to fetch the right chroma collection,
+            // or we might pass allowed_doc_ids instead. 
+            // In the agent-service we have `classroom_id` and `allowed_doc_ids` as optional.
+			
+			// We can pass the sessionId in the request, and the python backend will resolve used chunks
+			const payload = {
+				question: cleanQ,
+				student_answer: cleanAns,
+				max_marks: Math.round(100 * weight),
+				reference_answer: referenceAnswer || '',
+				exam_type: examDoc?.generatedBy || 'manual',
+				session_id: sessionId,
+				policy: {
+					strictness: policy?.strictness || 'moderate',
+					reviewTone: policy?.reviewTone || 'concise',
+					expectedLength: policy?.expectedLength || 20,
+					customInstructions: policy?.customInstructions || '',
+					questionRemarks: qRemarks
+				}
+			};
+
 			const response = await axios.post(
-				api,
+				`${AGENT_SERVICE_URL}/api/v1/ai/evaluate`,
+				payload,
 				{
-					model,
-					messages: [{ role: 'user', content: prompt }],
-					temperature: EVAL_TEMPERATURE,
-					top_p: EVAL_TOP_P,
-					max_new_tokens: EVAL_MAX_NEW_TOKENS,
-					stream: false,
-					do_sample: EVAL_DO_SAMPLE,
-				},
-				{
-					headers: {
-						Authorization: `Bearer ${apiKey}`,
-						'Content-Type': 'application/json',
-					},
+					headers: { 'Content-Type': 'application/json' },
 					timeout: EVAL_TIMEOUT_MS,
-				},
+				}
 			);
 
-			console.log(`[EVAL_SERVICE ${evalId}] Model responded status=${response.status}`);
-
-			let rawOutput = '';
+			console.log(`[EVAL_SERVICE ${evalId}] Agent Service responded status=${response.status}`);
+			
 			const data = response.data;
-
-			if (data?.choices?.[0]?.message?.content) {
-				rawOutput = data.choices[0].message.content;
-			} else if (typeof data === 'string') {
-				rawOutput = data;
-			} else if (Array.isArray(data) && data.length > 0) {
-				rawOutput = data[0]?.generated_text || JSON.stringify(data[0]);
-			} else if (typeof data === 'object' && data) {
-				rawOutput = data.generated_text || JSON.stringify(data);
-			} else {
-				console.error(`[EVAL_SERVICE ${evalId}] Unexpected response format.`);
-				throw new ApiError(500, 'Unexpected evaluation service response', {
-					responseDataType: typeof data,
-				});
-			}
-
-			const parsed = extractJson(rawOutput);
-
-			const score100 = toNumber0_100(parsed.score);
-			const finalMarks = Math.round(score100 * (weight || 1));
+			
+			// Agent Service returns { score, review, meta }
+			const finalMarks = data.score != null ? Number(data.score) : 0;
 			const limitedReview = limitSentences(
-				typeof parsed.review === 'string' ? parsed.review : 'No review provided',
-				3,
+				typeof data.review === 'string' ? data.review : 'No review provided',
+				5,
 			);
 
 			const meta = {
 				evalId,
-				path: 'ai',
+				path: 'ai_agent',
+				strict_mode: data.meta?.exam_type === 'ai',
+				used_docs: data.meta?.sources_used || [],
 				truncatedInput: truncated || undefined,
 			};
 
-			console.log(`[EVAL_SERVICE ${evalId}] Success finalMarks=${finalMarks}`);
+			console.log(`[EVAL_SERVICE ${evalId}] Success score=${finalMarks}`);
 			return { score: finalMarks, review: limitedReview, meta };
 		} catch (err) {
 			lastError = err;
@@ -308,7 +178,7 @@ export async function evaluateAnswer(
 
 	console.error(`[EVAL_SERVICE ${evalId}] All attempts failed. Applying heuristic fallback.`);
 
-	const fbHeuristic = heuristicFallback(cleanAns, effectivePolicy, weight);
+	const fbHeuristic = heuristicFallback(cleanAns, policy, weight);
 	return {
 		score: fbHeuristic.score,
 		review: limitSentences(fbHeuristic.review, 3),

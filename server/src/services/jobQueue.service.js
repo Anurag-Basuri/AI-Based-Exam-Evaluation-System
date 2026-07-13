@@ -50,7 +50,7 @@ export function setSocketRef(io) {
 // This function is UNCHANGED — it is the pure business logic.
 export async function evaluateSubmissionAnswers(submission) {
 	console.log(`[JOB_QUEUE] Starting answer evaluation for submission ID: ${submission._id}`);
-	const examDoc = await Exam.findById(submission.exam).select('title aiPolicy');
+	const examDoc = await Exam.findById(submission.exam).select('title aiPolicy agentSessionId generatedBy');
 
 	const evaluations = await Promise.all(
 		submission.answers.map(async ans => {
@@ -89,6 +89,7 @@ export async function evaluateSubmissionAnswers(submission) {
 						refAnswer,
 						weight,
 						policy,
+                        examDoc
 					);
 					marks = evalResult.score;
 					remarks = evalResult.review;
