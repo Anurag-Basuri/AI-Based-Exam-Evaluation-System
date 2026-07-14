@@ -21,15 +21,6 @@ logger = logging.getLogger(__name__)
 
 def _build_llm(provider: str, api_key: str) -> BaseChatModel:
     """Instantiate a LangChain chat model for the given provider."""
-    if provider == "gemini":
-        from langchain_google_genai import ChatGoogleGenerativeAI
-        return ChatGoogleGenerativeAI(
-            model="gemini-2.0-flash",
-            google_api_key=api_key,
-            temperature=LLM_TEMPERATURE,
-            max_output_tokens=LLM_MAX_TOKENS,
-        )
-
     from langchain_openai import ChatOpenAI
 
     if provider == "groq":
@@ -41,17 +32,9 @@ def _build_llm(provider: str, api_key: str) -> BaseChatModel:
             max_tokens=LLM_MAX_TOKENS,
         )
 
-    if provider == "openai":
-        return ChatOpenAI(
-            model="gpt-4o-mini",
-            api_key=api_key,
-            temperature=LLM_TEMPERATURE,
-            max_tokens=LLM_MAX_TOKENS,
-        )
-
     if provider == "cerebras":
         return ChatOpenAI(
-            model="llama-3.3-70b",
+            model="gpt-oss-120b",
             api_key=api_key,
             base_url="https://api.cerebras.ai/v1",
             temperature=LLM_TEMPERATURE,
@@ -60,7 +43,7 @@ def _build_llm(provider: str, api_key: str) -> BaseChatModel:
 
     if provider == "openrouter":
         return ChatOpenAI(
-            model="meta-llama/llama-3.3-70b-instruct:free",
+            model="openrouter/free",
             api_key=api_key,
             base_url="https://openrouter.ai/api/v1",
             temperature=LLM_TEMPERATURE,
@@ -85,9 +68,7 @@ def get_llm_with_fallback(skip_health_check: bool = False) -> Tuple[BaseChatMode
     Returns (llm_instance, provider_name).
     """
     providers = [
-        ("gemini", "GEMINI_API_KEY"),
         ("groq", "GROQ_API_KEY"),
-        ("openai", "OPENAI_API_KEY"),
         ("cerebras", "CEREBRAS_API_KEY"),
         ("openrouter", "OPENROUTER_API_KEY"),
         ("huggingface", "HF_API_KEY"),

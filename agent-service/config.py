@@ -20,11 +20,9 @@ LLM_MAX_TOKENS: int = int(os.getenv("LLM_MAX_TOKENS", "4096"))
 def get_available_providers() -> list[dict]:
     """Return only providers that have an API key configured."""
     keys = [
-        {"name": "gemini", "env": "GEMINI_API_KEY", "model": "gemini-2.0-flash"},
         {"name": "groq", "env": "GROQ_API_KEY", "model": "llama-3.3-70b-versatile"},
-        {"name": "openai", "env": "OPENAI_API_KEY", "model": "gpt-4o-mini"},
-        {"name": "cerebras", "env": "CEREBRAS_API_KEY", "model": "llama-3.3-70b"},
-        {"name": "openrouter", "env": "OPENROUTER_API_KEY", "model": "meta-llama/llama-3.3-70b-instruct:free"},
+        {"name": "cerebras", "env": "CEREBRAS_API_KEY", "model": "gpt-oss-120b"},
+        {"name": "openrouter", "env": "OPENROUTER_API_KEY", "model": "openrouter/free"},
         {"name": "huggingface", "env": "HF_API_KEY", "model": "Qwen/Qwen2.5-72B-Instruct"},
     ]
     
