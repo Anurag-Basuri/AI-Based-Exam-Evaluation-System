@@ -3,6 +3,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import { deleteFile, deleteFiles } from '../services/cloudinary.service.js';
+import axios from 'axios';
 
 // Create a new classroom
 const createClassroom = asyncHandler(async (req, res) => {
@@ -257,8 +258,6 @@ const rejectStudent = asyncHandler(async (req, res) => {
 
 	return ApiResponse.success(res, null, 'Student request rejected');
 });
-
-import axios from 'axios';
 
 // Upload study material to classroom
 const uploadMaterial = asyncHandler(async (req, res) => {
