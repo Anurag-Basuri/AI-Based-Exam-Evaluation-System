@@ -34,6 +34,7 @@ import {
 	rejectClassroomStudent,
 	deleteTeacherClassroom,
 	resetClassroomJoinCode,
+	getMaterialDownloadUrl,
 } from '../../services/teacherServices';
 import { useToast } from '../../components/ui/Toaster';
 import ConfirmModal from '../../components/ui/ConfirmModal';
@@ -66,6 +67,7 @@ export default function TeacherClassroomDetails() {
 	const [loading, setLoading] = useState(true);
 	const [uploading, setUploading] = useState(false);
 	const [deletingId, setDeletingId] = useState(null);
+	const [downloadingId, setDownloadingId] = useState(null);
 	const [deletingClassroom, setDeletingClassroom] = useState(false);
 	const [copiedCode, setCopiedCode] = useState(false);
 	const [copiedLink, setCopiedLink] = useState(false);
@@ -222,6 +224,21 @@ export default function TeacherClassroomDetails() {
 			addToast(error.message || 'Failed to delete material', 'error');
 		} finally {
 			setDeletingId(null);
+		}
+	};
+
+	const handleDownloadMaterial = async (e, materialId) => {
+		e.preventDefault();
+		setDownloadingId(materialId);
+		try {
+			const downloadUrl = await getMaterialDownloadUrl(id, materialId);
+			if (downloadUrl) {
+				window.location.href = downloadUrl;
+			}
+		} catch (error) {
+			addToast(error.message || 'Failed to get download link', 'error');
+		} finally {
+			setDownloadingId(null);
 		}
 	};
 
@@ -545,17 +562,18 @@ export default function TeacherClassroomDetails() {
 										</div>
 									</div>
 									<div className="flex items-center gap-1.5 opacity-70 transition-opacity group-hover/item:opacity-100">
-										<a
-											href={mat.fileUrl}
-											target="_blank"
-											rel="noopener noreferrer"
-											download
-											className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"
+										<button
+											onClick={(e) => handleDownloadMaterial(e, mat._id)}
+											disabled={downloadingId === mat._id}
+											className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 disabled:opacity-50 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"
 											title="Download"
-											onClick={e => e.stopPropagation()}
 										>
-											<Download className="h-4 w-4" />
-										</a>
+											{downloadingId === mat._id ? (
+												<Loader2 className="h-4 w-4 animate-spin" />
+											) : (
+												<Download className="h-4 w-4" />
+											)}
+										</button>
 										<button
 											onClick={() => requestDeleteMaterial(mat._id)}
 											disabled={deletingId === mat._id}

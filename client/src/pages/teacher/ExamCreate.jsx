@@ -199,8 +199,36 @@ const ExamCreate = () => {
 	const toggleSelected = id => {
 		setSelectedIds(prev => {
 			const next = new Set(prev);
-			if (next.has(id)) next.delete(id);
-			else next.add(id);
+			if (next.has(id)) {
+				next.delete(id);
+				return next;
+			}
+			
+			// Adding a new question: Check limits
+			const targetQuestion = questions.find(q => q.id === id || q._id === id);
+			if (!targetQuestion) return prev;
+
+			const currentSelected = Array.from(prev).map(selId => questions.find(q => q.id === selId || q._id === selId)).filter(Boolean);
+			
+			const LIMITS = { total: 30, mcq: 30, subjective: 10 };
+			if (currentSelected.length >= LIMITS.total) {
+				toastError(`Maximum ${LIMITS.total} questions allowed.`);
+				return prev;
+			}
+			
+			const mcqCount = currentSelected.filter(q => q.type === 'multiple-choice').length;
+			const subCount = currentSelected.filter(q => q.type === 'subjective').length;
+			
+			if (targetQuestion.type === 'multiple-choice' && mcqCount >= LIMITS.mcq) {
+				toastError(`Maximum ${LIMITS.mcq} MCQs allowed.`);
+				return prev;
+			}
+			if (targetQuestion.type === 'subjective' && subCount >= LIMITS.subjective) {
+				toastError(`Maximum ${LIMITS.subjective} subjective questions allowed.`);
+				return prev;
+			}
+
+			next.add(id);
 			return next;
 		});
 	};
@@ -229,10 +257,36 @@ const ExamCreate = () => {
 		try {
 			const created = await safeApiCall(createTeacherQuestion, values);
 			setQuestions(prev => [created, ...prev]);
-			if (created?.id) {
-				setSelectedIds(prev => new Set(prev).add(created.id));
+			if (created?.id || created?._id) {
+				const qId = created.id || created._id;
+				setSelectedIds(prev => {
+					const currentSelected = Array.from(prev).map(selId => questions.find(q => q.id === selId || q._id === selId) || (selId === qId ? created : null)).filter(Boolean);
+					const LIMITS = { total: 30, mcq: 30, subjective: 10 };
+					
+					if (currentSelected.length >= LIMITS.total) {
+						toastError(`Created successfully, but couldn't auto-select: Maximum ${LIMITS.total} questions allowed.`);
+						return prev;
+					}
+					
+					const mcqCount = currentSelected.filter(q => q.type === 'multiple-choice').length;
+					const subCount = currentSelected.filter(q => q.type === 'subjective').length;
+					
+					if (created.type === 'multiple-choice' && mcqCount >= LIMITS.mcq) {
+						toastError(`Created successfully, but couldn't auto-select: Maximum ${LIMITS.mcq} MCQs allowed.`);
+						return prev;
+					}
+					
+					if (created.type === 'subjective' && subCount >= LIMITS.subjective) {
+						toastError(`Created successfully, but couldn't auto-select: Maximum ${LIMITS.subjective} subjective questions allowed.`);
+						return prev;
+					}
+
+					success('Question created and selected');
+					return new Set(prev).add(qId);
+				});
+			} else {
+				success('Question created');
 			}
-			success('Question created and selected');
 		} catch (e) {
 			toastError(e?.message || 'Failed to create question');
 		} finally {

@@ -27,10 +27,12 @@ const AgentChat = ({ classroomId, config, onExamCreated }) => {
 
     const [inputMsg, setInputMsg] = useState('');
     const stepsEndRef = useRef(null);
+    const hasStartedRef = useRef(false);
 
-    // Auto-start session on mount
+    // Auto-start session on mount (guarded against double-invoke)
     useEffect(() => {
-        if (!sessionId && classroomId && config) {
+        if (!hasStartedRef.current && !sessionId && classroomId && config) {
+            hasStartedRef.current = true;
             startSession(classroomId, config);
         }
     }, [classroomId, config]);
@@ -131,11 +133,11 @@ const AgentChat = ({ classroomId, config, onExamCreated }) => {
                     </div>
                     
                     <div className="agent-draft-content">
-                        {!draft ? (
+                        {!draft || !Array.isArray(draft) || draft.length === 0 ? (
                             <div className="draft-empty-state">
                                 <FiFileText />
-                                <p>Agent is generating the initial draft...</p>
-                                <p className="text-sm mt-2">This may take 10-30 seconds depending on the context size.</p>
+                                <p>{isGenerating ? 'Agent is generating the initial draft...' : 'No questions generated yet.'}</p>
+                                <p className="text-sm mt-2">{isGenerating ? 'This may take 10-30 seconds depending on the context size.' : ''}</p>
                             </div>
                         ) : (
                             draft.map((q, idx) => (
@@ -144,27 +146,27 @@ const AgentChat = ({ classroomId, config, onExamCreated }) => {
                                         <span className="font-semibold text-gray-600">Question {idx + 1}</span>
                                         <div className="flex gap-2">
                                             <span className="draft-question-badge">{q.type}</span>
-                                            <span className="draft-question-badge">{q.max_marks} Marks</span>
-                                            <span className="draft-question-badge">{q.difficulty}</span>
+                                            <span className="draft-question-badge">{q.max_marks || q.marks || '?'} Marks</span>
+                                            <span className="draft-question-badge">{q.difficulty || 'medium'}</span>
                                         </div>
                                     </div>
                                     
                                     <div className="draft-question-text">
-                                        {q.text}
+                                        {q.text || q.question || 'No text'}
                                     </div>
                                     
-                                    {q.type === 'multiple-choice' && (
+                                    {q.type === 'multiple-choice' && Array.isArray(q.options) && (
                                         <ul className="draft-options-list">
                                             {q.options.map((opt, oIdx) => (
-                                                <li key={oIdx} className={`draft-option ${opt.isCorrect ? 'correct' : ''}`}>
-                                                    {opt.isCorrect && <FiCheckCircle className="inline mr-2" />}
-                                                    {opt.text}
+                                                <li key={oIdx} className={`draft-option ${(opt.isCorrect || opt.correct) ? 'correct' : ''}`}>
+                                                    {(opt.isCorrect || opt.correct) && <FiCheckCircle className="inline mr-2" />}
+                                                    {opt.text || opt.option || String(opt)}
                                                 </li>
                                             ))}
                                         </ul>
                                     )}
                                     
-                                    {q.type === 'subjective' && (
+                                    {q.type === 'subjective' && q.answer && (
                                         <div className="draft-subjective-answer">
                                             <strong>Model Answer: </strong>
                                             {q.answer}
