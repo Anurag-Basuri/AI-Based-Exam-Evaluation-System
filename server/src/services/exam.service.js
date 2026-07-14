@@ -10,6 +10,16 @@ const KEYS = {
 	examStats: (teacherId) => `exam-stats:${teacherId}`,
 };
 
+const checkQuestionLimits = (questions) => {
+	const LIMITS = { total: 30, mcq: 30, subjective: 10 };
+	if (questions.length > LIMITS.total) return `Max ${LIMITS.total} questions allowed (got ${questions.length})`;
+	const mcqCount = questions.filter(q => q.type === 'multiple-choice').length;
+	const subCount = questions.filter(q => q.type === 'subjective').length;
+	if (mcqCount > LIMITS.mcq) return `Max ${LIMITS.mcq} MCQs allowed (got ${mcqCount})`;
+	if (subCount > LIMITS.subjective) return `Max ${LIMITS.subjective} subjective questions allowed (got ${subCount})`;
+	return null;
+};
+
 // Helpers
 
 // Checks if an exam is scheduled (start time is in the future and status is not completed/cancelled).
@@ -78,6 +88,9 @@ export const create = async (data, teacherId) => {
 		if (questions.length !== questionIds.length) {
 			throw ApiError.BadRequest('Some questions do not belong to you or do not exist');
 		}
+		
+		const limitError = checkQuestionLimits(questions);
+		if (limitError) throw ApiError.BadRequest(limitError);
 	}
 
 	const exam = new Exam({
@@ -230,6 +243,12 @@ export const addQuestions = async (examId, teacherId, questionIds) => {
 		throw ApiError.BadRequest('Some questions do not belong to you or do not exist');
 	}
 
+	const existingQuestions = await Question.find({ _id: { $in: exam.questions } });
+	const allQuestions = [...existingQuestions, ...questions];
+	
+	const limitError = checkQuestionLimits(allQuestions);
+	if (limitError) throw ApiError.BadRequest(limitError);
+
 	exam.questions = Array.from(new Set([...exam.questions, ...questionIds]));
 	const fullQuestions = await Question.find({ _id: { $in: exam.questions } }).select('max_marks');
 	exam.totalMarks = fullQuestions.reduce((sum, q) => sum + (q.max_marks || 0), 0);
@@ -344,10 +363,13 @@ export const setQuestions = async (examId, teacherId, questionIds) => {
 		throw ApiError.Forbidden('Can only change questions on a draft or scheduled exam (not started)');
 	}
 
-	const owned = await Question.find({ _id: { $in: questionIds }, createdBy: teacherId }).select('_id max_marks');
+	const owned = await Question.find({ _id: { $in: questionIds }, createdBy: teacherId }).select('_id max_marks type');
 	if (owned.length !== questionIds.length) {
 		throw ApiError.BadRequest('Some questions do not belong to you or do not exist');
 	}
+
+	const limitError = checkQuestionLimits(owned);
+	if (limitError) throw ApiError.BadRequest(limitError);
 
 	const prev = new Set(exam.questions.map(id => String(id)));
 	const next = new Set(questionIds.map(String));

@@ -508,6 +508,34 @@ const reEmbedMaterial = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, null, 'Re-embed triggered successfully');
 });
 
+const getMaterialDownloadUrl = asyncHandler(async (req, res) => {
+	const { id, materialId } = req.params;
+	const classroom = await Classroom.findById(id);
+	if (!classroom) throw ApiError.NotFound('Classroom not found');
+
+	// Verify access (teacher or student)
+	const userId = String(req.userDoc?._id || req.user?.id);
+	const isTeacher = String(classroom.teacher) === userId;
+	const isStudent = classroom.students.some(s => String(s) === userId);
+	
+	if (!isTeacher && !isStudent) {
+		throw ApiError.Forbidden('Access denied');
+	}
+
+	const material = classroom.materials.id(materialId);
+	if (!material) throw ApiError.NotFound('Material not found');
+	if (!material.publicId) throw ApiError.BadRequest('Material is missing publicId, cannot download directly');
+
+	// Create signed URL for downloading
+	const signedUrl = cloudinary.url(material.publicId, {
+		secure: true,
+		sign_url: true,
+		flags: 'attachment',
+	});
+
+	return ApiResponse.success(res, { downloadUrl: signedUrl }, 'Download URL generated');
+});
+
 export {
 	createClassroom,
 	getMyClassrooms,
@@ -522,4 +550,5 @@ export {
 	resetJoinCode,
 	leaveClassroom,
 	reEmbedMaterial,
+	getMaterialDownloadUrl,
 };

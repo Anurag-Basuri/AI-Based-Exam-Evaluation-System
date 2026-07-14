@@ -23,6 +23,7 @@ import {
 	resetJoinCode,
 	leaveClassroom,
 	reEmbedMaterial,
+	getMaterialDownloadUrl,
 } from '../controllers/classroom.controller.js';
 
 const router = Router();
@@ -181,6 +182,16 @@ router.post(
 	validateObjectId('materialId'),
 	validate,
 	reEmbedMaterial,
+);
+
+// GET /:id/materials/:materialId/download — get signed download URL
+router.get(
+	'/:id/materials/:materialId/download',
+	checkAuth,
+	validateObjectId('id'),
+	validateObjectId('materialId'),
+	validate,
+	getMaterialDownloadUrl,
 );
 
 export default router;

@@ -11,6 +11,12 @@ export const useAgentSession = () => {
     
     // Store EventSource so we can close it if needed
     const eventSourceRef = useRef(null);
+    // Guard against double session creation (React StrictMode)
+    const sessionStartedRef = useRef(false);
+
+    const _getToken = () => {
+        return localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken') || '';
+    };
 
     const _closeStream = useCallback(() => {
         if (eventSourceRef.current) {
@@ -48,7 +54,7 @@ export const useAgentSession = () => {
             es.addEventListener('complete', (e) => {
                 try {
                     const newDraft = JSON.parse(e.data);
-                    const questionsArray = newDraft.questions || newDraft;
+                    const questionsArray = Array.isArray(newDraft) ? newDraft : (newDraft.questions || []);
                     setDraft(questionsArray);
                     setIsGenerating(false);
                     _closeStream();
@@ -70,6 +76,10 @@ export const useAgentSession = () => {
     }, [_closeStream]);
 
     const startSession = async (classroomId, config) => {
+        // Guard against double invocation (React StrictMode)
+        if (sessionStartedRef.current) return;
+        sessionStartedRef.current = true;
+
         try {
             setSteps([]);
             setDraft(null);
@@ -84,13 +94,14 @@ export const useAgentSession = () => {
             setSessionId(newSessionId);
             
             // Start listening to the stream
-            const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+            const token = _getToken();
             const streamUrl = `${API_BASE_URL}/api/v1/agent/sessions/${newSessionId}/generate/stream?token=${token}`;
             await _handleStream(streamUrl);
             
         } catch (error) {
             toast.error(error.response?.data?.message || 'Failed to start agent session');
             setIsGenerating(false);
+            sessionStartedRef.current = false; // Allow retry on error
         }
     };
 
@@ -100,13 +111,21 @@ export const useAgentSession = () => {
         try {
             // Optimistically add to UI
             setMessages(prev => [...prev, { role: 'teacher', content, timestamp: Date.now() }]);
-            
             setIsGenerating(true);
+
+            // Use EventSource for refinement stream (same approach as generate)
+            const token = _getToken();
+            
+            // First, send the message via POST
+            await axiosInstance.post(`/api/v1/agent/sessions/${sessionId}/message`, { content });
+
+            // The POST response is itself an SSE stream proxied by the Node backend
+            // But since we can't use EventSource with POST, we use fetch with ReadableStream
             const res = await fetch(`${API_BASE_URL}/api/v1/agent/sessions/${sessionId}/message`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}` // assuming token is here, or handle credentials
+                    'Authorization': `Bearer ${token}`,
                 },
                 body: JSON.stringify({ content }),
                 credentials: 'include'
@@ -116,41 +135,59 @@ export const useAgentSession = () => {
 
             const reader = res.body.getReader();
             const decoder = new TextDecoder();
+            let buffer = '';
             let isComplete = false;
             
             while (!isComplete) {
                 const { value, done } = await reader.read();
                 if (done) break;
                 
-                const chunk = decoder.decode(value, { stream: true });
-                const lines = chunk.split('\n');
+                buffer += decoder.decode(value, { stream: true });
                 
-                for (const line of lines) {
-                    if (line.startsWith('data:')) {
-                        const dataStr = line.replace('data:', '').trim();
-                        if (!dataStr) continue;
-                        
-                        try {
-                            const eventData = JSON.parse(dataStr);
-                            if (eventData.event === 'step') {
-                                setSteps(prev => [...prev, { ...eventData.data, id: Date.now() }]);
-                            } else if (eventData.event === 'complete') {
-                                setDraft(eventData.data.questions);
-                                isComplete = true;
-                            }
-                        } catch (e) {
-                            // ignore partial parses
+                // Parse SSE format: "event: <type>\ndata: <json>\n\n"
+                const events = buffer.split('\n\n');
+                buffer = events.pop() || ''; // Keep incomplete event in buffer
+                
+                for (const eventBlock of events) {
+                    if (!eventBlock.trim()) continue;
+                    
+                    const lines = eventBlock.split('\n');
+                    let eventType = '';
+                    let eventData = '';
+                    
+                    for (const line of lines) {
+                        if (line.startsWith('event:')) {
+                            eventType = line.slice(6).trim();
+                        } else if (line.startsWith('data:')) {
+                            eventData = line.slice(5).trim();
                         }
+                    }
+                    
+                    if (!eventData) continue;
+                    
+                    try {
+                        if (eventType === 'step') {
+                            const stepData = JSON.parse(eventData);
+                            setSteps(prev => [...prev, { ...stepData, id: Date.now() }]);
+                        } else if (eventType === 'complete') {
+                            const parsed = JSON.parse(eventData);
+                            const questionsArray = Array.isArray(parsed) ? parsed : (parsed.questions || []);
+                            setDraft(questionsArray);
+                            isComplete = true;
+                        } else if (eventType === 'error') {
+                            console.error('Agent error:', eventData);
+                            toast.error(`Agent error: ${eventData}`);
+                            isComplete = true;
+                        }
+                    } catch (e) {
+                        // Partial JSON parse, skip
                     }
                 }
             }
             setIsGenerating(false);
             
-            // Fetch updated messages (to get agent response)
-            fetchSessionState(sessionId);
-            
         } catch (error) {
-            toast.error(error.response?.data?.message || 'Failed to send message');
+            toast.error(error.response?.data?.message || error.message || 'Failed to send message');
             setIsGenerating(false);
         }
     };
@@ -159,7 +196,10 @@ export const useAgentSession = () => {
         if (!id) return;
         try {
             const res = await axiosInstance.get(`/api/v1/agent/sessions/${id}`);
-            setDraft(res.data.draft);
+            const fetchedDraft = res.data.draft;
+            if (Array.isArray(fetchedDraft)) {
+                setDraft(fetchedDraft);
+            }
             setMessages(res.data.messages || []);
         } catch (error) {
             console.error("Failed to fetch session state", error);
@@ -178,6 +218,17 @@ export const useAgentSession = () => {
         }
     };
 
+    // Reset function for cleanup
+    const resetSession = useCallback(() => {
+        _closeStream();
+        sessionStartedRef.current = false;
+        setSessionId(null);
+        setMessages([]);
+        setSteps([]);
+        setDraft(null);
+        setIsGenerating(false);
+    }, [_closeStream]);
+
     return {
         sessionId,
         messages,
@@ -186,6 +237,7 @@ export const useAgentSession = () => {
         isGenerating,
         startSession,
         sendMessage,
-        saveDraft
+        saveDraft,
+        resetSession,
     };
 };
