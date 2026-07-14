@@ -182,7 +182,7 @@ const joinClassroom = asyncHandler(async (req, res) => {
 
 	req.io?.to(String(classroom.teacher)).emit('classroom-join-request', {
 		classroomId: classroom._id,
-		studentId: studentId
+		studentId: studentId,
 	});
 
 	return ApiResponse.success(
@@ -220,7 +220,7 @@ const approveStudent = asyncHandler(async (req, res) => {
 
 	req.io?.to(String(studentId)).emit('classroom-request-updated', {
 		classroomId: classroom._id,
-		status: 'approved'
+		status: 'approved',
 	});
 
 	return ApiResponse.success(res, null, 'Student approved successfully');
@@ -252,7 +252,7 @@ const rejectStudent = asyncHandler(async (req, res) => {
 
 	req.io?.to(String(studentId)).emit('classroom-request-updated', {
 		classroomId: classroom._id,
-		status: 'rejected'
+		status: 'rejected',
 	});
 
 	return ApiResponse.success(res, null, 'Student request rejected');
@@ -295,30 +295,36 @@ const uploadMaterial = asyncHandler(async (req, res) => {
 	const savedMaterial = classroom.materials[classroom.materials.length - 1];
 
 	// Asynchronously trigger the embedding pipeline in the Python service
-	const AGENT_SERVICE_URL = process.env.AGENT_SERVICE_URL || 'http://localhost:8000';
-	axios.post(`${AGENT_SERVICE_URL}/embed`, {
-		classroom_id: classroom._id.toString(),
-		doc_id: savedMaterial._id.toString(),
-		file_url: savedMaterial.fileUrl,
-		original_name: savedMaterial.originalName
-	}).then(response => {
-		console.log(`[Embed] Triggered successfully for ${savedMaterial.originalName}`);
-		// Update status to processing
-		Classroom.updateOne(
-			{ 'materials._id': savedMaterial._id },
-			{ $set: { 'materials.$.embeddingStatus': 'processing' } }
-		).exec();
-	}).catch(err => {
-		console.error(`[Embed Error] Failed to trigger embed for ${savedMaterial.originalName}:`, err.message);
-		Classroom.updateOne(
-			{ 'materials._id': savedMaterial._id },
-			{ $set: { 'materials.$.embeddingStatus': 'failed' } }
-		).exec();
-	});
+	const AGENT_SERVICE_URL = process.env.AGENT_SERVICE_URL || 'http://localhost:8001';
+	axios
+		.post(`${AGENT_SERVICE_URL}/embed`, {
+			classroom_id: classroom._id.toString(),
+			doc_id: savedMaterial._id.toString(),
+			file_url: savedMaterial.fileUrl,
+			original_name: savedMaterial.originalName,
+		})
+		.then(response => {
+			console.log(`[Embed] Triggered successfully for ${savedMaterial.originalName}`);
+			// Update status to processing
+			Classroom.updateOne(
+				{ 'materials._id': savedMaterial._id },
+				{ $set: { 'materials.$.embeddingStatus': 'processing' } },
+			).exec();
+		})
+		.catch(err => {
+			console.error(
+				`[Embed Error] Failed to trigger embed for ${savedMaterial.originalName}:`,
+				err.message,
+			);
+			Classroom.updateOne(
+				{ 'materials._id': savedMaterial._id },
+				{ $set: { 'materials.$.embeddingStatus': 'failed' } },
+			).exec();
+		});
 
 	req.io?.to(`classroom-${classroom._id}`).emit('classroom-materials-updated', {
 		classroomId: classroom._id,
-		material: newMaterial
+		material: newMaterial,
 	});
 
 	return ApiResponse.success(res, classroom, 'Material uploaded successfully');
@@ -357,7 +363,7 @@ const deleteMaterial = asyncHandler(async (req, res) => {
 
 	req.io?.to(`classroom-${classroom._id}`).emit('classroom-materials-updated', {
 		classroomId: classroom._id,
-		deletedMaterialId: materialId
+		deletedMaterialId: materialId,
 	});
 
 	return ApiResponse.success(res, null, 'Material deleted successfully');
@@ -379,9 +385,7 @@ const deleteClassroom = asyncHandler(async (req, res) => {
 	}
 
 	// Delete all associated materials from Cloudinary (batch)
-	const publicIds = classroom.materials
-		.map(m => m.publicId)
-		.filter(Boolean);
+	const publicIds = classroom.materials.map(m => m.publicId).filter(Boolean);
 
 	if (publicIds.length > 0) {
 		try {
@@ -443,7 +447,7 @@ const leaveClassroom = asyncHandler(async (req, res) => {
 	// Remove from enrolled and pending
 	classroom.students = classroom.students.filter(sid => String(sid) !== studentId);
 	classroom.pendingStudents = classroom.pendingStudents.filter(sid => String(sid) !== studentId);
-	
+
 	await classroom.save();
 
 	return ApiResponse.success(res, null, 'Successfully left the classroom');
