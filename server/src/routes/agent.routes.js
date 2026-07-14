@@ -5,6 +5,7 @@ import {
 	streamSession,
 	sendMessageToAgent,
 	saveDraftAsExam,
+	getSessionState,
 } from '../controllers/agent.controller.js';
 
 const router = express.Router();
@@ -15,6 +16,9 @@ router.use(verifyTeacher);
 
 // Create a new agent session
 router.post('/sessions', createAgentSession);
+
+// Get session state (draft and messages)
+router.get('/sessions/:sessionId', getSessionState);
 
 // Connect to SSE stream for generation
 router.get('/sessions/:sessionId/generate/stream', streamSession);

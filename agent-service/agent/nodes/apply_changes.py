@@ -112,11 +112,9 @@ def apply_changes_node(state: AgentState) -> AgentState:
             parsed = _parse_json_from_text(raw_text)
             
             if isinstance(parsed, dict) and "questions" in parsed:
-                exam = ExamOutputSchema(**parsed)
-                state["questions"] = [q.model_dump() for q in exam.questions]
+                state["questions"] = parsed["questions"]
             elif isinstance(parsed, list):
-                exam = ExamOutputSchema(questions=parsed)
-                state["questions"] = [q.model_dump() for q in exam.questions]
+                state["questions"] = parsed
             else:
                 raise ValueError(f"Unexpected JSON structure: {list(parsed.keys())}")
             

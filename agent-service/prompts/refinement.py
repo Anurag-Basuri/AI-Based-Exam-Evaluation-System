@@ -21,7 +21,30 @@ INSTRUCTIONS:
 1. Return the complete updated list of questions.
 2. Maintain the structure and properties of any questions that were NOT requested to be changed.
 3. For modified or new questions, ensure they follow the standard schema (4 options for MCQs, model answer for subjective).
-4. Output MUST be valid JSON matching the exact schema requested.
+4. Output MUST be valid JSON matching EXACTLY this structure:
+{{
+  "questions": [
+    {{
+      "type": "multiple-choice",
+      "text": "The question text goes here",
+      "options": [
+        {{"text": "Option A", "isCorrect": true}},
+        {{"text": "Option B", "isCorrect": false}}
+      ],
+      "max_marks": 1,
+      "difficulty": "medium",
+      "tags": ["topic_tag"]
+    }},
+    {{
+      "type": "subjective",
+      "text": "The question text goes here",
+      "answer": "The expected answer",
+      "max_marks": 5,
+      "difficulty": "medium",
+      "tags": ["topic_tag"]
+    }}
+  ]
+}}
 """
 
 def get_exam_refinement_prompt():

@@ -4,12 +4,17 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import User from '../models/user.model.js';
 
 const checkAuth = asyncHandler(async (req, res, next) => {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return next(ApiError.Unauthorized('No token provided'));
+    let token;
+    
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+        token = req.headers.authorization.split(' ')[1];
+    } else if (req.query.token) {
+        token = req.query.token; // Fallback for EventSource / SSE
     }
 
-    const token = authHeader.split(' ')[1];
+    if (!token) {
+        return next(ApiError.Unauthorized('No token provided'));
+    }
 
     try {
         const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);

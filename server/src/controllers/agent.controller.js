@@ -8,7 +8,7 @@ const AGENT_SERVICE_URL = process.env.AGENT_SERVICE_URL || 'http://localhost:800
 export const createAgentSession = async (req, res) => {
 	try {
 		const { classroomId, config } = req.body;
-		const teacherId = req.user.userId; // Provided by auth middleware
+		const teacherId = req.user.id; // Provided by auth middleware
 
 		// 1. Ask Python service to initialize a session
 		const pythonResponse = await axios.post(`${AGENT_SERVICE_URL}/sessions`, {
@@ -58,6 +58,31 @@ export const streamSession = async (req, res) => {
 	} catch (error) {
 		console.error('Stream Session Error:', error.message);
 		res.status(500).json({ success: false, message: 'Failed to stream agent session' });
+	}
+};
+
+export const getSessionState = async (req, res) => {
+	const { sessionId } = req.params;
+
+	try {
+		// Get messages from local DB
+		const session = await AgentSession.findOne({ sessionId });
+		if (!session) {
+			return res.status(404).json({ success: false, message: 'Session not found in DB' });
+		}
+
+		// Get latest draft from Python service
+		const pythonResponse = await axios.get(`${AGENT_SERVICE_URL}/sessions/${sessionId}`);
+		const draft = pythonResponse.data.draft || pythonResponse.data.questions || [];
+
+		res.status(200).json({
+			success: true,
+			draft: draft,
+			messages: session.messages || [],
+		});
+	} catch (error) {
+		console.error('Get Session State Error:', error.message);
+		res.status(500).json({ success: false, message: 'Failed to fetch session state' });
 	}
 };
 

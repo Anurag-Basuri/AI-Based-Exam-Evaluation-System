@@ -48,10 +48,11 @@ export const useAgentSession = () => {
             es.addEventListener('complete', (e) => {
                 try {
                     const newDraft = JSON.parse(e.data);
-                    setDraft(newDraft);
+                    const questionsArray = newDraft.questions || newDraft;
+                    setDraft(questionsArray);
                     setIsGenerating(false);
                     _closeStream();
-                    resolve(newDraft);
+                    resolve(questionsArray);
                 } catch (err) {
                     setIsGenerating(false);
                     _closeStream();
@@ -83,7 +84,8 @@ export const useAgentSession = () => {
             setSessionId(newSessionId);
             
             // Start listening to the stream
-            const streamUrl = `${API_BASE_URL}/api/v1/agent/sessions/${newSessionId}/generate/stream`;
+            const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+            const streamUrl = `${API_BASE_URL}/api/v1/agent/sessions/${newSessionId}/generate/stream?token=${token}`;
             await _handleStream(streamUrl);
             
         } catch (error) {

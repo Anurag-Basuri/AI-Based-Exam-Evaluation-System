@@ -85,13 +85,15 @@ export const getFileInfo = async (publicId, resourceType = 'raw') => {
 	return cloudinary.api.resource(publicId, { resource_type: resourceType });
 };
 
-// Generate a signed download URL (for private resources)
+// Generate a signed download URL (for strict-delivery resources)
 export const getSignedUrl = (publicId, options = {}) => {
-	const { resourceType = 'raw', expiresInSeconds = 3600 } = options;
+	const { resourceType = 'raw' } = options;
 
-	return cloudinary.utils.private_download_url(publicId, '', {
+	return cloudinary.url(publicId, {
 		resource_type: resourceType,
-		expires_at: Math.floor(Date.now() / 1000) + expiresInSeconds,
+		type: 'upload',
+		sign_url: true,
+		secure: true,
 	});
 };
 

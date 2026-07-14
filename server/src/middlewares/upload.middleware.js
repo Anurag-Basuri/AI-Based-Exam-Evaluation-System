@@ -27,12 +27,26 @@ const ALLOWED_MIME_TYPES = new Set([
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
-// Cloudinary storage for classroom materials
 const materialStorage = new CloudinaryStorage({
 	cloudinary,
-	params: {
-		folder: 'classroom_materials',
-		resource_type: 'auto',
+	params: async (req, file) => {
+		let resourceType = 'raw';
+		if (file.mimetype.startsWith('image/')) {
+			resourceType = 'image';
+		} else if (file.mimetype.startsWith('video/')) {
+			resourceType = 'video';
+		}
+
+		// Cloudinary requires the file extension in public_id for 'raw' files
+		const ext = file.originalname.split('.').pop();
+		const baseName = file.originalname.split('.')[0].replace(/[^a-zA-Z0-9]/g, '_');
+		const publicId = `${baseName}_${Date.now()}.${ext}`;
+
+		return {
+			folder: 'classroom_materials',
+			resource_type: resourceType,
+			public_id: resourceType === 'raw' ? publicId : undefined,
+		};
 	},
 });
 

@@ -3,6 +3,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import { deleteFile, deleteFiles } from '../services/cloudinary.service.js';
+import { cloudinary } from '../db.js';
 import axios from 'axios';
 
 // Create a new classroom
@@ -294,12 +295,29 @@ const uploadMaterial = asyncHandler(async (req, res) => {
 	const savedMaterial = classroom.materials[classroom.materials.length - 1];
 
 	// Asynchronously trigger the embedding pipeline in the Python service
+	// Generate a signed URL so the Python service can download even with strict delivery
 	const AGENT_SERVICE_URL = process.env.AGENT_SERVICE_URL || 'http://localhost:8001';
+
+	let embedUrl = savedMaterial.fileUrl;
+	try {
+		// If using Cloudinary, generate a signed delivery URL for the raw file
+		if (savedMaterial.fileUrl.includes('cloudinary') && req.file.filename) {
+			embedUrl = cloudinary.url(req.file.filename, {
+				resource_type: 'raw',
+				type: 'upload',
+				sign_url: true,
+				secure: true,
+			});
+		}
+	} catch (signErr) {
+		console.warn('[Embed] Could not generate signed URL, using public URL:', signErr.message);
+	}
+
 	axios
 		.post(`${AGENT_SERVICE_URL}/embed`, {
 			classroom_id: classroom._id.toString(),
 			doc_id: savedMaterial._id.toString(),
-			file_url: savedMaterial.fileUrl,
+			file_url: embedUrl,
 			original_name: savedMaterial.originalName,
 		})
 		.then(response => {
@@ -452,6 +470,44 @@ const leaveClassroom = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, null, 'Successfully left the classroom');
 });
 
+// Re-embed a material (re-triggers the embedding pipeline with a signed URL)
+const reEmbedMaterial = asyncHandler(async (req, res) => {
+	const teacherId = String(req.userDoc?._id || req.user?.id);
+	const { id, materialId } = req.params;
+
+	const classroom = await Classroom.findById(id);
+	if (!classroom) throw ApiError.NotFound('Classroom not found');
+	if (String(classroom.teacher) !== teacherId) throw ApiError.Forbidden('Only the teacher can re-embed');
+
+	const material = classroom.materials.id(materialId);
+	if (!material) throw ApiError.NotFound('Material not found');
+
+	const AGENT_SERVICE_URL = process.env.AGENT_SERVICE_URL || 'http://localhost:8001';
+
+	let embedUrl = material.fileUrl;
+	try {
+		if (material.fileUrl.includes('cloudinary') && material.publicId) {
+			embedUrl = cloudinary.url(material.publicId, {
+				resource_type: 'raw',
+				type: 'upload',
+				sign_url: true,
+				secure: true,
+			});
+		}
+	} catch (signErr) {
+		console.warn('[ReEmbed] Could not generate signed URL:', signErr.message);
+	}
+
+	await axios.post(`${AGENT_SERVICE_URL}/embed`, {
+		classroom_id: classroom._id.toString(),
+		doc_id: material._id.toString(),
+		file_url: embedUrl,
+		original_name: material.originalName,
+	});
+
+	return ApiResponse.success(res, null, 'Re-embed triggered successfully');
+});
+
 export {
 	createClassroom,
 	getMyClassrooms,
@@ -465,4 +521,5 @@ export {
 	deleteClassroom,
 	resetJoinCode,
 	leaveClassroom,
+	reEmbedMaterial,
 };

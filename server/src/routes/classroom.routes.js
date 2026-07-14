@@ -22,6 +22,7 @@ import {
 	deleteClassroom,
 	resetJoinCode,
 	leaveClassroom,
+	reEmbedMaterial,
 } from '../controllers/classroom.controller.js';
 
 const router = Router();
@@ -169,6 +170,17 @@ router.post(
 	validateObjectId('id'),
 	validate,
 	leaveClassroom,
+);
+
+// POST /:id/materials/:materialId/re-embed — re-trigger embedding for a material
+router.post(
+	'/:id/materials/:materialId/re-embed',
+	checkAuth,
+	verifyTeacher,
+	validateObjectId('id'),
+	validateObjectId('materialId'),
+	validate,
+	reEmbedMaterial,
 );
 
 export default router;

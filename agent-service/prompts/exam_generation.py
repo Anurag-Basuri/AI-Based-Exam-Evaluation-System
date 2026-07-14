@@ -29,7 +29,30 @@ INSTRUCTIONS:
 5. For Subjective questions, provide a clear, comprehensive `answer` (model answer/rubric).
 6. Ensure the difficulty matches "{difficulty}".
 7. Use the Context Materials as the source of truth. Do not hallucinate facts outside the context.
-8. Output MUST be valid JSON matching the exact schema requested.
+8. Output MUST be valid JSON matching EXACTLY this structure:
+{{
+  "questions": [
+    {{
+      "type": "multiple-choice",
+      "text": "The question text goes here",
+      "options": [
+        {{"text": "Option A", "isCorrect": true}},
+        {{"text": "Option B", "isCorrect": false}}
+      ],
+      "max_marks": {marks_per_mcq},
+      "difficulty": "{difficulty}",
+      "tags": ["topic_tag"]
+    }},
+    {{
+      "type": "subjective",
+      "text": "The question text goes here",
+      "answer": "The expected answer",
+      "max_marks": {marks_per_subjective},
+      "difficulty": "{difficulty}",
+      "tags": ["topic_tag"]
+    }}
+  ]
+}}
 """
 
 def get_exam_generation_prompt():

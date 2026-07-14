@@ -116,12 +116,11 @@ def generate_node(state: AgentState) -> AgentState:
         raw_text = result.content if hasattr(result, 'content') else str(result)
         parsed = _parse_json_from_text(raw_text)
         
+        # Store raw dicts — normalization happens in format_output node
         if isinstance(parsed, dict) and "questions" in parsed:
-            exam = ExamOutputSchema(**parsed)
-            state["questions"] = [q.model_dump() for q in exam.questions]
+            state["questions"] = parsed["questions"]
         elif isinstance(parsed, list):
-            exam = ExamOutputSchema(questions=parsed)
-            state["questions"] = [q.model_dump() for q in exam.questions]
+            state["questions"] = parsed
         else:
             raise ValueError(f"Unexpected JSON structure: {list(parsed.keys())}")
         
