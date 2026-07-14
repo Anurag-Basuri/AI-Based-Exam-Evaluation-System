@@ -19,6 +19,7 @@ import { getStudentClassroomById, leaveStudentClassroom } from '../../services/s
 import { useToast } from '../../components/ui/Toaster';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import { useSocket } from '../../hooks/useSocket.js';
+import PageHeader from '../../components/ui/PageHeader.jsx';
 
 const getFileIcon = (filename = '') => {
 	const ext = filename.split('.').pop().toLowerCase();
@@ -127,7 +128,7 @@ export default function StudentClassroomDetails() {
 	if (loading) {
 		return (
 			<div className="flex h-64 items-center justify-center">
-				<Loader2 className="h-8 w-8 animate-spin text-primary" />
+				<Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
 			</div>
 		);
 	}
@@ -137,156 +138,139 @@ export default function StudentClassroomDetails() {
 	const materialCount = classroom.materials?.length || 0;
 
 	return (
-		<div className="mx-auto max-w-5xl p-6">
-			{/* Header */}
-			<div className="mb-8">
-				<button
-					onClick={() => navigate('/student/classrooms')}
-					className="mb-4 flex items-center text-sm font-medium text-gray-500 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-				>
-					<ArrowLeft className="mr-1.5 h-4 w-4" />
-					Back to Classrooms
-				</button>
-
-				<div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
-					<div className="flex items-start gap-4">
-						<div className="hidden h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 text-primary sm:flex">
-							<BookOpen className="h-8 w-8" />
-						</div>
-					<div>
-						<h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-							{classroom.name}
-						</h1>
-						{classroom.teacher && (
-							<p className="mt-1 text-sm font-medium text-primary">
-								Teacher: {classroom.teacher.fullname}
-							</p>
-						)}
-						{classroom.description && (
-							<p className="mt-2 max-w-lg text-gray-500 dark:text-gray-400">
-								{classroom.description}
-							</p>
-						)}
-					</div>
-				</div>
-				<div className="mt-4 flex sm:mt-0">
+		<div className="min-h-screen bg-[var(--bg)] pb-20 dash-enter">
+			<PageHeader
+				title={classroom.name}
+				subtitle={classroom.description || `Teacher: ${classroom.teacher?.fullname || 'Unknown'}`}
+				breadcrumbs={[
+					{ label: 'Home', to: '/student' },
+					{ label: 'Classrooms', to: '/student/classrooms' },
+					{ label: classroom.name }
+				]}
+				actions={[
 					<button
+						key="leave"
 						onClick={requestLeaveClassroom}
 						disabled={leavingClassroom}
-						className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 transition-colors hover:bg-red-100 disabled:opacity-50 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20"
+						className="flex items-center gap-2 rounded-xl border border-red-200/50 bg-red-50/50 px-5 py-2.5 text-sm font-bold text-red-600 transition-colors hover:bg-red-100 disabled:opacity-50 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20 active:scale-95"
 					>
 						{leavingClassroom ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
 						Leave Classroom
 					</button>
-				</div>
-			</div>
-		</div>
+				]}
+			/>
 
-		<div className="grid gap-8 lg:grid-cols-3">
-				{/* Materials Section */}
-				<div className="lg:col-span-2">
-					<div className="mb-4 flex items-center gap-3">
-						<h2 className="text-xl font-bold text-gray-900 dark:text-white">
-							Study Materials
-						</h2>
-						{materialCount > 0 && (
-							<span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-bold text-primary">
-								{materialCount}
-							</span>
-						)}
+			<div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 mt-8">
+				<div className="grid gap-8 lg:grid-cols-3">
+					{/* Materials Section */}
+					<div className="lg:col-span-2 space-y-6">
+						<div className="glass-card rounded-3xl p-6 md:p-8">
+							<div className="mb-6 flex items-center justify-between">
+								<h2 className="text-xl font-black text-[var(--text)] flex items-center gap-2">
+									<BookOpen className="w-5 h-5 text-indigo-600 dark:text-indigo-400" /> Study Materials
+								</h2>
+								{materialCount > 0 && (
+									<span className="rounded-full bg-indigo-50 dark:bg-indigo-500/10 px-3 py-1 text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">
+										{materialCount} Files
+									</span>
+								)}
+							</div>
+
+							{materialCount === 0 ? (
+								<div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface)] py-16">
+									<div className="mb-4 rounded-full bg-[var(--bg-secondary)] p-4">
+										<FileText className="h-10 w-10 text-[var(--text-muted)] opacity-50" />
+									</div>
+									<p className="text-lg font-bold text-[var(--text)]">
+										No materials available yet
+									</p>
+									<p className="mt-2 text-sm text-[var(--text-muted)] font-medium text-center max-w-sm">
+										Check back later when your teacher uploads files.
+									</p>
+								</div>
+							) : (
+								<div className="grid gap-4">
+									{classroom.materials.map(mat => (
+										<div
+											key={mat._id}
+											className="group flex items-center justify-between rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 transition-all hover:-translate-y-0.5 hover:shadow-lg hover:border-indigo-500/50"
+										>
+											<div className="flex items-center gap-4 min-w-0">
+												<div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 group-hover:scale-105 transition-transform">
+													{getFileIcon(mat.originalName)}
+													<span className="absolute -bottom-1.5 -right-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] px-1.5 py-0.5 text-[10px] font-black uppercase leading-none text-[var(--text)] shadow-sm">
+														{getFileExtBadge(mat.originalName)}
+													</span>
+												</div>
+												<div className="min-w-0">
+													<h4 className="truncate text-base font-bold text-[var(--text)] group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors" title={mat.title || mat.originalName}>
+														{mat.title || mat.originalName}
+													</h4>
+													<div className="flex flex-wrap items-center gap-2 mt-1.5 text-xs text-[var(--text-muted)] font-medium">
+														<span className="rounded-md bg-[var(--bg-secondary)] px-2 py-0.5 font-bold">{formatBytes(mat.size)}</span>
+														<span>•</span>
+														<span>
+															{new Date(mat.uploadedAt).toLocaleDateString()}
+														</span>
+													</div>
+												</div>
+											</div>
+											<a
+												href={mat.fileUrl}
+												target="_blank"
+												rel="noopener noreferrer"
+												download
+												className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--bg-secondary)] text-[var(--text-muted)] transition-all hover:bg-indigo-600 hover:text-white hover:scale-105 active:scale-95"
+												title="Download Material"
+											>
+												<Download className="h-4 w-4" />
+											</a>
+										</div>
+									))}
+								</div>
+							)}
+						</div>
 					</div>
 
-					{materialCount === 0 ? (
-						<div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-gray-50 py-12 dark:border-gray-700 dark:bg-gray-800/50">
-							<div className="mb-3 rounded-full bg-gray-100 p-3 dark:bg-gray-800">
-								<FileText className="h-8 w-8 text-gray-400 dark:text-gray-500" />
+					{/* Sidebar (Students list) */}
+					<div className="lg:col-span-1 space-y-6">
+						<div className="glass-card rounded-3xl p-6">
+							<div className="mb-6 flex items-center justify-between">
+								<h3 className="text-lg font-black text-[var(--text)] flex items-center gap-2">
+									<Users className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+									Classmates
+								</h3>
+								<span className="rounded-full bg-[var(--bg-secondary)] px-3 py-1 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">
+									{classroom.students?.length || 0}
+								</span>
 							</div>
-							<p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-								No materials available yet
-							</p>
-							<p className="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
-								Check back later when your teacher uploads files.
-							</p>
-						</div>
-					) : (
-						<div className="space-y-2">
-							{classroom.materials.map(mat => (
-								<div
-									key={mat._id}
-									className="group flex items-center justify-between rounded-xl border border-gray-200 bg-white p-4 transition-all hover:shadow-md dark:border-gray-700 dark:bg-gray-800/80 dark:hover:border-gray-600"
-								>
-									<div className="flex items-center gap-4 min-w-0">
-										<div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-											{getFileIcon(mat.originalName)}
-											<span className="absolute -bottom-1 -right-1 rounded bg-gray-800 px-1 py-px text-[9px] font-bold uppercase leading-none text-white dark:bg-gray-600">
-												{getFileExtBadge(mat.originalName)}
-											</span>
-										</div>
-										<div className="min-w-0">
-											<h4 className="truncate text-sm font-semibold text-gray-900 dark:text-white" title={mat.title || mat.originalName}>
-												{mat.title || mat.originalName}
-											</h4>
-											<div className="flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-												<span className="rounded bg-gray-100 px-1.5 py-0.5 font-medium dark:bg-gray-700">{formatBytes(mat.size)}</span>
-												<span>•</span>
-												<span>
-													{new Date(mat.uploadedAt).toLocaleDateString()}
-												</span>
-											</div>
-										</div>
-									</div>
-									<a
-										href={mat.fileUrl}
-										target="_blank"
-										rel="noopener noreferrer"
-										download
-										className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-gray-600 opacity-70 transition-all hover:bg-primary hover:text-white group-hover:opacity-100 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-primary dark:hover:text-white"
-										title="Download Material"
-									>
-										<Download className="h-4 w-4" />
-									</a>
+
+							{classroom.students?.length === 0 ? (
+								<div className="py-6 text-center">
+									<p className="text-sm font-medium text-[var(--text-muted)]">
+										You are the first student in this classroom!
+									</p>
 								</div>
-							))}
+							) : (
+								<ul className="max-h-[400px] space-y-2 overflow-y-auto pr-2 custom-scrollbar">
+									{classroom.students.map(student => (
+										<li
+											key={student._id}
+											className="flex items-center gap-3 rounded-xl p-3 transition-colors hover:bg-[var(--bg-secondary)] border border-transparent hover:border-[var(--border)]"
+										>
+											<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500/20 to-indigo-500/5 text-sm font-black text-indigo-600 dark:text-indigo-400">
+												{student.fullname?.charAt(0).toUpperCase() || '?'}
+											</div>
+											<div className="min-w-0 flex-1">
+												<p className="truncate text-sm font-bold text-[var(--text)]">
+													{student.fullname}
+												</p>
+											</div>
+										</li>
+									))}
+								</ul>
+							)}
 						</div>
-					)}
-				</div>
-
-				{/* Sidebar (Students list) */}
-				<div>
-					<div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-						<div className="mb-4 flex items-center gap-2">
-							<Users className="h-5 w-5 text-gray-500 dark:text-gray-400" />
-							<h3 className="text-base font-bold text-gray-900 dark:text-white">
-								Classmates
-							</h3>
-							<span className="ml-auto rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-600 dark:bg-gray-800 dark:text-gray-300">
-								{classroom.students?.length || 0}
-							</span>
-						</div>
-
-						{classroom.students?.length === 0 ? (
-							<p className="text-sm text-gray-500 dark:text-gray-400">
-								You are the first student in this classroom!
-							</p>
-						) : (
-							<ul className="max-h-[400px] space-y-1 overflow-y-auto pr-1">
-								{classroom.students.map(student => (
-									<li
-										key={student._id}
-										className="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50"
-									>
-										<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-bold text-primary">
-											{student.fullname?.charAt(0).toUpperCase() || '?'}
-										</div>
-										<div className="min-w-0 flex-1">
-											<p className="truncate text-sm font-medium text-gray-900 dark:text-white">
-												{student.fullname}
-											</p>
-										</div>
-									</li>
-								))}
-							</ul>
-						)}
 					</div>
 				</div>
 			</div>

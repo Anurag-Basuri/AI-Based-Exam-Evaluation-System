@@ -25,6 +25,7 @@ import {
 	RefreshCw,
 	CloudUpload,
 	X,
+	Layout,
 } from 'lucide-react';
 import {
 	getTeacherClassroomById,
@@ -360,8 +361,13 @@ export default function TeacherClassroomDetails() {
 
 	if (loading) {
 		return (
-			<div className="flex h-64 items-center justify-center">
-				<Loader2 className="h-8 w-8 animate-spin text-primary" />
+			<div className="flex h-[calc(100vh-100px)] items-center justify-center">
+				<div className="flex flex-col items-center gap-4">
+					<div className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-50 dark:bg-indigo-500/10">
+						<Loader2 className="h-8 w-8 animate-spin text-indigo-600 dark:text-indigo-400" />
+					</div>
+					<p className="font-bold text-gray-500 dark:text-gray-400 animate-pulse">Loading classroom details...</p>
+				</div>
 			</div>
 		);
 	}
@@ -372,27 +378,27 @@ export default function TeacherClassroomDetails() {
 	const materialCount = classroom.materials?.length || 0;
 
 	return (
-		<div className="mx-auto max-w-5xl p-6">
+		<div className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8 dash-enter">
 			{/* Header */}
 			<div className="mb-8">
 				<button
 					onClick={() => navigate('/teacher/classrooms')}
-					className="mb-4 flex items-center text-sm font-medium text-gray-500 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+					className="mb-6 flex w-fit items-center text-sm font-bold text-gray-500 transition-colors hover:text-indigo-600 dark:text-gray-400 dark:hover:text-indigo-400 bg-white/50 dark:bg-gray-800/50 backdrop-blur-md px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700"
 				>
-					<ArrowLeft className="mr-1.5 h-4 w-4" />
+					<ArrowLeft className="mr-2 h-4 w-4" />
 					Back to Classrooms
 				</button>
-				<div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
-					<div className="flex items-start gap-4">
-						<div className="hidden h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 text-primary sm:flex">
-							<BookOpen className="h-7 w-7" />
+				<div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-center">
+					<div className="flex items-center gap-5">
+						<div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-3xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-lg shadow-indigo-500/30">
+							<BookOpen className="h-8 w-8" />
 						</div>
 						<div>
-							<h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+							<h1 className="text-3xl font-black tracking-tight text-gray-900 dark:text-white">
 								{classroom.name}
 							</h1>
 							{classroom.description && (
-								<p className="mt-1 max-w-lg text-gray-500 dark:text-gray-400">
+								<p className="mt-1.5 max-w-xl text-sm font-medium text-gray-500 dark:text-gray-400">
 									{classroom.description}
 								</p>
 							)}
@@ -401,7 +407,7 @@ export default function TeacherClassroomDetails() {
 					<button
 						onClick={requestDeleteClassroom}
 						disabled={deletingClassroom}
-						className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 transition-colors hover:bg-red-100 disabled:opacity-50 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20"
+						className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-5 py-2.5 text-sm font-bold text-rose-600 transition-all hover:bg-rose-100 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-400 dark:hover:bg-rose-500/20 shadow-sm"
 					>
 						{deletingClassroom ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
 						Delete Classroom
@@ -409,289 +415,328 @@ export default function TeacherClassroomDetails() {
 				</div>
 			</div>
 
-			{/* Share / Invite Section */}
-			<div className="mb-8 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-				<div className="mb-4 flex items-center gap-2">
-					<Share2 className="h-5 w-5 text-primary" />
-					<h2 className="text-lg font-bold text-gray-900 dark:text-white">Invite Students</h2>
-				</div>
-				<p className="mb-4 text-sm text-gray-500 dark:text-gray-400">
-					Share the join code or invite link with your students. They'll need to request access and you can approve them below.
-				</p>
-				<div className="grid gap-3 sm:grid-cols-2">
-					{/* Join Code */}
-					<div className="flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-600 dark:bg-gray-800">
-						<div className="min-w-0 flex-1">
-							<p className="text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Join Code</p>
-							<p className="mt-0.5 font-mono text-xl font-bold tracking-widest text-gray-900 dark:text-white">
-								{classroom.joinCode}
-							</p>
+			<div className="grid gap-6 lg:grid-cols-3">
+				{/* Main Column */}
+				<div className="lg:col-span-2 space-y-6">
+					
+					{/* Materials Section */}
+					<div className="glass-card p-6 md:p-8">
+						<div className="mb-6 flex items-center justify-between">
+							<div className="flex items-center gap-3">
+								<h2 className="text-xl font-black text-gray-900 dark:text-white flex items-center gap-2">
+									<div className="w-2.5 h-2.5 rounded-full bg-indigo-500"></div>
+									Study Materials
+								</h2>
+								{materialCount > 0 && (
+									<span className="rounded-full bg-indigo-100 dark:bg-indigo-500/20 px-2.5 py-1 text-xs font-bold text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/30">
+										{materialCount} files
+									</span>
+								)}
+							</div>
 						</div>
-						<div className="flex items-center gap-1.5">
-							<button
-								onClick={requestResetJoinCode}
-								disabled={resettingCode}
-								className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-gray-500 shadow-sm transition-all hover:bg-gray-100 hover:text-gray-700 disabled:opacity-50 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-								title="Regenerate code"
-							>
-								<RefreshCw className={`h-4 w-4 ${resettingCode ? 'animate-spin' : ''}`} />
-							</button>
-							<button
-								onClick={handleCopyCode}
-								className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-gray-500 shadow-sm transition-all hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-								title="Copy code"
-							>
-								{copiedCode ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-							</button>
-						</div>
-					</div>
 
-					{/* Invite Link */}
-					<div className="flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-600 dark:bg-gray-800">
-						<div className="min-w-0 flex-1">
-							<p className="text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Invite Link</p>
-							<p className="mt-0.5 truncate text-sm font-medium text-primary">
-								{inviteLink}
-							</p>
-						</div>
-						<button
-							onClick={handleCopyLink}
-							className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-gray-500 shadow-sm transition-all hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-							title="Copy link"
+						{/* Upload Drop Zone */}
+						<div
+							ref={dropZoneRef}
+							onDragEnter={handleDragEnter}
+							onDragLeave={handleDragLeave}
+							onDragOver={handleDragOver}
+							onDrop={handleDrop}
+							onClick={() => !uploading && fileInputRef.current?.click()}
+							className={`group mb-8 flex cursor-pointer flex-col items-center justify-center rounded-3xl border-2 border-dashed p-10 transition-all duration-300 relative overflow-hidden ${
+								isDragging
+									? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-500/10 scale-[1.02]'
+									: uploading
+										? 'cursor-wait border-gray-300 bg-gray-50/50 dark:border-gray-700 dark:bg-gray-800/30 opacity-70'
+										: 'border-gray-300 bg-gray-50/50 hover:border-indigo-400 hover:bg-indigo-50/50 dark:border-gray-700 dark:bg-gray-800/20 dark:hover:border-indigo-500/50 dark:hover:bg-indigo-500/5 hover:shadow-lg'
+							}`}
 						>
-							{copiedLink ? <Check className="h-4 w-4 text-green-500" /> : <Link2 className="h-4 w-4" />}
-						</button>
-					</div>
-				</div>
-			</div>
+							<input
+								type="file"
+								ref={fileInputRef}
+								onChange={handleFileSelect}
+								className="hidden"
+							/>
+							
+							{isDragging && <div className="absolute inset-0 bg-indigo-500/5 dark:bg-indigo-500/10 pointer-events-none"></div>}
 
-			<div className="grid gap-8 lg:grid-cols-3">
-				{/* Materials Section */}
-				<div className="lg:col-span-2">
-					<div className="mb-4 flex items-center justify-between">
-						<div className="flex items-center gap-3">
-							<h2 className="text-xl font-bold text-gray-900 dark:text-white">Study Materials</h2>
-							{materialCount > 0 && (
-								<span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-bold text-primary">
-									{materialCount}
-								</span>
+							{uploading ? (
+								<div className="flex flex-col items-center relative z-10">
+									<div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-100 dark:bg-indigo-500/20 shadow-inner">
+										<Loader2 className="h-7 w-7 animate-spin text-indigo-600 dark:text-indigo-400" />
+									</div>
+									<p className="text-sm font-bold text-gray-700 dark:text-gray-200">Uploading your file...</p>
+									<div className="mt-4 h-2 w-56 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700/50">
+										<div className="h-full animate-pulse rounded-full bg-gradient-to-r from-indigo-500 to-violet-500" style={{ width: '70%' }} />
+									</div>
+								</div>
+							) : (
+								<div className="flex flex-col items-center relative z-10 text-center">
+									<div className={`mb-4 flex h-16 w-16 items-center justify-center rounded-3xl transition-all duration-300 ${
+										isDragging 
+											? 'bg-indigo-100 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400 scale-110 shadow-lg' 
+											: 'bg-white text-gray-400 shadow-sm group-hover:bg-indigo-50 group-hover:text-indigo-600 group-hover:scale-110 dark:bg-gray-800 dark:text-gray-500 dark:group-hover:bg-indigo-500/20 dark:group-hover:text-indigo-400'
+									}`}>
+										<CloudUpload className="h-8 w-8" />
+									</div>
+									<h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">
+										{isDragging ? 'Drop it like it\'s hot' : 'Upload Study Material'}
+									</h3>
+									<p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3 max-w-sm">
+										Drag & drop your files here, or <span className="text-indigo-600 dark:text-indigo-400 hover:underline">browse</span>
+									</p>
+									<div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-800/80 px-3 py-1.5 rounded-lg">
+										<span>10MB MAX</span>
+										<span>•</span>
+										<span>PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX, Images, ZIP</span>
+									</div>
+								</div>
 							)}
 						</div>
-					</div>
 
-					{/* Upload Drop Zone */}
-					<div
-						ref={dropZoneRef}
-						onDragEnter={handleDragEnter}
-						onDragLeave={handleDragLeave}
-						onDragOver={handleDragOver}
-						onDrop={handleDrop}
-						onClick={() => !uploading && fileInputRef.current?.click()}
-						className={`group mb-6 flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed p-8 transition-all duration-200 ${
-							isDragging
-								? 'border-primary bg-primary/5 dark:bg-primary/10'
-								: uploading
-									? 'cursor-wait border-gray-300 bg-gray-50 dark:border-gray-600 dark:bg-gray-800/50'
-									: 'border-gray-300 bg-gray-50/50 hover:border-primary/50 hover:bg-primary/5 dark:border-gray-600 dark:bg-gray-800/30 dark:hover:border-primary/40 dark:hover:bg-primary/5'
-						}`}
-					>
-						<input
-							type="file"
-							ref={fileInputRef}
-							onChange={handleFileSelect}
-							className="hidden"
-						/>
-
-						{uploading ? (
-							<>
-								<div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-									<Loader2 className="h-6 w-6 animate-spin text-primary" />
+						{/* Materials List */}
+						{materialCount === 0 ? (
+							<div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-gray-200 bg-gray-50/50 py-12 text-center dark:border-gray-700/50 dark:bg-gray-800/20">
+								<div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-2xl flex items-center justify-center mb-4 text-gray-400">
+									<FileText className="h-8 w-8" />
 								</div>
-								<p className="text-sm font-semibold text-gray-700 dark:text-gray-200">Uploading...</p>
-								<div className="mt-3 h-1.5 w-48 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
-									<div className="h-full animate-pulse rounded-full bg-gradient-to-r from-primary to-primary-light" style={{ width: '70%' }} />
-								</div>
-							</>
+								<h4 className="text-base font-bold text-gray-900 dark:text-white">No materials yet</h4>
+								<p className="mt-1 text-sm text-gray-500 dark:text-gray-400 max-w-xs">Upload files above to share resources with your students.</p>
+							</div>
 						) : (
-							<>
-								<div className={`mb-3 flex h-12 w-12 items-center justify-center rounded-full transition-colors ${
-									isDragging ? 'bg-primary/20 text-primary' : 'bg-gray-200 text-gray-500 group-hover:bg-primary/10 group-hover:text-primary dark:bg-gray-700 dark:text-gray-400'
-								}`}>
-									<CloudUpload className="h-6 w-6" />
-								</div>
-								<p className="text-sm font-semibold text-gray-700 dark:text-gray-200">
-									{isDragging ? 'Drop your file here' : 'Drag & drop a file here, or click to browse'}
-								</p>
-								<p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
-									PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX, images, ZIP — up to 10MB
-								</p>
-							</>
-						)}
-					</div>
-
-					{/* Materials List */}
-					{materialCount === 0 ? (
-						<div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-gray-50 py-10 dark:border-gray-700 dark:bg-gray-800/50">
-							<FileText className="h-8 w-8 text-gray-400 dark:text-gray-500" />
-							<p className="mt-2 text-sm font-medium text-gray-500 dark:text-gray-400">No materials uploaded yet</p>
-							<p className="mt-0.5 text-xs text-gray-400 dark:text-gray-500">Upload files above to share with your students.</p>
-						</div>
-					) : (
-						<div className="space-y-2">
-							{classroom.materials.map(mat => (
-								<div
-									key={mat._id}
-									className="group/item flex items-center justify-between rounded-xl border border-gray-200 bg-white p-4 transition-all hover:shadow-md dark:border-gray-700 dark:bg-gray-800/80 dark:hover:border-gray-600"
-								>
-									<div className="flex items-center gap-4 min-w-0">
-										<div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-											{getFileIcon(mat.originalName)}
-											<span className="absolute -bottom-1 -right-1 rounded bg-gray-800 px-1 py-px text-[9px] font-bold uppercase leading-none text-white dark:bg-gray-600">
-												{getFileExtBadge(mat.originalName)}
-											</span>
-										</div>
-										<div className="min-w-0">
-											<h4 className="truncate text-sm font-semibold text-gray-900 dark:text-white" title={mat.title || mat.originalName}>
-												{mat.title || mat.originalName}
-											</h4>
-											<div className="flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-												<span className="rounded bg-gray-100 px-1.5 py-0.5 font-medium dark:bg-gray-700">{formatBytes(mat.size)}</span>
-												<span>•</span>
-												<span>{new Date(mat.uploadedAt).toLocaleDateString()}</span>
+							<div className="space-y-3">
+								{classroom.materials.map(mat => (
+									<div
+										key={mat._id}
+										className="group/item flex items-center justify-between rounded-2xl border border-gray-100 dark:border-gray-700/50 bg-white dark:bg-gray-800/40 p-4 transition-all hover:shadow-lg hover:border-indigo-100 dark:hover:border-indigo-500/30"
+									>
+										<div className="flex items-center gap-4 min-w-0 flex-1">
+											<div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 group-hover/item:scale-105 transition-transform">
+												{getFileIcon(mat.originalName)}
+												<span className="absolute -bottom-2 -right-2 rounded-lg bg-gray-900 px-2 py-1 text-[10px] font-black uppercase tracking-wider text-white dark:bg-gray-700 shadow-sm border border-gray-800 dark:border-gray-600">
+													{getFileExtBadge(mat.originalName)}
+												</span>
+											</div>
+											<div className="min-w-0 pr-4">
+												<h4 className="truncate text-sm font-bold text-gray-900 dark:text-white group-hover/item:text-indigo-600 dark:group-hover/item:text-indigo-400 transition-colors" title={mat.title || mat.originalName}>
+													{mat.title || mat.originalName}
+												</h4>
+												<div className="flex flex-wrap items-center gap-2 mt-1.5 text-xs font-bold text-gray-500 dark:text-gray-400">
+													<span className="rounded-md bg-gray-100 dark:bg-gray-800 px-2 py-1">{formatBytes(mat.size)}</span>
+													<span className="opacity-50">•</span>
+													<span>{new Date(mat.uploadedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+												</div>
 											</div>
 										</div>
+										<div className="flex items-center gap-2 opacity-0 group-hover/item:opacity-100 transition-opacity">
+											<button
+												onClick={(e) => handleDownloadMaterial(e, mat._id)}
+												disabled={downloadingId === mat._id}
+												className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-50 text-gray-600 transition-all hover:bg-indigo-50 hover:text-indigo-600 disabled:opacity-50 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-indigo-500/20 dark:hover:text-indigo-400"
+												title="Download"
+											>
+												{downloadingId === mat._id ? (
+													<Loader2 className="h-5 w-5 animate-spin" />
+												) : (
+													<Download className="h-5 w-5" />
+												)}
+											</button>
+											<button
+												onClick={() => requestDeleteMaterial(mat._id)}
+												disabled={deletingId === mat._id}
+												className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-50 text-rose-500 transition-all hover:bg-rose-50 hover:text-rose-700 disabled:opacity-50 dark:bg-gray-800 dark:text-rose-400 dark:hover:bg-rose-500/20 dark:hover:text-rose-300"
+												title="Delete"
+											>
+												{deletingId === mat._id ? (
+													<Loader2 className="h-5 w-5 animate-spin" />
+												) : (
+													<Trash2 className="h-5 w-5" />
+												)}
+											</button>
+										</div>
 									</div>
-									<div className="flex items-center gap-1.5 opacity-70 transition-opacity group-hover/item:opacity-100">
-										<button
-											onClick={(e) => handleDownloadMaterial(e, mat._id)}
-											disabled={downloadingId === mat._id}
-											className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 disabled:opacity-50 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"
-											title="Download"
-										>
-											{downloadingId === mat._id ? (
-												<Loader2 className="h-4 w-4 animate-spin" />
-											) : (
-												<Download className="h-4 w-4" />
-											)}
-										</button>
-										<button
-											onClick={() => requestDeleteMaterial(mat._id)}
-											disabled={deletingId === mat._id}
-											className="flex h-8 w-8 items-center justify-center rounded-lg text-red-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-50 dark:hover:bg-red-500/10"
-											title="Delete"
-										>
-											{deletingId === mat._id ? (
-												<Loader2 className="h-4 w-4 animate-spin" />
-											) : (
-												<Trash2 className="h-4 w-4" />
-											)}
-										</button>
-									</div>
-								</div>
-							))}
-						</div>
-					)}
+								))}
+							</div>
+						)}
+					</div>
 				</div>
 
 				{/* Right Sidebar */}
 				<div className="space-y-6">
+					
+					{/* Share / Invite Section */}
+					<div className="glass-card p-6 relative overflow-hidden">
+						<div className="absolute top-0 right-0 -mt-6 -mr-6 w-32 h-32 bg-indigo-500/10 rounded-full blur-3xl"></div>
+						<div className="mb-5 flex items-center gap-3 relative z-10">
+							<div className="p-2 rounded-xl bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400">
+								<Share2 className="h-5 w-5" />
+							</div>
+							<h2 className="text-lg font-black text-gray-900 dark:text-white">Invite Students</h2>
+						</div>
+						
+						<div className="space-y-4 relative z-10">
+							{/* Join Code */}
+							<div className="flex flex-col gap-2">
+								<label className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Join Code</label>
+								<div className="flex items-center gap-2">
+									<div className="flex-1 flex items-center px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50">
+										<span className="font-mono text-lg font-black tracking-widest text-gray-900 dark:text-white">
+											{classroom.joinCode}
+										</span>
+									</div>
+									<button
+										onClick={requestResetJoinCode}
+										disabled={resettingCode}
+										className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-600 shadow-sm transition-all hover:bg-gray-50 hover:text-indigo-600 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-indigo-400"
+										title="Regenerate code"
+									>
+										<RefreshCw className={`h-5 w-5 ${resettingCode ? 'animate-spin' : ''}`} />
+									</button>
+									<button
+										onClick={handleCopyCode}
+										className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-xl border border-indigo-200 bg-indigo-50 text-indigo-600 shadow-sm transition-all hover:bg-indigo-100 hover:border-indigo-300 dark:border-indigo-500/30 dark:bg-indigo-500/20 dark:text-indigo-400 dark:hover:bg-indigo-500/30"
+										title="Copy code"
+									>
+										{copiedCode ? <Check className="h-5 w-5" /> : <Copy className="h-5 w-5" />}
+									</button>
+								</div>
+							</div>
+
+							{/* Invite Link */}
+							<div className="flex flex-col gap-2 pt-2 border-t border-gray-100 dark:border-gray-700/50">
+								<label className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Invite Link</label>
+								<div className="flex items-center gap-2">
+									<div className="flex-1 flex items-center px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50 overflow-hidden">
+										<span className="truncate text-sm font-bold text-gray-600 dark:text-gray-300">
+											{inviteLink}
+										</span>
+									</div>
+									<button
+										onClick={handleCopyLink}
+										className="flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-600 shadow-sm transition-all hover:bg-gray-50 hover:text-indigo-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+										title="Copy link"
+									>
+										{copiedLink ? <Check className="h-4 w-4 text-indigo-500" /> : <Link2 className="h-4 w-4" />}
+									</button>
+								</div>
+							</div>
+						</div>
+					</div>
+
 					{/* Pending Requests */}
 					{pendingCount > 0 && (
-						<div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm dark:border-amber-500/30 dark:bg-amber-500/10">
-							<div className="mb-4 flex items-center gap-2">
-								<Clock className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-								<h3 className="text-base font-bold text-amber-900 dark:text-amber-300">
-									Pending Requests
-								</h3>
-								<span className="ml-auto rounded-full bg-amber-200 px-2 py-0.5 text-xs font-bold text-amber-800 dark:bg-amber-500/30 dark:text-amber-300">
-									{pendingCount}
-								</span>
+						<div className="glass-card border-amber-200 dark:border-amber-500/30 overflow-hidden">
+							<div className="bg-amber-50 dark:bg-amber-500/10 p-5 border-b border-amber-100 dark:border-amber-500/20">
+								<div className="flex items-center gap-3">
+									<div className="p-2 rounded-xl bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400">
+										<Clock className="h-5 w-5" />
+									</div>
+									<h3 className="text-base font-black text-amber-900 dark:text-amber-300">
+										Pending Requests
+									</h3>
+									<span className="ml-auto rounded-full bg-amber-200 dark:bg-amber-500/30 px-2.5 py-1 text-xs font-bold text-amber-800 dark:text-amber-300 shadow-sm">
+										{pendingCount}
+									</span>
+								</div>
 							</div>
-							<ul className="space-y-2">
-								{classroom.pendingStudents.map(student => (
-									<li
-										key={student._id}
-										className="flex items-center gap-3 rounded-xl bg-white p-3 shadow-sm dark:bg-gray-900"
-									>
-										<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100 text-sm font-bold text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">
-											{student.fullname?.charAt(0).toUpperCase() || '?'}
-										</div>
-										<div className="min-w-0 flex-1">
-											<p className="truncate text-sm font-medium text-gray-900 dark:text-white">
-												{student.fullname}
-											</p>
-											<p className="truncate text-xs text-gray-500 dark:text-gray-400">
-												{student.email}
-											</p>
-										</div>
-										<div className="flex items-center gap-1.5">
-											<button
-												onClick={() => handleApprove(student._id)}
-												disabled={approvingId === student._id}
-												className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-100 text-green-700 transition-colors hover:bg-green-200 disabled:opacity-50 dark:bg-green-500/20 dark:text-green-400 dark:hover:bg-green-500/30"
-												title="Approve"
-											>
-												{approvingId === student._id ? (
-													<Loader2 className="h-4 w-4 animate-spin" />
-												) : (
-													<UserCheck className="h-4 w-4" />
-												)}
-											</button>
-											<button
-												onClick={() => requestRejectStudent(student._id)}
-												disabled={rejectingId === student._id}
-												className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-100 text-red-700 transition-colors hover:bg-red-200 disabled:opacity-50 dark:bg-red-500/20 dark:text-red-400 dark:hover:bg-red-500/30"
-												title="Reject"
-											>
-												{rejectingId === student._id ? (
-													<Loader2 className="h-4 w-4 animate-spin" />
-												) : (
-													<UserX className="h-4 w-4" />
-												)}
-											</button>
-										</div>
-									</li>
-								))}
-							</ul>
+							<div className="p-2 max-h-[300px] overflow-y-auto custom-scrollbar">
+								<ul className="space-y-1">
+									{classroom.pendingStudents.map(student => (
+										<li
+											key={student._id}
+											className="flex items-center gap-3 rounded-xl p-3 hover:bg-amber-50/50 dark:hover:bg-amber-500/5 transition-colors"
+										>
+											<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100 text-sm font-black text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">
+												{student.fullname?.charAt(0).toUpperCase() || '?'}
+											</div>
+											<div className="min-w-0 flex-1">
+												<p className="truncate text-sm font-bold text-gray-900 dark:text-white">
+													{student.fullname}
+												</p>
+												<p className="truncate text-xs font-medium text-gray-500 dark:text-gray-400">
+													{student.email}
+												</p>
+											</div>
+											<div className="flex items-center gap-1.5">
+												<button
+													onClick={() => handleApprove(student._id)}
+													disabled={approvingId === student._id}
+													className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 transition-all hover:bg-emerald-100 hover:scale-105 disabled:opacity-50 dark:bg-emerald-500/10 dark:text-emerald-400 dark:hover:bg-emerald-500/20"
+													title="Approve"
+												>
+													{approvingId === student._id ? (
+														<Loader2 className="h-4 w-4 animate-spin" />
+													) : (
+														<UserCheck className="h-5 w-5" />
+													)}
+												</button>
+												<button
+													onClick={() => requestRejectStudent(student._id)}
+													disabled={rejectingId === student._id}
+													className="flex h-9 w-9 items-center justify-center rounded-xl bg-rose-50 text-rose-600 transition-all hover:bg-rose-100 hover:scale-105 disabled:opacity-50 dark:bg-rose-500/10 dark:text-rose-400 dark:hover:bg-rose-500/20"
+													title="Reject"
+												>
+													{rejectingId === student._id ? (
+														<Loader2 className="h-4 w-4 animate-spin" />
+													) : (
+														<UserX className="h-5 w-5" />
+													)}
+												</button>
+											</div>
+										</li>
+									))}
+								</ul>
+							</div>
 						</div>
 					)}
 
 					{/* Enrolled Students */}
-					<div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-						<div className="mb-4 flex items-center gap-2">
-							<Users className="h-5 w-5 text-gray-500 dark:text-gray-400" />
-							<h3 className="text-base font-bold text-gray-900 dark:text-white">Students</h3>
-							<span className="ml-auto rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-600 dark:bg-gray-800 dark:text-gray-300">
-								{classroom.students?.length || 0}
-							</span>
+					<div className="glass-card overflow-hidden">
+						<div className="p-5 border-b border-gray-100 dark:border-gray-700/50 bg-gray-50/50 dark:bg-gray-800/20">
+							<div className="flex items-center gap-3">
+								<div className="p-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
+									<Users className="h-5 w-5" />
+								</div>
+								<h3 className="text-base font-black text-gray-900 dark:text-white">Enrolled Students</h3>
+								<span className="ml-auto rounded-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 px-2.5 py-1 text-xs font-bold text-gray-700 dark:text-gray-300 shadow-sm">
+									{classroom.students?.length || 0}
+								</span>
+							</div>
 						</div>
 
-						{classroom.students?.length === 0 ? (
-							<p className="text-sm text-gray-500 dark:text-gray-400">
-								No students have been approved yet. Share the invite link to get started!
-							</p>
-						) : (
-							<ul className="max-h-[400px] space-y-1 overflow-y-auto pr-1">
-								{classroom.students.map(student => (
-									<li
-										key={student._id}
-										className="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50"
-									>
-										<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-bold text-primary">
-											{student.fullname?.charAt(0).toUpperCase() || '?'}
-										</div>
-										<div className="min-w-0 flex-1">
-											<p className="truncate text-sm font-medium text-gray-900 dark:text-white">
-												{student.fullname}
-											</p>
-											<p className="truncate text-xs text-gray-500 dark:text-gray-400">
-												{student.email}
-											</p>
-										</div>
-									</li>
-								))}
-							</ul>
-						)}
+						<div className="p-2">
+							{classroom.students?.length === 0 ? (
+								<div className="px-4 py-8 text-center">
+									<div className="w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mx-auto mb-3 text-gray-400">
+										<Users className="h-5 w-5" />
+									</div>
+									<p className="text-sm font-medium text-gray-500 dark:text-gray-400 max-w-[200px] mx-auto">
+										No students enrolled yet. Share the invite link above!
+									</p>
+								</div>
+							) : (
+								<ul className="max-h-[400px] space-y-1 overflow-y-auto custom-scrollbar pr-1">
+									{classroom.students.map(student => (
+										<li
+											key={student._id}
+											className="flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50"
+										>
+											<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-50 dark:bg-indigo-500/10 text-sm font-black text-indigo-600 dark:text-indigo-400">
+												{student.fullname?.charAt(0).toUpperCase() || '?'}
+											</div>
+											<div className="min-w-0 flex-1">
+												<p className="truncate text-sm font-bold text-gray-900 dark:text-white">
+													{student.fullname}
+												</p>
+												<p className="truncate text-xs font-medium text-gray-500 dark:text-gray-400">
+													{student.email}
+												</p>
+											</div>
+										</li>
+									))}
+								</ul>
+							)}
+						</div>
 					</div>
 				</div>
 			</div>

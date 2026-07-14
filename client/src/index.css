@@ -2,12 +2,12 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary: #3b82f6;
-  --color-primary-strong: #2563eb;
-  --color-primary-light: #93c5fd;
+  --color-primary: #6366f1;
+  --color-primary-strong: #4f46e5;
+  --color-primary-light: #a5b4fc;
   --color-secondary: #10b981;
   --color-secondary-strong: #059669;
-  --color-secondary-light: #86efac;
+  --color-secondary-light: #6ee7b7;
   --color-success: #10b981;
   --color-warning: #f59e0b;
   --color-error: #ef4444;
@@ -16,13 +16,13 @@
 
 :root {
     /* Brand Colors */
-    --primary: #3b82f6;
-    --primary-rgb: 59, 130, 246;
-    --primary-strong: #2563eb;
-    --primary-light: #93c5fd;
+    --primary: #6366f1;
+    --primary-rgb: 99, 102, 241;
+    --primary-strong: #4f46e5;
+    --primary-light: #a5b4fc;
     --secondary: #10b981;
     --secondary-strong: #059669;
-    --secondary-light: #86efac;
+    --secondary-light: #6ee7b7;
   
     /* Semantic Colors */
     --success: #10b981;
@@ -111,12 +111,13 @@
 [data-theme="dark"] {
   --bg: #0f172a;
   --bg-secondary: #0b1220;
-  --surface: #111827;
-  --text: #e5e7eb;
+  --surface: #1e293b;
+  --surface-alt: rgba(30, 41, 59, 0.7);
+  --text: #f8fafc;
   --text-muted: #94a3b8;
   --text-light: #64748b;
-  --border: #334155;
-  --border-light: #1f2937;
+  --border: rgba(51, 65, 85, 0.8);
+  --border-light: rgba(31, 41, 55, 0.6);
 }
 
 /* Buttons: consistent look */
@@ -152,10 +153,20 @@ body {
 }
 
 .glass-card {
-    background: var(--surface-alt);
+    background: var(--surface-alt, rgba(255, 255, 255, 0.7));
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     border: 1px solid var(--border);
-    box-shadow: var(--shadow);
+    box-shadow: var(--shadow-md);
     border-radius: 18px;
+}
+
+.glass-panel {
+    background: color-mix(in srgb, var(--surface) 60%, transparent);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
 }
 
 /* Custom Scrollbar */

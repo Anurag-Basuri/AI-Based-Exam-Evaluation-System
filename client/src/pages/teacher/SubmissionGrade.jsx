@@ -765,44 +765,4 @@ const TeacherSubmissionGrade = () => {
 	);
 };
 
-const styles = {
-	bulkToolbar: {
-		display: 'flex',
-		gap: '1rem',
-		margin: '1rem 0',
-		justifyContent: 'center',
-		alignItems: 'center',
-	},
-};
-
-const BulkActionToolbar = ({ selectedIds, onBulkResolve, onClear }) => {
-	if (!selectedIds || selectedIds.length === 0) return null;
-
-	const handleResolveClick = () => {
-		const reply = window.prompt(
-			`Enter a single reply to resolve all ${selectedIds.length} selected issues:`,
-		);
-		if (reply && reply.trim()) {
-			onBulkResolve(reply);
-		}
-	};
-
-	return (
-		<div style={styles.bulkToolbar}>
-			<button
-				onClick={handleResolveClick}
-				className="px-4 py-2 rounded-md bg-green-600 text-white font-semibold hover:bg-green-700 transition-colors"
-			>
-				Resolve Selected
-			</button>
-			<button
-				onClick={onClear}
-				className="px-4 py-2 rounded-md bg-red-600 text-white font-semibold hover:bg-red-700 transition-colors"
-			>
-				Clear Selections
-			</button>
-		</div>
-	);
-};
-
 export default TeacherSubmissionGrade;

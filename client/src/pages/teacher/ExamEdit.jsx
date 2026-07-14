@@ -14,47 +14,48 @@ import Alert from '../../components/ui/Alert.jsx';
 import { useToast } from '../../components/ui/Toaster.jsx';
 import PageHeader from '../../components/ui/PageHeader.jsx';
 import { useTheme } from '../../hooks/useTheme.js';
+import { Check, Search, Filter, FileText, FileQuestion, Pencil, X, Save, ShieldAlert } from 'lucide-react';
 
 // --- UI Components ---
 
 const Pill = ({ children, variant = 'default', onClick }) => {
-	const bg = variant === 'primary' ? 'var(--primary-light-bg)' : 'var(--bg)';
-	const color = variant === 'primary' ? 'var(--primary)' : 'var(--text)';
-	const border = variant === 'primary' ? 'var(--primary-light)' : 'var(--border)';
-
+	let className = "inline-flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-full transition-all ";
+	
+	if (variant === 'primary') {
+		className += "bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/20";
+	} else if (variant === 'success') {
+		className += "bg-green-50 dark:bg-green-500/10 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-500/20";
+	} else if (variant === 'warning') {
+		className += "bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-500/20";
+	} else if (variant === 'danger') {
+		className += "bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-500/20";
+	} else {
+		className += "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700";
+	}
+	
+	if (onClick) {
+		className += " cursor-pointer hover:shadow-md hover:-translate-y-0.5";
+	}
+	
 	return (
-		<span
-			onClick={onClick}
-			style={{
-				display: 'inline-flex',
-				alignItems: 'center',
-				gap: 6,
-				padding: '4px 12px',
-				fontSize: 12,
-				fontWeight: 600,
-				borderRadius: 999,
-				border: `1px solid ${border}`,
-				background: bg,
-				color: color,
-				cursor: onClick ? 'pointer' : 'default',
-				transition: 'all 0.2s',
-			}}
-		>
+		<span onClick={onClick} className={className}>
 			{children}
 		</span>
 	);
 };
 
 const Section = ({ title, subtitle, children, actions }) => (
-	<section style={styles.section}>
-		<header style={styles.sectionHeader}>
+	<section className="glass-card rounded-2xl p-6 shadow-sm border-t-4 border-t-indigo-500 flex flex-col h-full dash-enter">
+		<header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
 			<div>
-				<h2 style={styles.sectionTitle}>{title}</h2>
-				{subtitle && <p style={styles.sectionSubtitle}>{subtitle}</p>}
+				<h2 className="text-xl font-black text-gray-900 dark:text-white tracking-tight">{title}</h2>
+				{subtitle && <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mt-1">{subtitle}</p>}
 			</div>
-			{actions && <div>{actions}</div>}
+			{actions && <div className="shrink-0">{actions}</div>}
 		</header>
-		{children}
+		<div className="flex-1 flex flex-col">
+			{children}
+		</div>
 	</section>
 );
 
@@ -246,186 +247,236 @@ const ExamEdit = () => {
 
 	if (loading) {
 		return (
-			<div style={styles.loadingContainer}>
-				<div className="spinner" />
-				<p>Loading exam details...</p>
+			<div className="min-h-screen flex flex-col items-center justify-center text-gray-500 dark:text-gray-400">
+				<div className="w-10 h-10 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin mb-4" />
+				<p className="font-medium animate-pulse">Loading exam details...</p>
 			</div>
 		);
 	}
 
 	return (
-		<div style={styles.page}>
-			<div style={styles.container}>
-				<PageHeader
-					title="Edit Exam"
-					subtitle={`Modify details and question selection. Status: ${status}`}
-					breadcrumbs={[
-						{ label: 'Home', to: '/teacher' },
-						{ label: 'Exams', to: '/teacher/exams' },
-						{ label: 'Edit' },
-					]}
-					actions={[
-						<button
-							key="cancel"
-							onClick={() => navigate('/teacher/exams')}
-							style={styles.btnSecondary}
-						>
-							Cancel
-						</button>,
-						<button
-							key="save"
-							onClick={onSave}
+		<div className="min-h-screen px-4 sm:px-6 lg:px-8 py-8 dash-enter max-w-[1400px] mx-auto">
+			<PageHeader
+				title="Edit Exam"
+				subtitle={
+					<div className="flex items-center gap-2">
+						<span>Modify details and question selection. Status: </span>
+						<span className={`px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider ${
+							status === 'live' || status === 'active' ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400' :
+							status === 'scheduled' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+							status === 'draft' ? 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400' :
+							'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400'
+						}`}>
+							{status}
+						</span>
+					</div>
+				}
+				breadcrumbs={[
+					{ label: 'Home', to: '/teacher' },
+					{ label: 'Exams', to: '/teacher/exams' },
+					{ label: 'Edit' },
+				]}
+				actions={[
+					<button
+						key="cancel"
+						onClick={() => navigate('/teacher/exams')}
+						className="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-xl font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+					>
+						Cancel
+					</button>,
+					<button
+						key="save"
+						onClick={onSave}
+						disabled={saving || isLocked}
+						className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white px-6 py-2 rounded-xl font-bold shadow-md shadow-indigo-500/20 transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none ml-2"
+					>
+						{saving ? (
+							<>
+								<div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+								Saving...
+							</>
+						) : (
+							<>
+								<Save className="w-4 h-4" /> Save Changes
+							</>
+						)}
+					</button>,
+				]}
+			/>
+
+			{errorBanner && (
+				<div className="mb-6">
+					<Alert type="error" onClose={() => setErrorBanner('')}>
+						{errorBanner}
+					</Alert>
+				</div>
+			)}
+
+			<div className="grid grid-cols-1 xl:grid-cols-2 gap-8 items-start">
+				{/* Left Column: Details */}
+				<div className="flex flex-col gap-6">
+					<Section title="Exam Details" subtitle="Basic information and settings">
+						<ExamForm
+							value={details}
+							onChange={setDetails}
+							errors={detailErrors}
 							disabled={saving || isLocked}
-							style={saving || isLocked ? styles.btnDisabled : styles.btnPrimary}
-						>
-							{saving ? 'Saving...' : 'Save Changes'}
-						</button>,
-					]}
-				/>
+							aiPolicy={aiPolicy}
+							onAiPolicyChange={setAiPolicy}
+							isDark={isDark}
+						/>
+					</Section>
+				</div>
 
-				{errorBanner && (
-					<div style={{ marginBottom: 24 }}>
-						<Alert type="error" onClose={() => setErrorBanner('')}>
-							{errorBanner}
-						</Alert>
-					</div>
-				)}
-
-				<div style={styles.grid}>
-					{/* Left Column: Details */}
-					<div style={styles.colMain}>
-						<Section title="Exam Details" subtitle="Basic information and settings">
-							<ExamForm
-								value={details}
-								onChange={setDetails}
-								errors={detailErrors}
-								disabled={saving || isLocked}
-								aiPolicy={aiPolicy}
-								onAiPolicyChange={setAiPolicy}
-								isDark={isDark}
-							/>
-						</Section>
-					</div>
-
-					{/* Right Column: Questions */}
-					<div style={styles.colSide}>
-						<Section 
-							title="Questions" 
-							subtitle={`${selectedIds.size} selected • ${totalMarks} marks`}
-							actions={
-								<button
-									onClick={() => setSelectedIds(new Set())}
-									disabled={isLocked || selectedIds.size === 0}
-									style={styles.btnClear}
-								>
-									Clear All
-								</button>
-							}
-						>
-							{!canEditQuestions && (
-								<div style={{ marginBottom: 16 }}>
-									<Alert type="info">
+				{/* Right Column: Questions */}
+				<div className="flex flex-col gap-6">
+					<Section 
+						title="Questions" 
+						subtitle={
+							<span className="flex items-center gap-2 mt-1">
+								<span className="font-bold text-indigo-600 dark:text-indigo-400">{selectedIds.size}</span> selected
+								<span className="text-gray-300 dark:text-gray-600">•</span>
+								<span className="font-bold text-violet-600 dark:text-violet-400">{totalMarks}</span> marks
+							</span>
+						}
+						actions={
+							<button
+								onClick={() => setSelectedIds(new Set())}
+								disabled={isLocked || selectedIds.size === 0}
+								className="text-rose-500 hover:text-rose-600 dark:text-rose-400 dark:hover:text-rose-300 font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+							>
+								Clear All
+							</button>
+						}
+					>
+						{!canEditQuestions && (
+							<div className="mb-6">
+								<Alert type="info">
+									<div className="flex items-center gap-2 font-medium">
+										<ShieldAlert className="w-4 h-4" />
 										Editing locked for non-draft exams.
-									</Alert>
-								</div>
-							)}
+									</div>
+								</Alert>
+							</div>
+						)}
 
-							<div style={styles.filterBar}>
-								<div style={styles.searchWrapper}>
-									<span style={styles.searchIcon}>🔍</span>
-									<input
-										value={query}
-										onChange={e => setQuery(e.target.value)}
-										placeholder="Search questions..."
-										style={styles.searchInput}
-										disabled={isLocked}
-									/>
-								</div>
-								<div style={styles.filterRow}>
+						<div className="flex flex-col gap-3 mb-6 bg-gray-50 dark:bg-gray-800/50 p-4 rounded-xl border border-gray-100 dark:border-gray-800">
+							<div className="relative">
+								<Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+								<input
+									value={query}
+									onChange={e => setQuery(e.target.value)}
+									placeholder="Search questions by text or remarks..."
+									className="w-full pl-9 pr-4 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 disabled:bg-gray-100 dark:disabled:bg-gray-800/50 disabled:text-gray-500"
+									disabled={isLocked}
+								/>
+							</div>
+							<div className="flex gap-2">
+								<div className="relative flex-1">
+									<Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
 									<select
 										value={typeFilter}
 										onChange={e => setTypeFilter(e.target.value)}
-										style={styles.select}
+										className="w-full pl-8 pr-4 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-300 focus:outline-none appearance-none font-medium disabled:bg-gray-100 dark:disabled:bg-gray-800/50 disabled:text-gray-500"
 										disabled={isLocked}
 									>
 										<option value="all">All Types</option>
 										<option value="multiple-choice">MCQ</option>
 										<option value="subjective">Subjective</option>
 									</select>
-									<select
-										value={difficultyFilter}
-										onChange={e => setDifficultyFilter(e.target.value)}
-										style={styles.select}
-										disabled={isLocked}
-									>
-										<option value="all">All Difficulties</option>
-										<option value="easy">Easy</option>
-										<option value="medium">Medium</option>
-										<option value="hard">Hard</option>
-									</select>
 								</div>
+								<select
+									value={difficultyFilter}
+									onChange={e => setDifficultyFilter(e.target.value)}
+									className="flex-1 px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-300 focus:outline-none font-medium disabled:bg-gray-100 dark:disabled:bg-gray-800/50 disabled:text-gray-500"
+									disabled={isLocked}
+								>
+									<option value="all">All Difficulties</option>
+									<option value="easy">Easy</option>
+									<option value="medium">Medium</option>
+									<option value="hard">Hard</option>
+								</select>
 							</div>
+						</div>
 
-							<div style={styles.questionList}>
-								{filteredQuestions.length === 0 ? (
-									<div style={styles.emptyState}>No questions found.</div>
-								) : (
-									filteredQuestions.map(q => {
-										const selected = selectedIds.has(q._id || q.id);
-										return (
-											<div
-												key={q._id || q.id}
-												onClick={() => !isLocked && toggleSelected(q._id || q.id)}
-												style={{
-													...styles.questionCard,
-													borderColor: selected ? 'var(--primary)' : 'var(--border)',
-													background: selected ? 'var(--primary-light-bg)' : 'var(--surface)',
-													cursor: isLocked ? 'default' : 'pointer',
-												}}
-											>
-												<div style={styles.qHeader}>
-													<div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-														<input
-															type="checkbox"
-															checked={selected}
-															onChange={() => !isLocked && toggleSelected(q._id || q.id)}
-															disabled={isLocked}
-															style={styles.checkbox}
-														/>
-														<span style={styles.qType}>
-															{q.type === 'multiple-choice' ? 'MCQ' : 'Subj'}
-														</span>
+						<div className="flex-1 flex flex-col gap-3 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+							{filteredQuestions.length === 0 ? (
+								<div className="py-12 flex flex-col items-center justify-center text-center">
+									<div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
+										<FileQuestion className="w-8 h-8 text-gray-400" />
+									</div>
+									<p className="text-gray-500 dark:text-gray-400 font-medium">No questions found matching criteria.</p>
+								</div>
+							) : (
+								filteredQuestions.map(q => {
+									const selected = selectedIds.has(q._id || q.id);
+									return (
+										<div
+											key={q._id || q.id}
+											onClick={() => !isLocked && toggleSelected(q._id || q.id)}
+											className={`group rounded-xl p-4 border transition-all ${
+												selected
+													? 'bg-indigo-50 dark:bg-indigo-500/10 border-indigo-500 shadow-md shadow-indigo-500/10'
+													: 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'
+											} ${isLocked ? 'cursor-default' : 'cursor-pointer hover:border-indigo-300 dark:hover:border-indigo-500/50 hover:shadow-sm'}`}
+										>
+											<div className="flex justify-between items-start mb-3">
+												<div className="flex items-center gap-3">
+													<div className={`w-5 h-5 rounded flex items-center justify-center border transition-colors ${
+														selected 
+															? 'bg-indigo-500 border-indigo-500 text-white' 
+															: (isLocked ? 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50' : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 group-hover:border-indigo-400')
+													}`}>
+														{selected && <Check className="w-3.5 h-3.5" />}
 													</div>
-													<span style={styles.qMarks}>{q.max_marks}m</span>
+													<span className={`text-xs font-black tracking-wider uppercase px-2 py-0.5 rounded ${q.type === 'multiple-choice' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'}`}>
+														{q.type === 'multiple-choice' ? 'MCQ' : 'Subj'}
+													</span>
 												</div>
-												<p style={styles.qText}>{q.text}</p>
-												<div style={styles.qFooter}>
-													<Pill>{q.difficulty}</Pill>
-													{canEditQuestions && (
-														<button
-															onClick={e => {
-																e.stopPropagation();
-																openEditQuestion(q);
-															}}
-															style={styles.btnEditQ}
-														>
-															Edit
-														</button>
-													)}
-												</div>
+												<span className="text-xs font-bold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 px-2 py-1 rounded-md">
+													{q.max_marks} marks
+												</span>
 											</div>
-										);
-									})
-								)}
-							</div>
-						</Section>
-					</div>
+											<p className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-3 line-clamp-2 leading-relaxed">
+												{q.text}
+											</p>
+											<div className="flex justify-between items-center">
+												<Pill variant={
+													q.difficulty === 'hard' ? 'danger' : 
+													q.difficulty === 'medium' ? 'warning' : 'success'
+												}>
+													{q.difficulty}
+												</Pill>
+												{canEditQuestions && (
+													<button
+														onClick={e => {
+															e.stopPropagation();
+															openEditQuestion(q);
+														}}
+														className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg text-xs font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+													>
+														<Pencil className="w-3.5 h-3.5" /> Edit
+													</button>
+												)}
+											</div>
+										</div>
+									);
+								})
+							)}
+						</div>
+					</Section>
 				</div>
 			</div>
 
 			{showQModal && editQuestion && (
-				<div style={styles.modalOverlay} onClick={() => setShowQModal(false)}>
-					<div style={styles.modalContent} onClick={e => e.stopPropagation()}>
+				<div 
+					className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 dash-enter" 
+					onClick={() => setShowQModal(false)}
+				>
+					<div 
+						className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto custom-scrollbar border border-gray-100 dark:border-gray-800"
+						onClick={e => e.stopPropagation()}
+					>
 						<QuestionForm
 							defaultType={editQuestion.type}
 							defaultValue={editQuestion}
@@ -437,225 +488,6 @@ const ExamEdit = () => {
 			)}
 		</div>
 	);
-};
-
-const styles = {
-	page: {
-		minHeight: '100vh',
-		background: 'var(--bg-secondary)',
-		padding: '24px',
-	},
-	container: {
-		maxWidth: 1200,
-		margin: '0 auto',
-		display: 'flex',
-		flexDirection: 'column',
-		gap: 24,
-	},
-	loadingContainer: {
-		display: 'flex',
-		flexDirection: 'column',
-		alignItems: 'center',
-		justifyContent: 'center',
-		minHeight: '50vh',
-		color: 'var(--text-muted)',
-	},
-	grid: {
-		display: 'grid',
-		gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
-		gap: 24,
-		alignItems: 'start',
-	},
-	colMain: {
-		flex: 1,
-	},
-	colSide: {
-		flex: 1,
-	},
-	section: {
-		background: 'var(--surface)',
-		borderRadius: 16,
-		border: '1px solid var(--border)',
-		padding: 24,
-		boxShadow: 'var(--shadow-sm)',
-	},
-	sectionHeader: {
-		display: 'flex',
-		justifyContent: 'space-between',
-		alignItems: 'flex-start',
-		marginBottom: 20,
-	},
-	sectionTitle: {
-		fontSize: 18,
-		fontWeight: 700,
-		color: 'var(--text)',
-		margin: 0,
-	},
-	sectionSubtitle: {
-		fontSize: 14,
-		color: 'var(--text-muted)',
-		margin: '4px 0 0',
-	},
-	btnPrimary: {
-		padding: '10px 20px',
-		borderRadius: 10,
-		border: 'none',
-		background: 'var(--primary)',
-		color: '#fff',
-		fontWeight: 600,
-		cursor: 'pointer',
-		transition: 'all 0.2s',
-	},
-	btnSecondary: {
-		padding: '10px 20px',
-		borderRadius: 10,
-		border: '1px solid var(--border)',
-		background: 'var(--surface)',
-		color: 'var(--text)',
-		fontWeight: 600,
-		cursor: 'pointer',
-		transition: 'all 0.2s',
-	},
-	btnDisabled: {
-		padding: '10px 20px',
-		borderRadius: 10,
-		border: 'none',
-		background: 'var(--gray-300)',
-		color: 'var(--gray-500)',
-		fontWeight: 600,
-		cursor: 'not-allowed',
-	},
-	btnClear: {
-		background: 'transparent',
-		border: 'none',
-		color: 'var(--danger-text)',
-		fontSize: 13,
-		fontWeight: 600,
-		cursor: 'pointer',
-	},
-	filterBar: {
-		display: 'flex',
-		flexDirection: 'column',
-		gap: 12,
-		marginBottom: 16,
-	},
-	searchWrapper: {
-		position: 'relative',
-	},
-	searchIcon: {
-		position: 'absolute',
-		left: 12,
-		top: '50%',
-		transform: 'translateY(-50%)',
-		color: 'var(--text-muted)',
-	},
-	searchInput: {
-		width: '100%',
-		padding: '10px 12px 10px 36px',
-		borderRadius: 10,
-		border: '1px solid var(--border)',
-		background: 'var(--bg)',
-		color: 'var(--text)',
-		fontSize: 14,
-	},
-	filterRow: {
-		display: 'flex',
-		gap: 8,
-	},
-	select: {
-		flex: 1,
-		padding: '8px',
-		borderRadius: 8,
-		border: '1px solid var(--border)',
-		background: 'var(--bg)',
-		color: 'var(--text)',
-		fontSize: 13,
-	},
-	questionList: {
-		display: 'flex',
-		flexDirection: 'column',
-		gap: 12,
-		maxHeight: 600,
-		overflowY: 'auto',
-		paddingRight: 4,
-	},
-	questionCard: {
-		border: '1px solid var(--border)',
-		borderRadius: 12,
-		padding: 12,
-		transition: 'all 0.2s',
-	},
-	qHeader: {
-		display: 'flex',
-		justifyContent: 'space-between',
-		marginBottom: 8,
-	},
-	qType: {
-		fontSize: 12,
-		fontWeight: 700,
-		color: 'var(--text-muted)',
-		textTransform: 'uppercase',
-	},
-	qMarks: {
-		fontSize: 12,
-		fontWeight: 600,
-		color: 'var(--primary)',
-	},
-	qText: {
-		fontSize: 14,
-		color: 'var(--text)',
-		margin: '0 0 12px',
-		lineHeight: 1.4,
-		display: '-webkit-box',
-		WebkitLineClamp: 2,
-		WebkitBoxOrient: 'vertical',
-		overflow: 'hidden',
-	},
-	qFooter: {
-		display: 'flex',
-		justifyContent: 'space-between',
-		alignItems: 'center',
-	},
-	btnEditQ: {
-		padding: '4px 8px',
-		borderRadius: 6,
-		border: '1px solid var(--border)',
-		background: 'var(--surface)',
-		color: 'var(--text)',
-		fontSize: 11,
-		fontWeight: 600,
-		cursor: 'pointer',
-	},
-	emptyState: {
-		textAlign: 'center',
-		padding: 24,
-		color: 'var(--text-muted)',
-		fontStyle: 'italic',
-	},
-	modalOverlay: {
-		position: 'fixed',
-		inset: 0,
-		background: 'rgba(0,0,0,0.5)',
-		display: 'grid',
-		placeItems: 'center',
-		zIndex: 100,
-		padding: 16,
-	},
-	modalContent: {
-		background: 'var(--surface)',
-		borderRadius: 16,
-		width: '100%',
-		maxWidth: 700,
-		maxHeight: '90vh',
-		overflowY: 'auto',
-		padding: 24,
-		boxShadow: 'var(--shadow-lg)',
-	},
-	checkbox: {
-		width: 16,
-		height: 16,
-		cursor: 'pointer',
-	},
 };
 
 export default ExamEdit;

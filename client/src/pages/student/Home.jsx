@@ -2,6 +2,9 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth.js';
 import { safeApiCall, getMySubmissions, getStudentProfile } from '../../services/studentServices.js';
+import { BookOpen, Search, User, Mail, Phone, Calendar, RefreshCcw, Activity, FileText, CheckCircle, BarChart3, AlertCircle } from 'lucide-react';
+import PageHeader from '../../components/ui/PageHeader.jsx';
+import Alert from '../../components/ui/Alert.jsx';
 
 // ── Utilities ─────────────────────────────────────────────────────
 const formatDate = v => {
@@ -29,34 +32,25 @@ const getGreeting = () => {
 };
 
 // ── Skeleton loader ───────────────────────────────────────────────
-const Skeleton = ({ h = 14, w = '100%', r = 8 }) => (
-	<div style={{
-		height: h, width: w, borderRadius: r,
-		background: 'linear-gradient(90deg, var(--border-light) 25%, var(--border) 50%, var(--border-light) 75%)',
-		backgroundSize: '200% 100%',
-		animation: 'pulse 1.5s ease-in-out infinite',
-	}} />
+const Skeleton = ({ className }) => (
+	<div className={`animate-pulse bg-gray-200 dark:bg-gray-700/50 rounded-lg ${className}`} />
 );
 
 // ── Status helpers ────────────────────────────────────────────────
 const STATUS_MAP = {
-	'in-progress': { label: 'In Progress', icon: '⏳', color: '#f59e0b', bg: '#fef3c7' },
-	started:       { label: 'In Progress', icon: '⏳', color: '#f59e0b', bg: '#fef3c7' },
-	submitted:     { label: 'Submitted',   icon: '📋', color: '#3b82f6', bg: '#dbeafe' },
-	evaluated:     { label: 'Evaluated',   icon: '✅', color: '#10b981', bg: '#dcfce7' },
-	published:     { label: 'Published',   icon: '🎉', color: '#8b5cf6', bg: '#ede9fe' },
-	pending:       { label: 'Pending',     icon: '📝', color: '#64748b', bg: '#f1f5f9' },
+	'in-progress': { label: 'In Progress', icon: '⏳', colorClass: 'text-amber-700 dark:text-amber-400 bg-amber-50 border-amber-200 dark:bg-amber-900/30 dark:border-amber-800' },
+	started:       { label: 'In Progress', icon: '⏳', colorClass: 'text-amber-700 dark:text-amber-400 bg-amber-50 border-amber-200 dark:bg-amber-900/30 dark:border-amber-800' },
+	submitted:     { label: 'Submitted',   icon: '📋', colorClass: 'text-blue-700 dark:text-blue-400 bg-blue-50 border-blue-200 dark:bg-blue-900/30 dark:border-blue-800' },
+	evaluated:     { label: 'Evaluated',   icon: '✅', colorClass: 'text-emerald-700 dark:text-emerald-400 bg-emerald-50 border-emerald-200 dark:bg-emerald-900/30 dark:border-emerald-800' },
+	published:     { label: 'Published',   icon: '🎉', colorClass: 'text-violet-700 dark:text-violet-400 bg-violet-50 border-violet-200 dark:bg-violet-900/30 dark:border-violet-800' },
+	pending:       { label: 'Pending',     icon: '📝', colorClass: 'text-gray-700 dark:text-gray-400 bg-gray-50 border-gray-200 dark:bg-gray-800 dark:border-gray-700' },
 };
 
 const StatusBadge = ({ status }) => {
 	const s = String(status ?? 'pending').toLowerCase();
 	const cfg = STATUS_MAP[s] || STATUS_MAP.pending;
 	return (
-		<span style={{
-			background: cfg.bg, color: cfg.color,
-			padding: '4px 10px', borderRadius: 999,
-			fontSize: 11, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4,
-		}}>
+		<span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold border uppercase tracking-wider ${cfg.colorClass}`}>
 			<span>{cfg.icon}</span>{cfg.label}
 		</span>
 	);
@@ -119,200 +113,169 @@ const StudentHome = () => {
 
 	// ── Render ─────────────────────────────────────────────────────
 	return (
-		<div style={{ maxWidth: 1080, margin: '0 auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
+		<div className="min-h-screen px-4 sm:px-6 lg:px-8 py-8 dash-enter max-w-7xl mx-auto space-y-8">
+			
+			{/* ─── Error ─── */}
+			{error && (
+				<Alert type="error" onClose={() => setError('')}>
+					{error}
+				</Alert>
+			)}
 
 			{/* ─── Hero Banner ─── */}
-			<div
-				className="dash-hero dash-enter dash-enter-1"
-				style={{ background: 'linear-gradient(135deg, #059669, #10b981, #34d399)' }}
-			>
-				<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
-					<div style={{ flex: 1, minWidth: 200 }}>
-						<div style={{ fontSize: 14, fontWeight: 500, opacity: 0.85, marginBottom: 6 }}>
-							{getGreeting()},
+			<div className="glass-card overflow-hidden rounded-3xl relative p-8 sm:p-12 text-white shadow-xl">
+				<div className="absolute inset-0 bg-gradient-to-br from-emerald-600 via-emerald-500 to-teal-400 opacity-90 z-0"></div>
+				<div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMiIgY3k9IjIiIHI9IjIiIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSIvPjwvc3ZnPg==')] opacity-30 z-0"></div>
+				
+				<div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+					<div className="flex-1">
+						<div className="text-emerald-100 font-medium tracking-wide mb-2 flex items-center gap-2">
+							{getGreeting()}
 						</div>
-						<h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, letterSpacing: -0.5, lineHeight: 1.2 }}>
-							{loading ? '...' : (displayUser.fullname || displayUser.username || 'Student')} 👋
+						<h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight mb-4 leading-tight">
+							{loading ? 'Welcome back...' : `${displayUser.fullname || displayUser.username || 'Student'} 👋`}
 						</h1>
-						<p style={{ margin: '8px 0 0', fontSize: 14, opacity: 0.8, maxWidth: 400 }}>
+						<p className="text-emerald-50 text-base sm:text-lg max-w-2xl font-medium leading-relaxed opacity-90">
 							Track your exams, view results, and manage your academic progress.
 						</p>
 					</div>
-					<div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+					<div className="flex flex-wrap gap-3 mt-4 md:mt-0 shrink-0">
 						<button
-							className="dash-action-primary"
 							onClick={() => navigate('/student/exams')}
-							style={{ background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.25)', color: '#fff', padding: '10px 20px', borderRadius: 12, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}
+							className="flex items-center gap-2 bg-white/20 hover:bg-white/30 border border-white/30 text-white px-5 py-2.5 rounded-xl font-bold shadow-sm backdrop-blur-md transition-all active:scale-95"
 						>
-							🔍 Find Exam
+							<Search className="w-4 h-4" /> Find Exam
 						</button>
 						<button
 							onClick={loadData}
 							disabled={loading}
+							className="flex items-center gap-2 bg-black/10 hover:bg-black/20 text-white p-2.5 rounded-xl border border-white/10 backdrop-blur-md transition-all active:scale-95 disabled:opacity-50"
 							title="Refresh data"
-							style={{ padding: '10px 12px', borderRadius: 12, background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1, fontSize: 14 }}
 						>
-							🔄
+							<RefreshCcw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
 						</button>
 					</div>
 				</div>
 
 				{/* Mini profile strip inside hero */}
 				{!loading && (
-					<div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 20, paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.15)' }}>
-						<div style={{
-							width: 40, height: 40, borderRadius: 10,
-							background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(4px)',
-							display: 'flex', alignItems: 'center', justifyContent: 'center',
-							fontWeight: 800, fontSize: 16, flexShrink: 0,
-						}}>
-							{getInitials(displayUser)}
-						</div>
-						<div style={{ fontSize: 13, opacity: 0.85, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-							<span>📧 {displayUser.email || '—'}</span>
-							{displayUser.phonenumber && <span>📱 {displayUser.phonenumber}</span>}
-							<span>📅 Joined {formatDate(displayUser.createdAt)}</span>
+					<div className="relative z-10 mt-8 pt-6 border-t border-white/20 flex flex-wrap items-center gap-6 text-sm font-medium text-emerald-50">
+						<div className="flex items-center gap-3">
+							<div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center font-black text-lg border border-white/20 shadow-inner">
+								{getInitials(displayUser)}
+							</div>
+							<div className="flex flex-wrap gap-x-6 gap-y-2 opacity-90">
+								<span className="flex items-center gap-1.5"><Mail className="w-4 h-4" /> {displayUser.email || 'No email provided'}</span>
+								{displayUser.phonenumber && <span className="flex items-center gap-1.5"><Phone className="w-4 h-4" /> {displayUser.phonenumber}</span>}
+								<span className="flex items-center gap-1.5"><Calendar className="w-4 h-4" /> Joined {formatDate(displayUser.createdAt)}</span>
+							</div>
 						</div>
 					</div>
 				)}
 			</div>
 
-			{/* ─── Error ─── */}
-			{error && (
-				<div className="dash-enter" style={{
-					padding: 14, borderRadius: 12,
-					background: 'var(--danger-bg)', color: 'var(--danger-text)',
-					border: '1px solid var(--danger-border)',
-					display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-				}}>
-					<span>⚠️ {error}</span>
-					<button onClick={() => setError('')} style={{ background: 'transparent', border: 'none', color: 'var(--danger-text)', cursor: 'pointer', fontWeight: 800, fontSize: 18 }}>×</button>
-				</div>
-			)}
-
 			{/* ─── KPI Grid ─── */}
-			<div className="dash-kpi-grid dash-enter dash-enter-2">
-				<div className="dash-kpi" style={{ '--kpi-accent': '#f59e0b' }}>
-					<div className="dash-kpi-icon" style={{ background: '#fef3c7', color: '#f59e0b' }}>⏳</div>
-					<div>
-						<div className="dash-kpi-label">In Progress</div>
-						<div className="dash-kpi-value">{loading ? '—' : stats.inProgress}</div>
-						<div className="dash-kpi-sub">Active exams</div>
+			<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+				{[
+					{ label: 'In Progress', value: loading ? '—' : stats.inProgress, sub: 'Active exams', icon: <Activity className="w-6 h-6 text-amber-500" />, bg: 'bg-amber-100 dark:bg-amber-500/20' },
+					{ label: 'Submitted', value: loading ? '—' : stats.submitted, sub: 'Awaiting grading', icon: <FileText className="w-6 h-6 text-blue-500" />, bg: 'bg-blue-100 dark:bg-blue-500/20' },
+					{ label: 'Evaluated', value: loading ? '—' : stats.evaluated, sub: 'Results ready', icon: <CheckCircle className="w-6 h-6 text-emerald-500" />, bg: 'bg-emerald-100 dark:bg-emerald-500/20' },
+					{ label: 'Total Attempts', value: loading ? '—' : stats.total, sub: 'All time', icon: <BarChart3 className="w-6 h-6 text-indigo-500" />, bg: 'bg-indigo-100 dark:bg-indigo-500/20' },
+				].map((kpi, idx) => (
+					<div key={idx} className="glass-card p-5 rounded-2xl border-b-4 border-b-transparent hover:border-b-indigo-500 transition-all flex items-center gap-4 group">
+						<div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${kpi.bg} group-hover:scale-110 transition-transform`}>
+							{kpi.icon}
+						</div>
+						<div>
+							<div className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{kpi.label}</div>
+							<div className="text-2xl font-black text-gray-900 dark:text-white my-0.5">{kpi.value}</div>
+							<div className="text-xs font-medium text-gray-400">{kpi.sub}</div>
+						</div>
 					</div>
-				</div>
-				<div className="dash-kpi" style={{ '--kpi-accent': '#3b82f6' }}>
-					<div className="dash-kpi-icon" style={{ background: '#dbeafe', color: '#3b82f6' }}>📋</div>
-					<div>
-						<div className="dash-kpi-label">Submitted</div>
-						<div className="dash-kpi-value">{loading ? '—' : stats.submitted}</div>
-						<div className="dash-kpi-sub">Awaiting grading</div>
-					</div>
-				</div>
-				<div className="dash-kpi" style={{ '--kpi-accent': '#10b981' }}>
-					<div className="dash-kpi-icon" style={{ background: '#dcfce7', color: '#10b981' }}>✅</div>
-					<div>
-						<div className="dash-kpi-label">Evaluated</div>
-						<div className="dash-kpi-value">{loading ? '—' : stats.evaluated}</div>
-						<div className="dash-kpi-sub">Results ready</div>
-					</div>
-				</div>
-				<div className="dash-kpi" style={{ '--kpi-accent': '#6366f1' }}>
-					<div className="dash-kpi-icon" style={{ background: '#e0e7ff', color: '#6366f1' }}>📊</div>
-					<div>
-						<div className="dash-kpi-label">Total Attempts</div>
-						<div className="dash-kpi-value">{loading ? '—' : stats.total}</div>
-						<div className="dash-kpi-sub">All time</div>
-					</div>
-				</div>
+				))}
 			</div>
 
 			{/* ─── Quick Actions ─── */}
-			<div className="dash-enter dash-enter-3" style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-				<button className="dash-action dash-action-primary" onClick={() => navigate('/student/exams')}>
-					🔍 Find Exam
+			<div className="flex flex-wrap gap-3">
+				<button onClick={() => navigate('/student/exams')} className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-500/20 transition-all active:scale-95">
+					<Search className="w-4 h-4" /> Find Exam
 				</button>
-				<button className="dash-action" onClick={() => navigate('/student/results')}>
-					📊 View Results
+				<button onClick={() => navigate('/student/results')} className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm transition-all active:scale-95">
+					<BarChart3 className="w-4 h-4" /> View Results
 				</button>
-				<button className="dash-action" onClick={() => navigate('/student/issues')}>
-					🛠️ Report Issue
-				</button>
-				<button className="dash-action" onClick={() => navigate('/student/settings')}>
-					⚙️ Settings
+				<button onClick={() => navigate('/student/issues')} className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm transition-all active:scale-95">
+					<AlertCircle className="w-4 h-4" /> Report Issue
 				</button>
 			</div>
 
 			{/* ─── Content Panels ─── */}
-			<div className="dash-panels dash-enter dash-enter-4">
+			<div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
 				{/* Recent Activity */}
-				<div className="dash-card">
-					<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-						<div className="dash-card-title" style={{ '--card-dot': '#10b981', marginBottom: 0 }}>
-							Recent Activity
-						</div>
+				<div className="lg:col-span-2 glass-card rounded-2xl p-6 h-full border-t-4 border-t-emerald-500">
+					<div className="flex justify-between items-center mb-6">
+						<h2 className="text-lg font-black text-gray-900 dark:text-white tracking-tight flex items-center gap-2">
+							<Activity className="w-5 h-5 text-emerald-500" /> Recent Activity
+						</h2>
 						<button
 							onClick={() => navigate('/student/results')}
-							style={{ background: 'transparent', border: 'none', color: '#10b981', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
+							className="text-sm font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 transition-colors"
 						>
 							View all →
 						</button>
 					</div>
 
-					<div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 380, overflowY: 'auto' }}>
+					<div className="flex flex-col gap-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
 						{loading ? (
 							[...Array(3)].map((_, i) => (
-								<div key={i} style={{ display: 'flex', gap: 14, padding: 12, alignItems: 'center' }}>
-									<Skeleton h={44} w={44} r={10} />
-									<div style={{ flex: 1, display: 'grid', gap: 8 }}>
-										<Skeleton h={14} w="65%" />
-										<Skeleton h={11} w="40%" />
+								<div key={i} className="flex gap-4 p-4 items-center bg-gray-50 dark:bg-gray-800/50 rounded-xl">
+									<Skeleton className="h-11 w-11 rounded-lg" />
+									<div className="flex-1 space-y-2">
+										<Skeleton className="h-4 w-1/2" />
+										<Skeleton className="h-3 w-1/4" />
 									</div>
 								</div>
 							))
 						) : recentSubmissions.length === 0 ? (
-							<div className="dash-empty">
-								<div className="dash-empty-icon">📚</div>
-								<div className="dash-empty-title">No exams yet</div>
-								<div>Use an exam code to get started!</div>
+							<div className="py-12 flex flex-col items-center justify-center text-center">
+								<div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
+									<BookOpen className="w-8 h-8 text-gray-400" />
+								</div>
+								<h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">No exams yet</h3>
+								<p className="text-gray-500 dark:text-gray-400">Use an exam code to get started!</p>
 							</div>
 						) : (
 							recentSubmissions.map(sub => {
 								const examTitle = sub.examTitle || sub.exam?.title || 'Untitled Exam';
 								const subDate = sub.submittedAt || sub.startedAt || sub.createdAt;
 								const hasScore = sub.score !== null && sub.score !== undefined;
+								const isOngoing = sub.status?.toLowerCase() === 'in-progress' || sub.status?.toLowerCase() === 'started';
 
 								return (
 									<div
 										key={sub.id}
-										className="dash-activity-row"
 										onClick={() => {
-											const s = sub.status?.toLowerCase();
-											if (s === 'in-progress' || s === 'started') navigate(`/student/take-exam/${sub.id}`);
+											if (isOngoing) navigate(`/student/take-exam/${sub.id}`);
 											else navigate('/student/results');
 										}}
+										className="group flex flex-col sm:flex-row sm:items-center gap-4 p-4 rounded-xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 hover:border-emerald-200 dark:hover:border-emerald-500/30 hover:shadow-md transition-all cursor-pointer"
 									>
-										<div style={{
-											width: 44, height: 44, borderRadius: 10,
-											background: '#e0e7ff', display: 'flex',
-											alignItems: 'center', justifyContent: 'center',
-											fontWeight: 800, color: '#4338ca', fontSize: 18, flexShrink: 0,
-										}}>
-											📝
+										<div className="w-11 h-11 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center shrink-0">
+											<FileText className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
 										</div>
-										<div style={{ flex: 1, minWidth: 0 }}>
-											<div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+										<div className="flex-1 min-w-0">
+											<h4 className="font-bold text-gray-900 dark:text-white text-sm truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
 												{examTitle}
-											</div>
-											<div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 3 }}>
+											</h4>
+											<p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
 												{formatDate(subDate)}
-											</div>
+											</p>
 										</div>
-										<div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+										<div className="flex items-center sm:flex-col sm:items-end gap-3 sm:gap-1.5 mt-2 sm:mt-0 justify-between">
 											<StatusBadge status={sub.status} />
 											{hasScore && (
-												<div style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)' }}>
-													{sub.score}/{sub.maxScore || '?'}
-												</div>
+												<span className="font-black text-sm text-gray-900 dark:text-white">
+													{sub.score}<span className="text-gray-400">/{sub.maxScore || '?'}</span>
+												</span>
 											)}
 										</div>
 									</div>
@@ -323,62 +286,72 @@ const StudentHome = () => {
 				</div>
 
 				{/* Profile Summary Card */}
-				<div className="dash-card" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-					<div className="dash-card-title" style={{ '--card-dot': '#6366f1' }}>
-						Profile Summary
+				<div className="lg:col-span-1 glass-card rounded-2xl p-6 h-full flex flex-col border-t-4 border-t-indigo-500">
+					<div className="flex justify-between items-center mb-6">
+						<h2 className="text-lg font-black text-gray-900 dark:text-white tracking-tight flex items-center gap-2">
+							<User className="w-5 h-5 text-indigo-500" /> Profile
+						</h2>
 					</div>
 
 					{loading ? (
-						<div style={{ display: 'grid', gap: 16 }}>
-							<Skeleton h={64} w={64} r={14} />
-							<Skeleton h={16} w="70%" />
-							<Skeleton h={12} w="50%" />
-							<Skeleton h={12} w="80%" />
-						</div>
-					) : (
-						<>
-							<div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
-								<div style={{
-									width: 56, height: 56, borderRadius: 14,
-									background: 'linear-gradient(135deg, #10b981, #059669)',
-									color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-									fontWeight: 800, fontSize: 22, flexShrink: 0,
-									boxShadow: '0 4px 14px rgba(16,185,129,0.25)',
-								}}>
-									{getInitials(displayUser)}
-								</div>
-								<div style={{ minWidth: 0 }}>
-									<div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-										{displayUser.fullname || displayUser.username || 'Student'}
-									</div>
-									<div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>
-										@{displayUser.username || '—'}
-									</div>
+						<div className="space-y-6">
+							<div className="flex items-center gap-4">
+								<Skeleton className="h-16 w-16 rounded-2xl" />
+								<div className="space-y-2 flex-1">
+									<Skeleton className="h-5 w-3/4" />
+									<Skeleton className="h-4 w-1/2" />
 								</div>
 							</div>
-
-							<div style={{ display: 'grid', gap: 12 }}>
-								{[
-									['Email', displayUser.email],
-									['Phone', displayUser.phonenumber],
-									['Gender', displayUser.gender],
-									['Member Since', formatDate(displayUser.createdAt)],
-								].filter(([, v]) => v).map(([label, val]) => (
-									<div key={label}>
-										<div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>{label}</div>
-										<div style={{ fontSize: 13, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{val}</div>
+							<div className="space-y-4">
+								<Skeleton className="h-10 w-full rounded-lg" />
+								<Skeleton className="h-10 w-full rounded-lg" />
+								<Skeleton className="h-10 w-full rounded-lg" />
+							</div>
+						</div>
+					) : (
+						<div className="flex flex-col h-full justify-between">
+							<div>
+								<div className="flex items-center gap-4 mb-8 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-800">
+									<div className="w-14 h-14 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 text-white flex items-center justify-center font-black text-xl shadow-lg shadow-indigo-500/20 shrink-0">
+										{getInitials(displayUser)}
 									</div>
-								))}
+									<div className="min-w-0">
+										<h3 className="font-bold text-gray-900 dark:text-white truncate">
+											{displayUser.fullname || displayUser.username || 'Student'}
+										</h3>
+										<p className="text-sm text-gray-500 dark:text-gray-400 truncate">
+											@{displayUser.username || '—'}
+										</p>
+									</div>
+								</div>
+
+								<div className="space-y-4">
+									{[
+										{ label: 'Email', value: displayUser.email, icon: <Mail className="w-4 h-4 text-gray-400" /> },
+										{ label: 'Phone', value: displayUser.phonenumber, icon: <Phone className="w-4 h-4 text-gray-400" /> },
+										{ label: 'Gender', value: displayUser.gender, icon: <User className="w-4 h-4 text-gray-400" /> },
+										{ label: 'Member Since', value: formatDate(displayUser.createdAt), icon: <Calendar className="w-4 h-4 text-gray-400" /> },
+									].filter(item => item.value).map((item, idx) => (
+										<div key={idx} className="flex items-center gap-3">
+											<div className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center shrink-0">
+												{item.icon}
+											</div>
+											<div className="min-w-0 flex-1">
+												<div className="text-xs font-bold text-gray-400 uppercase tracking-wider">{item.label}</div>
+												<div className="text-sm font-medium text-gray-900 dark:text-white truncate">{item.value}</div>
+											</div>
+										</div>
+									))}
+								</div>
 							</div>
 
 							<button
-								className="dash-action"
 								onClick={() => navigate('/student/settings')}
-								style={{ width: '100%', justifyContent: 'center' }}
+								className="mt-8 w-full flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-colors"
 							>
-								⚙️ Edit Profile
+								Edit Profile
 							</button>
-						</>
+						</div>
 					)}
 				</div>
 			</div>

@@ -2,15 +2,17 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../../components/ui/Toaster.jsx';
 import Alert from '../../components/ui/Alert.jsx';
+import PageHeader from '../../components/ui/PageHeader.jsx';
 import * as StudentSvc from '../../services/studentServices.js';
+import { Search, Rocket, Play, RefreshCcw, FileText, CheckCircle, Clock } from 'lucide-react';
 
 const statusStyles = {
-    'in-progress': { color: '#f59e0b', label: 'In Progress', icon: '🟡', bg: '#fffbeb', border: '#fcd34d' },
-    started: { color: '#f59e0b', label: 'Started', icon: '🟡', bg: '#fffbeb', border: '#fcd34d' },
-    submitted: { color: '#6366f1', label: 'Evaluating...', icon: '⚙️', bg: '#e0e7ff', border: '#a5b4fc' },
-    evaluated: { color: '#10b981', label: 'Evaluated', icon: '✅', bg: '#d1fae5', border: '#6ee7b7' },
-    published: { color: '#10b981', label: 'Published', icon: '✅', bg: '#d1fae5', border: '#6ee7b7' },
-    pending: { color: '#64748b', label: 'Pending', icon: '⏳', bg: '#f1f5f9', border: '#cbd5e1' },
+    'in-progress': { colorClass: 'text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20', label: 'In Progress', icon: <Clock className="w-4 h-4" /> },
+    started: { colorClass: 'text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20', label: 'Started', icon: <Clock className="w-4 h-4" /> },
+    submitted: { colorClass: 'text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 border-indigo-200 dark:border-indigo-500/20', label: 'Evaluating...', icon: <RefreshCcw className="w-4 h-4 animate-spin" /> },
+    evaluated: { colorClass: 'text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20', label: 'Evaluated', icon: <CheckCircle className="w-4 h-4" /> },
+    published: { colorClass: 'text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20', label: 'Published', icon: <CheckCircle className="w-4 h-4" /> },
+    pending: { colorClass: 'text-gray-700 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700', label: 'Pending', icon: <Clock className="w-4 h-4" /> },
 };
 
 const PreviousExamCard = ({ submission, onContinue, isContinuing }) => {
@@ -18,14 +20,16 @@ const PreviousExamCard = ({ submission, onContinue, isContinuing }) => {
     const hasScore = submission.score != null;
 
     return (
-        <article style={styles.card.container} className="hover-card">
-            <div style={styles.card.header}>
-                <div style={styles.card.iconWrapper}>
-                    📝
+        <article className="glass-card flex flex-col h-full rounded-2xl border border-[var(--border)] p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-indigo-500/10 hover:border-indigo-500/50 group">
+            <div className="flex items-start gap-4 mb-4">
+                <div className="w-12 h-12 rounded-xl bg-[var(--bg-secondary)] flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform text-indigo-600 dark:text-indigo-400">
+                    <FileText className="w-6 h-6" />
                 </div>
-                <div style={{ flex: 1 }}>
-                    <h3 style={styles.card.title}>{submission.examTitle}</h3>
-                    <p style={styles.card.date}>
+                <div className="flex-1 min-w-0">
+                    <h3 className="text-lg font-bold text-[var(--text)] leading-tight mb-1 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                        {submission.examTitle}
+                    </h3>
+                    <p className="text-sm text-[var(--text-muted)] font-medium">
                         {new Date(submission.createdAt || Date.now()).toLocaleDateString(undefined, {
                             year: 'numeric',
                             month: 'short',
@@ -33,30 +37,37 @@ const PreviousExamCard = ({ submission, onContinue, isContinuing }) => {
                         })}
                     </p>
                 </div>
-                <span style={{ ...styles.card.statusBadge, background: cfg.bg, color: cfg.color, borderColor: cfg.border }}>
-                    {cfg.icon} {cfg.label}
-                </span>
             </div>
 
-            <div style={styles.card.content}>
+            <div className="mb-6 flex-1">
+                <div className="flex items-center gap-2 mb-4">
+                    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${cfg.colorClass}`}>
+                        {cfg.icon} {cfg.label}
+                    </span>
+                </div>
+
                 {submission.status === 'published' && hasScore ? (
-                    <div style={styles.card.scoreBox}>
-                        <div style={styles.card.scoreValue}>
-                            {submission.score.toFixed(1)}
-                            <span style={styles.card.scoreMax}>/ {submission.maxScore ?? 0}</span>
+                    <div className="bg-[var(--bg-secondary)] rounded-xl p-4 flex items-center justify-between border border-[var(--border)]">
+                        <div className="flex items-baseline gap-1">
+                            <span className="text-2xl font-black text-[var(--text)]">
+                                {submission.score.toFixed(1)}
+                            </span>
+                            <span className="text-sm font-medium text-[var(--text-muted)]">
+                                / {submission.maxScore ?? 0}
+                            </span>
                         </div>
                         {submission.percentage != null && (
-                            <div style={{
-                                ...styles.card.percentageBadge,
-                                background: submission.percentage >= 70 ? '#dcfce7' : submission.percentage >= 40 ? '#fef9c3' : '#fee2e2',
-                                color: submission.percentage >= 70 ? '#166534' : submission.percentage >= 40 ? '#854d0e' : '#991b1b',
-                            }}>
+                            <div className={`px-2.5 py-1 rounded-lg text-sm font-black border ${
+                                submission.percentage >= 70 ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20' : 
+                                submission.percentage >= 40 ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20' : 
+                                'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20'
+                            }`}>
                                 {submission.percentage}%
                             </div>
                         )}
                     </div>
                 ) : (
-                    <p style={styles.card.remarks}>
+                    <p className="text-sm text-[var(--text-muted)] italic">
                         {submission.remarks || (['in-progress', 'started'].includes(submission.status) 
                             ? 'Exam is currently active.' 
                             : 'Results will be available after evaluation.')}
@@ -65,17 +76,14 @@ const PreviousExamCard = ({ submission, onContinue, isContinuing }) => {
             </div>
 
             {['in-progress', 'started'].includes(submission.status) && (
-                <div style={styles.card.footer}>
+                <div className="mt-auto">
                     <button
                         onClick={() => onContinue(submission)}
                         disabled={isContinuing}
-                        style={{
-                            ...styles.button.primary,
-                            width: '100%',
-                            opacity: isContinuing ? 0.7 : 1,
-                        }}
+                        className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 to-indigo-500 text-white font-bold py-3 rounded-xl shadow-md hover:shadow-lg hover:from-indigo-500 hover:to-indigo-400 active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100"
                     >
-                        {isContinuing ? 'Resuming...' : '▶ Continue Exam'}
+                        {isContinuing ? <RefreshCcw className="w-5 h-5 animate-spin" /> : <Play className="w-5 h-5 fill-current" />}
+                        {isContinuing ? 'Resuming...' : 'Continue Exam'}
                     </button>
                 </div>
             )}
@@ -161,478 +169,134 @@ const StudentExams = () => {
     };
 
     return (
-        <div style={styles.pageContainer}>
-            <style>{`
-                .hover-card { 
-                    transition: transform 0.2s, box-shadow 0.2s; 
-                }
-                .hover-card:hover { 
-                    transform: translateY(-2px); 
-                    box-shadow: var(--shadow-lg); 
-                }
-                
-                @keyframes fadeIn { 
-                    from { opacity: 0; transform: translateY(10px); } 
-                    to { opacity: 1; transform: translateY(0); } 
-                }
-                .animate-fade-in { 
-                    animation: fadeIn 0.4s ease-out forwards; 
-                }
+        <div className="min-h-screen bg-[var(--bg)] pb-20 dash-enter">
+            <PageHeader
+                title="My Exams"
+                subtitle="Manage your assessments and track your progress."
+                breadcrumbs={[
+                    { label: 'Home', to: '/student' },
+                    { label: 'Exams' }
+                ]}
+                actions={[
+                    <button
+                        key="refresh"
+                        onClick={() => loadMine(true)}
+                        disabled={starting}
+                        className="flex items-center gap-2 bg-[var(--surface)] border border-[var(--border)] hover:bg-[var(--bg-secondary)] text-[var(--text)] font-bold px-4 py-2.5 rounded-xl transition-all disabled:opacity-50"
+                    >
+                        {starting ? <RefreshCcw className="w-4 h-4 animate-spin" /> : <RefreshCcw className="w-4 h-4" />}
+                        {starting ? 'Refreshing...' : 'Refresh List'}
+                    </button>
+                ]}
+            />
 
-                /* Mobile Responsive Adjustments */
-                @media (max-width: 768px) {
-                    .hover-card:hover { 
-                        transform: none; 
-                    }
-                }
-
-                @media (max-width: 640px) {
-                    .hero-decoration {
-                        display: none !important;
-                    }
-                }
-
-                /* Dark mode status badge improvements */
-                [data-theme="dark"] .hover-card {
-                    background: var(--surface);
-                }
-                
-                /* Input placeholder styling */
-                input::placeholder {
-                    color: rgba(255, 255, 255, 0.5);
-                }
-
-                /* Button hover effects */
-                button:not(:disabled):hover {
-                    filter: brightness(1.05);
-                }
-
-                button:not(:disabled):active {
-                    transform: translateY(1px);
-                }
-            `}</style>
-
-            <header style={styles.header.container}>
-                <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-                        <button 
-                            onClick={() => navigate('/student/dashboard')}
-                            style={styles.button.ghost}
-                        >
-                            ← Back
-                        </button>
-                        <h1 style={styles.header.title}>My Exams</h1>
-                    </div>
-                    <p style={styles.header.subtitle}>Manage your assessments and track your progress.</p>
-                </div>
-                <button
-                    onClick={() => loadMine(true)}
-                    disabled={starting}
-                    style={{
-                        ...styles.button.secondary,
-                        opacity: starting ? 0.7 : 1,
-                        cursor: starting ? 'wait' : 'pointer'
-                    }}
-                >
-                    {starting ? '⏳ Refreshing...' : '🔄 Refresh List'}
-                </button>
-            </header>
-
-            {errorBanner && (
-                <div style={{ marginBottom: 24 }} className="animate-fade-in">
-                    <Alert type="error" onClose={() => setErrorBanner('')}>
-                        {errorBanner}
-                    </Alert>
-                </div>
-            )}
-
-            {/* Hero Section: Join Exam */}
-            <section style={styles.hero.container} className="animate-fade-in">
-                <div style={styles.hero.content}>
-                    <h2 style={styles.hero.title}>Join a New Exam</h2>
-                    <p style={styles.hero.subtitle}>Enter the unique 8-character code provided by your teacher.</p>
-                    
-                    <form onSubmit={handleSearch} style={styles.hero.form}>
-                        <input
-                            value={code}
-                            onChange={e => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, CODE_LEN))}
-                            placeholder="ENTER CODE"
-                            maxLength={CODE_LEN}
-                            style={styles.hero.input}
-                        />
-                        <button
-                            type="submit"
-                            disabled={searching || !code}
-                            style={{
-                                ...styles.button.primary,
-                                padding: '16px 32px',
-                                fontSize: 16,
-                                opacity: (searching || !code) ? 0.7 : 1
-                            }}
-                        >
-                            {searching ? 'Searching...' : 'Find Exam'}
-                        </button>
-                    </form>
-
-                    {found && (
-                        <div style={styles.foundExam.container}>
-                            <div style={styles.foundExam.header}>
-                                <h3 style={styles.foundExam.title}>{found.title}</h3>
-                                <span style={styles.foundExam.badge}>{found.duration} mins</span>
-                            </div>
-                            <p style={styles.foundExam.description}>{found.description || 'No description provided.'}</p>
-                            <div style={styles.foundExam.actions}>
-                                <button
-                                    onClick={() => {
-                                        setCode('');
-                                        setFound(null);
-                                    }}
-                                    style={styles.button.ghost}
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={handleStart}
-                                    disabled={starting}
-                                    style={styles.button.success}
-                                >
-                                    {starting ? 'Starting...' : '🚀 Start Exam'}
-                                </button>
-                            </div>
-                        </div>
-                    )}
-                </div>
-                <div style={styles.hero.decoration} className="hero-decoration">
-                    📝
-                </div>
-            </section>
-
-            {/* Previous Exams Grid */}
-            <section style={{ marginTop: 40 }} className="animate-fade-in">
-                <h2 style={styles.sectionTitle}>Your History</h2>
-                {submissions.length === 0 ? (
-                    <div style={styles.emptyState.container}>
-                        <div style={styles.emptyState.icon}>📭</div>
-                        <h3 style={styles.emptyState.title}>No exams taken yet</h3>
-                        <p style={styles.emptyState.text}>Once you join an exam, it will appear here.</p>
-                    </div>
-                ) : (
-                    <div style={styles.grid}>
-                        {submissions.map(s => (
-                            <PreviousExamCard
-                                key={s.id}
-                                submission={s}
-                                onContinue={handleContinue}
-                                isContinuing={s.id === continuingId}
-                            />
-                        ))}
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
+                {errorBanner && (
+                    <div className="mb-6 animate-in slide-in-from-top-2 fade-in duration-300">
+                        <Alert type="error" onClose={() => setErrorBanner('')}>
+                            {errorBanner}
+                        </Alert>
                     </div>
                 )}
-            </section>
+
+                {/* Hero Section: Join Exam */}
+                <section className="glass-card relative overflow-hidden rounded-3xl p-8 sm:p-12 shadow-2xl mb-12 border-0 bg-gradient-to-br from-indigo-600 via-indigo-700 to-blue-800 text-white animate-in zoom-in-95 duration-500">
+                    <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMiIgY3k9IjIiIHI9IjIiIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSIvPjwvc3ZnPg==')] opacity-20 z-0"></div>
+                    
+                    <div className="relative z-10 max-w-2xl">
+                        <h2 className="text-3xl sm:text-4xl font-black mb-4 tracking-tight">Join a New Exam</h2>
+                        <p className="text-indigo-100 text-lg font-medium mb-8">Enter the unique 8-character code provided by your teacher.</p>
+                        
+                        <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-4 mb-4">
+                            <input
+                                value={code}
+                                onChange={e => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, CODE_LEN))}
+                                placeholder="ENTER CODE"
+                                maxLength={CODE_LEN}
+                                className="flex-1 bg-white/10 border border-white/20 text-white placeholder-white/50 text-xl font-black tracking-[0.25em] text-center sm:text-left px-6 py-4 rounded-2xl outline-none focus:ring-4 focus:ring-white/20 focus:bg-white/20 transition-all backdrop-blur-md"
+                            />
+                            <button
+                                type="submit"
+                                disabled={searching || !code || code.length !== CODE_LEN}
+                                className="flex items-center justify-center gap-2 bg-white text-indigo-700 hover:bg-indigo-50 font-black px-8 py-4 rounded-2xl transition-all shadow-lg active:scale-95 disabled:opacity-50 disabled:active:scale-100"
+                            >
+                                {searching ? <RefreshCcw className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
+                                {searching ? 'Searching' : 'Find Exam'}
+                            </button>
+                        </form>
+
+                        {found && (
+                            <div className="mt-6 bg-white/10 border border-white/20 rounded-2xl p-6 backdrop-blur-md animate-in slide-in-from-bottom-4 fade-in duration-300">
+                                <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+                                    <h3 className="text-xl font-bold">{found.title}</h3>
+                                    <span className="bg-indigo-500 text-white px-4 py-1.5 rounded-full text-sm font-bold uppercase tracking-wider shadow-sm">
+                                        {found.duration} mins
+                                    </span>
+                                </div>
+                                <p className="text-indigo-100 mb-6">{found.description || 'No description provided.'}</p>
+                                <div className="flex flex-wrap gap-3 justify-end">
+                                    <button
+                                        onClick={() => {
+                                            setCode('');
+                                            setFound(null);
+                                        }}
+                                        className="px-6 py-2.5 rounded-xl font-bold text-indigo-100 hover:bg-white/10 transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={handleStart}
+                                        disabled={starting}
+                                        className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg transition-all active:scale-95 disabled:opacity-50 disabled:active:scale-100"
+                                    >
+                                        {starting ? <RefreshCcw className="w-4 h-4 animate-spin" /> : <Rocket className="w-4 h-4" />}
+                                        {starting ? 'Starting...' : 'Start Exam'}
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                    
+                    <div className="absolute -bottom-20 -right-20 text-[250px] opacity-10 rotate-[-15deg] pointer-events-none hidden md:block select-none">
+                        📝
+                    </div>
+                </section>
+
+                {/* Previous Exams Grid */}
+                <section>
+                    <div className="flex items-center justify-between border-b-2 border-[var(--border)] pb-4 mb-8">
+                        <h2 className="text-2xl font-black text-[var(--text)]">Your History</h2>
+                        <span className="bg-[var(--bg-secondary)] text-[var(--text-muted)] px-3 py-1 rounded-full text-sm font-bold">
+                            {submissions.length} Total
+                        </span>
+                    </div>
+
+                    {submissions.length === 0 ? (
+                        <div className="glass-card rounded-3xl border-2 border-dashed border-[var(--border)] p-12 text-center flex flex-col items-center">
+                            <div className="w-20 h-20 bg-[var(--bg-secondary)] rounded-full flex items-center justify-center text-4xl mb-6 shadow-inner">
+                                📭
+                            </div>
+                            <h3 className="text-xl font-black text-[var(--text)] mb-2">No exams taken yet</h3>
+                            <p className="text-[var(--text-muted)] font-medium max-w-sm">
+                                Once you join an exam using a code from your teacher, it will appear here.
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                            {submissions.map(s => (
+                                <PreviousExamCard
+                                    key={s.id}
+                                    submission={s}
+                                    onContinue={handleContinue}
+                                    isContinuing={s.id === continuingId}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </section>
+            </div>
         </div>
     );
-};
-
-const styles = {
-    pageContainer: {
-        maxWidth: '1200px',
-        margin: '0 auto',
-        padding: '24px',
-        minHeight: '100vh',
-    },
-    header: {
-        container: {
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '32px',
-            flexWrap: 'wrap',
-            gap: '16px',
-        },
-        title: { 
-            fontSize: 'clamp(24px, 5vw, 32px)', 
-            fontWeight: 800, 
-            color: 'var(--text)', 
-            margin: 0 
-        },
-        subtitle: { 
-            fontSize: 'clamp(14px, 3vw, 16px)', 
-            color: 'var(--text-muted)', 
-            margin: '4px 0 0 0' 
-        },
-    },
-    sectionTitle: {
-        fontSize: 'clamp(20px, 4vw, 24px)',
-        fontWeight: 700,
-        color: 'var(--text)',
-        marginBottom: '24px',
-        borderBottom: '2px solid var(--border)',
-        paddingBottom: '12px',
-    },
-    hero: {
-        container: {
-            background: 'linear-gradient(135deg, #4f46e5, #3b82f6)',
-            borderRadius: 'clamp(16px, 3vw, 24px)',
-            padding: 'clamp(24px, 5vw, 40px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            color: 'white',
-            boxShadow: '0 10px 25px -5px rgba(59, 130, 246, 0.5)',
-            position: 'relative',
-            overflow: 'hidden',
-            flexWrap: 'wrap',
-            gap: '24px',
-        },
-        content: { 
-            flex: 1, 
-            zIndex: 1, 
-            maxWidth: '600px',
-            minWidth: '100%',
-        },
-        title: { 
-            fontSize: 'clamp(24px, 5vw, 36px)', 
-            fontWeight: 800, 
-            margin: '0 0 12px 0' 
-        },
-        subtitle: { 
-            fontSize: 'clamp(14px, 3vw, 18px)', 
-            opacity: 0.9, 
-            margin: '0 0 32px 0', 
-            lineHeight: 1.5 
-        },
-        form: { 
-            display: 'flex', 
-            gap: '12px', 
-            flexWrap: 'wrap',
-            width: '100%',
-        },
-        input: {
-            flex: '1 1 200px',
-            minWidth: '200px',
-            padding: 'clamp(12px, 3vw, 16px) clamp(16px, 4vw, 24px)',
-            borderRadius: '12px',
-            border: '2px solid rgba(255,255,255,0.2)',
-            background: 'rgba(255,255,255,0.1)',
-            color: 'white',
-            fontSize: 'clamp(16px, 4vw, 20px)',
-            fontWeight: 700,
-            letterSpacing: '2px',
-            outline: 'none',
-            backdropFilter: 'blur(10px)',
-        },
-        decoration: {
-            fontSize: 'clamp(100px, 20vw, 200px)',
-            position: 'absolute',
-            right: '-40px',
-            bottom: '-60px',
-            opacity: 0.1,
-            transform: 'rotate(-15deg)',
-            userSelect: 'none',
-            display: 'none',
-        },
-    },
-    foundExam: {
-        container: {
-            marginTop: '24px',
-            background: 'var(--surface)',
-            borderRadius: '16px',
-            padding: 'clamp(16px, 4vw, 24px)',
-            color: 'var(--text)',
-            border: '1px solid var(--border)',
-            boxShadow: 'var(--shadow-md)',
-        },
-        header: { 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center', 
-            marginBottom: '8px',
-            flexWrap: 'wrap',
-            gap: '12px',
-        },
-        title: { 
-            fontSize: 'clamp(18px, 4vw, 20px)', 
-            fontWeight: 700, 
-            margin: 0,
-            color: 'var(--text)',
-        },
-        badge: { 
-            background: 'var(--primary-light-bg)', 
-            color: 'var(--primary-strong)', 
-            padding: '4px 12px', 
-            borderRadius: '20px', 
-            fontSize: '14px', 
-            fontWeight: 600 
-        },
-        description: { 
-            color: 'var(--text-muted)', 
-            margin: '0 0 20px 0', 
-            fontSize: '15px' 
-        },
-        actions: { 
-            display: 'flex', 
-            gap: '12px', 
-            justifyContent: 'flex-end',
-            flexWrap: 'wrap',
-        },
-    },
-    grid: {
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))',
-        gap: 'clamp(16px, 4vw, 24px)',
-    },
-    card: {
-        container: {
-            background: 'var(--surface)',
-            borderRadius: '16px',
-            border: '1px solid var(--border)',
-            padding: 'clamp(16px, 4vw, 24px)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '20px',
-            height: '100%',
-            transition: 'transform 0.2s, box-shadow 0.2s',
-        },
-        header: { 
-            display: 'flex', 
-            gap: '16px', 
-            alignItems: 'flex-start',
-            flexWrap: 'wrap',
-        },
-        iconWrapper: {
-            width: '48px',
-            height: '48px',
-            borderRadius: '12px',
-            background: 'var(--bg-secondary)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '24px',
-            flexShrink: 0,
-        },
-        title: { 
-            fontSize: 'clamp(16px, 3vw, 18px)', 
-            fontWeight: 700, 
-            color: 'var(--text)', 
-            margin: '0 0 4px 0', 
-            lineHeight: 1.3,
-            wordBreak: 'break-word',
-        },
-        date: { 
-            fontSize: '13px', 
-            color: 'var(--text-muted)', 
-            margin: 0 
-        },
-        statusBadge: {
-            padding: '4px 10px',
-            borderRadius: '20px',
-            fontSize: '12px',
-            fontWeight: 700,
-            border: '1px solid',
-            whiteSpace: 'nowrap',
-            flexShrink: 0,
-        },
-        content: { flex: 1 },
-        scoreBox: {
-            background: 'var(--bg-secondary)',
-            borderRadius: '12px',
-            padding: '16px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            gap: '12px',
-            flexWrap: 'wrap',
-        },
-        scoreValue: { 
-            fontSize: 'clamp(20px, 5vw, 24px)', 
-            fontWeight: 800, 
-            color: 'var(--text)' 
-        },
-        scoreMax: { 
-            fontSize: '14px', 
-            color: 'var(--text-muted)', 
-            fontWeight: 500 
-        },
-        percentageBadge: { 
-            padding: '4px 8px', 
-            borderRadius: '6px', 
-            fontSize: '14px', 
-            fontWeight: 700 
-        },
-        remarks: { 
-            fontSize: '14px', 
-            color: 'var(--text-muted)', 
-            fontStyle: 'italic', 
-            margin: 0 
-        },
-        footer: { marginTop: 'auto' },
-    },
-    emptyState: {
-        container: {
-            textAlign: 'center',
-            padding: 'clamp(40px, 8vw, 60px) 20px',
-            background: 'var(--surface)',
-            borderRadius: '24px',
-            border: '2px dashed var(--border)',
-        },
-        icon: { fontSize: '48px', marginBottom: '16px' },
-        title: { 
-            fontSize: 'clamp(18px, 4vw, 20px)', 
-            fontWeight: 700, 
-            color: 'var(--text)', 
-            margin: '0 0 8px 0' 
-        },
-        text: { 
-            color: 'var(--text-muted)',
-            fontSize: 'clamp(14px, 3vw, 16px)',
-        },
-    },
-    button: {
-        primary: {
-            background: 'linear-gradient(135deg, #4f46e5, #3b82f6)',
-            color: 'white',
-            border: 'none',
-            borderRadius: '12px',
-            padding: 'clamp(10px, 2vw, 12px) clamp(20px, 4vw, 24px)',
-            fontSize: 'clamp(14px, 3vw, 16px)',
-            fontWeight: 700,
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-            boxShadow: '0 4px 6px -1px rgba(79, 70, 229, 0.2)',
-        },
-        secondary: {
-            background: 'var(--surface)',
-            color: 'var(--text)',
-            border: '1px solid var(--border)',
-            borderRadius: '10px',
-            padding: 'clamp(8px, 2vw, 10px) clamp(16px, 3vw, 20px)',
-            fontSize: 'clamp(14px, 3vw, 16px)',
-            fontWeight: 600,
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-        },
-        success: {
-            background: '#10b981',
-            color: 'white',
-            border: 'none',
-            borderRadius: '10px',
-            padding: 'clamp(8px, 2vw, 10px) clamp(20px, 4vw, 24px)',
-            fontSize: 'clamp(14px, 3vw, 16px)',
-            fontWeight: 700,
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-        },
-        ghost: {
-            background: 'transparent',
-            color: 'var(--text-muted)',
-            border: 'none',
-            padding: 'clamp(8px, 2vw, 10px) clamp(16px, 3vw, 20px)',
-            fontSize: 'clamp(14px, 3vw, 16px)',
-            fontWeight: 600,
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-        },
-    },
 };
 
 export default StudentExams;
