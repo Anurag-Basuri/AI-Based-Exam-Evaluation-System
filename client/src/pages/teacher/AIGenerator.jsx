@@ -1,18 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useTheme } from '../../hooks/useTheme';
 import { useToast } from '../../components/ui/Toaster';
 import * as TeacherSvc from '../../services/teacherServices';
 import AgentChat from '../../components/AgentChat';
-import { FiCpu, FiArrowLeft, FiBookOpen, FiAlertTriangle } from 'react-icons/fi';
+import PageHeader from '../../components/ui/PageHeader.jsx';
+import { Cpu, ArrowLeft, BookOpen, AlertTriangle, Sparkles, Clock, Hash, BarChart3, Award } from 'lucide-react';
 
 // Question limits
 const LIMITS = { total: 30, mcq: 30, subjective: 10 };
 
 export default function AIGenerator() {
     const navigate = useNavigate();
-    const { theme } = useTheme();
-    const isDark = theme === 'dark';
     const { toast } = useToast();
 
     const [classrooms, setClassrooms] = useState([]);
@@ -84,197 +82,218 @@ export default function AIGenerator() {
         navigate(`/teacher/exams/edit/${exam._id}`);
     };
 
-    const inputStyle = {
-        width: '100%', padding: '10px 14px', borderRadius: 8,
-        background: isDark ? '#0f172a' : '#f8fafc',
-        color: isDark ? '#f8fafc' : '#0f172a',
-        border: isDark ? '1px solid #334155' : '1px solid #cbd5e1'
-    };
-    const labelStyle = { display: 'block', marginBottom: 8, fontWeight: 500, color: isDark ? '#e2e8f0' : '#334155' };
+    const inputCls = "w-full bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text)] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all font-medium placeholder:text-[var(--text-muted)]/50";
+    const selectCls = inputCls + " appearance-none";
 
     return (
-        <div style={{ maxWidth: 1000, margin: '24px auto', padding: '0 24px', minHeight: '80vh' }}>
-            <div className="flex items-center gap-4 mb-6">
-                <button 
-                    onClick={() => step === 2 ? setStep(1) : navigate('/teacher/exams')}
-                    style={{
-                        background: isDark ? '#1e293b' : '#fff',
-                        border: isDark ? '1px solid #334155' : '1px solid #e2e8f0',
-                        color: isDark ? '#f8fafc' : '#0f172a',
-                        padding: '8px',
-                        borderRadius: '50%',
-                        cursor: 'pointer'
-                    }}
-                >
-                    <FiArrowLeft size={20} />
-                </button>
-                <div>
-                    <h2 style={{ margin: '0 0 4px', fontSize: 24, fontWeight: 800, color: isDark ? '#f8fafc' : '#0f172a', display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <FiCpu className="text-indigo-500" /> AI Exam Generator
-                    </h2>
-                    <p style={{ margin: 0, color: isDark ? '#94a3b8' : '#64748b', fontSize: 15 }}>
-                        Create an exam instantly using your classroom materials.
-                    </p>
-                </div>
-            </div>
+        <div className="min-h-screen bg-[var(--bg)] pb-20 dash-enter">
+            <PageHeader
+                title={step === 1 ? "AI Exam Generator" : "Generating Exam..."}
+                subtitle={step === 1 ? "Create an exam instantly using your classroom materials." : `Creating "${config.title}" with AI assistance`}
+                breadcrumbs={[
+                    { label: 'Home', to: '/teacher' },
+                    { label: 'Exams', to: '/teacher/exams' },
+                    { label: 'AI Generator' }
+                ]}
+                actions={[
+                    <button
+                        key="back"
+                        onClick={() => step === 2 ? setStep(1) : navigate('/teacher/exams')}
+                        className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2.5 text-sm font-bold text-[var(--text)] transition-all hover:bg-[var(--bg-secondary)] active:scale-95"
+                    >
+                        <ArrowLeft className="w-4 h-4" />
+                        {step === 2 ? 'Back to Config' : 'Back to Exams'}
+                    </button>
+                ]}
+            />
 
-            {step === 1 && (
-                <div style={{ background: isDark ? '#1e293b' : '#fff', padding: 24, borderRadius: 16, border: isDark ? '1px solid #334155' : '1px solid #e2e8f0' }}>
-                    <form onSubmit={handleStart} style={{ display: 'grid', gap: 20 }}>
-                        <div>
-                            <label style={labelStyle}>Select Classroom Context <FiBookOpen className="inline" /></label>
-                            <select 
-                                value={config.classroomId}
-                                onChange={e => setConfig({...config, classroomId: e.target.value})}
-                                style={inputStyle}
-                                disabled={loadingClassrooms}
-                            >
-                                {classrooms.map(c => (
-                                    <option key={c._id} value={c._id}>{c.name}</option>
-                                ))}
-                            </select>
-                            <small style={{ color: '#64748b', marginTop: 4, display: 'block' }}>The AI will read the materials uploaded in this classroom to generate questions.</small>
-                        </div>
+            <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
+                {step === 1 && (
+                    <div className="glass-card rounded-3xl p-6 sm:p-8 border border-[var(--border)] relative overflow-hidden">
+                        {/* Decorative gradient */}
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-indigo-500/5 via-violet-500/5 to-transparent rounded-full -mr-20 -mt-20 pointer-events-none" />
 
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                            <div>
-                                <label style={labelStyle}>Exam Title</label>
-                                <input 
-                                    type="text" 
-                                    value={config.title}
-                                    onChange={e => setConfig({...config, title: e.target.value})}
-                                    style={inputStyle}
-                                    required
-                                />
+                        <div className="relative z-10">
+                            <div className="flex items-center gap-3 mb-8">
+                                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                                    <Sparkles className="w-6 h-6 text-white" />
+                                </div>
+                                <div>
+                                    <h2 className="text-xl font-black text-[var(--text)]">Configure Your Exam</h2>
+                                    <p className="text-sm text-[var(--text-muted)] font-medium">Set up parameters and let AI generate questions from your materials.</p>
+                                </div>
                             </div>
-                            <div>
-                                <label style={labelStyle}>Topic Focus</label>
-                                <input 
-                                    type="text" 
-                                    value={config.topicFocus}
-                                    onChange={e => setConfig({...config, topicFocus: e.target.value})}
-                                    style={inputStyle}
-                                    required
-                                />
-                            </div>
-                        </div>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 16 }}>
-                            <div>
-                                <label style={labelStyle}>Total Questions <small style={{ fontWeight: 400, color: '#94a3b8' }}>(max {LIMITS.total})</small></label>
-                                <input 
-                                    type="number" min="1" max={LIMITS.total}
-                                    value={config.totalQuestions}
-                                    onChange={e => {
-                                        const total = Math.min(LIMITS.total, Math.max(1, Number(e.target.value) || 1));
-                                        const mcq = Math.min(config.mcqCount, total);
-                                        setConfig({...config, totalQuestions: total, mcqCount: mcq});
-                                    }}
-                                    style={inputStyle}
-                                />
-                            </div>
-                            <div>
-                                <label style={labelStyle}>MCQ Count <small style={{ fontWeight: 400, color: '#94a3b8' }}>(max {LIMITS.mcq})</small></label>
-                                <input 
-                                    type="number" min="0" max={Math.min(LIMITS.mcq, config.totalQuestions)}
-                                    value={config.mcqCount}
-                                    onChange={e => {
-                                        const mcq = Math.min(LIMITS.mcq, Math.min(config.totalQuestions, Math.max(0, Number(e.target.value) || 0)));
-                                        setConfig({...config, mcqCount: mcq});
-                                    }}
-                                    style={inputStyle}
-                                />
-                            </div>
-                            <div>
-                                <label style={labelStyle}>Subjective <small style={{ fontWeight: 400, color: subjectiveCount > LIMITS.subjective ? '#ef4444' : '#94a3b8' }}>(max {LIMITS.subjective})</small></label>
-                                <input 
-                                    type="number"
-                                    value={subjectiveCount}
-                                    readOnly
-                                    style={{ ...inputStyle, opacity: 0.7, cursor: 'not-allowed' }}
-                                    title="Computed as Total - MCQ"
-                                />
-                            </div>
-                            <div>
-                                <label style={labelStyle}>Duration <small style={{ fontWeight: 400, color: '#94a3b8' }}>(minutes)</small></label>
-                                <input 
-                                    type="number" min="5" max="240"
-                                    value={config.duration}
-                                    onChange={e => setConfig({...config, duration: Number(e.target.value) || 60})}
-                                    style={inputStyle}
-                                />
-                            </div>
-                        </div>
+                            <form onSubmit={handleStart} className="space-y-6">
+                                {/* Classroom Select */}
+                                <div className="space-y-2">
+                                    <label className="text-sm font-bold text-[var(--text)] flex items-center gap-1.5">
+                                        <BookOpen className="w-4 h-4 text-indigo-500" /> Classroom Context
+                                    </label>
+                                    <select
+                                        value={config.classroomId}
+                                        onChange={e => setConfig({...config, classroomId: e.target.value})}
+                                        className={selectCls}
+                                        disabled={loadingClassrooms}
+                                    >
+                                        {classrooms.map(c => (
+                                            <option key={c._id} value={c._id}>{c.name}</option>
+                                        ))}
+                                    </select>
+                                    <p className="text-xs text-[var(--text-muted)] font-medium">The AI will read the materials uploaded in this classroom to generate questions.</p>
+                                </div>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
-                            <div>
-                                <label style={labelStyle}>Difficulty</label>
-                                <select 
-                                    value={config.difficulty}
-                                    onChange={e => setConfig({...config, difficulty: e.target.value})}
-                                    style={inputStyle}
-                                >
-                                    <option value="easy">Easy</option>
-                                    <option value="medium">Medium</option>
-                                    <option value="hard">Hard</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label style={labelStyle}>Marks per MCQ</label>
-                                <input 
-                                    type="number" min="1" max="10"
-                                    value={config.marksPerMcq}
-                                    onChange={e => setConfig({...config, marksPerMcq: Number(e.target.value) || 1})}
-                                    style={inputStyle}
-                                />
-                            </div>
-                            <div>
-                                <label style={labelStyle}>Marks per Subjective</label>
-                                <input 
-                                    type="number" min="1" max="25"
-                                    value={config.marksPerSubjective}
-                                    onChange={e => setConfig({...config, marksPerSubjective: Number(e.target.value) || 5})}
-                                    style={inputStyle}
-                                />
-                            </div>
-                        </div>
-
-                        {/* Validation Errors */}
-                        {validationErrors.length > 0 && (
-                            <div style={{ background: isDark ? 'rgba(239,68,68,0.1)' : '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, padding: '12px 16px' }}>
-                                {validationErrors.map((err, i) => (
-                                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#dc2626', fontSize: 13, fontWeight: 500, marginBottom: i < validationErrors.length - 1 ? 4 : 0 }}>
-                                        <FiAlertTriangle size={14} /> {err}
+                                {/* Title + Topic */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-bold text-[var(--text)]">Exam Title</label>
+                                        <input
+                                            type="text"
+                                            value={config.title}
+                                            onChange={e => setConfig({...config, title: e.target.value})}
+                                            className={inputCls}
+                                            required
+                                        />
                                     </div>
-                                ))}
-                            </div>
-                        )}
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-bold text-[var(--text)]">Topic Focus</label>
+                                        <input
+                                            type="text"
+                                            value={config.topicFocus}
+                                            onChange={e => setConfig({...config, topicFocus: e.target.value})}
+                                            className={inputCls}
+                                            required
+                                        />
+                                    </div>
+                                </div>
 
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
-                            <button 
-                                type="submit" 
-                                disabled={validationErrors.length > 0}
-                                style={{ 
-                                    background: validationErrors.length > 0 ? '#94a3b8' : '#4f46e5', 
-                                    color: '#fff', padding: '12px 24px', borderRadius: 8, fontWeight: 600, border: 'none', 
-                                    cursor: validationErrors.length > 0 ? 'not-allowed' : 'pointer', 
-                                    display: 'flex', alignItems: 'center', gap: 8 
-                                }}
-                            >
-                                <FiCpu /> Generate Exam
-                            </button>
+                                {/* Question Counts */}
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-bold text-[var(--text)] flex items-center gap-1">
+                                            <Hash className="w-3.5 h-3.5" /> Total <span className="text-[var(--text-muted)] font-normal text-xs">({LIMITS.total} max)</span>
+                                        </label>
+                                        <input
+                                            type="number" min="1" max={LIMITS.total}
+                                            value={config.totalQuestions}
+                                            onChange={e => {
+                                                const total = Math.min(LIMITS.total, Math.max(1, Number(e.target.value) || 1));
+                                                const mcq = Math.min(config.mcqCount, total);
+                                                setConfig({...config, totalQuestions: total, mcqCount: mcq});
+                                            }}
+                                            className={inputCls}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-bold text-[var(--text)]">MCQ <span className="text-[var(--text-muted)] font-normal text-xs">({LIMITS.mcq} max)</span></label>
+                                        <input
+                                            type="number" min="0" max={Math.min(LIMITS.mcq, config.totalQuestions)}
+                                            value={config.mcqCount}
+                                            onChange={e => {
+                                                const mcq = Math.min(LIMITS.mcq, Math.min(config.totalQuestions, Math.max(0, Number(e.target.value) || 0)));
+                                                setConfig({...config, mcqCount: mcq});
+                                            }}
+                                            className={inputCls}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className={`text-sm font-bold flex items-center gap-1 ${subjectiveCount > LIMITS.subjective ? 'text-rose-500' : 'text-[var(--text)]'}`}>
+                                            Subjective <span className="font-normal text-xs">({LIMITS.subjective} max)</span>
+                                        </label>
+                                        <input
+                                            type="number"
+                                            value={subjectiveCount}
+                                            readOnly
+                                            className={inputCls + " opacity-60 cursor-not-allowed"}
+                                            title="Computed as Total - MCQ"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-bold text-[var(--text)] flex items-center gap-1">
+                                            <Clock className="w-3.5 h-3.5" /> Duration <span className="text-[var(--text-muted)] font-normal text-xs">(min)</span>
+                                        </label>
+                                        <input
+                                            type="number" min="5" max="240"
+                                            value={config.duration}
+                                            onChange={e => setConfig({...config, duration: Number(e.target.value) || 60})}
+                                            className={inputCls}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Difficulty + Marks */}
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-bold text-[var(--text)] flex items-center gap-1.5">
+                                            <BarChart3 className="w-4 h-4" /> Difficulty
+                                        </label>
+                                        <select
+                                            value={config.difficulty}
+                                            onChange={e => setConfig({...config, difficulty: e.target.value})}
+                                            className={selectCls}
+                                        >
+                                            <option value="easy">Easy</option>
+                                            <option value="medium">Medium</option>
+                                            <option value="hard">Hard</option>
+                                        </select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-bold text-[var(--text)] flex items-center gap-1.5">
+                                            <Award className="w-4 h-4" /> Marks per MCQ
+                                        </label>
+                                        <input
+                                            type="number" min="1" max="10"
+                                            value={config.marksPerMcq}
+                                            onChange={e => setConfig({...config, marksPerMcq: Number(e.target.value) || 1})}
+                                            className={inputCls}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-bold text-[var(--text)] flex items-center gap-1.5">
+                                            <Award className="w-4 h-4" /> Marks per Subjective
+                                        </label>
+                                        <input
+                                            type="number" min="1" max="25"
+                                            value={config.marksPerSubjective}
+                                            onChange={e => setConfig({...config, marksPerSubjective: Number(e.target.value) || 5})}
+                                            className={inputCls}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Validation Errors */}
+                                {validationErrors.length > 0 && (
+                                    <div className="rounded-xl border border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 p-4 space-y-1.5">
+                                        {validationErrors.map((err, i) => (
+                                            <div key={i} className="flex items-center gap-2 text-rose-600 dark:text-rose-400 text-sm font-medium">
+                                                <AlertTriangle className="w-4 h-4 shrink-0" /> {err}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                <div className="flex justify-end pt-4">
+                                    <button
+                                        type="submit"
+                                        disabled={validationErrors.length > 0}
+                                        className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold py-3 px-8 rounded-xl shadow-lg shadow-indigo-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center gap-2 hover:scale-[1.02] active:scale-95"
+                                    >
+                                        <Cpu className="w-5 h-5" /> Generate Exam
+                                    </button>
+                                </div>
+                            </form>
                         </div>
-                    </form>
-                </div>
-            )}
+                    </div>
+                )}
 
-            {step === 2 && (
-                <AgentChat 
-                    classroomId={config.classroomId} 
-                    config={config} 
-                    onExamCreated={handleExamCreated} 
-                />
-            )}
+                {step === 2 && (
+                    <AgentChat
+                        classroomId={config.classroomId}
+                        config={config}
+                        onExamCreated={handleExamCreated}
+                    />
+                )}
+            </div>
         </div>
     );
 }

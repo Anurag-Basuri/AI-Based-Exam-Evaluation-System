@@ -19,16 +19,16 @@ import {
 // --- Helper Components ---
 
 const StatCard = ({ label, value, icon, color }) => (
-	<div className="bg-[var(--bg)] p-4 rounded-xl border border-[var(--border)] flex items-center gap-3 shadow-sm">
+	<div className="glass-card p-4 rounded-2xl flex items-center gap-3">
 		<div
-			className="w-10 h-10 rounded-lg flex items-center justify-center text-white text-lg font-bold shrink-0"
-			style={{ background: color }}
+			className="w-11 h-11 rounded-xl flex items-center justify-center text-white text-lg font-bold shrink-0 shadow-lg"
+			style={{ background: color, boxShadow: `0 4px 14px ${color}30` }}
 		>
 			{icon}
 		</div>
 		<div>
-			<div className="text-xl font-extrabold text-[var(--text)] leading-tight">{value}</div>
-			<div className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wide">
+			<div className="text-xl font-black text-[var(--text)] leading-tight">{value}</div>
+			<div className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">
 				{label}
 			</div>
 		</div>
@@ -36,10 +36,10 @@ const StatCard = ({ label, value, icon, color }) => (
 );
 
 const statusConfig = {
-	submitted: { label: 'Submitted', color: '#3b82f6', icon: '📥', bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
-	evaluated: { label: 'Evaluated', color: '#10b981', icon: '🤖', bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
-	published: { label: 'Published', color: '#8b5cf6', icon: '✅', bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200' },
-	'in-progress': { label: 'In Progress', color: '#f59e0b', icon: '⏳', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
+	submitted: { label: 'Submitted', color: '#3b82f6', icon: '📥', bg: 'bg-blue-50 dark:bg-blue-500/10', text: 'text-blue-700 dark:text-blue-400', border: 'border-blue-200 dark:border-blue-500/30' },
+	evaluated: { label: 'Evaluated', color: '#10b981', icon: '🤖', bg: 'bg-emerald-50 dark:bg-emerald-500/10', text: 'text-emerald-700 dark:text-emerald-400', border: 'border-emerald-200 dark:border-emerald-500/30' },
+	published: { label: 'Published', color: '#8b5cf6', icon: '✅', bg: 'bg-purple-50 dark:bg-purple-500/10', text: 'text-purple-700 dark:text-purple-400', border: 'border-purple-200 dark:border-purple-500/30' },
+	'in-progress': { label: 'In Progress', color: '#f59e0b', icon: '⏳', bg: 'bg-amber-50 dark:bg-amber-500/10', text: 'text-amber-700 dark:text-amber-400', border: 'border-amber-200 dark:border-amber-500/30' },
 };
 
 const ScoreDistributionChart = ({ submissions }) => {
@@ -67,16 +67,16 @@ const ScoreDistributionChart = ({ submissions }) => {
 
 	if (!hasData) {
 		return (
-			<div className="p-8 bg-[var(--surface)] border border-[var(--border)] rounded-2xl flex flex-col items-center justify-center text-[var(--text-muted)] h-[350px]">
+			<div className="glass-card p-8 rounded-3xl flex flex-col items-center justify-center text-[var(--text-muted)] h-[350px]">
 				<div className="text-5xl mb-4 opacity-50">📊</div>
-				<p className="font-medium">No graded submissions to display yet.</p>
+				<p className="font-bold">No graded submissions to display yet.</p>
 			</div>
 		);
 	}
 
 	return (
-		<div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6 shadow-sm h-[400px] flex flex-col">
-			<h4 className="text-lg font-bold text-[var(--text)] mb-6">Score Distribution</h4>
+		<div className="glass-card rounded-3xl p-6 h-[400px] flex flex-col">
+			<h4 className="text-lg font-black text-[var(--text)] mb-6">Score Distribution</h4>
 			<div className="flex-1 w-full min-h-0">
 				<ResponsiveContainer width="100%" height="100%">
 					<BarChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
@@ -168,11 +168,11 @@ const ExamResultsOverview = () => {
 				<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
 					{exams.map(exam => (
 						<article
-							key={exam.id}
-							className="group bg-[var(--surface)] border border-[var(--border)] rounded-2xl flex flex-col shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden"
-						>
-							<div className="p-6 flex-1">
-								<h3 className="text-xl font-bold text-[var(--text)] mb-4 leading-snug group-hover:text-indigo-600 transition-colors">
+						key={exam.id}
+						className="group glass-card rounded-3xl flex flex-col hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden"
+					>
+						<div className="p-6 flex-1">
+							<h3 className="text-xl font-black text-[var(--text)] mb-4 leading-snug group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
 									{exam.title}
 								</h3>
 								<div className="grid grid-cols-2 gap-3">
@@ -201,7 +201,7 @@ const ExamResultsOverview = () => {
 							<div className="p-6 pt-0">
 								<button
 									onClick={() => navigate(`/teacher/results/${exam.id}`)}
-									className="w-full py-3 px-4 bg-[var(--bg)] border border-[var(--border)] rounded-xl font-bold text-[var(--text)] hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-700 transition-all flex items-center justify-center gap-2 group-hover:shadow-sm"
+									className="w-full py-3 px-4 bg-[var(--bg)] border border-[var(--border)] rounded-xl font-bold text-[var(--text)] hover:bg-indigo-50 dark:hover:bg-indigo-500/10 hover:border-indigo-200 dark:hover:border-indigo-500/30 hover:text-indigo-700 dark:hover:text-indigo-400 transition-all flex items-center justify-center gap-2 group-hover:shadow-sm"
 								>
 									View Submissions <span className="text-lg">→</span>
 								</button>
@@ -373,7 +373,7 @@ const ExamSubmissionsDetail = () => {
 				</div>
 			</div>
 
-			<div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl shadow-sm overflow-hidden">
+			<div className="glass-card rounded-3xl overflow-hidden">
 				{/* Filters Toolbar */}
 				<div className="p-4 border-b border-[var(--border)] bg-[var(--bg-secondary)] flex flex-wrap gap-4">
 					<select
@@ -467,7 +467,7 @@ const ExamSubmissionsDetail = () => {
 													navigate(`/teacher/results/${examId}/grade/${sub.id}`)
 												}
 												disabled={sub.status === 'in-progress'}
-												className="px-4 py-2 rounded-lg text-sm font-bold bg-[var(--bg)] border border-[var(--border)] text-[var(--text)] hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+												className="px-4 py-2 rounded-lg text-sm font-bold bg-[var(--bg)] border border-[var(--border)] text-[var(--text)] hover:bg-indigo-50 dark:hover:bg-indigo-500/10 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-200 dark:hover:border-indigo-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
 											>
 												View/Grade
 											</button>
