@@ -34,8 +34,8 @@ async function getTransporter() {
 
 		if (process.env.SMTP_SERVICE && process.env.SMTP_SERVICE.toLowerCase() === 'gmail') {
 			transportConfig.host = 'smtp.gmail.com';
-			transportConfig.port = 465;
-			transportConfig.secure = true;
+			transportConfig.port = 587;
+			transportConfig.secure = false;
 		} else if (process.env.SMTP_SERVICE) {
 			transportConfig.service = process.env.SMTP_SERVICE;
 		} else {
