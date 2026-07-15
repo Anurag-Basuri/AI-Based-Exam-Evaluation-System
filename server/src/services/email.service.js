@@ -21,9 +21,14 @@ async function getTransporter() {
 				user: process.env.SMTP_USER,
 				pass: process.env.SMTP_PASS,
 			},
+			connectionTimeout: 10000, // 10 seconds to prevent hanging
 		};
 
-		if (process.env.SMTP_SERVICE) {
+		if (process.env.SMTP_SERVICE && process.env.SMTP_SERVICE.toLowerCase() === 'gmail') {
+			transportConfig.host = 'smtp.gmail.com';
+			transportConfig.port = 465;
+			transportConfig.secure = true;
+		} else if (process.env.SMTP_SERVICE) {
 			transportConfig.service = process.env.SMTP_SERVICE;
 		} else {
 			const port = Number(process.env.SMTP_PORT || 465);
@@ -31,20 +36,17 @@ async function getTransporter() {
 			transportConfig.port = port;
 			const defaultSecure = port === 465;
 			transportConfig.secure = process.env.SMTP_SECURE !== undefined ? process.env.SMTP_SECURE === 'true' : defaultSecure;
-			transportConfig.pool = true; // reuse connections
+			transportConfig.pool = true;
 			transportConfig.maxConnections = 5;
 			transportConfig.maxMessages = 100;
 		}
 
 		_transporter = nodemailer.createTransport(transportConfig);
 
-		try {
-			await _transporter.verify();
-			console.log('[EMAIL] ✅ SMTP transport verified');
-		} catch (err) {
-			console.error('[EMAIL] ❌ SMTP verification failed:', err.message);
-			// Fall through — emails will still be attempted
-		}
+		// We intentionally skip awaiting _transporter.verify() here in production
+		// because if the cloud provider blocks the connection, verify() will hang
+		// the entire request instead of failing gracefully during sendMail.
+		console.log('[EMAIL] ℹ️ SMTP transport configured (verification deferred to send)');
 
 		return _transporter;
 	}
