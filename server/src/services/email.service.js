@@ -1,5 +1,13 @@
 import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
+import dns from 'dns';
+
+// Render often configures an IPv6 interface without internet routing,
+// causing Node to try IPv6 first and fail with ENETUNREACH.
+// This forces Node to use IPv4 for DNS resolution globally in this file.
+if (dns.setDefaultResultOrder) {
+	dns.setDefaultResultOrder('ipv4first');
+}
 
 dotenv.config();
 
