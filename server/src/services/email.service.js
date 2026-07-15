@@ -50,6 +50,10 @@ async function getTransporter() {
 	}
 
 	// Development fallback: Ethereal
+	if (process.env.NODE_ENV === 'production') {
+		throw new Error('SMTP configuration is missing in production environment. Please set SMTP_SERVICE or SMTP_HOST.');
+	}
+
 	if (!_etherealAccount) {
 		_etherealAccount = await nodemailer.createTestAccount();
 		console.log('[EMAIL] 🧪 Ethereal test account created');
