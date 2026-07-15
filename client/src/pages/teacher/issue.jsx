@@ -1,47 +1,41 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useToast } from '../../components/ui/Toaster.jsx';
+import PageHeader from '../../components/ui/PageHeader.jsx';
+import Alert from '../../components/ui/Alert.jsx';
 import {
 	safeApiCall,
 	getTeacherIssues,
 	updateTeacherIssueStatus,
 	resolveTeacherIssue,
 	getTeacherIssueById,
-	normalizeIssue,
 	addInternalNote,
 	bulkResolveIssues,
 } from '../../services/teacherServices.js';
 import { useAuth } from '../../hooks/useAuth.js';
-import { useSocket } from '../../hooks/useSocket.js';
+import { 
+    MessageSquare, AlertCircle, CheckCircle2, ChevronDown, 
+    X, Send, Plus, Filter, Circle, Clock, CheckCircle, Search, User
+} from 'lucide-react';
 
 const MOBILE_BREAKPOINT = 1024;
 
-// UI Constants
 const statusStyles = {
 	open: {
 		label: 'Open',
-		icon: '⚪',
-		color: 'var(--warning-text)',
-		bg: 'var(--warning-bg)',
-		border: 'var(--warning-border)',
+		icon: <Circle className="w-3.5 h-3.5" />,
+		colorClass: 'text-amber-700 dark:text-amber-400',
+		bgClass: 'bg-amber-50 dark:bg-amber-500/10',
+		borderClass: 'border-amber-200 dark:border-amber-500/30',
 	},
 	resolved: {
 		label: 'Resolved',
-		icon: '🟢',
-		color: 'var(--success-text)',
-		bg: 'var(--success-bg)',
-		border: 'var(--success-border)',
+		icon: <CheckCircle className="w-3.5 h-3.5" />,
+		colorClass: 'text-emerald-700 dark:text-emerald-400',
+		bgClass: 'bg-emerald-50 dark:bg-emerald-500/10',
+		borderClass: 'border-emerald-200 dark:border-emerald-500/30',
 	},
 };
-
-const activityIcons = {
-	created: '📝',
-	assigned: '👤',
-	resolved: '✅',
-	'status-changed': '🔄',
-};
-
-// Components
 
 const StatusDropdown = ({ currentStatus, issueId, onUpdate, disabled }) => {
 	const [isOpen, setIsOpen] = useState(false);
@@ -82,63 +76,39 @@ const StatusDropdown = ({ currentStatus, issueId, onUpdate, disabled }) => {
 
 	if (currentStatus === 'resolved' || disabled) {
 		return (
-			<span
-				style={{
-					...styles.statusPill,
-					color: config.color,
-					background: config.bg,
-					border: `1px solid ${config.border}`,
-					cursor: 'default',
-					opacity: disabled ? 0.7 : 1,
-				}}
-			>
+			<span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${config.bgClass} ${config.colorClass} ${config.borderClass} ${disabled ? 'opacity-70' : ''}`}>
 				{config.icon} {config.label}
 			</span>
 		);
 	}
 
 	return (
-		<div style={{ position: 'relative' }} ref={dropdownRef} onClick={e => e.stopPropagation()}>
+		<div className="relative inline-block" ref={dropdownRef} onClick={e => e.stopPropagation()}>
 			<button
 				onClick={() => setIsOpen(!isOpen)}
 				disabled={loading}
-				style={{
-					...styles.statusPill,
-					color: config.color,
-					background: config.bg,
-					border: `1px solid ${config.border}`,
-					cursor: 'pointer',
-					display: 'flex',
-					alignItems: 'center',
-					gap: 6,
-					paddingRight: 8,
-				}}
+				className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${config.bgClass} ${config.colorClass} ${config.borderClass} hover:brightness-95 transition-all`}
 			>
 				{loading ? (
-					<span className="spinner-small" />
+					<div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
 				) : (
 					<>
 						{config.icon} {config.label}
-						<span style={{ fontSize: 10, opacity: 0.6 }}>▼</span>
+						<ChevronDown className="w-3 h-3 opacity-60 ml-1" />
 					</>
 				)}
 			</button>
 
 			{isOpen && (
-				<div style={styles.dropdownMenu}>
+				<div className="absolute top-full left-0 mt-1 w-32 bg-[var(--surface)] border border-[var(--border)] rounded-xl shadow-lg z-50 overflow-hidden">
 					{['open'].map(status => (
 						<button
 							key={status}
 							onClick={e => handleStatusChange(status, e)}
-							style={{
-								...styles.dropdownItem,
-								background:
-									status === currentStatus
-										? 'var(--bg-secondary)'
-										: 'transparent',
-							}}
+							className={`w-full text-left px-4 py-2 text-sm font-medium flex items-center gap-2 hover:bg-[var(--bg-secondary)] transition-colors ${status === currentStatus ? 'bg-[var(--bg-secondary)]' : ''}`}
 						>
-							{statusStyles[status].icon} {statusStyles[status].label}
+							<span className={statusStyles[status].colorClass}>{statusStyles[status].icon}</span>
+							<span className="text-[var(--text)]">{statusStyles[status].label}</span>
 						</button>
 					))}
 				</div>
@@ -147,38 +117,6 @@ const StatusDropdown = ({ currentStatus, issueId, onUpdate, disabled }) => {
 	);
 };
 
-// Bulk Action Toolbar
-const BulkActionToolbar = ({ selectedIds, onBulkResolve, onClear }) => {
-	if (selectedIds.length === 0) return null;
-
-	const handleResolveClick = () => {
-		const reply = window.prompt(
-			`Enter a single reply to resolve all ${selectedIds.length} selected issues:`,
-		);
-		if (reply && reply.trim()) {
-			onBulkResolve(reply);
-		}
-	};
-
-	return (
-		<div style={styles.bulkToolbar}>
-			<div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-				<div style={styles.selectionBadge}>{selectedIds.length}</div>
-				<span style={{ fontWeight: 500, color: 'var(--primary-contrast)' }}>Selected</span>
-			</div>
-			<div style={{ display: 'flex', gap: 8 }}>
-				<button onClick={handleResolveClick} style={styles.buttonWhite}>
-					Resolve All
-				</button>
-				<button onClick={onClear} style={styles.buttonGhostWhite}>
-					Cancel
-				</button>
-			</div>
-		</div>
-	);
-};
-
-// Issue Detail Panel
 const IssueDetailPanel = ({ issueId, onClose, onUpdate, isMobile }) => {
 	const [issue, setIssue] = useState(null);
 	const [loading, setLoading] = useState(true);
@@ -204,9 +142,8 @@ const IssueDetailPanel = ({ issueId, onClose, onUpdate, isMobile }) => {
 		try {
 			const updated = await safeApiCall(resolveTeacherIssue, issueId, reply);
 			onUpdate(updated);
-			setIssue(updated); // Update local state
+			setIssue(updated);
 			toast.success('Issue has been resolved!');
-			// Don't close immediately, let them see the result
 		} catch (err) {
 			toast.error('Failed to resolve', { description: err.message });
 		} finally {
@@ -229,64 +166,77 @@ const IssueDetailPanel = ({ issueId, onClose, onUpdate, isMobile }) => {
 		}
 	};
 
-	const handleLocalUpdate = updated => {
-		setIssue(updated);
-		onUpdate(updated);
-	};
-
 	if (!issueId) return null;
 
 	return (
 		<>
-			<div style={styles.modalBackdrop} onClick={onClose} />
-			<div style={styles.detailPanel(isMobile)}>
-				<div style={styles.detailHeader}>
-					<h3 style={{ margin: 0, fontSize: '1.25rem' }}>Issue Details</h3>
-					<button onClick={onClose} style={styles.closeButton}>
-						&times;
+			{/* Backdrop for mobile */}
+			{isMobile && (
+				<div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity" onClick={onClose} />
+			)}
+			
+			<div className={`
+				flex flex-col bg-[var(--surface)] border border-[var(--border)]
+				${isMobile 
+					? 'fixed inset-x-0 bottom-0 top-16 z-50 rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.1)]' 
+					: 'w-[450px] shrink-0 sticky top-[88px] h-[calc(100vh-120px)] rounded-3xl shadow-lg'
+				}
+			`}>
+				<div className="flex items-center justify-between p-6 border-b border-[var(--border)]">
+					<h3 className="text-xl font-black text-[var(--text)] flex items-center gap-2">
+						<MessageSquare className="w-5 h-5 text-indigo-500" /> Issue Details
+					</h3>
+					<button 
+						onClick={onClose} 
+						className="p-2 hover:bg-[var(--bg-secondary)] rounded-full text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
+					>
+						<X className="w-5 h-5" />
 					</button>
 				</div>
 
-				<div style={styles.detailContent}>
-					{loading && <div style={styles.loadingState}>Loading details...</div>}
-					{!loading && issue && (
+				<div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar">
+					{loading ? (
+						<div className="flex flex-col items-center justify-center h-full text-[var(--text-muted)] space-y-4">
+							<div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+							<p className="font-medium">Loading details...</p>
+						</div>
+					) : issue ? (
 						<>
-							<div style={styles.section}>
-								<div style={styles.issueTitleBlock}>
-									<h2 style={styles.issueExamTitle}>{issue.examTitle}</h2>
+							<div>
+								<div className="flex items-start justify-between gap-4 mb-6">
+									<h2 className="text-2xl font-bold text-[var(--text)] leading-tight">{issue.examTitle}</h2>
 									<StatusDropdown
 										currentStatus={issue.status}
 										issueId={issue.id}
-										onUpdate={handleLocalUpdate}
+										onUpdate={(updated) => { setIssue(updated); onUpdate(updated); }}
 									/>
 								</div>
-								<div style={styles.metaGrid}>
-									<div style={styles.metaItem}>
-										<span style={styles.metaLabel}>Student</span>
-										<span style={styles.metaValue}>{issue.studentName}</span>
+								
+								<div className="grid grid-cols-2 gap-4 mb-6 p-4 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border)]">
+									<div>
+										<div className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-1">Student</div>
+										<div className="font-medium text-[var(--text)]">{issue.studentName}</div>
 									</div>
-									<div style={styles.metaItem}>
-										<span style={styles.metaLabel}>Assigned To</span>
-										<span style={styles.metaValue}>
-											{issue.assignedTo || 'Unassigned'}
-										</span>
+									<div>
+										<div className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-1">Assigned To</div>
+										<div className="font-medium text-[var(--text)]">{issue.assignedTo || 'Unassigned'}</div>
 									</div>
-									<div style={styles.metaItem}>
-										<span style={styles.metaLabel}>Reported</span>
-										<span style={styles.metaValue}>
-											{new Date(issue.createdAt).toLocaleDateString()}
-										</span>
+									<div className="col-span-2">
+										<div className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-1">Reported</div>
+										<div className="font-medium text-[var(--text)]">{new Date(issue.createdAt).toLocaleString()}</div>
 									</div>
 								</div>
 							</div>
 
-							<div style={styles.section}>
-								<h4 style={styles.sectionTitle}>Description</h4>
-								<div style={styles.descriptionBox}>{issue.description}</div>
+							<div>
+								<h4 className="text-sm font-bold text-[var(--text)] uppercase tracking-wider mb-3">Description</h4>
+								<div className="p-4 rounded-xl bg-[var(--bg)] border border-[var(--border)] text-[var(--text)] text-sm leading-relaxed whitespace-pre-wrap">
+									{issue.description}
+								</div>
 								{issue.submission?.id && (
 									<Link
-										to={`/teacher/grade/${issue.submission.id}`}
-										style={styles.viewSubmissionLink}
+										to={`/teacher/results/${issue.examId}/grade/${issue.submission.id}`}
+										className="inline-flex items-center gap-1.5 mt-3 text-sm font-bold text-indigo-600 dark:text-indigo-400 hover:underline"
 									>
 										View Student Submission &rarr;
 									</Link>
@@ -294,24 +244,25 @@ const IssueDetailPanel = ({ issueId, onClose, onUpdate, isMobile }) => {
 							</div>
 
 							{issue.status !== 'resolved' && (
-								<div style={styles.section}>
-									<h4 style={styles.sectionTitle}>Resolve Issue</h4>
-									<form onSubmit={handleResolve} style={styles.resolveForm}>
+								<div>
+									<h4 className="text-sm font-bold text-[var(--text)] uppercase tracking-wider mb-3">Resolve Issue</h4>
+									<form onSubmit={handleResolve} className="space-y-3">
 										<textarea
 											value={reply}
 											onChange={e => setReply(e.target.value)}
 											placeholder="Type your reply to the student..."
 											rows={4}
-											style={styles.textarea}
+											className="w-full bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text)] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all text-sm resize-none"
 											required
 										/>
-										<div style={styles.formActions}>
+										<div className="flex justify-end">
 											<button
 												type="submit"
 												disabled={isSaving}
-												style={styles.buttonPrimary}
+												className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 px-6 rounded-xl shadow-md transition-all disabled:opacity-50 flex items-center gap-2"
 											>
-												{isSaving ? 'Saving...' : 'Resolve Issue'}
+												<Send className="w-4 h-4" />
+												{isSaving ? 'Resolving...' : 'Resolve Issue'}
 											</button>
 										</div>
 									</form>
@@ -319,121 +270,91 @@ const IssueDetailPanel = ({ issueId, onClose, onUpdate, isMobile }) => {
 							)}
 
 							{issue.reply && (
-								<div style={styles.section}>
-									<h4 style={styles.sectionTitle}>Resolution</h4>
-									<div style={styles.resolutionBox}>
-										<div style={styles.resolutionHeader}>Reply to Student:</div>
-										{issue.reply}
+								<div>
+									<h4 className="text-sm font-bold text-[var(--text)] uppercase tracking-wider mb-3">Resolution</h4>
+									<div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30">
+										<div className="text-xs font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider mb-2">Reply to Student:</div>
+										<div className="text-sm text-[var(--text)] whitespace-pre-wrap">{issue.reply}</div>
 									</div>
 								</div>
 							)}
 
-							<div style={styles.section}>
-								<h4 style={styles.sectionTitle}>Internal Notes</h4>
-								<div style={styles.notesList}>
-									{(issue.internalNotes || []).length === 0 && (
-										<p style={styles.emptyNotes}>No internal notes yet.</p>
-									)}
-									{(issue.internalNotes || []).map((n, i) => (
-										<div key={i} style={styles.noteItem}>
-											<div style={styles.noteHeader}>
-												<strong>{n.user?.fullname || 'User'}</strong>
-												<span style={styles.noteTime}>
-													{new Date(n.createdAt).toLocaleString()}
-												</span>
+							<div>
+								<h4 className="text-sm font-bold text-[var(--text)] uppercase tracking-wider mb-3">Internal Notes</h4>
+								<div className="space-y-3 mb-4">
+									{(issue.internalNotes || []).length === 0 ? (
+										<p className="text-sm text-[var(--text-muted)] italic">No internal notes yet.</p>
+									) : (
+										(issue.internalNotes || []).map((n, i) => (
+											<div key={i} className="p-3 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border)]">
+												<div className="flex justify-between items-center mb-2">
+													<strong className="text-xs text-[var(--text)]">{n.user?.fullname || 'User'}</strong>
+													<span className="text-xs text-[var(--text-muted)]">{new Date(n.createdAt).toLocaleString()}</span>
+												</div>
+												<div className="text-sm text-[var(--text)] whitespace-pre-wrap">{n.note}</div>
 											</div>
-											<div style={styles.noteContent}>{n.note}</div>
-										</div>
-									))}
+										))
+									)}
 								</div>
-								<form onSubmit={handleAddNote} style={styles.addNoteForm}>
+								<form onSubmit={handleAddNote} className="flex gap-2">
 									<input
 										value={note}
 										onChange={e => setNote(e.target.value)}
 										placeholder="Add a private note..."
-										style={styles.noteInput}
+										className="flex-1 bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text)] rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all text-sm"
 									/>
 									<button
 										type="submit"
-										disabled={isAddingNote}
-										style={styles.buttonSecondary}
+										disabled={isAddingNote || !note.trim()}
+										className="px-4 rounded-xl bg-[var(--surface-light)] border border-[var(--border)] text-[var(--text)] font-bold hover:bg-[var(--bg-secondary)] transition-all disabled:opacity-50 flex items-center justify-center"
 									>
-										Add
+										<Plus className="w-4 h-4" />
 									</button>
 								</form>
 							</div>
-
-							<div style={styles.section}>
-								<h4 style={styles.sectionTitle}>Activity Log</h4>
-								<div style={styles.timeline}>
-									{(issue.activityLog || []).map((log, i) => (
-										<div key={i} style={styles.timelineItem}>
-											<div style={styles.timelineIcon}>
-												{activityIcons[log.action] || '•'}
-											</div>
-											<div style={styles.timelineContent}>
-												<div style={styles.timelineText}>
-													<strong>
-														{log.user?.fullname || 'System'}
-													</strong>{' '}
-													{log.details}
-												</div>
-												<div style={styles.timelineTime}>
-													{new Date(log.createdAt).toLocaleString()}
-												</div>
-											</div>
-										</div>
-									))}
-								</div>
-							</div>
 						</>
-					)}
+					) : null}
 				</div>
 			</div>
 		</>
 	);
 };
 
-const IssueRow = ({ issue, onSelect, onToggleSelect, isChecked, isSelected, onUpdate, toast }) => {
+const IssueRow = ({ issue, onSelect, onToggleSelect, isChecked, isSelected, onUpdate }) => {
 	return (
 		<tr
-			style={{
-				...styles.tableRow,
-				background: isSelected ? 'var(--primary-light-bg)' : 'transparent',
-			}}
+			className={`border-b border-[var(--border)] cursor-pointer transition-colors ${isSelected ? 'bg-indigo-50/50 dark:bg-indigo-500/10' : 'hover:bg-[var(--bg-secondary)]'}`}
 			onClick={() => onSelect(issue)}
 		>
-			<td style={styles.tableCell} onClick={e => e.stopPropagation()}>
-				<input
-					type="checkbox"
-					checked={isChecked}
-					onChange={() => onToggleSelect(issue.id)}
-					disabled={issue.status === 'resolved'}
-					style={styles.checkbox}
-				/>
-			</td>
-			<td style={styles.tableCell}>
-				<div style={styles.studentCell}>
-					<div style={styles.avatarPlaceholder}>
-						{issue.studentName?.charAt(0) || 'S'}
-					</div>
-					<span style={{ fontWeight: 500 }}>{issue.studentName || 'N/A'}</span>
+			<td className="p-4" onClick={e => e.stopPropagation()}>
+				<div className="flex items-center justify-center">
+					<input
+						type="checkbox"
+						checked={isChecked}
+						onChange={() => onToggleSelect(issue.id)}
+						disabled={issue.status === 'resolved'}
+						className="w-4 h-4 rounded border-[var(--border)] text-indigo-600 focus:ring-indigo-500 disabled:opacity-50 cursor-pointer"
+					/>
 				</div>
 			</td>
-			<td style={styles.tableCell}>{issue.examTitle}</td>
-			<td style={styles.tableCell}>
+			<td className="p-4 py-5">
+				<div className="flex items-center gap-3">
+					<div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 text-white flex items-center justify-center text-xs font-bold shadow-sm">
+						{issue.studentName?.charAt(0)?.toUpperCase() || 'S'}
+					</div>
+					<span className="font-bold text-[var(--text)]">{issue.studentName || 'N/A'}</span>
+				</div>
+			</td>
+			<td className="p-4 font-medium text-[var(--text)]">{issue.examTitle}</td>
+			<td className="p-4">
 				<StatusDropdown
 					currentStatus={issue.status}
 					issueId={issue.id}
 					onUpdate={onUpdate}
 				/>
 			</td>
-			<td style={styles.tableCell}>{issue.assignedTo || 'Unassigned'}</td>
-			<td style={styles.tableCell}>
-				{new Date(issue.createdAt).toLocaleDateString(undefined, {
-					month: 'short',
-					day: 'numeric',
-				})}
+			<td className="p-4 text-sm text-[var(--text-muted)]">
+				{new Date(issue.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
 			</td>
 		</tr>
 	);
@@ -442,26 +363,21 @@ const IssueRow = ({ issue, onSelect, onToggleSelect, isChecked, isSelected, onUp
 const IssueCard = ({ issue, onSelect, onToggleSelect, isChecked, isSelected, onUpdate }) => {
 	return (
 		<div
-			style={{
-				...styles.card.container,
-				borderColor: isSelected ? 'var(--primary)' : 'var(--border)',
-				boxShadow: isSelected ? '0 0 0 2px var(--primary-light)' : 'var(--shadow-sm)',
-			}}
+			className={`glass-card rounded-2xl p-4 cursor-pointer transition-all ${isSelected ? 'border-indigo-500 ring-2 ring-indigo-500/20' : 'hover:shadow-md border-[var(--border)]'}`}
 			onClick={() => onSelect(issue)}
 		>
-			<div style={styles.card.header}>
-				<div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+			<div className="flex items-start justify-between mb-3 gap-4">
+				<div className="flex items-start gap-3">
 					<input
 						type="checkbox"
 						checked={isChecked}
-						onChange={e => {
-							e.stopPropagation();
-							onToggleSelect(issue.id);
-						}}
+						onChange={e => { e.stopPropagation(); onToggleSelect(issue.id); }}
 						disabled={issue.status === 'resolved'}
-						style={styles.checkbox}
+						className="mt-1 w-4 h-4 rounded border-[var(--border)] text-indigo-600 focus:ring-indigo-500 disabled:opacity-50"
 					/>
-					<span style={styles.card.title}>{issue.examTitle}</span>
+					<div>
+						<h4 className="font-bold text-[var(--text)] line-clamp-2 leading-snug">{issue.examTitle}</h4>
+					</div>
 				</div>
 				<StatusDropdown
 					currentStatus={issue.status}
@@ -469,29 +385,32 @@ const IssueCard = ({ issue, onSelect, onToggleSelect, isChecked, isSelected, onU
 					onUpdate={onUpdate}
 				/>
 			</div>
-			<div style={styles.card.body}>
-				<div style={styles.cardRow}>
-					<span style={styles.cardLabel}>Student:</span>
-					<span style={styles.cardValue}>{issue.studentName || 'N/A'}</span>
+			
+			<div className="space-y-2 mt-4 text-sm">
+				<div className="flex justify-between items-center bg-[var(--bg-secondary)] px-3 py-2 rounded-lg">
+					<span className="text-[var(--text-muted)] font-medium text-xs uppercase tracking-wider">Student</span>
+					<span className="font-bold text-[var(--text)] flex items-center gap-1.5">
+						<User className="w-3.5 h-3.5" />
+						{issue.studentName || 'N/A'}
+					</span>
 				</div>
-				<div style={styles.cardRow}>
-					<span style={styles.cardLabel}>Assigned:</span>
-					<span style={styles.cardValue}>{issue.assignedTo || 'Unassigned'}</span>
-				</div>
-				<div style={styles.cardFooter}>
-					Reported on {new Date(issue.createdAt).toLocaleDateString()}
+				<div className="flex justify-between items-center bg-[var(--bg-secondary)] px-3 py-2 rounded-lg">
+					<span className="text-[var(--text-muted)] font-medium text-xs uppercase tracking-wider">Reported</span>
+					<span className="font-bold text-[var(--text)] flex items-center gap-1.5">
+						<Clock className="w-3.5 h-3.5" />
+						{new Date(issue.createdAt).toLocaleDateString()}
+					</span>
 				</div>
 			</div>
 		</div>
 	);
 };
 
-// Teacher Issues
 const TeacherIssues = () => {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState('');
 	const [issues, setIssues] = useState([]);
-	const [filter, setFilter] = useState('my-issues');
+	const [filter, setFilter] = useState('all');
 	const [selectedIssueId, setSelectedIssueId] = useState(null);
 	const [selectedIssueIds, setSelectedIssueIds] = useState([]);
 	const [isMobile, setIsMobile] = useState(window.innerWidth < MOBILE_BREAKPOINT);
@@ -504,807 +423,211 @@ const TeacherIssues = () => {
 		return () => window.removeEventListener('resize', handleResize);
 	}, []);
 
-	const loadIssues = useCallback(async () => {
-		setLoading(true);
-		try {
-			const data = await safeApiCall(getTeacherIssues);
-			setIssues(Array.isArray(data) ? data : []);
-		} catch (e) {
-			setError(e.message || 'Failed to load issues');
-		} finally {
-			setLoading(false);
-		}
+	useEffect(() => {
+		const fetchIssues = async () => {
+			setLoading(true);
+			setError('');
+			try {
+				const data = await safeApiCall(getTeacherIssues);
+				setIssues(data || []);
+			} catch (err) {
+				setError(err.message || 'Failed to fetch issues');
+			} finally {
+				setLoading(false);
+			}
+		};
+		fetchIssues();
 	}, []);
 
-	const { socket } = useSocket();
+	const filteredIssues = issues.filter(issue => {
+		if (filter === 'open') return issue.status === 'open';
+		if (filter === 'resolved') return issue.status === 'resolved';
+		return true;
+	});
 
-	useEffect(() => {
-		loadIssues();
-	}, [loadIssues]);
-
-	useEffect(() => {
-		if (!socket) return;
-
-		const onConnectError = err =>
-			toast.error('Real-time updates unavailable', { description: err?.message || '' });
-
-		const onNewIssue = newIssueData => {
-			const normalized = normalizeIssue(newIssueData);
-			setIssues(prev =>
-				prev.some(i => i.id === normalized.id) ? prev : [normalized, ...prev],
-			);
-			toast.info('New Issue Submitted!', { description: `From ${normalized.studentName}` });
-		};
-
-		const onIssueUpdate = updatedIssueData => {
-			const normalized = normalizeIssue(updatedIssueData.issue || updatedIssueData);
-			setIssues(prev => prev.map(i => (i.id === normalized.id ? normalized : i)));
-		};
-
-		const onIssuesUpdated = updatedIssues => {
-			const updatedMap = new Map(
-				updatedIssues.map(i => [normalizeIssue(i).id, normalizeIssue(i)]),
-			);
-			setIssues(prev => prev.map(i => updatedMap.get(i.id) || i));
-		};
-
-		const onIssueDeleted = ({ id }) => {
-			setIssues(prev => prev.filter(i => i.id !== id));
-			if (selectedIssueId === id) setSelectedIssueId(null);
-		};
-
-		socket.on('connect_error', onConnectError);
-		socket.on('new-issue', onNewIssue);
-		socket.on('issue-update', onIssueUpdate);
-		socket.on('issues-updated', onIssuesUpdated);
-		socket.on('issue-deleted', onIssueDeleted);
-
-		return () => {
-			socket.off('connect_error', onConnectError);
-			socket.off('new-issue', onNewIssue);
-			socket.off('issue-update', onIssueUpdate);
-			socket.off('issues-updated', onIssuesUpdated);
-			socket.off('issue-deleted', onIssueDeleted);
-		};
-	}, [socket, toast, selectedIssueId]);
-
-	const handleUpdate = updatedIssue => {
-		setIssues(prev => prev.map(i => (i.id === updatedIssue.id ? updatedIssue : i)));
+	const handleUpdateIssue = updated => {
+		setIssues(prev => prev.map(issue => (issue.id === updated.id ? updated : issue)));
 	};
 
-	const handleToggleSelect = issueId => {
-		if (selectedIssueId) setSelectedIssueId(null);
+	const toggleSelectAll = () => {
+		const resolvable = filteredIssues.filter(i => i.status !== 'resolved');
+		if (selectedIssueIds.length === resolvable.length) {
+			setSelectedIssueIds([]);
+		} else {
+			setSelectedIssueIds(resolvable.map(i => i.id));
+		}
+	};
+
+	const handleToggleSelect = id => {
 		setSelectedIssueIds(prev =>
-			prev.includes(issueId) ? prev.filter(id => id !== issueId) : [...prev, issueId],
+			prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id],
 		);
 	};
 
 	const handleBulkResolve = async reply => {
 		try {
-			const { updatedCount } = await safeApiCall(bulkResolveIssues, selectedIssueIds, reply);
-			toast.success(`${updatedCount} issues resolved!`);
+			const res = await safeApiCall(bulkResolveIssues, selectedIssueIds, reply);
+			toast.success(`Resolved ${res.modifiedCount} issues successfully!`);
+			
+			// Refresh issues
+			const data = await safeApiCall(getTeacherIssues);
+			setIssues(data || []);
+			
 			setSelectedIssueIds([]);
+			setSelectedIssueId(null);
 		} catch (err) {
-			toast.error('Bulk resolve failed', { description: err.message });
+			toast.error('Failed to resolve issues', { description: err.message });
 		}
 	};
-
-	const filteredIssues = useMemo(() => {
-		let filtered = issues;
-		if (filter !== 'all') {
-			if (filter === 'my-issues') {
-				filtered = filtered.filter(i => i.assignedToId === user?.id);
-			} else {
-				filtered = filtered.filter(i => i.status === filter);
-			}
-		}
-		return filtered;
-	}, [issues, filter, user?.id]);
-
-	const handleSelectAll = () => {
-		const visibleUnresolvedIds = filteredIssues
-			.filter(i => i.status !== 'resolved')
-			.map(i => i.id);
-
-		const allVisibleSelected =
-			visibleUnresolvedIds.length > 0 &&
-			visibleUnresolvedIds.every(id => selectedIssueIds.includes(id));
-
-		if (allVisibleSelected) {
-			setSelectedIssueIds(prev => prev.filter(id => !visibleUnresolvedIds.includes(id)));
-		} else {
-			setSelectedIssueIds(prev => [...new Set([...prev, ...visibleUnresolvedIds])]);
-		}
-	};
-
-	const isAllVisibleSelected = useMemo(() => {
-		const visibleUnresolvedIds = filteredIssues
-			.filter(i => i.status !== 'resolved')
-			.map(i => i.id);
-		return (
-			visibleUnresolvedIds.length > 0 &&
-			visibleUnresolvedIds.every(id => selectedIssueIds.includes(id))
-		);
-	}, [filteredIssues, selectedIssueIds]);
 
 	return (
-		<div style={styles.pageLayout}>
-			<div style={styles.mainContent(isMobile)}>
-				<header style={styles.header(isMobile)}>
-					<div>
-						<h1 style={styles.title}>Issue Tracker</h1>
-						<p style={styles.subtitle}>Manage and resolve student inquiries.</p>
+		<div className="min-h-screen bg-[var(--bg)] pb-20 dash-enter">
+			<PageHeader
+				title="Issue Resolution"
+				subtitle="Manage and respond to student reported issues."
+				breadcrumbs={[
+					{ label: 'Home', to: '/teacher' },
+					{ label: 'Issues' }
+				]}
+			/>
+
+			<div className="px-4 sm:px-6 lg:px-8 mt-6">
+				{error && <Alert type="error" className="mb-6">{error}</Alert>}
+
+				{/* Toolbar */}
+				<div className="mb-6 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between bg-[var(--surface)] p-2 rounded-2xl border border-[var(--border)] shadow-sm">
+					<div className="flex rounded-xl bg-[var(--bg-secondary)] p-1 overflow-x-auto w-full sm:w-auto hide-scrollbar">
+						{['all', 'open', 'resolved'].map(f => (
+							<button
+								key={f}
+								onClick={() => setFilter(f)}
+								className={`px-4 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap capitalize ${
+									filter === f 
+										? 'bg-[var(--surface)] text-[var(--text)] shadow-sm border border-[var(--border)]' 
+										: 'text-[var(--text-muted)] hover:text-[var(--text)]'
+								}`}
+							>
+								{f}
+							</button>
+						))}
 					</div>
-					<div style={styles.controlsContainer(isMobile)}>
-						<div style={styles.filterGroup}>
-							{['my-issues', 'open', 'resolved'].map(f => (
-								<button
-									key={f}
-									onClick={() => setFilter(f)}
-									style={
-										filter === f
-											? styles.filterButtonActive
-											: styles.filterButton
-									}
-								>
-									{f === 'my-issues'
-										? 'My Issues'
-										: f.charAt(0).toUpperCase() + f.slice(1)}
-								</button>
-							))}
-						</div>
-					</div>
-				</header>
+				</div>
 
-				<div
-					style={{
-						position: 'relative',
-						flex: 1,
-						display: 'flex',
-						flexDirection: 'column',
-					}}
-				>
-					<BulkActionToolbar
-						selectedIds={selectedIssueIds}
-						onBulkResolve={handleBulkResolve}
-						onClear={() => setSelectedIssueIds([])}
-					/>
-
-					{error && <div style={styles.errorBanner}>⚠️ {error}</div>}
-
-					{loading && (
-						<div style={styles.loadingContainer}>
-							<div className="spinner"></div>
-							<p>Loading issues...</p>
-						</div>
-					)}
-
-					{!loading && !isMobile ? (
-						<div style={styles.tableContainer}>
-							<table style={styles.table}>
-								<thead>
-									<tr>
-										<th style={{ ...styles.tableHeader, width: 40 }}>
-											<input
-												type="checkbox"
-												onChange={handleSelectAll}
-												checked={isAllVisibleSelected}
-												style={styles.checkbox}
-											/>
-										</th>
-										<th style={styles.tableHeader}>Student</th>
-										<th style={styles.tableHeader}>Exam</th>
-										<th style={styles.tableHeader}>Status</th>
-										<th style={styles.tableHeader}>Assigned To</th>
-										<th style={styles.tableHeader}>Date</th>
-									</tr>
-								</thead>
-								<tbody>
-									{filteredIssues.length === 0 && (
-										<tr>
-											<td colSpan="6" style={styles.emptyState}>
-												<div style={{ fontSize: 48, marginBottom: 16 }}>
-													🎉
-												</div>
-												<div style={{ fontWeight: 600, fontSize: 18 }}>
-													All caught up!
-												</div>
-												<div style={{ color: 'var(--text-muted)' }}>
-													No issues found matching your filters.
-												</div>
-											</td>
-										</tr>
-									)}
+				<div className="flex items-start gap-6 relative">
+					{/* Main List */}
+					<div className="flex-1 min-w-0">
+						<div className="glass-card rounded-3xl overflow-hidden border border-[var(--border)]">
+							{loading ? (
+								<div className="flex flex-col items-center justify-center p-20 text-[var(--text-muted)]">
+									<div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4" />
+									<p className="font-medium">Loading issues...</p>
+								</div>
+							) : filteredIssues.length === 0 ? (
+								<div className="flex flex-col items-center justify-center p-20 text-[var(--text-muted)]">
+									<AlertCircle className="w-12 h-12 mb-4 opacity-50" />
+									<h3 className="text-lg font-bold text-[var(--text)] mb-1">No Issues Found</h3>
+									<p>You're all caught up!</p>
+								</div>
+							) : isMobile ? (
+								<div className="flex flex-col gap-4 p-4 bg-[var(--bg)]">
 									{filteredIssues.map(issue => (
-										<IssueRow
+										<IssueCard
 											key={issue.id}
 											issue={issue}
-											onSelect={() => setSelectedIssueId(issue.id)}
+											onSelect={i => setSelectedIssueId(i.id)}
 											onToggleSelect={handleToggleSelect}
 											isChecked={selectedIssueIds.includes(issue.id)}
 											isSelected={selectedIssueId === issue.id}
-											onUpdate={handleUpdate}
-											toast={toast}
+											onUpdate={handleUpdateIssue}
 										/>
 									))}
-								</tbody>
-							</table>
-						</div>
-					) : !loading && isMobile ? (
-						<div style={styles.cardList}>
-							{filteredIssues.length === 0 && (
-								<div style={styles.emptyState}>
-									<div style={{ fontSize: 48, marginBottom: 16 }}>🎉</div>
-									<div style={{ fontWeight: 600, fontSize: 18 }}>
-										All caught up!
-									</div>
-									<div style={{ color: 'var(--text-muted)' }}>
-										No issues found matching your filters.
-									</div>
+								</div>
+							) : (
+								<div className="overflow-x-auto">
+									<table className="w-full text-left border-collapse">
+										<thead>
+											<tr className="bg-[var(--bg-secondary)] border-b border-[var(--border)] text-[var(--text-muted)] text-xs uppercase tracking-wider font-bold">
+												<th className="p-4 w-12">
+													<div className="flex items-center justify-center">
+														<input
+															type="checkbox"
+															onChange={toggleSelectAll}
+															checked={
+																filteredIssues.length > 0 &&
+																filteredIssues.filter(i => i.status !== 'resolved').length > 0 &&
+																selectedIssueIds.length === filteredIssues.filter(i => i.status !== 'resolved').length
+															}
+															className="w-4 h-4 rounded border-[var(--border)] text-indigo-600 focus:ring-indigo-500"
+														/>
+													</div>
+												</th>
+												<th className="p-4 py-5">Student</th>
+												<th className="p-4 py-5">Exam</th>
+												<th className="p-4 py-5">Status</th>
+												<th className="p-4 py-5">Reported</th>
+											</tr>
+										</thead>
+										<tbody>
+											{filteredIssues.map(issue => (
+												<IssueRow
+													key={issue.id}
+													issue={issue}
+													onSelect={i => setSelectedIssueId(i.id)}
+													onToggleSelect={handleToggleSelect}
+													isChecked={selectedIssueIds.includes(issue.id)}
+													isSelected={selectedIssueId === issue.id}
+													onUpdate={handleUpdateIssue}
+												/>
+											))}
+										</tbody>
+									</table>
 								</div>
 							)}
-							{filteredIssues.map(issue => (
-								<IssueCard
-									key={issue.id}
-									issue={issue}
-									onSelect={() => setSelectedIssueId(issue.id)}
-									onToggleSelect={handleToggleSelect}
-									isChecked={selectedIssueIds.includes(issue.id)}
-									isSelected={selectedIssueId === issue.id}
-									onUpdate={handleUpdate}
-								/>
-							))}
 						</div>
-					) : null}
+					</div>
+
+					{/* Detail Panel */}
+					{selectedIssueId && (
+						<IssueDetailPanel
+							issueId={selectedIssueId}
+							onClose={() => setSelectedIssueId(null)}
+							onUpdate={handleUpdateIssue}
+							isMobile={isMobile}
+						/>
+					)}
 				</div>
 			</div>
-			{selectedIssueId && (
-				<IssueDetailPanel
-					issueId={selectedIssueId}
-					onClose={() => setSelectedIssueId(null)}
-					onUpdate={handleUpdate}
-					isMobile={isMobile}
-				/>
+
+			{/* Bulk Toolbar */}
+			{selectedIssueIds.length > 0 && (
+				<div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-[var(--surface)] border border-[var(--border)] shadow-[0_10px_40px_rgba(0,0,0,0.15)] rounded-full px-6 py-3 flex items-center gap-6 z-50 animate-slideUp">
+					<div className="flex items-center gap-3">
+						<span className="w-7 h-7 bg-indigo-600 text-white rounded-full flex items-center justify-center text-xs font-bold shadow-md">
+							{selectedIssueIds.length}
+						</span>
+						<span className="font-bold text-[var(--text)] text-sm uppercase tracking-wider">Selected</span>
+					</div>
+					<div className="flex items-center gap-2">
+						<button
+							onClick={() => {
+								const reply = window.prompt(`Enter a single reply to resolve all ${selectedIssueIds.length} selected issues:`);
+								if (reply && reply.trim()) handleBulkResolve(reply);
+							}}
+							className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded-xl text-sm transition-colors shadow-sm"
+						>
+							Resolve All
+						</button>
+						<button
+							onClick={() => setSelectedIssueIds([])}
+							className="text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-secondary)] font-bold px-4 py-2 rounded-xl text-sm transition-colors"
+						>
+							Cancel
+						</button>
+					</div>
+				</div>
 			)}
 		</div>
 	);
-};
-
-const styles = {
-	pageLayout: {
-		display: 'flex',
-		position: 'relative',
-		height: '100vh',
-		overflow: 'hidden',
-		background: 'var(--bg-secondary)',
-	},
-	mainContent: isMobile => ({
-		flex: 1,
-		minWidth: 0,
-		padding: isMobile ? 16 : 32,
-		display: 'flex',
-		flexDirection: 'column',
-		overflowY: 'hidden',
-	}),
-	header: isMobile => ({
-		marginBottom: 24,
-		display: 'flex',
-		flexDirection: isMobile ? 'column' : 'row',
-		justifyContent: 'space-between',
-		gap: 20,
-		flexShrink: 0,
-	}),
-	controlsContainer: isMobile => ({
-		display: 'flex',
-		flexDirection: isMobile ? 'column' : 'row',
-		gap: 16,
-		alignItems: isMobile ? 'stretch' : 'center',
-	}),
-	title: {
-		margin: 0,
-		fontSize: 28,
-		fontWeight: 800,
-		color: 'var(--text)',
-		letterSpacing: '-0.02em',
-	},
-	subtitle: { margin: '4px 0 0', color: 'var(--text-muted)', fontSize: 15 },
-	filterGroup: {
-		display: 'flex',
-		gap: 4,
-		background: 'var(--surface)',
-		padding: 4,
-		borderRadius: 12,
-		border: '1px solid var(--border)',
-		overflowX: 'auto',
-	},
-	filterButton: {
-		padding: '8px 16px',
-		borderRadius: 8,
-		border: 'none',
-		background: 'transparent',
-		color: 'var(--text-muted)',
-		fontWeight: 600,
-		fontSize: 13,
-		cursor: 'pointer',
-		whiteSpace: 'nowrap',
-		transition: 'all 0.2s',
-	},
-	filterButtonActive: {
-		padding: '8px 16px',
-		borderRadius: 8,
-		border: 'none',
-		background: 'var(--primary)',
-		color: '#fff',
-		fontWeight: 600,
-		fontSize: 13,
-		cursor: 'pointer',
-		boxShadow: '0 2px 8px rgba(59, 130, 246, 0.25)',
-		whiteSpace: 'nowrap',
-	},
-	tableContainer: {
-		background: 'var(--surface)',
-		borderRadius: 16,
-		border: '1px solid var(--border)',
-		overflow: 'auto',
-		flex: 1,
-		boxShadow: 'var(--shadow-sm)',
-	},
-	table: { width: '100%', borderCollapse: 'separate', borderSpacing: 0 },
-	tableHeader: {
-		padding: '16px 20px',
-		textAlign: 'left',
-		borderBottom: '1px solid var(--border)',
-		color: 'var(--text-muted)',
-		fontSize: 12,
-		fontWeight: 700,
-		textTransform: 'uppercase',
-		background: 'var(--surface)',
-		position: 'sticky',
-		top: 0,
-		zIndex: 10,
-		whiteSpace: 'nowrap',
-	},
-	tableRow: {
-		cursor: 'pointer',
-		transition: 'background 0.15s',
-	},
-	tableCell: {
-		padding: '16px 20px',
-		verticalAlign: 'middle',
-		fontSize: 14,
-		borderBottom: '1px solid var(--border)',
-		color: 'var(--text)',
-	},
-	studentCell: {
-		display: 'flex',
-		alignItems: 'center',
-		gap: 12,
-	},
-	avatarPlaceholder: {
-		width: 32,
-		height: 32,
-		borderRadius: '50%',
-		background: 'var(--primary-light)',
-		color: 'var(--primary)',
-		display: 'flex',
-		alignItems: 'center',
-		justifyContent: 'center',
-		fontWeight: 700,
-		fontSize: 14,
-	},
-	statusPill: {
-		padding: '4px 10px',
-		borderRadius: 99,
-		fontWeight: 600,
-		fontSize: 12,
-		display: 'inline-flex',
-		alignItems: 'center',
-		gap: 6,
-		whiteSpace: 'nowrap',
-		border: 'none',
-		outline: 'none',
-		fontFamily: 'inherit',
-	},
-	dropdownMenu: {
-		position: 'absolute',
-		top: '100%',
-		left: 0,
-		marginTop: 4,
-		background: 'var(--surface)',
-		border: '1px solid var(--border)',
-		borderRadius: 8,
-		boxShadow: 'var(--shadow-md)',
-		zIndex: 20,
-		minWidth: 140,
-		padding: 4,
-		display: 'flex',
-		flexDirection: 'column',
-		gap: 2,
-	},
-	dropdownItem: {
-		padding: '8px 12px',
-		borderRadius: 6,
-		border: 'none',
-		background: 'transparent',
-		color: 'var(--text)',
-		fontSize: 13,
-		fontWeight: 500,
-		cursor: 'pointer',
-		textAlign: 'left',
-		display: 'flex',
-		alignItems: 'center',
-		gap: 8,
-		transition: 'background 0.1s',
-	},
-	checkbox: {
-		width: 16,
-		height: 16,
-		cursor: 'pointer',
-		accentColor: 'var(--primary)',
-	},
-	modalBackdrop: {
-		position: 'fixed',
-		top: 0,
-		left: 0,
-		width: '100%',
-		height: '100%',
-		background: 'rgba(0,0,0,0.4)',
-		backdropFilter: 'blur(2px)',
-		zIndex: 100,
-	},
-	detailPanel: isMobile => ({
-		width: isMobile ? '100%' : '480px',
-		height: '100%',
-		background: 'var(--surface)',
-		borderLeft: isMobile ? 'none' : '1px solid var(--border)',
-		position: 'fixed',
-		top: 0,
-		right: 0,
-		zIndex: 101,
-		boxShadow: '-8px 0 32px rgba(0,0,0,0.1)',
-		display: 'flex',
-		flexDirection: 'column',
-		animation: 'slideIn 0.3s ease-out',
-	}),
-	detailHeader: {
-		padding: '20px 24px',
-		borderBottom: '1px solid var(--border)',
-		display: 'flex',
-		justifyContent: 'space-between',
-		alignItems: 'center',
-		background: 'var(--surface)',
-	},
-	closeButton: {
-		background: 'transparent',
-		border: 'none',
-		fontSize: 24,
-		color: 'var(--text-muted)',
-		cursor: 'pointer',
-		padding: 4,
-		lineHeight: 1,
-		borderRadius: 4,
-		transition: 'background 0.2s',
-	},
-	detailContent: {
-		flex: 1,
-		overflowY: 'auto',
-		padding: 24,
-	},
-	section: {
-		marginBottom: 32,
-	},
-	issueTitleBlock: {
-		marginBottom: 16,
-		display: 'flex',
-		justifyContent: 'space-between',
-		alignItems: 'flex-start',
-		gap: 16,
-	},
-	issueExamTitle: {
-		margin: 0,
-		fontSize: 20,
-		fontWeight: 700,
-		lineHeight: 1.3,
-		flex: 1,
-	},
-	metaGrid: {
-		display: 'grid',
-		gridTemplateColumns: '1fr 1fr',
-		gap: 16,
-		background: 'var(--bg-secondary)',
-		padding: 16,
-		borderRadius: 12,
-	},
-	metaItem: {
-		display: 'flex',
-		flexDirection: 'column',
-		gap: 4,
-	},
-	metaLabel: {
-		fontSize: 12,
-		color: 'var(--text-muted)',
-		textTransform: 'uppercase',
-		fontWeight: 600,
-	},
-	metaValue: {
-		fontSize: 14,
-		fontWeight: 500,
-		color: 'var(--text)',
-	},
-	sectionTitle: {
-		fontSize: 14,
-		fontWeight: 700,
-		color: 'var(--text-muted)',
-		textTransform: 'uppercase',
-		marginBottom: 12,
-		letterSpacing: '0.05em',
-	},
-	descriptionBox: {
-		background: 'var(--bg-secondary)',
-		padding: 16,
-		borderRadius: 12,
-		fontSize: 15,
-		lineHeight: 1.6,
-		color: 'var(--text)',
-		border: '1px solid var(--border)',
-	},
-	viewSubmissionLink: {
-		display: 'inline-block',
-		marginTop: 12,
-		color: 'var(--primary)',
-		fontWeight: 600,
-		textDecoration: 'none',
-		fontSize: 14,
-	},
-	resolveForm: {
-		background: 'var(--surface)',
-		border: '1px solid var(--border)',
-		borderRadius: 12,
-		padding: 16,
-		boxShadow: 'var(--shadow-sm)',
-	},
-	textarea: {
-		width: '100%',
-		padding: 12,
-		borderRadius: 8,
-		border: '1px solid var(--border)',
-		background: 'var(--bg-secondary)',
-		resize: 'vertical',
-		minHeight: 100,
-		fontSize: 14,
-		marginBottom: 12,
-		outline: 'none',
-		transition: 'border-color 0.2s',
-	},
-	formActions: {
-		display: 'flex',
-		justifyContent: 'flex-end',
-	},
-	buttonPrimary: {
-		padding: '10px 20px',
-		borderRadius: 8,
-		border: 'none',
-		background: 'var(--primary)',
-		color: '#fff',
-		fontWeight: 600,
-		cursor: 'pointer',
-		fontSize: 14,
-		boxShadow: '0 2px 8px rgba(59, 130, 246, 0.3)',
-		transition: 'transform 0.1s',
-	},
-	resolutionBox: {
-		background: 'var(--success-bg)',
-		border: '1px solid var(--success-border)',
-		padding: 16,
-		borderRadius: 12,
-		color: 'var(--text)',
-	},
-	resolutionHeader: {
-		fontSize: 12,
-		fontWeight: 700,
-		color: 'var(--success-text)',
-		marginBottom: 8,
-		textTransform: 'uppercase',
-	},
-	notesList: {
-		display: 'flex',
-		flexDirection: 'column',
-		gap: 12,
-		marginBottom: 16,
-	},
-	noteItem: {
-		background: 'var(--bg-secondary)',
-		padding: 12,
-		borderRadius: 8,
-		fontSize: 14,
-	},
-	noteHeader: {
-		display: 'flex',
-		justifyContent: 'space-between',
-		marginBottom: 4,
-		fontSize: 12,
-	},
-	noteTime: {
-		color: 'var(--text-muted)',
-	},
-	noteContent: {
-		color: 'var(--text)',
-		lineHeight: 1.5,
-	},
-	addNoteForm: {
-		display: 'flex',
-		gap: 8,
-	},
-	noteInput: {
-		flex: 1,
-		padding: '8px 12px',
-		borderRadius: 8,
-		border: '1px solid var(--border)',
-		background: 'var(--surface)',
-		fontSize: 14,
-	},
-	buttonSecondary: {
-		padding: '8px 16px',
-		borderRadius: 8,
-		border: '1px solid var(--border)',
-		background: 'var(--surface)',
-		color: 'var(--text)',
-		fontWeight: 600,
-		cursor: 'pointer',
-	},
-	timeline: {
-		position: 'relative',
-		paddingLeft: 24,
-		borderLeft: '2px solid var(--border)',
-	},
-	timelineItem: {
-		position: 'relative',
-		marginBottom: 24,
-	},
-	timelineIcon: {
-		position: 'absolute',
-		left: -33,
-		top: 0,
-		width: 18,
-		height: 18,
-		background: 'var(--surface)',
-		border: '2px solid var(--primary)',
-		borderRadius: '50%',
-		display: 'flex',
-		alignItems: 'center',
-		justifyContent: 'center',
-		fontSize: 10,
-	},
-	timelineContent: {
-		background: 'var(--bg-secondary)',
-		padding: '8px 12px',
-		borderRadius: 8,
-	},
-	timelineText: {
-		fontSize: 13,
-		color: 'var(--text)',
-		marginBottom: 4,
-	},
-	timelineTime: {
-		fontSize: 11,
-		color: 'var(--text-muted)',
-	},
-	bulkToolbar: {
-		position: 'absolute',
-		bottom: 32,
-		left: '50%',
-		transform: 'translateX(-50%)',
-		background: 'var(--primary)',
-		padding: '12px 24px',
-		borderRadius: 100,
-		display: 'flex',
-		alignItems: 'center',
-		gap: 24,
-		boxShadow: '0 10px 30px rgba(59, 130, 246, 0.4)',
-		zIndex: 50,
-		animation: 'slideUp 0.3s ease-out',
-	},
-	selectionBadge: {
-		background: 'rgba(255,255,255,0.2)',
-		color: '#fff',
-		width: 24,
-		height: 24,
-		borderRadius: '50%',
-		display: 'flex',
-		alignItems: 'center',
-		justifyContent: 'center',
-		fontSize: 12,
-		fontWeight: 700,
-	},
-	buttonWhite: {
-		background: '#fff',
-		color: 'var(--primary)',
-		border: 'none',
-		padding: '8px 16px',
-		borderRadius: 20,
-		fontWeight: 600,
-		fontSize: 13,
-		cursor: 'pointer',
-	},
-	buttonGhostWhite: {
-		background: 'transparent',
-		color: 'rgba(255,255,255,0.8)',
-		border: 'none',
-		padding: '8px',
-		fontWeight: 500,
-		fontSize: 13,
-		cursor: 'pointer',
-	},
-	emptyState: {
-		textAlign: 'center',
-		padding: '64px',
-		color: 'var(--text-muted)',
-	},
-	cardList: {
-		display: 'flex',
-		flexDirection: 'column',
-		gap: 16,
-		paddingBottom: 80,
-	},
-	card: {
-		container: {
-			background: 'var(--surface)',
-			border: '1px solid var(--border)',
-			borderRadius: 16,
-			padding: 16,
-			cursor: 'pointer',
-			transition: 'all 0.2s',
-		},
-		header: {
-			display: 'flex',
-			justifyContent: 'space-between',
-			alignItems: 'flex-start',
-			marginBottom: 12,
-		},
-		title: {
-			fontWeight: 700,
-			fontSize: 16,
-			color: 'var(--text)',
-		},
-		body: {
-			fontSize: 14,
-		},
-	},
-	cardRow: {
-		display: 'flex',
-		justifyContent: 'space-between',
-		marginBottom: 8,
-	},
-	cardLabel: {
-		color: 'var(--text-muted)',
-	},
-	cardValue: {
-		fontWeight: 500,
-		color: 'var(--text)',
-	},
-	cardFooter: {
-		marginTop: 12,
-		paddingTop: 12,
-		borderTop: '1px solid var(--border)',
-		fontSize: 12,
-		color: 'var(--text-muted)',
-	},
-	errorBanner: {
-		background: 'var(--danger-bg)',
-		color: 'var(--danger-text)',
-		padding: '12px 16px',
-		borderRadius: 8,
-		marginBottom: 16,
-		fontSize: 14,
-	},
-	loadingContainer: {
-		display: 'flex',
-		flexDirection: 'column',
-		alignItems: 'center',
-		justifyContent: 'center',
-		padding: 64,
-		color: 'var(--text-muted)',
-	},
 };
 
 export default TeacherIssues;
