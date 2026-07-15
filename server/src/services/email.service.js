@@ -30,6 +30,7 @@ async function getTransporter() {
 				pass: process.env.SMTP_PASS,
 			},
 			connectionTimeout: 10000, // 10 seconds to prevent hanging
+			localAddress: '0.0.0.0', // Force IPv4 routing
 		};
 
 		if (process.env.SMTP_SERVICE && process.env.SMTP_SERVICE.toLowerCase() === 'gmail') {
