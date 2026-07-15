@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useExamLogic } from '../../hooks/useExamLogic.js';
 import TakeExamSkeleton from './components/TakeExamSkeleton.jsx';
 import ExamLayout from './components/TakeExam/ExamLayout.jsx';
@@ -12,10 +12,12 @@ import {
 	ViolationOverlay,
 	SubmitConfirmation,
 } from './components/TakeExam/Overlays.jsx';
-import './TakeExam.css';
+import { AlertCircle, FileQuestion, RefreshCcw } from 'lucide-react';
+// import './TakeExam.css'; // Removed in favor of Tailwind
 
 const TakeExam = () => {
 	const { id } = useParams();
+	const navigate = useNavigate();
 	const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 	const [touchStart, setTouchStart] = useState(null);
 	const [touchEnd, setTouchEnd] = useState(null);
@@ -114,12 +116,8 @@ const TakeExam = () => {
 		const distance = touchStart - touchEnd;
 		const isLeftSwipe = distance > minSwipeDistance;
 		const isRightSwipe = distance < -minSwipeDistance;
-		if (isLeftSwipe) {
-			handleNext();
-		}
-		if (isRightSwipe) {
-			handlePrev();
-		}
+		if (isLeftSwipe) handleNext();
+		if (isRightSwipe) handlePrev();
 	};
 
 	const handleAcknowledgeViolation = () => {
@@ -133,14 +131,10 @@ const TakeExam = () => {
 	useEffect(() => {
 		const onKey = e => {
 			const mod = e.ctrlKey || e.metaKey;
-
-			// Ctrl/Cmd + Enter → submit confirmation
 			if (mod && e.key === 'Enter') {
 				e.preventDefault();
 				if (!autoSubmitting) setShowSubmitConfirm(true);
 			}
-
-			// Arrow key navigation — only when NOT typing in a textarea or input
 			const tag = e.target?.tagName;
 			const isTyping = tag === 'TEXTAREA' || tag === 'INPUT';
 			if (!isTyping) {
@@ -154,23 +148,43 @@ const TakeExam = () => {
 
 	// --- Render ---
 	if (loading) return <TakeExamSkeleton />;
+	
 	if (error)
 		return (
-			<div className="exam-container" style={{ alignItems: 'center', justifyContent: 'center', display: 'flex', flexDirection: 'column', gap: 16 }}>
-				<div style={{ fontSize: 48 }}>⚠️</div>
-				<h2 style={{ margin: 0, fontWeight: 700 }}>Something went wrong</h2>
-				<p style={{ color: 'var(--text-muted)', maxWidth: 400, textAlign: 'center', lineHeight: 1.6 }}>{error}</p>
-				<button className="nav-btn primary" onClick={() => window.location.reload()}>
-					Try Again
-				</button>
+			<div className="min-h-screen flex flex-col items-center justify-center p-6 bg-[var(--bg)] dash-enter">
+				<div className="glass-card p-12 flex flex-col items-center max-w-md w-full text-center rounded-3xl border border-rose-200 dark:border-rose-500/20 shadow-xl">
+					<div className="w-20 h-20 bg-rose-50 dark:bg-rose-500/10 rounded-full flex items-center justify-center mb-6">
+						<AlertCircle className="w-10 h-10 text-rose-500" />
+					</div>
+					<h2 className="text-2xl font-black text-[var(--text)] mb-3">Something went wrong</h2>
+					<p className="text-[var(--text-muted)] font-medium mb-8">{error}</p>
+					<button 
+						className="flex items-center gap-2 bg-rose-600 hover:bg-rose-500 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-md active:scale-95 w-full justify-center"
+						onClick={() => window.location.reload()}
+					>
+						<RefreshCcw className="w-5 h-5" />
+						Try Again
+					</button>
+				</div>
 			</div>
 		);
+
 	if (!submission)
 		return (
-			<div className="exam-container" style={{ alignItems: 'center', justifyContent: 'center', display: 'flex', flexDirection: 'column', gap: 16 }}>
-				<div style={{ fontSize: 48 }}>📋</div>
-				<h2 style={{ margin: 0, fontWeight: 700 }}>Submission Not Found</h2>
-				<p style={{ color: 'var(--text-muted)' }}>This exam submission could not be loaded.</p>
+			<div className="min-h-screen flex flex-col items-center justify-center p-6 bg-[var(--bg)] dash-enter">
+				<div className="glass-card p-12 flex flex-col items-center max-w-md w-full text-center rounded-3xl border border-[var(--border)] shadow-xl">
+					<div className="w-20 h-20 bg-indigo-50 dark:bg-indigo-500/10 rounded-full flex items-center justify-center mb-6">
+						<FileQuestion className="w-10 h-10 text-indigo-500" />
+					</div>
+					<h2 className="text-2xl font-black text-[var(--text)] mb-3">Submission Not Found</h2>
+					<p className="text-[var(--text-muted)] font-medium mb-8">This exam submission could not be loaded or does not exist.</p>
+					<button 
+						className="flex items-center gap-2 bg-[var(--surface)] hover:bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text)] px-6 py-3 rounded-xl font-bold transition-all shadow-sm active:scale-95 w-full justify-center"
+						onClick={() => navigate('/student/exams')}
+					>
+						Return to Exams
+					</button>
+				</div>
 			</div>
 		);
 
@@ -215,9 +229,12 @@ const TakeExam = () => {
 				questionStats={questionStats}
 			/>
 
-			<div className="exam-main">
+			<div className="flex flex-1 overflow-hidden relative bg-[var(--bg)]">
+				{/* Background radial gradient equivalent to .exam-main radial background */}
+				<div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(99,102,241,0.05)_0%,transparent_70%)] pointer-events-none" />
+				
 				<div 
-					className="exam-content"
+					className="flex-1 flex flex-col overflow-y-auto p-4 sm:p-6 pb-32 sm:pb-24 scroll-smooth relative z-10 custom-scrollbar"
 					onTouchStart={onTouchStart}
 					onTouchMove={onTouchMove}
 					onTouchEnd={onTouchEndHandler}
@@ -251,17 +268,14 @@ const TakeExam = () => {
 			</div>
 
 			<ExamFooter
+				currentIndex={currentQuestionIndex}
+				totalQuestions={submission.questions.length}
 				onPrev={handlePrev}
 				onNext={handleNext}
-				onReview={toggleReview}
-				onSubmit={() => setShowSubmitConfirm(true)}
-				isFirst={currentQuestionIndex === 0}
-				isLast={currentQuestionIndex === submission.questions.length - 1}
+				onToggleReview={toggleReview}
 				isReviewing={isReviewing}
+				onSubmit={() => setShowSubmitConfirm(true)}
 				disabled={autoSubmitting}
-				saving={saving}
-				autoSubmitting={autoSubmitting}
-				questionStats={questionStats}
 			/>
 		</ExamLayout>
 	);

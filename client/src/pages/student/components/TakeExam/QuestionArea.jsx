@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { Check } from 'lucide-react';
 
 const QuestionArea = ({ question, index, answer, onAnswerChange, disabled, totalQuestions }) => {
 	const isMCQ = question.type === 'multiple-choice';
@@ -13,42 +14,38 @@ const QuestionArea = ({ question, index, answer, onAnswerChange, disabled, total
 	}, [responseText, isMCQ]);
 
 	return (
-		<div className="question-container">
-			<div className="question-card">
+		<div className="w-full max-w-4xl mx-auto animate-in slide-in-from-bottom-4 fade-in duration-300">
+			<div className="glass-card bg-[var(--surface)] p-6 sm:p-10 rounded-3xl shadow-xl border border-[var(--border)] relative overflow-hidden">
+				
 				{/* Question header */}
-				<div className="question-meta">
-					<div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-						<span style={{
-							background: 'var(--primary-light-bg)', color: 'var(--primary-strong)',
-							padding: '4px 10px', borderRadius: 6, fontWeight: 800, fontSize: '0.8rem',
-						}}>
+				<div className="flex flex-wrap items-center justify-between gap-4 mb-8 pb-6 border-b-2 border-[var(--bg-secondary)]">
+					<div className="flex items-center gap-3">
+						<span className="bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-400 px-3 py-1 rounded-lg font-black text-sm">
 							{index + 1}{totalQuestions ? ` / ${totalQuestions}` : ''}
 						</span>
-						<span style={{
-							background: isMCQ ? '#dcfce7' : '#e0e7ff',
-							color: isMCQ ? '#16a34a' : '#4338ca',
-							padding: '3px 8px', borderRadius: 6, fontSize: '0.7rem',
-							fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em',
-						}}>
+						<span className={`px-2.5 py-1 rounded-lg text-xs font-black uppercase tracking-wider ${
+							isMCQ 
+								? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' 
+								: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-400'
+						}`}>
 							{isMCQ ? 'MCQ' : 'Subjective'}
 						</span>
 					</div>
-					<span style={{
-						background: 'var(--bg-secondary)', padding: '4px 10px',
-						borderRadius: 6, fontWeight: 700, fontSize: '0.8rem',
-					}}>
+					<span className="bg-[var(--bg-secondary)] text-[var(--text-muted)] px-3 py-1 rounded-lg font-bold text-sm border border-[var(--border)]">
 						{question.max_marks} Mark{question.max_marks !== 1 ? 's' : ''}
 					</span>
 				</div>
 
 				{/* Question text */}
-				<div className="question-text">{question.text}</div>
+				<div className="text-xl sm:text-2xl font-bold text-[var(--text)] mb-10 leading-relaxed">
+					{question.text}
+				</div>
 
 				{/* Answer section */}
-				<div className="answer-section">
+				<div>
 					{isMCQ ? (
 						<div
-							className="options-list"
+							className="flex flex-col gap-4"
 							role="radiogroup"
 							aria-label={`Options for question ${index + 1}`}
 						>
@@ -58,16 +55,17 @@ const QuestionArea = ({ question, index, answer, onAnswerChange, disabled, total
 								return (
 									<label
 										key={optId}
-										className={`option-item ${isSelected ? 'selected' : ''}`}
+										className={`flex items-center gap-4 p-4 sm:p-5 rounded-2xl border-2 cursor-pointer transition-all ${
+											isSelected 
+												? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-500/10' 
+												: 'border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--bg-secondary)] hover:border-gray-300 dark:hover:border-gray-600'
+										}`}
 									>
-										<span className="option-letter" style={{
-											width: 32, height: 32, borderRadius: 8,
-											background: isSelected ? 'var(--primary)' : 'var(--bg-secondary)',
-											color: isSelected ? '#fff' : 'var(--text-muted)',
-											display: 'flex', alignItems: 'center', justifyContent: 'center',
-											fontWeight: 800, fontSize: 13, flexShrink: 0,
-											transition: 'all 0.15s ease',
-										}}>
+										<span className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 font-black text-sm transition-colors ${
+											isSelected 
+												? 'bg-indigo-500 text-white shadow-md' 
+												: 'bg-[var(--bg-secondary)] text-[var(--text-muted)]'
+										}`}>
 											{String.fromCharCode(65 + i)}
 										</span>
 										<input
@@ -83,16 +81,17 @@ const QuestionArea = ({ question, index, answer, onAnswerChange, disabled, total
 												)
 											}
 											disabled={disabled}
-											className="option-radio"
-											style={{ display: 'none' }}
+											className="hidden"
 										/>
-										<span style={{ fontSize: '1rem', lineHeight: 1.5 }}>{opt.text}</span>
+										<span className="text-base sm:text-lg font-medium text-[var(--text)] leading-relaxed flex-1">
+											{opt.text}
+										</span>
 									</label>
 								);
 							})}
 						</div>
 					) : (
-						<div style={{ position: 'relative' }}>
+						<div className="relative">
 							<textarea
 								value={responseText}
 								onChange={e =>
@@ -100,25 +99,20 @@ const QuestionArea = ({ question, index, answer, onAnswerChange, disabled, total
 								}
 								disabled={disabled}
 								placeholder="Type your answer here..."
-								className="subjective-input"
+								className="w-full min-h-[240px] sm:min-h-[300px] p-5 rounded-2xl border-2 border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text)] text-base sm:text-lg font-medium outline-none focus:border-indigo-500 focus:bg-[var(--surface)] transition-all resize-y shadow-inner"
 								spellCheck="true"
 								aria-label={`Answer for question ${index + 1}`}
 							/>
 							{/* Text stats bar */}
 							{textStats && (
-								<div style={{
-									display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-									padding: '8px 4px 0', fontSize: 12, color: 'var(--text-muted)',
-								}}>
+								<div className="flex justify-between items-center mt-3 text-xs sm:text-sm font-bold text-[var(--text-muted)] px-2">
 									<span>
 										{textStats.words} word{textStats.words !== 1 ? 's' : ''} · {textStats.chars} character{textStats.chars !== 1 ? 's' : ''}
 									</span>
 									{textStats.words > 0 && (
-										<span style={{
-											color: 'var(--success)', fontWeight: 600, fontSize: 11,
-											display: 'flex', alignItems: 'center', gap: 4,
-										}}>
-											✓ Answered
+										<span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-1 rounded-md">
+											<Check className="w-3.5 h-3.5" />
+											Answered
 										</span>
 									)}
 								</div>

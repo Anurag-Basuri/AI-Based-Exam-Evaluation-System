@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { X, Send, Wifi, WifiOff } from 'lucide-react';
 
 const ExamSidebar = ({
 	questions = [],
@@ -41,10 +42,10 @@ const ExamSidebar = ({
 
 	const statusColor = status => {
 		switch (status) {
-			case 'answered': return { cls: 'answered', color: '#10b981' };
-			case 'review': return { cls: 'review', color: '#f59e0b' };
-			case 'answered-review': return { cls: 'answered-review', color: '#8b5cf6' };
-			default: return { cls: 'unanswered', color: '#cbd5e1' };
+			case 'answered': return { bg: 'bg-emerald-500', text: 'text-white', border: 'border-emerald-600', ring: 'ring-emerald-500' };
+			case 'review': return { bg: 'bg-amber-500', text: 'text-white', border: 'border-amber-600', ring: 'ring-amber-500' };
+			case 'answered-review': return { bg: 'bg-indigo-500', text: 'text-white', border: 'border-indigo-600', ring: 'ring-indigo-500' };
+			default: return { bg: 'bg-[var(--bg-secondary)]', text: 'text-[var(--text-muted)]', border: 'border-[var(--border)]', ring: 'ring-gray-400' };
 		}
 	};
 
@@ -62,62 +63,60 @@ const ExamSidebar = ({
 		<>
 			{/* Mobile Backdrop */}
 			<div
-				className={`overlay-backdrop ${isOpen ? '' : 'mobile-only'}`}
-				style={{ display: isOpen ? 'block' : 'none', zIndex: 9 }}
+				className={`fixed inset-0 bg-black/60 backdrop-blur-sm z-30 lg:hidden transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
 				onClick={onClose}
 				aria-hidden={!isOpen}
 			/>
 
-			<aside className={`exam-sidebar ${isOpen ? 'open' : ''}`} aria-label="Question palette">
-				<div className="sidebar-header">
-					<span style={{ fontWeight: 700, fontSize: '0.95rem' }}>Question Palette</span>
-					<button className="nav-btn mobile-only" onClick={onClose} aria-label="Close palette">
-						×
+			<aside 
+				className={`fixed lg:static top-[72px] lg:top-0 right-0 bottom-0 w-[320px] sm:w-[360px] lg:w-[320px] bg-[var(--surface)] backdrop-blur-xl border-l border-[var(--border)] flex flex-col z-40 transition-transform duration-300 shadow-2xl lg:shadow-none lg:translate-x-0 ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
+				aria-label="Question palette"
+			>
+				<div className="flex items-center justify-between p-4 sm:p-5 border-b border-[var(--border)] bg-[var(--surface)]">
+					<span className="font-black text-[var(--text)] text-lg">Question Palette</span>
+					<button 
+						className="lg:hidden p-2 rounded-full hover:bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
+						onClick={onClose} 
+						aria-label="Close palette"
+					>
+						<X className="w-5 h-5" />
 					</button>
 				</div>
 
-				<div className="sidebar-content">
+				<div className="flex-1 overflow-y-auto p-4 sm:p-5 flex flex-col gap-6 custom-scrollbar">
 					{/* Progress bar */}
-					<div style={{ marginBottom: 8 }}>
-						<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, fontSize: 12, fontWeight: 700 }}>
-							<span style={{ color: 'var(--text-muted)' }}>Progress</span>
-							<span style={{ color: progressPct === 100 ? '#10b981' : 'var(--text)' }}>
+					<div>
+						<div className="flex justify-between items-center mb-2 text-xs font-black">
+							<span className="text-[var(--text-muted)] uppercase tracking-wider">Progress</span>
+							<span className={progressPct === 100 ? 'text-emerald-600 dark:text-emerald-400' : 'text-[var(--text)]'}>
 								{stats.answered} / {stats.total} ({progressPct}%)
 							</span>
 						</div>
-						<div style={{ height: 5, borderRadius: 3, background: 'var(--border)', overflow: 'hidden' }}>
-							<div style={{
-								height: '100%', borderRadius: 3, transition: 'width 0.3s ease',
-								width: `${progressPct}%`,
-								background: progressPct === 100 ? '#10b981' : 'var(--primary)',
-							}} />
+						<div className="h-2 rounded-full bg-[var(--border)] overflow-hidden">
+							<div 
+								className={`h-full rounded-full transition-all duration-300 ${progressPct === 100 ? 'bg-emerald-500' : 'bg-indigo-500'}`}
+								style={{ width: `${progressPct}%` }}
+							/>
 						</div>
 					</div>
 
 					{/* Question grid */}
-					<div className="palette-grid" role="list">
+					<div className="grid grid-cols-5 sm:grid-cols-6 lg:grid-cols-5 gap-2" role="list">
 						{stats.statusMap.map((status, i) => {
 							const s = statusColor(status);
+							const isCurrent = i === currentIndex;
 							return (
 								<button
 									key={i}
-									className={`palette-btn ${s.cls} ${i === currentIndex ? 'current' : ''}`}
+									className={`aspect-square rounded-xl border flex items-center justify-center text-sm font-bold transition-all ${s.bg} ${s.text} ${s.border} hover:-translate-y-[1px] hover:shadow-md ${isCurrent ? `ring-2 ring-offset-2 ring-offset-[var(--surface)] ${s.ring} scale-[1.05]` : ''}`}
 									onClick={() => {
 										onNavigate(i);
 										if (window.innerWidth < 1024) onClose();
 									}}
-									aria-current={i === currentIndex}
+									aria-current={isCurrent}
 									role="listitem"
 									aria-label={`Question ${i + 1} ${status}`}
 								>
-									<span
-										className="palette-dot"
-										style={{
-											background: s.color, width: 8, height: 8,
-											borderRadius: 4, display: 'inline-block', marginRight: 6,
-										}}
-										aria-hidden="true"
-									/>
 									{i + 1}
 								</button>
 							);
@@ -125,59 +124,50 @@ const ExamSidebar = ({
 					</div>
 
 					{/* Legend */}
-					<div className="palette-legend" aria-hidden="false">
+					<div className="flex flex-wrap gap-3 text-xs font-bold text-[var(--text-muted)]">
 						{[
-							{ cls: 'success', color: '#10b981', label: 'Answered' },
-							{ cls: 'warning', color: '#f59e0b', label: 'Review' },
-							{ cls: 'answered-review', color: '#8b5cf6', label: 'Ans & Review' },
-							{ cls: 'unanswered', color: '#cbd5e1', label: 'Unanswered' },
+							{ bg: 'bg-emerald-500', label: 'Answered' },
+							{ bg: 'bg-amber-500', label: 'Review' },
+							{ bg: 'bg-indigo-500', label: 'Ans & Review' },
+							{ bg: 'bg-[var(--bg-secondary)] border border-[var(--border)]', label: 'Unanswered' },
 						].map(item => (
-							<div key={item.label} className="legend-item">
-								<span className={`legend-dot ${item.cls}`} style={{ background: item.color }} />
+							<div key={item.label} className="flex items-center gap-1.5">
+								<span className={`w-2.5 h-2.5 rounded-full ${item.bg}`} aria-hidden="true" />
 								{item.label}
 							</div>
 						))}
 					</div>
 
 					{/* Status panel */}
-					<div style={{ marginTop: 'auto' }}>
-						<div style={{
-							background: 'var(--bg-secondary)', padding: 12, borderRadius: 10,
-							fontSize: '0.8rem', display: 'flex', flexDirection: 'column', gap: 8,
-						}}>
-							<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-								<span style={{ color: 'var(--text-muted)' }}>Connection</span>
-								<span style={{
-									display: 'flex', alignItems: 'center', gap: 5,
-									color: isOnline ? 'var(--success)' : 'var(--error)', fontWeight: 600,
-								}}>
-									<span style={{
-										width: 7, height: 7, borderRadius: '50%',
-										background: isOnline ? 'var(--success)' : 'var(--error)',
-									}} />
+					<div className="mt-auto">
+						<div className="bg-[var(--bg-secondary)] p-4 rounded-2xl text-xs font-bold flex flex-col gap-3 border border-[var(--border)]">
+							<div className="flex justify-between items-center">
+								<span className="text-[var(--text-muted)] uppercase tracking-wider">Connection</span>
+								<span className={`flex items-center gap-1.5 ${isOnline ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+									{isOnline ? <Wifi className="w-3.5 h-3.5" /> : <WifiOff className="w-3.5 h-3.5" />}
 									{isOnline ? 'Online' : 'Offline'}
 								</span>
 							</div>
-							<div style={{ display: 'flex', justifyContent: 'space-between' }}>
-								<span style={{ color: 'var(--text-muted)' }}>Last Saved</span>
-								<span style={{ fontWeight: 600, color: saving ? 'var(--primary)' : 'var(--text)' }}>{lastSavedText}</span>
+							<div className="flex justify-between items-center">
+								<span className="text-[var(--text-muted)] uppercase tracking-wider">Last Saved</span>
+								<span className={saving ? 'text-indigo-600 dark:text-indigo-400' : 'text-[var(--text)]'}>{lastSavedText}</span>
 							</div>
-							<div style={{ display: 'flex', justifyContent: 'space-between', color: v.count > 0 ? 'var(--warning)' : 'inherit' }}>
-								<span style={{ color: v.count > 0 ? undefined : 'var(--text-muted)' }}>Violations</span>
-								<strong>{v.count} / 5</strong>
+							<div className={`flex justify-between items-center ${v.count > 0 ? 'text-rose-600 dark:text-rose-400' : ''}`}>
+								<span className={v.count > 0 ? '' : 'text-[var(--text-muted)] uppercase tracking-wider'}>Violations</span>
+								<span className={v.count > 0 ? 'font-black' : ''}>{v.count} / 5</span>
 							</div>
 						</div>
 					</div>
 				</div>
 
-				<div className="sidebar-footer">
+				<div className="p-4 sm:p-5 border-t border-[var(--border)] bg-[var(--surface)]">
 					<button
-						className="nav-btn primary"
-						style={{ width: '100%', background: 'var(--error)', justifyContent: 'center', borderRadius: 10, fontWeight: 700 }}
+						className="w-full flex items-center justify-center gap-2 bg-rose-600 hover:bg-rose-500 text-white py-3 rounded-xl font-bold shadow-md hover:shadow-lg transition-all active:scale-[0.98]"
 						onClick={onSubmit}
 						aria-label="Submit exam"
 					>
-						🏁 Submit Exam
+						<Send className="w-4 h-4" />
+						Submit Exam
 					</button>
 				</div>
 			</aside>

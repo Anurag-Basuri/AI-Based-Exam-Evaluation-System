@@ -200,12 +200,17 @@ const StudentExams = () => {
                 )}
 
                 {/* Hero Section: Join Exam */}
-                <section className="glass-card relative overflow-hidden rounded-3xl p-8 sm:p-12 shadow-2xl mb-12 border-0 bg-gradient-to-br from-indigo-600 via-indigo-700 to-blue-800 text-white animate-in zoom-in-95 duration-500">
-                    <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMiIgY3k9IjIiIHI9IjIiIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSIvPjwvc3ZnPg==')] opacity-20 z-0"></div>
+                <section className="glass-card relative overflow-hidden rounded-3xl p-8 sm:p-12 shadow-xl mb-12 border border-[var(--border)] bg-[var(--surface)] animate-in zoom-in-95 duration-500">
+                    <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-blue-500/5 dark:from-indigo-500/10 dark:to-blue-500/10 z-0 pointer-events-none"></div>
                     
                     <div className="relative z-10 max-w-2xl">
-                        <h2 className="text-3xl sm:text-4xl font-black mb-4 tracking-tight">Join a New Exam</h2>
-                        <p className="text-indigo-100 text-lg font-medium mb-8">Enter the unique 8-character code provided by your teacher.</p>
+                        <div className="flex items-center gap-4 mb-4">
+                            <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 rounded-xl flex items-center justify-center shrink-0">
+                                <Rocket className="w-6 h-6" />
+                            </div>
+                            <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-[var(--text)]">Join a New Exam</h2>
+                        </div>
+                        <p className="text-[var(--text-muted)] text-lg font-medium mb-8">Enter the unique 8-character code provided by your teacher.</p>
                         
                         <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-4 mb-4">
                             <input
@@ -213,12 +218,12 @@ const StudentExams = () => {
                                 onChange={e => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, CODE_LEN))}
                                 placeholder="ENTER CODE"
                                 maxLength={CODE_LEN}
-                                className="flex-1 bg-white/10 border border-white/20 text-white placeholder-white/50 text-xl font-black tracking-[0.25em] text-center sm:text-left px-6 py-4 rounded-2xl outline-none focus:ring-4 focus:ring-white/20 focus:bg-white/20 transition-all backdrop-blur-md"
+                                className="flex-1 bg-[var(--bg-secondary)] border-2 border-[var(--border)] text-[var(--text)] placeholder-[var(--text-muted)] text-xl font-black tracking-[0.25em] text-center sm:text-left px-6 py-4 rounded-2xl outline-none focus:border-indigo-500 dark:focus:border-indigo-400 focus:bg-[var(--surface)] transition-all"
                             />
                             <button
                                 type="submit"
                                 disabled={searching || !code || code.length !== CODE_LEN}
-                                className="flex items-center justify-center gap-2 bg-white text-indigo-700 hover:bg-indigo-50 font-black px-8 py-4 rounded-2xl transition-all shadow-lg active:scale-95 disabled:opacity-50 disabled:active:scale-100"
+                                className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black px-8 py-4 rounded-2xl transition-all shadow-lg active:scale-95 disabled:opacity-50 disabled:active:scale-100"
                             >
                                 {searching ? <RefreshCcw className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
                                 {searching ? 'Searching' : 'Find Exam'}
@@ -226,31 +231,30 @@ const StudentExams = () => {
                         </form>
 
                         {found && (
-                            <div className="mt-6 bg-white/10 border border-white/20 rounded-2xl p-6 backdrop-blur-md animate-in slide-in-from-bottom-4 fade-in duration-300">
+                            <div className="mt-6 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-2xl p-6 animate-in slide-in-from-bottom-4 fade-in duration-300">
                                 <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
-                                    <h3 className="text-xl font-bold">{found.title}</h3>
-                                    <span className="bg-indigo-500 text-white px-4 py-1.5 rounded-full text-sm font-bold uppercase tracking-wider shadow-sm">
+                                    <h3 className="text-xl font-bold text-[var(--text)]">{found.title}</h3>
+                                    <span className="bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-400 px-4 py-1.5 rounded-full text-sm font-bold uppercase tracking-wider border border-indigo-200 dark:border-indigo-500/30">
                                         {found.duration} mins
                                     </span>
                                 </div>
-                                <p className="text-indigo-100 mb-6">{found.description || 'No description provided.'}</p>
+                                <p className="text-[var(--text-muted)] font-medium mb-6">{found.description || 'No description provided.'}</p>
                                 <div className="flex flex-wrap gap-3 justify-end">
                                     <button
                                         onClick={() => {
                                             setCode('');
                                             setFound(null);
                                         }}
-                                        className="px-6 py-2.5 rounded-xl font-bold text-indigo-100 hover:bg-white/10 transition-colors"
+                                        className="px-6 py-2.5 rounded-xl font-bold border border-[var(--border)] text-[var(--text)] hover:bg-[var(--bg-secondary)] transition-colors"
                                     >
                                         Cancel
                                     </button>
                                     <button
                                         onClick={handleStart}
                                         disabled={starting}
-                                        className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg transition-all active:scale-95 disabled:opacity-50 disabled:active:scale-100"
+                                        className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg transition-all active:scale-95 disabled:opacity-50 disabled:active:scale-100"
                                     >
-                                        {starting ? <RefreshCcw className="w-4 h-4 animate-spin" /> : <Rocket className="w-4 h-4" />}
-                                        {starting ? 'Starting...' : 'Start Exam'}
+                                        {starting ? 'Starting...' : 'Join Exam'}
                                     </button>
                                 </div>
                             </div>

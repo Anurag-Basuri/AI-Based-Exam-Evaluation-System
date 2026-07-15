@@ -1,4 +1,5 @@
 import React from 'react';
+import { Smartphone, FileText, Lock, AlertTriangle, ArrowLeft, Play, X, ShieldAlert, Send } from 'lucide-react';
 
 // ── Violation severity messaging ──────────────────────────────────
 const getViolationMessage = (type) => {
@@ -17,9 +18,9 @@ const getViolationMessage = (type) => {
 };
 
 const getSeverityLevel = (violationCount) => {
-	if (violationCount <= 2) return { level: 'warning', color: '#f59e0b', label: 'Warning' };
-	if (violationCount <= 4) return { level: 'serious', color: '#ef4444', label: 'Serious Warning' };
-	return { level: 'critical', color: '#991b1b', label: 'Final Warning' };
+	if (violationCount <= 2) return { level: 'warning', bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-500', bar: 'bg-amber-500', icon: 'text-amber-500', label: 'Warning' };
+	if (violationCount <= 4) return { level: 'serious', bg: 'bg-rose-100', text: 'text-rose-700', border: 'border-rose-500', bar: 'bg-rose-500', icon: 'text-rose-500', label: 'Serious Warning' };
+	return { level: 'critical', bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-600', bar: 'bg-red-600', icon: 'text-red-600', label: 'Final Warning' };
 };
 
 // ═══════════════════════════════════════════════════════════════════
@@ -28,22 +29,31 @@ const getSeverityLevel = (violationCount) => {
 export const StartScreen = ({ submission, onStart, showWarning, onDismissWarning }) => {
 	if (showWarning) {
 		return (
-			<div className="warningOverlay" role="dialog" aria-modal="true">
-				<div className="warningModal">
-					<div style={{ fontSize: 48, marginBottom: 16 }}>📱</div>
-					<h2 style={{ margin: '0 0 12px 0', color: '#1e293b' }}>
+			<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 dash-enter" role="dialog" aria-modal="true">
+				<div className="glass-card bg-[var(--surface)] max-w-md w-full rounded-3xl p-8 sm:p-10 text-center shadow-2xl border border-[var(--border)]">
+					<div className="w-20 h-20 bg-indigo-50 dark:bg-indigo-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
+						<Smartphone className="w-10 h-10 text-indigo-500" />
+					</div>
+					<h2 className="text-2xl font-black text-[var(--text)] mb-3">
 						Small Screen Detected
 					</h2>
-					<p style={{ color: '#64748b', lineHeight: 1.6, marginBottom: 24 }}>
+					<p className="text-[var(--text-muted)] font-medium leading-relaxed mb-8">
 						We strongly recommend using a <strong>laptop or desktop computer</strong>{' '}
 						for the best exam experience. Small screens may make it difficult to view
 						questions and type answers comfortably.
 					</p>
-					<div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
-						<button onClick={() => window.history.back()} className="nav-btn">
+					<div className="flex flex-col sm:flex-row gap-3 justify-center">
+						<button 
+							onClick={() => window.history.back()} 
+							className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold border border-[var(--border)] text-[var(--text)] hover:bg-[var(--bg-secondary)] transition-colors w-full sm:w-auto"
+						>
+							<ArrowLeft className="w-4 h-4" />
 							Go Back
 						</button>
-						<button onClick={onDismissWarning} className="nav-btn primary">
+						<button 
+							onClick={onDismissWarning} 
+							className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-md active:scale-95 transition-all w-full sm:w-auto"
+						>
 							Continue Anyway
 						</button>
 					</div>
@@ -53,28 +63,30 @@ export const StartScreen = ({ submission, onStart, showWarning, onDismissWarning
 	}
 
 	return (
-		<div className="start-screen" role="region" aria-label="Start exam">
-			<div className="start-card">
-				<div style={{ marginBottom: 24 }}>
-					<div style={{ fontSize: 48, marginBottom: 16 }}>📝</div>
-					<h1 style={{ margin: 0, fontSize: '2rem' }}>{submission.examTitle}</h1>
-					<p style={{ color: 'var(--text-muted)', marginTop: 8 }}>
+		<div className="min-h-screen bg-[var(--bg-secondary)] flex items-center justify-center p-4 sm:p-6 lg:p-8 dash-enter" role="region" aria-label="Start exam">
+			<div className="glass-card bg-[var(--surface)] max-w-2xl w-full rounded-3xl p-8 sm:p-12 shadow-2xl border border-[var(--border)] text-center">
+				<div className="mb-10">
+					<div className="w-20 h-20 bg-indigo-50 dark:bg-indigo-500/10 rounded-2xl flex items-center justify-center mx-auto mb-6 rotate-3">
+						<FileText className="w-10 h-10 text-indigo-500" />
+					</div>
+					<h1 className="text-2xl sm:text-3xl font-black text-[var(--text)] mb-2">{submission.examTitle}</h1>
+					<p className="text-[var(--text-muted)] font-medium text-lg">
 						You are about to begin the exam.
 					</p>
 				</div>
 
-				<div className="info-grid">
-					<div className="info-item">
-						<label>Duration</label>
-						<strong>{submission.duration} mins</strong>
+				<div className="grid grid-cols-3 gap-4 sm:gap-6 py-8 border-y border-[var(--border)] mb-10">
+					<div className="flex flex-col items-center">
+						<span className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-2">Duration</span>
+						<strong className="text-xl sm:text-2xl font-black text-[var(--text)]">{submission.duration} <span className="text-sm font-medium">mins</span></strong>
 					</div>
-					<div className="info-item">
-						<label>Questions</label>
-						<strong>{submission.questions?.length || 0}</strong>
+					<div className="flex flex-col items-center border-x border-[var(--border)]">
+						<span className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-2">Questions</span>
+						<strong className="text-xl sm:text-2xl font-black text-[var(--text)]">{submission.questions?.length || 0}</strong>
 					</div>
-					<div className="info-item">
-						<label>Total Marks</label>
-						<strong>
+					<div className="flex flex-col items-center">
+						<span className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-2">Total Marks</span>
+						<strong className="text-xl sm:text-2xl font-black text-[var(--text)]">
 							{(submission.questions || []).reduce(
 								(sum, q) => sum + (q.max_marks || 0),
 								0,
@@ -83,24 +95,28 @@ export const StartScreen = ({ submission, onStart, showWarning, onDismissWarning
 					</div>
 				</div>
 
-				<div className="warning-box" role="note" aria-label="Exam rules">
-					<h3>🔒 Exam Security Rules:</h3>
-					<ul>
+				<div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-2xl p-6 text-left mb-10 shadow-sm" role="note" aria-label="Exam rules">
+					<h3 className="flex items-center gap-2 text-amber-700 dark:text-amber-400 font-black mb-4">
+						<Lock className="w-5 h-5" />
+						Exam Security Rules
+					</h3>
+					<ul className="space-y-3 text-amber-900 dark:text-amber-200 font-medium text-sm sm:text-base list-disc list-inside">
 						<li>The exam <strong>must</strong> be taken in fullscreen mode.</li>
 						<li>Switching tabs, minimizing, or navigating away will be logged as violations.</li>
 						<li><strong>Copy, paste, and screenshot</strong> are blocked during the exam.</li>
 						<li>Developer tools (F12) are disabled.</li>
-						<li>After <strong>5 violations</strong>, your exam will be auto-submitted.</li>
+						<li>After <strong className="text-rose-600 dark:text-rose-400">5 violations</strong>, your exam will be auto-submitted.</li>
 						<li>Your answers are auto-saved every 30 seconds.</li>
 					</ul>
 				</div>
 
 				<button
 					onClick={onStart}
-					className="nav-btn primary btn-large"
+					className="w-full flex items-center justify-center gap-3 bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-2xl font-black text-lg shadow-xl shadow-indigo-600/20 active:scale-[0.98] transition-all"
 					aria-label="Start exam"
 				>
-					🚀 Start Exam
+					<Play className="w-6 h-6 fill-current" />
+					Start Exam
 				</button>
 			</div>
 		</div>
@@ -115,87 +131,53 @@ export const ViolationOverlay = ({ type, violationCount = 0, maxViolations = 5, 
 	const severity = getSeverityLevel(violationCount);
 
 	return (
-		<div className="overlay-backdrop" role="alertdialog" aria-modal="true">
-			<div className="overlay-card">
-				<span className="overlay-icon">
-					{severity.level === 'critical' ? '🚨' : '⚠️'}
-				</span>
+		<div className="fixed inset-0 bg-black/70 backdrop-blur-md z-[100] flex items-center justify-center p-4 dash-enter" role="alertdialog" aria-modal="true">
+			<div className="glass-card bg-[var(--surface)] max-w-md w-full rounded-3xl p-8 sm:p-10 text-center shadow-2xl border border-[var(--border)] animate-in zoom-in-95 duration-300">
+				
+				<div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 ${severity.bg} ${severity.text} animate-pulse`}>
+					<ShieldAlert className="w-10 h-10" />
+				</div>
 
 				{/* Severity badge */}
-				<div style={{
-					display: 'inline-block',
-					padding: '4px 14px',
-					borderRadius: 999,
-					fontSize: 12,
-					fontWeight: 800,
-					color: '#fff',
-					background: severity.color,
-					marginBottom: 12,
-					textTransform: 'uppercase',
-					letterSpacing: '0.05em',
-				}}>
+				<div className={`inline-block px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider mb-4 ${severity.bg} ${severity.text} border ${severity.border}`}>
 					{severity.label}
 				</div>
 
-				<h2 className="overlay-title" style={{ color: severity.color }}>
+				<h2 className={`text-2xl font-black mb-3 ${severity.text}`}>
 					Violation Detected
 				</h2>
 
-				<p className="overlay-text">
+				<p className="text-[var(--text-muted)] font-medium leading-relaxed mb-8">
 					{getViolationMessage(type)}
 				</p>
 
 				{/* Violation progress bar */}
-				<div style={{
-					background: 'var(--bg-secondary)',
-					borderRadius: 12,
-					padding: 16,
-					marginBottom: 20,
-				}}>
-					<div style={{
-						display: 'flex',
-						justifyContent: 'space-between',
-						alignItems: 'center',
-						marginBottom: 8,
-						fontSize: 13,
-						fontWeight: 700,
-					}}>
-						<span>Violations: {violationCount} / {maxViolations}</span>
-						<span style={{ color: remaining <= 1 ? '#ef4444' : 'var(--text-muted)' }}>
+				<div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-2xl p-5 mb-6">
+					<div className="flex justify-between items-center mb-3 text-sm font-bold">
+						<span className="text-[var(--text)]">Violations: {violationCount} / {maxViolations}</span>
+						<span className={remaining <= 1 ? 'text-rose-600 dark:text-rose-400' : 'text-[var(--text-muted)]'}>
 							{remaining} warning{remaining !== 1 ? 's' : ''} remaining
 						</span>
 					</div>
-					<div style={{
-						height: 6,
-						borderRadius: 3,
-						background: 'var(--border)',
-						overflow: 'hidden',
-					}}>
-						<div style={{
-							height: '100%',
-							borderRadius: 3,
-							width: `${Math.min(100, (violationCount / maxViolations) * 100)}%`,
-							background: severity.color,
-							transition: 'width 0.3s ease, background 0.3s ease',
-						}} />
+					<div className="h-2.5 rounded-full bg-[var(--border)] overflow-hidden">
+						<div 
+							className={`h-full rounded-full transition-all duration-500 ${severity.bar}`}
+							style={{ width: `${Math.min(100, (violationCount / maxViolations) * 100)}%` }} 
+						/>
 					</div>
 				</div>
 
 				{remaining <= 1 && (
-					<p style={{
-						color: '#ef4444',
-						fontWeight: 700,
-						fontSize: 13,
-						marginBottom: 16,
-						padding: '8px 12px',
-						background: '#fee2e2',
-						borderRadius: 8,
-					}}>
-						⚠️ Next violation will auto-submit your exam!
-					</p>
+					<div className="bg-rose-100 dark:bg-rose-500/20 border border-rose-200 dark:border-rose-500/30 text-rose-700 dark:text-rose-400 font-bold text-sm px-4 py-3 rounded-xl mb-6 flex items-center gap-2 justify-center">
+						<AlertTriangle className="w-4 h-4" />
+						Next violation will auto-submit your exam!
+					</div>
 				)}
 
-				<button onClick={onAcknowledge} className="nav-btn primary">
+				<button 
+					onClick={onAcknowledge} 
+					className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 rounded-xl font-bold shadow-md active:scale-[0.98] transition-all"
+				>
 					I Understand, Return to Exam
 				</button>
 			</div>
@@ -207,64 +189,54 @@ export const ViolationOverlay = ({ type, violationCount = 0, maxViolations = 5, 
 // SUBMIT CONFIRMATION
 // ═══════════════════════════════════════════════════════════════════
 export const SubmitConfirmation = ({ stats, onConfirm, onCancel }) => (
-	<div className="overlay-backdrop" role="dialog" aria-modal="true">
-		<div className="overlay-card">
-			<h2 className="overlay-title">Submit Exam?</h2>
+	<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 dash-enter" role="dialog" aria-modal="true">
+		<div className="glass-card bg-[var(--surface)] max-w-md w-full rounded-3xl p-8 sm:p-10 shadow-2xl border border-[var(--border)] animate-in zoom-in-95 duration-200 text-center">
+			
+			<div className="w-20 h-20 bg-rose-50 dark:bg-rose-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
+				<Send className="w-10 h-10 text-rose-500" />
+			</div>
+			
+			<h2 className="text-2xl font-black text-[var(--text)] mb-8">Submit Exam?</h2>
 
-			<div
-				style={{
-					display: 'flex',
-					justifyContent: 'space-around',
-					background: 'var(--bg-secondary)',
-					padding: 16,
-					borderRadius: 12,
-					marginBottom: 24,
-				}}
-			>
-				<div style={{ textAlign: 'center' }}>
-					<strong style={{ display: 'block', fontSize: '1.25rem' }}>
+			<div className="grid grid-cols-3 gap-2 bg-[var(--bg-secondary)] border border-[var(--border)] p-4 rounded-2xl mb-8">
+				<div className="flex flex-col items-center">
+					<strong className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
 						{stats.answered}
 					</strong>
-					<span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+					<span className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mt-1">
 						Answered
 					</span>
 				</div>
-				<div style={{ textAlign: 'center' }}>
-					<strong
-						style={{ display: 'block', fontSize: '1.25rem', color: 'var(--warning)' }}
-					>
+				<div className="flex flex-col items-center border-x border-[var(--border)]">
+					<strong className="text-2xl font-black text-amber-500">
 						{stats.review}
 					</strong>
-					<span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Marked</span>
+					<span className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mt-1">Marked</span>
 				</div>
-				<div style={{ textAlign: 'center' }}>
-					<strong
-						style={{
-							display: 'block',
-							fontSize: '1.25rem',
-							color: 'var(--text-muted)',
-						}}
-					>
+				<div className="flex flex-col items-center">
+					<strong className="text-2xl font-black text-[var(--text-muted)]">
 						{stats.unanswered}
 					</strong>
-					<span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+					<span className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mt-1">
 						Unanswered
 					</span>
 				</div>
 			</div>
 
-			<p className="overlay-text">
+			<p className="text-[var(--text-muted)] font-medium mb-8">
 				Are you sure you want to submit? You cannot change your answers after submission.
 			</p>
 
-			<div className="overlay-actions">
-				<button onClick={onCancel} className="nav-btn">
+			<div className="flex flex-col sm:flex-row gap-3">
+				<button 
+					onClick={onCancel} 
+					className="flex-1 flex items-center justify-center px-4 py-3 rounded-xl font-bold border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] hover:bg-[var(--bg-secondary)] transition-all"
+				>
 					Cancel
 				</button>
 				<button
 					onClick={onConfirm}
-					className="nav-btn primary"
-					style={{ background: 'var(--error)' }}
+					className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold bg-rose-600 hover:bg-rose-500 text-white shadow-md active:scale-95 transition-all"
 				>
 					Yes, Submit Exam
 				</button>
