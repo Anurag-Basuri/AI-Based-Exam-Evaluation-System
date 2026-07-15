@@ -176,7 +176,7 @@ export const useExamLogic = submissionId => {
 
 				if (submissionId) {
 					apiClient
-						.post(`/api/submissions/${submissionId}/violation`, { type })
+						.post(`/api/v1/submissions/${submissionId}/violation`, { type })
 						.catch(() => {});
 				}
 
