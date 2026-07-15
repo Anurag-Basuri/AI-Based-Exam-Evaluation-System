@@ -116,7 +116,7 @@ export async function loginWithCredentials(Model, { username, email, password })
 // Google OAuth login (single-model, role-aware)
 export async function loginWithGoogle(Model, idToken, roleName) {
 	if (!idToken) throw ApiError.BadRequest('Google ID token is required');
-	if (!roleName || !['student', 'teacher'].includes(roleName)) {
+	if (roleName && !['student', 'teacher', 'auto'].includes(roleName)) {
 		throw ApiError.BadRequest('Role must be either student or teacher');
 	}
 
@@ -126,8 +126,8 @@ export async function loginWithGoogle(Model, idToken, roleName) {
 	let user = await Model.findOne({ email: email.toLowerCase().trim() });
 
 	if (user) {
-		// Existing user — check role matches
-		if (user.role !== roleName) {
+		// Existing user — check role matches if a specific role was requested
+		if (roleName && roleName !== 'auto' && user.role !== roleName) {
 			const existingRole = user.role.charAt(0).toUpperCase() + user.role.slice(1);
 			throw ApiError.Conflict(
 				`This email is already registered as a ${existingRole} account. Please log in as a ${existingRole} instead.`,
@@ -149,7 +149,7 @@ export async function loginWithGoogle(Model, idToken, roleName) {
 			googleId,
 			profilePicture: picture || '',
 			isEmailVerified: true,
-			role: roleName,
+			role: (roleName === 'auto' || !roleName) ? 'student' : roleName,
 		});
 	}
 

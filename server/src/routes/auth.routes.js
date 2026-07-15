@@ -37,7 +37,7 @@ router.post(
 	'/google-login',
 	authLimiter,
 	body('idToken').notEmpty().withMessage('Google ID token is required'),
-	body('role').isIn(['student', 'teacher']).withMessage('Role must be student or teacher'),
+	body('role').isIn(['student', 'teacher', 'auto']).withMessage('Role must be student, teacher, or auto'),
 	validate,
 	authController.googleLogin,
 );

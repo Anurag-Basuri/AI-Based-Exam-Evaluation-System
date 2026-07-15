@@ -88,8 +88,8 @@ export default function Login() {
 		setLoading(true);
 		setGlobalError('');
 		try {
-			// Provide student as default, backend handles if user already exists
-			const res = await googleLogin(credentialResponse.credential, 'student');
+			// Pass 'auto' so the backend allows existing users to log in regardless of their actual role
+			const res = await googleLogin(credentialResponse.credential, 'auto');
 			const actualRole = res?.data?.user?.role || 'student';
 			
 			try {
