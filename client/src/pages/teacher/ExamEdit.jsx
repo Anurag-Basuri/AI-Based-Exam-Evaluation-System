@@ -213,7 +213,7 @@ const ExamEdit = () => {
 					expectedLength: Number(aiPolicy.expectedLength),
 				},
 			});
-			await safeApiCall(setExamQuestions, id, { questionIds: Array.from(selectedIds) });
+			await safeApiCall(setExamQuestions, id, Array.from(selectedIds));
 			success('Exam updated successfully');
 			setTimeout(() => navigate('/teacher/exams'), 500);
 		} catch (e) {
