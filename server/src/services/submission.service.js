@@ -213,6 +213,15 @@ export const getStudentSubmission = async (examId, studentId) => {
 export const getExamSubmissionsList = async examId => {
 	const exam = await Exam.findById(examId).populate('questions', 'max_marks');
 	const maxScore = (exam?.questions || []).reduce((sum, q) => sum + (q.max_marks || 0), 0);
+	
+	// Auto-finalize abandoned exams
+	const inProgressSubmissions = await Submission.find({ exam: examId, status: 'in-progress' });
+	for (const sub of inProgressSubmissions) {
+		if (isExpired(sub, exam)) {
+			await finalize(sub, exam);
+		}
+	}
+
 	const submissions = await Submission.find({ exam: examId })
 		.sort({ submittedAt: -1 })
 		.populate('student', 'username fullname email')
