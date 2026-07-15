@@ -612,6 +612,11 @@ export const rejectClassroomStudent = async (classroomId, studentId) => {
 	return res?.data;
 };
 
+export const getMaterialDownloadUrl = async (classroomId, materialId) => {
+	const res = await apiClient.get(`/api/v1/classrooms/${classroomId}/materials/${materialId}/download`);
+	return res?.data?.data?.downloadUrl || res?.data?.data?.url || null;
+};
+
 // Export
 export const exportTeacherProfileCsv = () =>
 	apiClient.get('/api/v1/teachers/export/profile', { responseType: 'blob' });
