@@ -26,9 +26,11 @@ async function getTransporter() {
 		if (process.env.SMTP_SERVICE) {
 			transportConfig.service = process.env.SMTP_SERVICE;
 		} else {
+			const port = Number(process.env.SMTP_PORT || 465);
 			transportConfig.host = process.env.SMTP_HOST;
-			transportConfig.port = Number(process.env.SMTP_PORT || 465);
-			transportConfig.secure = process.env.SMTP_SECURE !== 'false'; // true for 465
+			transportConfig.port = port;
+			const defaultSecure = port === 465;
+			transportConfig.secure = process.env.SMTP_SECURE !== undefined ? process.env.SMTP_SECURE === 'true' : defaultSecure;
 			transportConfig.pool = true; // reuse connections
 			transportConfig.maxConnections = 5;
 			transportConfig.maxMessages = 100;
