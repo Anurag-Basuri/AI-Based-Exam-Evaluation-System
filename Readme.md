@@ -98,6 +98,41 @@ Instead of a simple "one-shot" prompt, exam generation uses a stateful agent bui
 2. **Generate:** The agent drafts a structured JSON exam.
 3. **Refine:** The teacher sees the draft in a chat interface. They can send refinement commands (e.g., *"Make question 3 harder"*). The LangGraph state machine routes simple commands to a zero-token RegEx parser, and complex commands back to the LLM for updates.
 
+```mermaid
+flowchart TD
+    T[Teacher opens AI Generator] --> C[Configure: title, questions, difficulty, materials]
+    C --> S[POST /sessions — Create Agent Session]
+    S --> G[SSE /sessions/:id/generate/stream]
+
+    subgraph GENERATE["GENERATE Graph (LangGraph)"]
+        G1[Retrieve Node] -->|"Search ChromaDB<br/>for relevant chunks"| G2[Generate Node]
+        G2 -->|"LLM creates questions<br/>from context"| G3[Format Node]
+        G3 -->|"Validate schema"| G4{Valid?}
+        G4 -->|No, retry ≤ 3x| G2
+        G4 -->|Yes| G5[Return Draft]
+    end
+
+    G --> G1
+    G5 --> D[Draft appears in Chat UI]
+
+    D --> R[Teacher sends refinement message]
+    R --> M[POST /sessions/:id/message]
+
+    subgraph REFINE["REFINE Graph (LangGraph)"]
+        R1[Parse Intent Node] -->|"RegEx match?"| R2{Simple Command?}
+        R2 -->|"Yes (e.g. change marks)"| R3[Direct State Update<br/>Zero LLM tokens]
+        R2 -->|"No (complex request)"| R4[Apply Changes Node<br/>LLM call]
+        R3 --> R5[Format Node]
+        R4 --> R5
+    end
+
+    M --> R1
+    R5 --> D
+
+    D --> SAVE[POST /sessions/:id/save]
+    SAVE --> EXAM[Creates real Exam in MongoDB]
+```
+
 ### 2. Provider Fallback Chain
 To ensure 99.9% uptime for AI evaluations, the agent service utilizes an automated fallback chain via LangChain. If the primary provider hits a rate limit or goes down, it instantly fails over:
 *   **Primary:** `Groq` (llama-3.3-70b) — Lightning fast.
@@ -109,6 +144,35 @@ To ensure 99.9% uptime for AI evaluations, the agent service utilizes an automat
 When grading subjective answers, the system uses *Strict Retrieval-Augmented Generation*. 
 *   **No Hallucinations:** The LLM is restricted via prompt engineering to **only** use the chunks of text retrieved from the teacher's reference materials. 
 *   If the answer isn't supported by the retrieved text, the AI correctly deducts marks, ensuring fair and explainable grading.
+
+```mermaid
+flowchart TD
+    SUB[Student Submits Exam] --> Q[BullMQ Job Queued]
+    Q --> MCQ{Has MCQ Questions?}
+    MCQ -->|Yes| SCORE[Score MCQs Natively<br/>Compare selected options]
+
+    Q --> SUBJ{Has Subjective Questions?}
+    SUBJ -->|Yes| RAG[Strict-RAG Search]
+
+    RAG --> FILTER{Exam Type?}
+    FILTER -->|Manual Exam| F1["Filter ChromaDB by<br/>teacher's material_ids"]
+    FILTER -->|AI-Generated Exam| F2["Filter ChromaDB by<br/>exact chunks used during generation"]
+
+    F1 --> CONTEXT[Inject retrieved context into prompt]
+    F2 --> CONTEXT
+
+    CONTEXT --> LLM["LLM Evaluates<br/>(Groq → Cerebras → OpenRouter → HF)"]
+    LLM --> PARSE{Valid JSON?}
+    PARSE -->|Yes| EXTRACT["Extract score + review"]
+    PARSE -->|No| FALLBACK[Heuristic Fallback]
+
+    EXTRACT --> AGG[Aggregate Final Grade]
+    FALLBACK --> AGG
+    SCORE --> AGG
+
+    AGG --> SAVE["Save to MongoDB<br/>Status: evaluated"]
+    SAVE --> NOTIFY["Socket.IO: submission-updated"]
+```
 
 ---
 
