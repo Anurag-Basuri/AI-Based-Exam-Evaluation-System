@@ -1,8 +1,4 @@
 <p align="center">
-  <img src=".github/banner.png" alt="AI-Based Exam Evaluation System Banner" width="100%" />
-</p>
-
-<p align="center">
   <a href="https://opensource.org/licenses/ISC"><img src="https://img.shields.io/badge/License-ISC-blue.svg" alt="License: ISC" /></a>
   <a href="https://reactjs.org/"><img src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white" alt="React 19" /></a>
   <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-18+-339933?logo=nodedotjs&logoColor=white" alt="Node.js 18+" /></a>
