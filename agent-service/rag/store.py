@@ -1,6 +1,7 @@
 """
 ChromaDB Vector Store Manager.
 Maintains one collection per classroom.
+Uses HuggingFace Inference API for embeddings (no local PyTorch needed).
 """
 
 import os
@@ -9,7 +10,7 @@ import chromadb
 from chromadb.config import Settings
 import chromadb.utils.embedding_functions as embedding_functions
 
-from config import CHROMA_PERSIST_DIR, EMBEDDING_MODEL
+from config import CHROMA_PERSIST_DIR, EMBEDDING_MODEL, HF_API_KEY
 
 logger = logging.getLogger(__name__)
 
@@ -23,8 +24,12 @@ class VectorStoreManager:
             settings=Settings(anonymized_telemetry=False)
         )
         
-        self.embedding_fn = embedding_functions.SentenceTransformerEmbeddingFunction(
-            model_name=EMBEDDING_MODEL
+        # Use HF Inference API instead of local SentenceTransformers
+        # This runs the embedding model on HuggingFace's servers (free),
+        # keeping our server's RAM usage minimal.
+        self.embedding_fn = embedding_functions.HuggingFaceEmbeddingFunction(
+            api_key=HF_API_KEY,
+            model_name=f"sentence-transformers/{EMBEDDING_MODEL}"
         )
 
     def get_or_create_collection(self, classroom_id: str):
