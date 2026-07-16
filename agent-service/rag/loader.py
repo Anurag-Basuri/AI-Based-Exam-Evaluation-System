@@ -1,13 +1,15 @@
 """
 Document loaders for RAG pipeline.
-Downloads files from Cloudinary URLs and extracts text.
+Downloads files from URLs and extracts text using pypdf and python-docx directly.
+No langchain-community dependency needed.
 """
 
 import os
 import tempfile
 import logging
 import httpx
-from langchain_community.document_loaders import PyPDFLoader, Docx2txtLoader, TextLoader
+from pypdf import PdfReader
+from docx import Document as DocxDocument
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +30,23 @@ async def download_file(url: str, suffix: str) -> str:
             os.remove(temp_path)
         raise e
 
+def _extract_pdf(path: str) -> str:
+    """Extract text from a PDF file using pypdf."""
+    reader = PdfReader(path)
+    pages = [page.extract_text() or "" for page in reader.pages]
+    return "\n\n".join(pages)
+
+def _extract_docx(path: str) -> str:
+    """Extract text from a DOCX file using python-docx."""
+    doc = DocxDocument(path)
+    paragraphs = [p.text for p in doc.paragraphs if p.text.strip()]
+    return "\n\n".join(paragraphs)
+
+def _extract_text(path: str) -> str:
+    """Read a plain text file."""
+    with open(path, "r", encoding="utf-8", errors="ignore") as f:
+        return f.read()
+
 async def extract_text_from_url(url: str, filename: str) -> str:
     """
     Download a file and extract its text content.
@@ -35,24 +54,21 @@ async def extract_text_from_url(url: str, filename: str) -> str:
     """
     ext = os.path.splitext(filename)[1].lower()
     
-    if ext not in [".pdf", ".docx", ".txt", ".csv"]:
+    extractors = {
+        ".pdf": _extract_pdf,
+        ".docx": _extract_docx,
+        ".txt": _extract_text,
+        ".csv": _extract_text,
+    }
+    
+    if ext not in extractors:
         logger.warning(f"Unsupported file extension: {ext} for file {filename}")
         return ""
         
     temp_path = await download_file(url, ext)
     
     try:
-        if ext == ".pdf":
-            loader = PyPDFLoader(temp_path)
-        elif ext == ".docx":
-            loader = Docx2txtLoader(temp_path)
-        else: # .txt, .csv
-            loader = TextLoader(temp_path, encoding="utf-8")
-            
-        docs = loader.load()
-        full_text = "\n\n".join(doc.page_content for doc in docs)
-        return full_text
-        
+        return extractors[ext](temp_path)
     except Exception as e:
         logger.error(f"Error extracting text from {filename}: {e}")
         return ""
