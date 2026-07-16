@@ -28,6 +28,7 @@
 
 - [Core Features](#-core-features)
 - [How It Works](#-how-it-works)
+- [System Design Principles](#-system-design-principles)
 - [AI Architecture Deep Dive](#-ai-architecture-deep-dive)
 - [Tech Stack](#-tech-stack)
 - [Project Layout](#-project-layout)
@@ -85,6 +86,18 @@ stateDiagram-v2
     Live --> Completed: Time Expires / Submitted
     Completed --> Evaluated: AI Grading Finished
 ```
+
+---
+
+## ⚙️ System Design Principles
+
+This platform was built adhering to modern system design principles to handle concurrent students taking exams and heavy AI workloads simultaneously.
+
+*   **Microservice Architecture & API Gateway:** The Node.js (Express) backend acts as the primary API Gateway and security layer. Instead of blocking the Node event loop with heavy ML operations, it proxies AI requests to a completely detached Python (FastAPI) microservice.
+*   **Asynchronous Event-Driven Processing:** When a student submits an exam, the AI evaluation is not processed synchronously. Instead, it is pushed to a **BullMQ** job queue backed by Redis. This allows the backend to immediately respond with a `200 OK` and evaluate thousands of submissions asynchronously in the background.
+*   **Distributed Rate Limiting:** We utilize the Token Bucket algorithm via **Upstash Redis** to protect endpoints. We employ multiple granular limiters: a global rate limit to prevent DDoS, a strict limiter for AI evaluation triggers (preventing expensive API abuse), and specialized limiters for auth/email routes.
+*   **Real-time Pub/Sub:** **Socket.IO** provides a real-time publish-subscribe mechanism. When a background BullMQ worker finishes grading an exam, it triggers a socket event that immediately updates the student's dashboard without a page refresh.
+*   **Stateless Scalability:** Session management uses rotating JWTs (short-lived access tokens and long-lived refresh tokens) stored in secure, `HttpOnly` cookies, ensuring stateless authentication that can scale across multiple Node.js instances.
 
 ---
 
