@@ -28,9 +28,7 @@
 
 - [Core Features](#-core-features)
 - [How It Works](#-how-it-works)
-  - [Authentication](#authentication)
-  - [The Exam Journey](#the-exam-journey)
-  - [AI Agent Integration](#ai-agent-integration)
+- [AI Architecture Deep Dive](#-ai-architecture-deep-dive)
 - [Tech Stack](#-tech-stack)
 - [Project Layout](#-project-layout)
 - [API Guide](#-api-guide)
@@ -62,10 +60,7 @@
 
 ## 🔄 How It Works
 
-Here is a simplified look at the workflows that power the platform.
-
-### Authentication
-
+### Authentication Flow
 Users can sign up using a traditional email and password, or use their Google account. The backend secures the session using rotating JSON Web Tokens (JWT).
 
 ```mermaid
@@ -80,7 +75,6 @@ flowchart LR
 ```
 
 ### The Exam Journey
-
 Every exam follows a strict lifecycle, managed by the backend to prevent unauthorized access.
 
 ```mermaid
@@ -92,19 +86,29 @@ stateDiagram-v2
     Completed --> Evaluated: AI Grading Finished
 ```
 
-### AI Agent Integration
+---
 
-The AI agent sits in a detached Python microservice. It uses **LangGraph** to maintain a conversation state, allowing teachers to give feedback like *"Make the questions slightly harder"* without regenerating the entire exam from scratch.
+## 🧠 AI Architecture Deep Dive
 
-```mermaid
-flowchart LR
-    Teacher[Teacher] -->|Upload Material| RAG[(ChromaDB)]
-    Teacher -->|Chat Prompt| Agent[AI Agent]
-    RAG -->|Context| Agent
-    Agent -->|Provides Draft| Chat[Chat Interface]
-    Chat -->|Refine Draft| Agent
-    Chat -->|Approve & Save| DB[(Main Database)]
-```
+The AI features are powered by a dedicated Python/FastAPI microservice, ensuring heavy machine learning tasks don't block the main Node.js backend.
+
+### 1. LangGraph Agent Workflow
+Instead of a simple "one-shot" prompt, exam generation uses a stateful agent built with **LangGraph**:
+1. **Retrieve:** The agent searches the local **ChromaDB** vector database for context extracted from the teacher's uploaded PDFs/DOCX files.
+2. **Generate:** The agent drafts a structured JSON exam.
+3. **Refine:** The teacher sees the draft in a chat interface. They can send refinement commands (e.g., *"Make question 3 harder"*). The LangGraph state machine routes simple commands to a zero-token RegEx parser, and complex commands back to the LLM for updates.
+
+### 2. Provider Fallback Chain
+To ensure 99.9% uptime for AI evaluations, the agent service utilizes an automated fallback chain via LangChain. If the primary provider hits a rate limit or goes down, it instantly fails over:
+*   **Primary:** `Groq` (llama-3.3-70b) — Lightning fast.
+*   **Fallback 1:** `Cerebras` (gpt-oss-120b)
+*   **Fallback 2:** `OpenRouter` (free tier routing)
+*   **Fallback 3:** `HuggingFace` (Qwen2.5-72B)
+
+### 3. Strict-RAG Evaluation
+When grading subjective answers, the system uses *Strict Retrieval-Augmented Generation*. 
+*   **No Hallucinations:** The LLM is restricted via prompt engineering to **only** use the chunks of text retrieved from the teacher's reference materials. 
+*   If the answer isn't supported by the retrieved text, the AI correctly deducts marks, ensuring fair and explainable grading.
 
 ---
 
@@ -144,42 +148,50 @@ AI-Based-Exam-Evaluation-System/
 
 ## 📡 API Guide
 
-The backend exposes a comprehensive RESTful API, prefixed with `/api/v1`. Here is an overview of the primary route groups and what they handle.
+The backend exposes a comprehensive RESTful API under `/api/v1`. Protected routes require a JWT Bearer token in the `Authorization` header.
 
-### 🔑 Authentication (`/api/v1/auth`)
-Handles user identity and session security.
-*   **Registration & Login:** Routes for creating accounts and logging in natively or via Google OAuth.
-*   **Token Management:** Secure endpoints to refresh expired access tokens or log out entirely.
-*   **Account Recovery:** Standard flows for verifying email addresses and resetting forgotten passwords.
+### 🔑 Authentication (`/auth`)
+| Method | Endpoint | Description | Auth Required |
+|:---|:---|:---|:---:|
+| `POST` | `/register` | Register a new student or teacher account | ❌ |
+| `POST` | `/login` | Authenticate and receive JWT tokens | ❌ |
+| `POST` | `/google-login` | Authenticate via Google OAuth ID token | ❌ |
+| `POST` | `/logout` | Invalidate the current session | ✅ |
+| `POST` | `/refresh-token` | Obtain a new access token | ❌ |
 
-### 🏫 Classrooms (`/api/v1/classrooms`)
-Manages the virtual spaces where teaching happens.
-*   **Creation & Discovery:** Teachers can create classrooms; students can preview and request to join them.
-*   **Roster Management:** Teachers have full control to approve, reject, or remove students.
-*   **Materials:** Endpoints to upload PDFs/DOCX files. Uploaded files trigger an automatic AI processing job so they can be referenced in future exams.
+### 🏫 Classrooms (`/classrooms`)
+| Method | Endpoint | Description | Role |
+|:---|:---|:---|:---:|
+| `POST` | `/` | Create a new classroom | Teacher |
+| `GET` | `/my` | List all classrooms the user belongs to | Any |
+| `POST` | `/join` | Student requests to join via a 6-digit code | Student |
+| `POST` | `/:id/approve/:studentId` | Approve a pending student request | Teacher |
+| `POST` | `/:id/materials` | Upload a PDF/DOCX file (auto-triggers AI embedding) | Teacher |
 
-### 📝 Exams (`/api/v1/exams`)
-The core CRUD operations for tests and quizzes.
-*   **Drafting:** Create exams, add/remove/reorder questions, or completely duplicate a previous exam.
-*   **State Management:** Publish an exam to schedule it, cancel it, or immediately end a live exam if necessary.
-*   **Insights:** Fetch aggregated statistics on how the class performed overall.
+### 📝 Exams (`/exams`)
+| Method | Endpoint | Description | Role |
+|:---|:---|:---|:---:|
+| `POST` | `/create` | Create a new exam draft | Teacher |
+| `GET` | `/all` | Fetch exams based on user context | Any |
+| `POST` | `/:id/publish` | Move an exam from Draft to Scheduled state | Teacher |
+| `PATCH` | `/:id/questions` | Attach specific questions to an exam | Teacher |
+| `POST` | `/:id/end-now` | Forcefully end a live exam immediately | Teacher |
 
-### 🙋 Questions (`/api/v1/questions`)
-A dedicated resource for managing individual questions independently of exams.
-*   Allows teachers to build up a personal question bank.
-*   Supports bulk creation for faster data entry.
+### 📥 Submissions & Grading (`/submissions`)
+| Method | Endpoint | Description | Role |
+|:---|:---|:---|:---:|
+| `POST` | `/start` | Start an exam (begins the strict countdown timer) | Student |
+| `PATCH` | `/:id/answers` | Auto-save current answers during the exam | Student |
+| `POST` | `/submit` | Officially submit the exam | Student |
+| `POST` | `/:id/evaluate-auto` | Trigger the AI strict-RAG grading pipeline | Teacher |
+| `PATCH` | `/:id/override` | Manually override the AI's calculated score | Teacher |
 
-### 📥 Submissions (`/api/v1/submissions`)
-Handles everything from the moment a student starts an exam to when they receive their grade.
-*   **Exam Taking:** Routes to officially start an exam, securely sync (autosave) answers, and submit.
-*   **Integrity:** Endpoints to log any suspicious activity (like tab switching) during a live session.
-*   **Evaluation:** Triggers the AI grading process, allows teachers to review/override the AI's grade, and officially publish the results back to the student.
-
-### 🤖 AI Agent (`/api/v1/agent`)
-Proxies communication to the Python microservice.
-*   **Sessions:** Start a new conversation session with the AI.
-*   **Streaming:** Connect via Server-Sent Events (SSE) to watch the AI draft questions in real-time.
-*   **Refinement:** Send chat messages back to the AI to tweak and finalize the exam draft before saving it to the database.
+### 🤖 AI Agent (`/agent`)
+| Method | Endpoint | Description | Role |
+|:---|:---|:---|:---:|
+| `POST` | `/sessions` | Initialize a new conversational AI session | Teacher |
+| `GET` | `/sessions/:id/generate/stream` | Stream the AI drafting process via SSE | Teacher |
+| `POST` | `/sessions/:id/message` | Send chat feedback to refine the exam draft | Teacher |
 
 ---
 
