@@ -11,11 +11,31 @@ export const createAgentSession = async (req, res) => {
 		const teacherId = req.user.id; // Provided by auth middleware
 
 		// 1. Ask Python service to initialize a session
-		const pythonResponse = await axios.post(`${AGENT_SERVICE_URL}/sessions`, {
-			classroom_id: classroomId,
-			teacher_id: teacherId,
-			config: config,
-		});
+		// Added retry logic to handle Render's free tier cold starts (up to 50 seconds)
+		let pythonResponse;
+		let retries = 6;
+		while (retries > 0) {
+			try {
+				pythonResponse = await axios.post(`${AGENT_SERVICE_URL}/sessions`, {
+					classroom_id: classroomId,
+					teacher_id: teacherId,
+					config: config,
+				}, { timeout: 25000 });
+				break; // Success
+			} catch (err) {
+				const isColdStartError = err.response?.status === 502 || err.response?.status === 504 || err.code === 'ECONNREFUSED' || err.code === 'ETIMEDOUT' || err.code === 'ECONNABORTED';
+				
+				if (isColdStartError) {
+					console.warn(`Agent service cold start detected (${err.message}). Retrying... (${retries - 1} attempts left)`);
+					retries--;
+					if (retries === 0) throw err;
+					// Wait 8 seconds before retrying
+					await new Promise(resolve => setTimeout(resolve, 8000));
+				} else {
+					throw err; // Re-throw other errors
+				}
+			}
+		}
 
 		const sessionId = pythonResponse.data.session_id;
 
