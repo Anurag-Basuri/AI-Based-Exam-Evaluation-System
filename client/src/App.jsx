@@ -1,5 +1,7 @@
 import React from 'react';
 import { useLocation } from 'react-router-dom';
+import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import AppRoutes from './routes/AppRoutes';
 import Header from './components/Header';
 import { useTheme } from './hooks/useTheme.js';
@@ -31,6 +33,8 @@ function App() {
 				<main style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
 					<AppRoutes />
 				</main>
+				<Analytics />
+				<SpeedInsights />
 			</div>
 		</ToastProvider>
 	);

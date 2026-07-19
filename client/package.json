@@ -13,6 +13,8 @@
 		"@hello-pangea/dnd": "^18.0.1",
 		"@react-oauth/google": "^0.13.5",
 		"@tailwindcss/vite": "^4.1.11",
+		"@vercel/analytics": "^2.0.1",
+		"@vercel/speed-insights": "^2.0.0",
 		"axios": "^1.11.0",
 		"framer-motion": "^12.23.9",
 		"jwt-decode": "^4.0.0",
